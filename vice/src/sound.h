@@ -64,7 +64,7 @@
 /* Sound defaults.  */
 #ifdef __LIBRETRO__
 #define SOUND_SAMPLE_RATE 48000
-#define SOUND_SAMPLE_BUFFER_SIZE 20
+#define SOUND_SAMPLE_BUFFER_SIZE 2
 
 #else
 

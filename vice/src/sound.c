@@ -1417,7 +1417,6 @@ bool sound_flush()
             }
 
             /* More to write, try again after a minimal sleep */
-printf("sound sleep\n");
             tick_sleep(tick_per_second() / 1000);
             slept = true;
         }

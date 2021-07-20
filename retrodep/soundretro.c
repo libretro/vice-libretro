@@ -31,9 +31,6 @@ static int retro_write(SWORD *pbuf, size_t nr)
 
 static int retro_flush(char *state)
 {
-#if 0
-    printf("flush\n");
-#endif
     return 0;
 }
 
