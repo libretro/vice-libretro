@@ -281,7 +281,7 @@ int cmdline_parse(int *argc, char **argv)
     return 0;
 }
 
-
+#ifndef __LIBRETRO__
 /** \brief  Dump command line options on stdout
  *
  * \param[in]   num_options number of options
@@ -314,7 +314,7 @@ void cmdline_show_help(void *userparam)
     }
     putchar('\n');
 }
-
+#endif
 
 char *cmdline_options_get_name(int counter)
 {

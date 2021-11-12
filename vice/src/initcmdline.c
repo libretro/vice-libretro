@@ -130,8 +130,8 @@ void initcmdline_shutdown(void)
 
 static int cmdline_help(const char *param, void *extra_param)
 {
-    cmdline_show_help(NULL);
 #ifndef __LIBRETRO__
+    cmdline_show_help(NULL);
     archdep_vice_exit(0);
 #endif
     return 0;   /* OSF1 cc complains */
