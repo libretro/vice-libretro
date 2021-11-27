@@ -4480,10 +4480,12 @@ static void update_variables(void)
          resources_set_int("DatasetteSound", vice_opt.DatasetteSound);
 #endif
 
+#if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__) || defined(__XVIC__) || defined(__XPLUS4__)
       /* Silently restore audio leak when autoloadwarp is disabled */
       if (retro_ui_finalized && vice_opt.AudioLeak &&
           (!opt_autoloadwarp || opt_autoloadwarp & AUTOLOADWARP_MUTE))
          resources_set_int(AUDIOLEAK_RESOURCE, vice_opt.AudioLeak);
+#endif
    }
 
    var.key = "vice_floppy_write_protection";
