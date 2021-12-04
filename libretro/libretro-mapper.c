@@ -109,8 +109,8 @@ int retro_ui_get_pointer_state(int *px, int *py, unsigned int *pbuttons)
 
    *px = input_state_cb(0, RETRO_DEVICE_POINTER, 0, RETRO_DEVICE_ID_POINTER_X);
    *py = input_state_cb(0, RETRO_DEVICE_POINTER, 0, RETRO_DEVICE_ID_POINTER_Y);
-   *px = (int)((*px + 0x7fff) * retrow / 0xffff);
-   *py = (int)((*py + 0x7fff) * retroh / 0xffff);
+   *px = (int)((*px + 0x7fff) * zoomed_width / 0xffff + retroXS_offset);
+   *py = (int)((*py + 0x7fff) * zoomed_height / 0xffff + retroYS_offset);
 
    if (opt_joyport_pointer_color > -1)
    {

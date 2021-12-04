@@ -10,7 +10,8 @@ static bool retro_vkbd_transparent = true;
 signed char retro_vkbd_ready = 0;
 static int vkflag[10] = {0};
 
-#ifdef POINTER_DEBUG
+#define POINTER_DEBUG 0
+#if POINTER_DEBUG
 static int pointer_x = 0;
 static int pointer_y = 0;
 #endif
@@ -570,7 +571,7 @@ void print_vkbd(void)
              GRAPH_BG_NONE, FONT_WIDTH, FONT_HEIGHT, FONT_MAX,
              string);
 
-#ifdef POINTER_DEBUG
+#if POINTER_DEBUG
    draw_hline(pointer_x, pointer_y, 1, 1, RGBc(255, 0, 255));
 #endif
 }
@@ -651,14 +652,12 @@ void input_vkbd(void)
 
    if (p_x != 0 && p_y != 0 && (p_x != last_pointer_x || p_y != last_pointer_y))
    {
-      int px = (int)((p_x + 0x7fff) * retrow / 0xffff);
-      int py = (int)((p_y + 0x7fff) * retroh / 0xffff);
+      int px = (int)((p_x + 0x7fff) * zoomed_width / 0xffff + retroXS_offset);
+      int py = (int)((p_y + 0x7fff) * zoomed_height / 0xffff + retroYS_offset);
+
       last_pointer_x = p_x;
       last_pointer_y = p_y;
-#ifdef POINTER_DEBUG
-      pointer_x = px;
-      pointer_y = py;
-#endif
+
       if (px >= vkbd_x_min && px <= vkbd_x_max && py >= vkbd_y_min && py <= vkbd_y_max)
       {
          float vkey_width = (float)(vkbd_x_max - vkbd_x_min) / VKBDX;
@@ -671,11 +670,12 @@ void input_vkbd(void)
          vkey_pos_x = (vkey_pos_x > VKBDX - 1) ? VKBDX - 1 : vkey_pos_x;
          vkey_pos_y = (vkey_pos_y < 0) ? 0 : vkey_pos_y;
          vkey_pos_y = (vkey_pos_y > VKBDY - 1) ? VKBDY - 1 : vkey_pos_y;
-
-#ifdef POINTER_DEBUG
-         printf("px:%d py:%d (%d,%d) vkey:%dx%d\n", p_x, p_y, px, py, vkey_pos_x, vkey_pos_y);
-#endif
       }
+#if POINTER_DEBUG
+      pointer_x = px;
+      pointer_y = py;
+      printf("px:%d py:%d (%d,%d) vkey:%dx%d\n", p_x, p_y, px, py, vkey_pos_x, vkey_pos_y);
+#endif
    }
 
    /* Press Return, RetroPad Start */
