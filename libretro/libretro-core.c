@@ -1266,10 +1266,13 @@ void update_work_disk()
    unsigned work_disk_unit    = opt_work_disk_unit;
 
    /* Path vars */
-   char work_disk_basename[10]             = "vice_work";
+   char work_disk_basename[10]             = {0};
+   char work_disk_extension[4]             = {0};
    char work_disk_filename[RETRO_PATH_MAX] = {0};
    char work_disk_filepath[RETRO_PATH_MAX] = {0};
-   char work_disk_extension[4]             = {0};
+
+   snprintf(work_disk_basename, sizeof(work_disk_basename), "%s", "vice_work");
+
    switch (work_disk_type)
    {
       default:
@@ -1290,7 +1293,7 @@ void update_work_disk()
    if (strcmp(work_disk_extension, ""))
       snprintf(work_disk_filename, sizeof(work_disk_filename), "%s.%s", work_disk_basename, work_disk_extension);
    else
-      snprintf(work_disk_filename, sizeof(work_disk_filename), work_disk_basename);
+      snprintf(work_disk_filename, sizeof(work_disk_filename), "%s", work_disk_basename);
 
    path_join((char*)&work_disk_filepath, retro_save_directory, work_disk_filename);
 
@@ -7740,7 +7743,7 @@ size_t retro_serialize_size(void)
       /* Some non-EF cartridges allocate a ridiculous amount of memory,
        * and at this moment the only way to play safe is to overestimate, because
        * even a 64k sized cart (Badlands) will have a 592452 sized snapshot !? */
-      if ((full_path && strendswith(full_path, "crt")) ||
+      if ((!string_is_empty(full_path) && strendswith(full_path, "crt")) ||
           (dc && dc->files[dc->index] && strendswith(dc->files[dc->index], "crt")))
          snapshot_size = 592452;
    }
