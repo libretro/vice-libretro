@@ -79,7 +79,7 @@ extern char full_path[RETRO_PATH_MAX];
 static char *argv0 = NULL;
 static char *boot_path = NULL;
 
-#if defined(VITA) || defined(__SWITCH__)
+#if defined(__SWITCH__)
 char* getcwd( char* buf, size_t size )
 {
     if (size > strlen(retro_system_data_directory) && buf)
