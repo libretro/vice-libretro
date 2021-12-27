@@ -28,9 +28,6 @@
 #define ftello rftell
 #endif /* USE_LIBRETRO_VFS */
 
-#undef tmpnam
-#define tmpnam(string) 0
-
 #endif /* __cplusplus */
 
 #endif /* _SYSCONFIG_H */

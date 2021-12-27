@@ -507,6 +507,8 @@ char *archdep_tmpnam(void)
 
     lib_free(tmpName);
     return lib_strdup(tmpName);
+#elif __LIBRETRO__
+    return NULL;
 #else
     return lib_strdup(tmpnam(NULL));
 #endif
@@ -553,7 +555,7 @@ FILE *archdep_mkstemp_fd(char **filename, const char *mode)
     char *tmp;
     FILE *fd;
 
-    tmp = tmpnam(NULL);
+    tmp = archdep_tmpnam();
 
     if (tmp == NULL)
         return NULL;
