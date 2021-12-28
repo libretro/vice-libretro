@@ -2725,7 +2725,11 @@ static void retro_set_core_options()
             { "enabled_medblur", "50% blur" },
             { "enabled_lowblur", "10% blur" },
          },
+#if defined(__X64__) || defined(__XCBM5x0__) || defined(__XCBM2__) || defined(PSP) || defined(VITA) || defined(__SWITCH__) || defined(DINGUX) || defined(ANDROID)
+         "disabled"
+#else
          "enabled"
+#endif
       },
 #if defined(__XVIC__)
       {
