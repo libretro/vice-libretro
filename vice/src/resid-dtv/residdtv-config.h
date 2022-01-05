@@ -25,4 +25,8 @@
 
 #include "siddtvdefs.h"
 
+#ifdef __LIBRETRO__
+using namespace std;
+#endif
+
 #endif

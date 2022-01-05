@@ -316,15 +316,18 @@ else ifeq ($(platform), wiiu)
    STATIC_LINKING = 1
 
 # Lightweight PS3 Homebrew SDK
-else ifeq ($(platform), psl1ght)
+else ifneq (,$(filter $(platform), ps3 psl1ght))
    TARGET := $(TARGET_NAME)_libretro_$(platform).a
-   CC = $(PS3DEV)/ppu/bin/ppu-gcc$(EXE_EXT)
-   CXX = $(PS3DEV)/ppu/bin/ppu-g++$(EXE_EXT)
-   CC_AS = $(PS3DEV)/ppu/bin/ppu-gcc$(EXE_EXT)
-   AR = $(PS3DEV)/ppu/bin/ppu-ar$(EXE_EXT)
+   CC = $(PS3DEV)/ppu/bin/ppu-$(COMMONLV)gcc$(EXE_EXT)
+   CXX = $(PS3DEV)/ppu/bin/ppu-$(COMMONLV)g++$(EXE_EXT)
+   CC_AS = $(PS3DEV)/ppu/bin/ppu-$(COMMONLV)gcc$(EXE_EXT)
+   AR = $(PS3DEV)/ppu/bin/ppu-$(COMMONLV)ar$(EXE_EXT)
    OLD_GCC := 1
-   COMMONFLAGS += -DHAVE_STRTOUL -D__PSL1GHT__ -D__PS3__
-   STATIC_LINKING = 1
+   COMMONFLAGS += -D__POWERPC__ -D__ppc__ -D__PS3__ -DWORDS_BIGENDIAN=1 -D__unix__ -DHAVE_STRTOUL -D_NO_CPP_INLINES
+   ifeq ($(platform), psl1ght)
+       COMMONFLAGS += -D__PSL1GHT__
+   endif
+   STATIC_LINKING = 0
 
 # GCW0
 else ifeq ($(platform), gcw0)
@@ -423,6 +426,9 @@ $(TARGET): $(OBJECTS)
 ifeq ($(platform), emscripten)
 	$(CXX) -r $(SHARED) -o $@ $(OBJECTS) $(LDFLAGS)
 else  ifeq ($(STATIC_LINKING), 1)
+	$(AR) rcs $@ $(OBJECTS)
+#STATIC_LINKING=1 and additional Makefile.common sources are incopatible for PS3 environment
+else ifeq ($(platform), ps3)
 	$(AR) rcs $@ $(OBJECTS)
 else
 	$(CXX) -o $@ $(OBJECTS) $(LDFLAGS)

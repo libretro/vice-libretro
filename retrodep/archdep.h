@@ -200,6 +200,22 @@ extern char retro_save_directory[512];
 #define DOCDIR          LIBDIR "./doc"
 #endif
 
+#ifdef __PS3__
+#define F_OK	0
+#define W_OK	0
+#define R_OK	0
+#define X_OK	0
+#define chdir(...) 0
+#define isatty(...) 0
+#define currentpath "/dev_hdd0/game/RETROARCH/USRDIR"
+#define tmppath "/dev_hdd0/game/RETROARCH/USRDIR/savefiles"
+#define getwd(buffer) (strcpy(buffer, currentpath)) ? (buffer) : (NULL)
+#define tmpnam(...) (tmppath)
+#define getenv(...) (NULL)
+#define VICEUSERDIR     "/dev_hdd0/game/RETROARCH/USRDIR/system/vice"
+int access(const char *fpath, int mode);
+#else
 #define VICEUSERDIR     ".vice"
+#endif
 
 #endif /*_ARCHDEP_H */

@@ -52,6 +52,10 @@
 #include <sys/time.h>
 #endif
 
+#if defined(__PS3__)
+#include "PS3_include.h"
+#endif
+
 #if defined(VITA)
 #include <psp2/io/stat.h>
 #endif
@@ -111,6 +115,12 @@ int gettimeofday(struct timeval* x, int unused)
     x->tv_usec = ns / 1000;
 
     return ret;
+}
+
+int access(const char *fpath, int mode)
+{
+    struct stat buffer;   
+    return stat(fpath, &buffer); 
 }
 #endif
 #endif

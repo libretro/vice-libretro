@@ -97,7 +97,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if !defined(__PS3__) || defined(__PSL1GHT__)
 #include <signal.h>
+#endif
 #include <time.h>
 #include <ctype.h>
 

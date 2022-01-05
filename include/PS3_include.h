@@ -38,11 +38,12 @@
 
 #define chdir(...) 0
 #define isatty(...) 0
-#define currentpath "/dev_hdd0/game/SSNE10000/USRDIR"
-#define tmppath "/dev_hdd0/game/SSNE10000/USRDIR/cores/savefiles"
+#define currentpath "/dev_hdd0/game/RETROARCH/USRDIR"
+#define tmppath "/dev_hdd0/game/RETROARCH/USRDIR/cores/savefiles"
 #define getwd(buffer) (strcpy(buffer, currentpath)) ? (buffer) : (NULL)
 #define tmpnam(...) (tmppath)
 #define getenv(...) (NULL)
+#ifdef __cplusplus
 #define exp(xval) ::std::exp(xval)
 #define fabs(xval) ::std::fabs(xval)
 #define sqrt(xval) ::std::sqrt(xval)
@@ -54,4 +55,7 @@
 #undef sin
 #define sin(xval) ::std::sin(xval)
 #define pow(xval, yval) ::std::pow(xval, yval)
+#endif
+int access(const char *fpath, int mode);
+
 #endif

@@ -62,7 +62,9 @@ typedef struct cmdhd_context_s {
     uint8_t preadyff;
 } cmdhd_context_t;
 
+#ifndef __LIBRETRO__
 typedef struct cmdhd_context_s cmdhd_context_t;
+#endif
 
 extern void cmdhd_shutdown(struct cmdhd_context_s *ctxptr);
 extern void cmdhd_setup_context(struct diskunit_context_s *ctxptr);

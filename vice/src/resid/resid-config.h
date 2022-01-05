@@ -24,6 +24,7 @@
 
 #ifdef __LIBRETRO__
 #define NEW_8580_FILTER 1
+using namespace std;
 #endif
 
 #endif

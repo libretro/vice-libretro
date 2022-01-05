@@ -31,6 +31,10 @@
 extern "C" {
 #endif
 
+#ifdef __PS3__
+#undef local
+#endif
+
 #ifndef __cplusplus
 #if defined(_MSC_VER) && _MSC_VER < 1800 && !defined(SN_TARGET_PS3)
 /* Hack applied for MSVC when compiling in C89 mode
