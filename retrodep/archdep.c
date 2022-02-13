@@ -74,7 +74,6 @@
 #include "arch/shared/archdep_default_portable_resource_file_name.c"
 #include "arch/shared/archdep_join_paths.c"
 #include "arch/shared/archdep_kbd_get_host_mapping.h"
-#include "arch/shared/archdep_stat.c"
 #include "arch/shared/archdep_quote_unzip.c"
 
 #include "libretro-core.h"
@@ -84,6 +83,15 @@ extern char retro_temp_directory[RETRO_PATH_MAX];
 
 static char *argv0 = NULL;
 static char *boot_path = NULL;
+
+static int libretro_stat(const char *path, struct stat *statbuf)
+{
+#ifdef USE_LIBRETRO_VFS
+    return stat(utf8_to_local_string_alloc(path), statbuf);
+#else
+    return stat(path, statbuf);
+#endif
+}
 
 #if defined(__SWITCH__)
 char* getcwd( char* buf, size_t size )
@@ -122,7 +130,7 @@ int gettimeofday(struct timeval* x, int unused)
 int access(const char *fpath, int mode)
 {
     struct stat buffer;   
-    return stat(fpath, &buffer); 
+    return libretro_stat(fpath, &buffer);
 }
 #endif
 #endif
@@ -635,7 +643,7 @@ int archdep_file_is_blockdev(const char *name)
 {
     struct stat buf;
 
-    if (stat(name, &buf) != 0)
+    if (libretro_stat(name, &buf) != 0)
         return 0;
 
     if (S_ISBLK(buf.st_mode))
@@ -648,12 +656,26 @@ int archdep_file_is_chardev(const char *name)
 {
     struct stat buf;
 
-    if (stat(name, &buf) != 0)
+    if (libretro_stat(name, &buf) != 0)
         return 0;
 
     if (S_ISCHR(buf.st_mode))
         return 1;
 
+    return 0;
+}
+
+int archdep_stat(const char *path, size_t *len, unsigned int *isdir)
+{
+    struct stat statbuf;
+
+    if (libretro_stat(path, &statbuf) != 0) {
+        *len = -1;
+        *isdir = 0;
+        return -1;
+    }
+    *len = statbuf.st_size;
+    *isdir = S_ISDIR(statbuf.st_mode);
     return 0;
 }
 
