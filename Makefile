@@ -394,7 +394,7 @@ ifneq ($(NO_7ZIP), 1)
    COMMONFLAGS += -DHAVE_7ZIP -D_7ZIP_ST
 endif
 
-COMMONFLAGS += -DHAVE_CONFIG_H -D__LIBRETRO__
+COMMONFLAGS += -DHAVE_CONFIG_H -MMD -D__LIBRETRO__
 
 # VFS
 ifneq ($(NO_LIBRETRO_VFS), 1)
@@ -408,6 +408,7 @@ $(info CFLAGS: $(CFLAGS) $(COMMONFLAGS))
 $(info -------)
 
 OBJECTS     += $(patsubst %.cpp,%.o,$(SOURCES_CXX:.cc=.o)) $(SOURCES_C:.c=.o)
+OBJECT_DEPS  = $(OBJECTS:.o=.d)
 CXXFLAGS    += $(fpic) $(INCFLAGS) $(COMMONFLAGS)
 CFLAGS      += $(fpic) $(INCFLAGS) $(COMMONFLAGS)
 LDFLAGS     += -lm $(fpic)
@@ -447,11 +448,13 @@ endif
 %.o: %.cc
 	$(CXX) $(CXXFLAGS) -c $^ -o $@
 
+-include $(OBJECT_DEPS)
+
 clean:
-	rm -f $(OBJECTS) $(TARGET)
+	rm -f $(OBJECTS) $(OBJECT_DEPS) $(TARGET)
 
 objectclean:
-	rm -f $(OBJECTS)
+	rm -f $(OBJECTS) $(OBJECT_DEPS)
 
 targetclean:
 	rm -f $(TARGET)
