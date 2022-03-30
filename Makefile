@@ -432,7 +432,7 @@ ifeq ($(platform), emscripten)
 	$(CXX) -r $(SHARED) -o $@ $(OBJECTS) $(LDFLAGS)
 else  ifeq ($(STATIC_LINKING), 1)
 	$(AR) rcs $@ $(OBJECTS)
-#STATIC_LINKING=1 and additional Makefile.common sources are incopatible for PS3 environment
+#STATIC_LINKING=1 and additional Makefile.common sources are incompatible for PS3 environment
 else ifeq ($(platform), ps3)
 	$(AR) rcs $@ $(OBJECTS)
 else
@@ -440,13 +440,13 @@ else
 endif
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c $^ -o $@
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $^ -o $@
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 %.o: %.cc
-	$(CXX) $(CXXFLAGS) -c $^ -o $@
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 -include $(OBJECT_DEPS)
 
