@@ -110,7 +110,7 @@ void m3u_scan_recurse(const char *path, zip_m3u_t *list)
 
 void path_join(char* out, const char* basedir, const char* filename)
 {
-	snprintf(out, RETRO_PATH_MAX, "%s%s%s", basedir, FSDEV_DIR_SEP_STR, filename);
+   snprintf(out, RETRO_PATH_MAX, "%s%s%s", basedir, FSDEV_DIR_SEP_STR, filename);
 }
 
 /* Note: This function returns a pointer to a substring_left of the original string.
@@ -120,59 +120,59 @@ void path_join(char* out, const char* basedir, const char* filename)
  * value must NOT be deallocated using free() etc. */
 char* trimwhitespace(char *str)
 {
-  char *end;
+   char *end;
 
-  /* Trim leading space */
-  while(isspace((unsigned char)*str)) str++;
+   /* Trim leading space */
+   while (isspace((unsigned char)*str)) str++;
 
-  if(*str == 0) /* All spaces? */
-    return str;
+   if (*str == 0) /* All spaces? */
+      return str;
 
-  /* Trim trailing space */
-  end = str + strlen(str) - 1;
-  while(end > str && isspace((unsigned char)*end)) end--;
+   /* Trim trailing space */
+   end = str + strlen(str) - 1;
+   while (end > str && isspace((unsigned char)*end)) end--;
 
-  /* Write new null terminator character */
-  end[1] = '\0';
+   /* Write new null terminator character */
+   end[1] = '\0';
 
-  return str;
+   return str;
 }
 
 /* Returns a substring of 'str' that contains the 'len' leftmost characters of 'str'. */
 char* strleft(const char* str, int len)
 {
-	char* result = calloc(len + 1, sizeof(char));
-	strncpy(result, str, len);
-	return result;
+   char* result = calloc(len + 1, sizeof(char));
+   strncpy(result, str, len);
+   return result;
 }
 
 /* Returns a substring of 'str' that contains the 'len' rightmost characters of 'str'. */
 char* strright(const char* str, int len)
 {
-	int pos = strlen(str) - len;
-	char* result = calloc(len + 1, sizeof(char));
-	strncpy(result, str + pos, len);
-	return result;
+   int pos = strlen(str) - len;
+   char* result = calloc(len + 1, sizeof(char));
+   strncpy(result, str + pos, len);
+   return result;
 }
 
 /* Returns true if 'str' starts with 'start' */
 bool strstartswith(const char* str, const char* start)
 {
-	if (strlen(str) >= strlen(start))
-		if(!strncasecmp(str, start, strlen(start)))
-			return true;
-		
-	return false;
+   if (strlen(str) >= strlen(start))
+      if (!strncasecmp(str, start, strlen(start)))
+         return true;
+
+   return false;
 }
 
 /* Returns true if 'str' ends with 'end' */
 bool strendswith(const char* str, const char* end)
 {
-	if (strlen(str) >= strlen(end))
-		if(!strcasecmp((char*)&str[strlen(str)-strlen(end)], end))
-			return true;
-		
-	return false;
+   if (strlen(str) >= strlen(end))
+      if (!strcasecmp((char*)&str[strlen(str)-strlen(end)], end))
+         return true;
+
+   return false;
 }
 
 /* Removes ':PRG' */
@@ -209,143 +209,144 @@ char *first_file_in_dir(char *path)
 /* zlib */
 void zip_uncompress(char *in, char *out, char *lastfile)
 {
-    unzFile uf = NULL;
-    char *in_local = NULL;
-    in_local = utf8_to_local_string_alloc(in);
+   uLong i;
+   unz_global_info gi;
 
-    uf = unzOpen(in_local);
+   unzFile uf           = NULL;
+   char *in_local       = NULL;
+   const char* password = NULL;
+   int size_buf         = 8192;
+   int err;
 
-    free(in_local);
-    in_local = NULL;
+   in_local             = utf8_to_local_string_alloc(in);
+   uf                   = unzOpen(in_local);
 
-    uLong i;
-    unz_global_info gi;
-    int err;
-    err = unzGetGlobalInfo (uf, &gi);
+   free(in_local);
+   in_local = NULL;
 
-    const char* password = NULL;
-    int size_buf = 8192;
+   err = unzGetGlobalInfo (uf, &gi);
 
-    for (i = 0; i < gi.number_entry; i++)
-    {
-        char filename_inzip[256];
-        char filename_withpath[512];
-        filename_inzip[0] = '\0';
-        filename_withpath[0] = '\0';
-        char* filename_withoutpath;
-        char* p;
-        unz_file_info file_info;
-        FILE *fout = NULL;
-        void* buf;
+   for (i = 0; i < gi.number_entry; i++)
+   {
+      char filename_inzip[256];
+      char filename_withpath[512];
+      char* filename_withoutpath;
+      char* p;
+      unz_file_info file_info;
+      FILE *fout = NULL;
+      void* buf;
 
-        buf = (void*)malloc(size_buf);
-        if (buf == NULL)
-        {
-            log_cb(RETRO_LOG_ERROR, "Unzip: Error allocating memory\n");
-            return;
-        }
+      filename_inzip[0]    = '\0';
+      filename_withpath[0] = '\0';
 
-        err = unzGetCurrentFileInfo(uf, &file_info, filename_inzip, sizeof(filename_inzip), NULL, 0, NULL, 0);
-        snprintf(filename_withpath, sizeof(filename_withpath), "%s%s%s", out, FSDEV_DIR_SEP_STR, filename_inzip);
-        if ((dc_get_image_type(filename_inzip) == DC_IMAGE_TYPE_FLOPPY ||
-             dc_get_image_type(filename_inzip) == DC_IMAGE_TYPE_TAPE) && lastfile != NULL)
+      buf = (void*)malloc(size_buf);
+      if (buf == NULL)
+      {
+         log_cb(RETRO_LOG_ERROR, "Unzip: Error allocating memory\n");
+         return;
+      }
+
+      err = unzGetCurrentFileInfo(uf, &file_info, filename_inzip, sizeof(filename_inzip), NULL, 0, NULL, 0);
+      snprintf(filename_withpath, sizeof(filename_withpath), "%s%s%s", out, FSDEV_DIR_SEP_STR, filename_inzip);
+      if ((dc_get_image_type(filename_inzip) == DC_IMAGE_TYPE_FLOPPY ||
+           dc_get_image_type(filename_inzip) == DC_IMAGE_TYPE_TAPE) && lastfile != NULL)
             snprintf(lastfile, RETRO_PATH_MAX, "%s", filename_inzip);
 
-        p = filename_withoutpath = filename_inzip;
-        while ((*p) != '\0')
-        {
-            if (((*p) == '/') || ((*p) == '\\'))
-                filename_withoutpath = p+1;
-            p++;
-        }
+      p = filename_withoutpath = filename_inzip;
+      while ((*p) != '\0')
+      {
+         if (((*p) == '/') || ((*p) == '\\'))
+            filename_withoutpath = p + 1;
+         p++;
+      }
 
-        if ((*filename_withoutpath) == '\0')
-        {
-            log_cb(RETRO_LOG_INFO, "Mkdir: %s\n", filename_withpath);
-            path_mkdir(filename_withpath);
-        }
-        else if (!path_is_valid(filename_withpath))
-        {
-            char* write_filename;
-            int skip = 0;
-            unsigned x = 0;
+      if ((*filename_withoutpath) == '\0')
+      {
+         log_cb(RETRO_LOG_INFO, "Mkdir: %s\n", filename_withpath);
+         path_mkdir(filename_withpath);
+      }
+      else if (!path_is_valid(filename_withpath))
+      {
+         char* write_filename;
+         unsigned skip = 0;
+         unsigned x    = 0;
 
-            write_filename = local_to_utf8_string_alloc(filename_withpath);
+         write_filename = local_to_utf8_string_alloc(filename_withpath);
 
-            /* Replace non-ascii chars with underscore */
-            for (x = 128; x < 256; x++)
-               string_replace_all_chars(write_filename, x, '_');
+         /* Replace non-ascii chars with underscore */
+         for (x = 128; x < 256; x++)
+            string_replace_all_chars(write_filename, x, '_');
 
-            err = unzOpenCurrentFilePassword(uf, password);
+         err = unzOpenCurrentFilePassword(uf, password);
+         if (err != UNZ_OK)
+            log_cb(RETRO_LOG_ERROR, "Unzip: Error %d with zipfile in unzOpenCurrentFilePassword: %s\n", err, write_filename);
+
+         if ((skip == 0) && (err == UNZ_OK))
+         {
+            fout = fopen(write_filename, "wb");
+            if (fout == NULL)
+               log_cb(RETRO_LOG_ERROR, "Unzip: Error opening %s\n", write_filename);
+         }
+
+         if (fout != NULL)
+         {
+            log_cb(RETRO_LOG_INFO, "Unzip: %s\n", write_filename);
+
+            do
+            {
+               err = unzReadCurrentFile(uf, buf, size_buf);
+               if (err < 0)
+               {
+                  log_cb(RETRO_LOG_ERROR, "Unzip: Error %d with zipfile in unzReadCurrentFile\n", err);
+                  break;
+               }
+               if (err > 0)
+               {
+                  if (!fwrite(buf, err, 1, fout))
+                  {
+                     log_cb(RETRO_LOG_ERROR, "Unzip: Error writing extracted file %s\n", write_filename);
+                     err = UNZ_ERRNO;
+                     break;
+                  }
+               }
+            }
+            while (err > 0);
+            if (fout)
+               fclose(fout);
+         }
+
+         free(write_filename);
+         write_filename = NULL;
+
+         if (err == UNZ_OK)
+         {
+            err = unzCloseCurrentFile(uf);
             if (err != UNZ_OK)
-                log_cb(RETRO_LOG_ERROR, "Unzip: Error %d with zipfile in unzOpenCurrentFilePassword: %s\n", err, write_filename);
+               log_cb(RETRO_LOG_ERROR, "Unzip: Error %d with zipfile in unzCloseCurrentFile\n", err);
+         }
+         else
+            unzCloseCurrentFile(uf);
+      }
 
-            if ((skip == 0) && (err == UNZ_OK))
-            {
-                fout = fopen(write_filename, "wb");
-                if (fout == NULL)
-                    log_cb(RETRO_LOG_ERROR, "Unzip: Error opening %s\n", write_filename);
-            }
+      free(buf);
 
-            if (fout != NULL)
-            {
-                log_cb(RETRO_LOG_INFO, "Unzip: %s\n", write_filename);
+      if ((i + 1) < gi.number_entry)
+      {
+         err = unzGoToNextFile(uf);
+         if (err != UNZ_OK)
+         {
+            log_cb(RETRO_LOG_ERROR, "Unzip: Error %d with zipfile in unzGoToNextFile\n", err);
+            break;
+         }
+      }
+   }
 
-                do
-                {
-                    err = unzReadCurrentFile(uf, buf, size_buf);
-                    if (err < 0)
-                    {
-                        log_cb(RETRO_LOG_ERROR, "Unzip: Error %d with zipfile in unzReadCurrentFile\n", err);
-                        break;
-                    }
-                    if (err > 0)
-                    {
-                        if (!fwrite(buf, err, 1, fout))
-                        {
-                            log_cb(RETRO_LOG_ERROR, "Unzip: Error writing extracted file %s\n", write_filename);
-                            err = UNZ_ERRNO;
-                            break;
-                        }
-                    }
-                }
-                while (err > 0);
-                if (fout)
-                    fclose(fout);
-            }
-
-            free(write_filename);
-            write_filename = NULL;
-
-            if (err == UNZ_OK)
-            {
-                err = unzCloseCurrentFile(uf);
-                if (err != UNZ_OK)
-                    log_cb(RETRO_LOG_ERROR, "Unzip: Error %d with zipfile in unzCloseCurrentFile\n", err);
-            }
-            else
-                unzCloseCurrentFile(uf);
-        }
-
-        free(buf);
-
-        if ((i+1) < gi.number_entry)
-        {
-            err = unzGoToNextFile(uf);
-            if (err != UNZ_OK)
-            {
-                log_cb(RETRO_LOG_ERROR, "Unzip: Error %d with zipfile in unzGoToNextFile\n", err);
-                break;
-            }
-        }
-    }
-
-    if (uf)
-    {
-        unzCloseCurrentFile(uf);
-        unzClose(uf);
-        uf = NULL;
-    }
+   if (uf)
+   {
+      unzCloseCurrentFile(uf);
+      unzClose(uf);
+      uf = NULL;
+   }
 }
 
 /* 7zip */
