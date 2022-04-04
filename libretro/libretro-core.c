@@ -29,6 +29,7 @@
 #include "resources.h"
 #include "sid.h"
 #include "sid-resources.h"
+#include "uistatusbar.h"
 #if !defined(__XCBM5x0__)
 #include "userport_joystick.h"
 #endif
@@ -294,6 +295,7 @@ void display_retro_message(const char *message)
    retro_message = true;
 }
 
+extern bool retro_statusbar;
 extern void display_current_image(const char *image, bool inserted);
 
 extern int skel_main(int argc, char *argv[]);
@@ -3010,7 +3012,7 @@ static void retro_set_core_options()
          "vice_statusbar",
          "OSD > Statusbar Mode",
          "Statusbar Mode",
-         "- 'Full': Joyports + Current image + LEDs\n- 'Basic': Current image + LEDs\n- 'Minimal': Track number + FPS hidden",
+         "- 'Full': Joyports + Messages + LEDs\n- 'Basic': Messages + LEDs\n- 'Minimal': LED colors only",
          NULL,
          "osd",
          {
@@ -3025,6 +3027,20 @@ static void retro_set_core_options()
             { NULL, NULL },
          },
          "bottom"
+      },
+      {
+         "vice_statusbar_messages",
+         "OSD > Statusbar Messages",
+         "Statusbar Messages",
+         "Show messages when statusbar is hidden.",
+         NULL,
+         "osd",
+         {
+            { "disabled", NULL },
+            { "enabled", NULL },
+            { NULL, NULL },
+         },
+         "disabled"
       },
       {
          "vice_joyport_pointer_color",
@@ -6109,6 +6125,14 @@ static void update_variables(void)
       if (strstr(var.value, "minimal")) opt_statusbar |= STATUSBAR_MINIMAL;
    }
 
+   var.key = "vice_statusbar_messages";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (!strcmp(var.value, "enabled"))
+         opt_statusbar |= STATUSBAR_MESSAGES;
+   }
+
    var.key = "vice_mapping_options_display";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -6630,6 +6654,8 @@ static void update_variables(void)
    option_display.key = "vice_vkbd_transparency";
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
    option_display.key = "vice_statusbar";
+   environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+   option_display.key = "vice_statusbar_messages";
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
    option_display.key = "vice_joyport_pointer_color";
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
@@ -7760,6 +7786,14 @@ void retro_run(void)
    if (retro_vkbd)
       print_vkbd();
 
+   /* Statusbar message timer */
+   if (statusbar_message_timer > 0)
+      statusbar_message_timer--;
+
+   /* Forced statusbar messages */
+   if (!retro_statusbar && opt_statusbar & STATUSBAR_MESSAGES && statusbar_message_timer)
+      uistatusbar_draw();
+
    /* Set volume back to maximum after starting with mute, due to ReSID 6581 init pop */
    if (sound_volume_counter > 0)
    {
@@ -7767,10 +7801,6 @@ void retro_run(void)
       if (sound_volume_counter == 0)
          resources_set_int("SoundVolume", 100);
    }
-
-   /* Statusbar disk display timer */
-   if (imagename_timer > 0)
-      imagename_timer--;
 
    /* Video output */
    video_cb(retro_bmp + retro_bmp_offset, zoomed_width, zoomed_height, retrow << (pix_bytes >> 1));

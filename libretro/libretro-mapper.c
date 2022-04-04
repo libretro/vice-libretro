@@ -60,7 +60,7 @@ bool cur_port_locked = false;
 unsigned int mouse_value[2 + 1] = {0};
 unsigned int mouse_speed[4] = {0};
 
-unsigned int retro_statusbar = 0;
+bool retro_statusbar = 0;
 extern unsigned char statusbar_text[RETRO_PATH_MAX];
 unsigned int retro_warpmode = 0;
 
@@ -142,16 +142,20 @@ int retro_ui_get_pointer_state(int *px, int *py, unsigned int *pbuttons)
    return 1;
 }
 
-static void statusbar_text_show(const char *format, ...)
+static void statusbar_message_show(signed char icon, const char *format, ...)
 {
    unsigned char statusbar_temp[RETRO_PATH_MAX] = {0};
    va_list args;
    va_start(args, format);
+
+   if (!icon)
+      icon = ' ';
+
    vsnprintf(statusbar_temp, sizeof(statusbar_temp), format, args);
-   snprintf(statusbar_text, sizeof(statusbar_text), "%c %-98s", (' ' | 0x80), statusbar_temp);
+   snprintf(statusbar_text, sizeof(statusbar_text), "%c %-98s", (icon | 0x80), statusbar_temp);
    va_end(args);
 
-   imagename_timer = 50;
+   statusbar_message_timer = 50;
 }
 
 void emu_function(int function)
@@ -179,7 +183,7 @@ void emu_function(int function)
          /* Lock current port */
          cur_port_locked = true;
          /* Statusbar notification */
-         statusbar_text_show("%s %d", "Port", cur_port);
+         statusbar_message_show(9, "%s %d", "Port", cur_port);
          break;
       case EMU_RESET:
          emu_reset(-1);
@@ -192,12 +196,12 @@ void emu_function(int function)
             case 2: snprintf(tmp_str, sizeof(tmp_str), "Hard reset"); break;
             case 3: snprintf(tmp_str, sizeof(tmp_str), "Freeze"); break;
          }
-         statusbar_text_show("%s", tmp_str);
+         statusbar_message_show(0, "%s", tmp_str);
          break;
       case EMU_FREEZE:
          emu_reset(3);
          /* Statusbar notification */
-         statusbar_text_show("%s", "Freeze");
+         statusbar_message_show(0, "%s", "Freeze");
          break;
       case EMU_ASPECT_RATIO:
          if (opt_aspect_ratio == 0)
@@ -210,7 +214,7 @@ void emu_function(int function)
          /* Lock aspect ratio */
          opt_aspect_ratio_locked = true;
          /* Statusbar notification */
-         statusbar_text_show("%s %s",
+         statusbar_message_show(5, "%s %s",
                "Pixel Aspect",
                (opt_aspect_ratio == 1) ? "PAL" : (opt_aspect_ratio == 2) ? "NTSC" : "1:1");
          break;
@@ -222,7 +226,7 @@ void emu_function(int function)
          else if (zoom_mode_id == 0)
             zoom_mode_id = opt_zoom_mode_id;
          /* Statusbar notification */
-         statusbar_text_show("%s %s",
+         statusbar_message_show(5, "%s %s",
                "Zoom Mode",
                (zoom_mode_id) ? "ON" : "OFF");
          break;
@@ -231,7 +235,7 @@ void emu_function(int function)
          /* Lock turbo fire */
          turbo_fire_locked = true;
          /* Statusbar notification */
-         statusbar_text_show("%s %s",
+         statusbar_message_show(9, "%s %s",
                "Turbo Fire",
                (retro_turbo_fire) ? "ON" : "OFF");
          break;
@@ -245,7 +249,7 @@ void emu_function(int function)
       case EMU_DATASETTE_HOTKEYS:
          datasette_hotkeys = !datasette_hotkeys;
          /* Statusbar notification */
-         statusbar_text_show("%s %s",
+         statusbar_message_show(0, "%s %s",
                "Datasette Hotkeys",
                (datasette_hotkeys) ? "ON" : "OFF");
          break;

@@ -50,6 +50,8 @@ extern unsigned int vice_led_state[3];
 extern unsigned int opt_joyport_type;
 extern unsigned int opt_autoloadwarp;
 extern int RGBc(int r, int g, int b);
+extern bool retro_statusbar;
+extern int runstate;
 
 /* ----------------------------------------------------------------- */
 /* static functions/variables */
@@ -303,7 +305,7 @@ static void display_speed(void)
     }
 }
 
-unsigned int imagename_timer = 0;
+unsigned int statusbar_message_timer = 0;
 static int drive_enabled = 0;
 static int drive_empty = 0;
 static int drive_pwm = 0;
@@ -331,12 +333,15 @@ void display_current_image(const char *image, bool inserted)
     {
         imagename_local = utf8_to_local_string_alloc(imagename);
         snprintf(statusbar_text, sizeof(statusbar_text), "%s%.98s", "  ", imagename_local);
-        imagename_timer = 150;
+
+        /* Skip the initial insert message with forced message mode */
+        if (runstate || (!runstate && !(opt_statusbar & STATUSBAR_MESSAGES)))
+            statusbar_message_timer = 150;
 
         if (inserted)
-            statusbar_text[0] = (8 | 0x80);
+            statusbar_text[0] = (7 | 0x80);
         else if (!strcmp(image, ""))
-            statusbar_text[0] = (9 | 0x80);
+            statusbar_text[0] = (8 | 0x80);
 
         free(imagename_local);
         imagename_local = NULL;
@@ -717,7 +722,7 @@ void uistatusbar_draw(void)
     led_x = retroXS_offset + x + max_width - led_width - 1;
 
     /* Basic mode statusbar background */
-    if (opt_statusbar & STATUSBAR_BASIC && imagename_timer == 0)
+    if (opt_statusbar & STATUSBAR_BASIC && !statusbar_message_timer)
     {
         bkg_width = led_width;
         bkg_x     = led_x;
@@ -732,8 +737,8 @@ void uistatusbar_draw(void)
     /* Update joyports + misc */
     display_joyport();
 
-    /* Inserted/Ejected image */
-    if (imagename_timer > 0)
+    /* Message */
+    if (statusbar_message_timer)
     {
         draw_text(bkg_x + char_offset, y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, 1, 1, 100, statusbar_text);
         draw_fbox(led_x, bkg_y, led_width, bkg_height, 0, GRAPH_ALPHA_100);
@@ -752,7 +757,10 @@ void uistatusbar_draw(void)
         if (c == 0)
             continue;
         
-        if (imagename_timer > 0 && i < STATUSBAR_TAPE_POS - 1)
+        if (statusbar_message_timer && i < STATUSBAR_TAPE_POS - 1)
+            continue;
+
+        if (!retro_statusbar && statusbar_message_timer && (opt_statusbar & STATUSBAR_MESSAGES))
             continue;
 
         /* Default background */

@@ -116,10 +116,11 @@ extern unsigned short int pix_bytes;
 
 
 /* Statusbar */
-#define STATUSBAR_BOTTOM  0x01
-#define STATUSBAR_TOP     0x02
-#define STATUSBAR_BASIC   0x04
-#define STATUSBAR_MINIMAL 0x08
+#define STATUSBAR_BOTTOM   0x01
+#define STATUSBAR_TOP      0x02
+#define STATUSBAR_BASIC    0x04
+#define STATUSBAR_MINIMAL  0x08
+#define STATUSBAR_MESSAGES 0x10
 
 /* Autoloadwarp */
 #define AUTOLOADWARP_DISK 0x01
@@ -138,7 +139,7 @@ extern unsigned int zoomed_width;
 extern unsigned int zoomed_height;
 extern int zoomed_XS_offset;
 extern int zoomed_YS_offset;
-extern unsigned int imagename_timer;
+extern unsigned int statusbar_message_timer;
 extern unsigned int opt_statusbar;
 extern unsigned int cur_port;
 extern unsigned int retro_region;
