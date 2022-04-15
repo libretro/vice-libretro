@@ -14,6 +14,7 @@
 #include "datasette.h"
 #include "kbd.h"
 #include "mousedrv.h"
+#include "cartridge.h"
 
 /* Mouse speed flags */
 #define MOUSE_SPEED_SLOWER 1
@@ -72,6 +73,11 @@ extern bool libretro_supports_bitmasks;
 extern bool libretro_ff_enabled;
 extern void retro_fastforwarding(bool);
 extern dc_storage *dc;
+#if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__) || defined(__X128__) || defined(__XVIC__)
+extern int mem_cartridge_type;
+#else
+int mem_cartridge_type = CARTRIDGE_NONE;
+#endif
 
 /* Core options */
 extern unsigned int opt_joyport_type;
@@ -186,6 +192,9 @@ void emu_function(int function)
          statusbar_message_show(9, "%s %d", "Port", cur_port);
          break;
       case EMU_RESET:
+         /* Cart freeze requires a cart */
+         if (opt_reset_type == 3 && mem_cartridge_type == CARTRIDGE_NONE)
+            break;
          emu_reset(-1);
          /* Statusbar notification */
          switch (opt_reset_type)
@@ -196,12 +205,15 @@ void emu_function(int function)
             case 2: snprintf(tmp_str, sizeof(tmp_str), "Hard reset"); break;
             case 3: snprintf(tmp_str, sizeof(tmp_str), "Freeze"); break;
          }
-         statusbar_message_show(0, "%s", tmp_str);
+         statusbar_message_show(4, "%s", tmp_str);
          break;
       case EMU_FREEZE:
+         /* Cart freeze requires a cart */
+         if (mem_cartridge_type == CARTRIDGE_NONE)
+            break;
          emu_reset(3);
          /* Statusbar notification */
-         statusbar_message_show(0, "%s", "Freeze");
+         statusbar_message_show(4, "%s", "Freeze");
          break;
       case EMU_ASPECT_RATIO:
          if (opt_aspect_ratio == 0)
@@ -249,25 +261,40 @@ void emu_function(int function)
       case EMU_DATASETTE_HOTKEYS:
          datasette_hotkeys = !datasette_hotkeys;
          /* Statusbar notification */
-         statusbar_message_show(0, "%s %s",
+         statusbar_message_show(24, "%s %s",
                "Datasette Hotkeys",
                (datasette_hotkeys) ? "ON" : "OFF");
          break;
 
       case EMU_DATASETTE_STOP:
          datasette_control(DATASETTE_CONTROL_STOP);
+         /* Statusbar notification */
+         statusbar_message_show(23, "%s",
+               "Datasette STOP");
          break;
       case EMU_DATASETTE_START:
          datasette_control(DATASETTE_CONTROL_START);
+         /* Statusbar notification */
+         statusbar_message_show(20, "%s",
+               "Datasette PLAY");
          break;
       case EMU_DATASETTE_FORWARD:
          datasette_control(DATASETTE_CONTROL_FORWARD);
+         /* Statusbar notification */
+         statusbar_message_show(22, "%s",
+               "Datasette FFWD");
          break;
       case EMU_DATASETTE_REWIND:
          datasette_control(DATASETTE_CONTROL_REWIND);
+         /* Statusbar notification */
+         statusbar_message_show(21, "%s",
+               "Datasette REWIND");
          break;
       case EMU_DATASETTE_RESET:
          datasette_control(DATASETTE_CONTROL_RESET);
+         /* Statusbar notification */
+         statusbar_message_show(19, "%s",
+               "Datasette RESET");
          break;
    } 
 }
