@@ -259,6 +259,9 @@ void emu_function(int function)
          resources_set_int("WarpMode", retro_warpmode);
          break;
       case EMU_DATASETTE_HOTKEYS:
+#if defined(__X64DTV__) || defined(__XSCPU64__)
+         break;
+#endif
          datasette_hotkeys = !datasette_hotkeys;
          /* Statusbar notification */
          statusbar_message_show(24, "%s %s",
@@ -267,30 +270,45 @@ void emu_function(int function)
          break;
 
       case EMU_DATASETTE_STOP:
+#if defined(__X64DTV__) || defined(__XSCPU64__)
+         break;
+#endif
          datasette_control(DATASETTE_CONTROL_STOP);
          /* Statusbar notification */
          statusbar_message_show(23, "%s",
                "Datasette STOP");
          break;
       case EMU_DATASETTE_START:
+#if defined(__X64DTV__) || defined(__XSCPU64__)
+         break;
+#endif
          datasette_control(DATASETTE_CONTROL_START);
          /* Statusbar notification */
          statusbar_message_show(20, "%s",
                "Datasette PLAY");
          break;
       case EMU_DATASETTE_FORWARD:
+#if defined(__X64DTV__) || defined(__XSCPU64__)
+         break;
+#endif
          datasette_control(DATASETTE_CONTROL_FORWARD);
          /* Statusbar notification */
          statusbar_message_show(22, "%s",
                "Datasette FFWD");
          break;
       case EMU_DATASETTE_REWIND:
+#if defined(__X64DTV__) || defined(__XSCPU64__)
+         break;
+#endif
          datasette_control(DATASETTE_CONTROL_REWIND);
          /* Statusbar notification */
          statusbar_message_show(21, "%s",
                "Datasette REWIND");
          break;
       case EMU_DATASETTE_RESET:
+#if defined(__X64DTV__) || defined(__XSCPU64__)
+         break;
+#endif
          datasette_control(DATASETTE_CONTROL_RESET);
          /* Statusbar notification */
          statusbar_message_show(19, "%s",
