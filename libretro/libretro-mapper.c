@@ -294,7 +294,7 @@ void emu_function(int function)
          datasette_control(DATASETTE_CONTROL_FORWARD);
          /* Statusbar notification */
          statusbar_message_show(22, "%s",
-               "Datasette FFWD");
+               "Datasette F.FWD");
          break;
       case EMU_DATASETTE_REWIND:
 #if defined(__X64DTV__) || defined(__XSCPU64__)
