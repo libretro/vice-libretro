@@ -5927,6 +5927,8 @@ static void update_variables(void)
 
       vice_opt.UserportJoyType = userportjoytype;
    }
+#else
+   vice_opt.UserportJoyType = -1;
 #endif
 
 #if !defined(__XPET__) && !defined(__XCBM2__) && !defined(__XVIC__)
