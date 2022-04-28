@@ -57,7 +57,7 @@ BYTE c64memrom_kernal64_rom_original[C64_KERNAL_ROM_SIZE] = {0};
 
 #include "libretro-core.h"
 #if defined(__XVIC__)
-extern int vic20mem_forced;
+extern void vic20mem_set(void);
 #elif defined(__XSCPU64__)
 extern unsigned int opt_supercpu_kernal;
 #endif
@@ -479,46 +479,7 @@ int ui_init_finalize(void)
    log_resources_set_int("C128ColumnKey", vice_opt.C128ColumnKey);
 #elif defined(__XVIC__)
    log_resources_set_int("MegaCartNvRAMWriteBack", 1);
-
-   unsigned int vic20mem = 0;
-   vic20mem = (vic20mem_forced > -1) ? vic20mem_forced : vice_opt.VIC20Memory;
-
-   /* Super VIC uses memory blocks 1+2 by default */
-   if (!vic20mem && vice_opt.Model == VIC20MODEL_VIC21)
-      vic20mem = 3;
-
-   unsigned int vic_blocks = 0;
-   switch (vic20mem)
-   {
-      case 1:
-         vic_blocks |= VIC_BLK0;
-         break;
-
-      case 2:
-         vic_blocks |= VIC_BLK1;
-         break;
-
-      case 3:
-         vic_blocks |= VIC_BLK1;
-         vic_blocks |= VIC_BLK2;
-         break;
-
-      case 4:
-         vic_blocks |= VIC_BLK1;
-         vic_blocks |= VIC_BLK2;
-         vic_blocks |= VIC_BLK3;
-         break;
-
-      case 5:
-         vic_blocks = VIC_BLK_ALL;
-         break;
-   }
-
-   log_resources_set_int("RAMBlock0", (vic_blocks & VIC_BLK0) ? 1 : 0);
-   log_resources_set_int("RAMBlock1", (vic_blocks & VIC_BLK1) ? 1 : 0);
-   log_resources_set_int("RAMBlock2", (vic_blocks & VIC_BLK2) ? 1 : 0);
-   log_resources_set_int("RAMBlock3", (vic_blocks & VIC_BLK3) ? 1 : 0);
-   log_resources_set_int("RAMBlock5", (vic_blocks & VIC_BLK5) ? 1 : 0);
+   vic20mem_set();
 #elif defined(__XSCPU64__)
    log_resources_set_int("SIMMSize", vice_opt.SIMMSize);
    log_resources_set_int("SpeedSwitch", vice_opt.SpeedSwitch);

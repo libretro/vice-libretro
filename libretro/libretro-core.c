@@ -537,6 +537,45 @@ static void vic20_mem_force(const char* argv)
    }
 }
 
+void vic20mem_set(void)
+{
+   unsigned int vic20mem = 0;
+   vic20mem = (vic20mem_forced > -1) ? vic20mem_forced : vice_opt.VIC20Memory;
+
+   /* Super VIC uses memory blocks 1+2 by default */
+   if (!vic20mem && vice_opt.Model == VIC20MODEL_VIC21)
+      vic20mem = 3;
+
+   unsigned int vic_blocks = 0;
+   switch (vic20mem)
+   {
+      case 1:
+         vic_blocks |= VIC_BLK0;
+         break;
+      case 2:
+         vic_blocks |= VIC_BLK1;
+         break;
+      case 3:
+         vic_blocks |= VIC_BLK1;
+         vic_blocks |= VIC_BLK2;
+         break;
+      case 4:
+         vic_blocks |= VIC_BLK1;
+         vic_blocks |= VIC_BLK2;
+         vic_blocks |= VIC_BLK3;
+         break;
+      case 5:
+         vic_blocks = VIC_BLK_ALL;
+         break;
+   }
+
+   log_resources_set_int("RAMBlock0", (vic_blocks & VIC_BLK0) ? 1 : 0);
+   log_resources_set_int("RAMBlock1", (vic_blocks & VIC_BLK1) ? 1 : 0);
+   log_resources_set_int("RAMBlock2", (vic_blocks & VIC_BLK2) ? 1 : 0);
+   log_resources_set_int("RAMBlock3", (vic_blocks & VIC_BLK3) ? 1 : 0);
+   log_resources_set_int("RAMBlock5", (vic_blocks & VIC_BLK5) ? 1 : 0);
+}
+
 static void vic20_autosys_run(const char* full_path)
 {
    if (!strcasestr(full_path, "(SYS ") && !strcasestr(full_path, "[SYS "))
@@ -2049,7 +2088,7 @@ static void retro_set_core_options()
          "vice_vic20_memory_expansions",
          "System > Memory Expansion",
          "Memory Expansion",
-         "Can be forced with filename tags '(8k)' & '(8kb)' or directory tags '8k' & '8kb'.\nChanging while running resets the system!",
+         "Can be forced with filename tags '(8k)', '(8kb)', '[8k]', '[8kb]' or directory tags '8k', '8kb'.\nChanging while running resets the system!",
          NULL,
          "system",
          {
@@ -7605,6 +7644,7 @@ void emu_model_set(int model)
    plus4model_set(model);
 #elif defined(__XVIC__)
    vic20model_set(model);
+   vic20mem_set();
 #elif defined(__XCBM5x0__)
    cbm2model_set(model);
 #elif defined(__XCBM2__)
