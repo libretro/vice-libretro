@@ -772,6 +772,10 @@ static int process_cmdline(const char* argv)
          argv = full_path;
       }
 
+      /* Final argv has to be valid or empty */
+      if (!path_is_valid(argv))
+         argv = "";
+
 #if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
       /* Do not allow JiffyDOS with non-floppies */
       if (dc_get_image_type(argv) == DC_IMAGE_TYPE_TAPE
@@ -7876,10 +7880,7 @@ bool retro_load_game(const struct retro_game_info *info)
       local_path = utf8_to_local_string_alloc(info->path);
       if (local_path)
       {
-         if (path_is_valid(info->path))
-            process_cmdline(local_path);
-         else
-            process_cmdline("");
+         process_cmdline(local_path);
          free(local_path);
          local_path = NULL;
       }
