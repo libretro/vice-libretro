@@ -198,6 +198,10 @@ void video_canvas_refresh(struct video_canvas_s *canvas,
                break;
          }
 
+         /* Align the resulting screen height to even number */
+         if ((vice_raster.last_line - vice_raster.first_line) % 2)
+            vice_raster.last_line++;
+
          /* Result pondering with stabilization period */
          if (vice_raster.first_line != vice_raster.first_line_prev ||
              vice_raster.last_line  != vice_raster.last_line_prev)
