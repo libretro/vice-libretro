@@ -317,6 +317,33 @@ void emu_function(int function)
    } 
 }
 
+static int adjust_analog_deadzone(int analog_axis, int analog_deadzone)
+{
+   int analog_adjusted = analog_axis;
+
+   if (analog_adjusted >= analog_deadzone)
+      analog_adjusted -= analog_deadzone;
+   else if (analog_adjusted <= -analog_deadzone)
+      analog_adjusted += analog_deadzone;
+
+   if (analog_adjusted != analog_axis)
+      analog_adjusted *= 32768.0f / (32768.0f - analog_deadzone);
+
+   return analog_adjusted;
+}
+
+static int process_analogmouse(int analog_axis, int analog_deadzone, int mouse_multiplier)
+{
+   int analog_adjusted = adjust_analog_deadzone(analog_axis, analog_deadzone);
+   int mouse_axis      = 0;
+
+   mouse_axis = analog_adjusted * 10 * opt_analogmouse_speed / (32768.0f / mouse_multiplier);
+   if (!mouse_axis && abs(analog_axis) > analog_deadzone)
+      mouse_axis = (analog_axis > 0) ? 1 : -1;
+
+   return mouse_axis;
+}
+
 void retro_key_up(int key)
 {
    retro_key_state_internal[key] = 0;
@@ -1286,12 +1313,8 @@ void retro_poll_event()
       unsigned int retro_mouse_l[4] = {0}, retro_mouse_r[4] = {0}, retro_mouse_m[4] = {0};
       static unsigned int vice_mouse_l[4] = {0}, vice_mouse_r[4] = {0}, vice_mouse_m[4] = {0};
 
-      int analog_left[2] = {0};
-      int analog_right[2] = {0};
-      double analog_left_magnitude = 0;
-      double analog_right_magnitude = 0;
-      int analog_deadzone = 0;
-      analog_deadzone = (opt_analogmouse_deadzone * 32768 / 100);
+      int analog_stick[2] = {0};
+      int analog_deadzone = opt_analogmouse_deadzone * 32768.0f / 100.0f;
 
       /* Paddles (opt_joyport_type = 2) share the same joyport, but are meant for 2 players.
        * Therefore treat RetroPort0 vertical axis as RetroPort1 horizontal axis, and second fire as RetroPort1 fire.
@@ -1394,14 +1417,10 @@ void retro_poll_event()
             )
          {
             /* Left analog movement */
-            analog_left[0] = input_state_cb(retro_j, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X);
-            analog_left[1] = input_state_cb(retro_j, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y);
-            analog_left_magnitude = sqrt((analog_left[0]*analog_left[0]) + (analog_left[1]*analog_left[1]));
-            if (analog_left_magnitude <= analog_deadzone)
-            {
-               analog_left[0] = 0;
-               analog_left[1] = 0;
-            }
+            analog_stick[0] = input_state_cb(retro_j, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X);
+            analog_stick[1] = input_state_cb(retro_j, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y);
+            if (sqrt((analog_stick[0] * analog_stick[0]) + (analog_stick[1] * analog_stick[1])) < analog_deadzone)
+               analog_stick[0] = analog_stick[1] = 0;
 
             /* Analog stick speed modifiers */
             mouse_multiplier[retro_j] = 1;
@@ -1410,19 +1429,11 @@ void retro_poll_event()
             if (mouse_speed[retro_j] & MOUSE_SPEED_SLOWER)
                mouse_multiplier[retro_j] = mouse_multiplier[retro_j] / MOUSE_SPEED_SLOW;
 
-            if (abs(analog_left[0]) > 0)
-            {
-               retro_mouse_x[retro_j] = analog_left[0] * 10 * opt_analogmouse_speed / (32768 / mouse_multiplier[retro_j]);
-               if (retro_mouse_x[retro_j] == 0 && abs(analog_left[0]) > analog_deadzone)
-                  retro_mouse_x[retro_j] = (analog_left[0] > 0) ? 1 : -1;
-            }
+            if (abs(analog_stick[0]) > 0)
+               retro_mouse_x[retro_j] = process_analogmouse(analog_stick[0], analog_deadzone, mouse_multiplier[retro_j]);
 
-            if (abs(analog_left[1]) > 0)
-            {
-               retro_mouse_y[retro_j] = analog_left[1] * 10 * opt_analogmouse_speed / (32768 / mouse_multiplier[retro_j]);
-               if (retro_mouse_y[retro_j] == 0 && abs(analog_left[1]) > analog_deadzone)
-                  retro_mouse_y[retro_j] = (analog_left[1] > 0) ? 1 : -1;
-            }
+            if (abs(analog_stick[1]) > 0)
+               retro_mouse_y[retro_j] = process_analogmouse(analog_stick[1], analog_deadzone, mouse_multiplier[retro_j]);
          }
 
          if (!retro_mouse_x[retro_j] && !retro_mouse_y[retro_j]
@@ -1433,14 +1444,10 @@ void retro_poll_event()
             )
          {
             /* Right analog movement */
-            analog_right[0] = input_state_cb(retro_j, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X);
-            analog_right[1] = input_state_cb(retro_j, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y);
-            analog_right_magnitude = sqrt((analog_right[0]*analog_right[0]) + (analog_right[1]*analog_right[1]));
-            if (analog_right_magnitude <= analog_deadzone)
-            {
-               analog_right[0] = 0;
-               analog_right[1] = 0;
-            }
+            analog_stick[0] = input_state_cb(retro_j, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X);
+            analog_stick[1] = input_state_cb(retro_j, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y);
+            if (sqrt((analog_stick[0] * analog_stick[0]) + (analog_stick[1] * analog_stick[1])) < analog_deadzone)
+               analog_stick[0] = analog_stick[1] = 0;
 
             /* Analog stick speed modifiers */
             mouse_multiplier[retro_j] = 1;
@@ -1449,19 +1456,11 @@ void retro_poll_event()
             if (mouse_speed[retro_j] & MOUSE_SPEED_SLOWER)
                mouse_multiplier[retro_j] = mouse_multiplier[retro_j] / MOUSE_SPEED_SLOW;
 
-            if (abs(analog_right[0]) > 0)
-            {
-               retro_mouse_x[retro_j] = analog_right[0] * 10 * opt_analogmouse_speed / (32768 / mouse_multiplier[retro_j]);
-               if (retro_mouse_x[retro_j] == 0 && abs(analog_right[0]) > analog_deadzone)
-                  retro_mouse_x[retro_j] = (analog_right[0] > 0) ? 1 : -1;
-            }
+            if (abs(analog_stick[0]) > 0)
+               retro_mouse_x[retro_j] = process_analogmouse(analog_stick[0], analog_deadzone, mouse_multiplier[retro_j]);
 
-            if (abs(analog_right[1]) > 0)
-            {
-               retro_mouse_y[retro_j] = analog_right[1] * 10 * opt_analogmouse_speed / (32768 / mouse_multiplier[retro_j]);
-               if (retro_mouse_y[retro_j] == 0 && abs(analog_right[1]) > analog_deadzone)
-                  retro_mouse_y[retro_j] = (analog_right[1] > 0) ? 1 : -1;
-            }
+            if (abs(analog_stick[1]) > 0)
+               retro_mouse_y[retro_j] = process_analogmouse(analog_stick[1], analog_deadzone, mouse_multiplier[retro_j]);
          }
       }
 
