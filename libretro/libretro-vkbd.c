@@ -6,6 +6,7 @@
 #include "kbd.h"
 
 bool retro_vkbd = false;
+static bool retro_vkbd_page = false;
 static bool retro_vkbd_transparent = true;
 signed char retro_vkbd_ready = 0;
 static int vkflag[10] = {0};
@@ -20,7 +21,11 @@ static int last_pointer_y = 0;
 
 /* VKBD starting point: 10x3 == f7 */
 static int vkey_pos_x = 10;
+#ifdef __X128__
+static int vkey_pos_y = 4;
+#else
 static int vkey_pos_y = 3;
+#endif
 static int vkbd_x_min = 0;
 static int vkbd_x_max = 0;
 static int vkbd_y_min = 0;
@@ -50,127 +55,341 @@ static int vkey_sticky2_release = 0;
 
 typedef struct
 {
-   char normal[5];
-   char shift[5];
+   char normal[10];
+   char shift[10];
    int value;
 } retro_vkeys;
 
-static const retro_vkeys vkeys[VKBDX * VKBDY] =
+static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
 {
+#ifdef __X128__
+
+   /* C128 extra */
+   { "ESC","ESC",RETROK_F1 },
+   { "TAB","TAB",RETROK_F2 },
+   { "ALT","ALT",RETROK_F3 },
+   { "CAPS\1LOCK","CAPS\1LOCK",RETROK_F4 },
+   { {}   ,{}   ,-1 },
+   { "HELP","HELP",RETROK_F5 },
+   { "LINE\1FEED","LINE\1FEED",RETROK_F6 },
+   { "4080\1DSPL","4080\1DSPL",RETROK_F7 },
+   { "NO\1SCRL","NO\1SCRL",RETROK_F8 },
+   { {}   ,{}   ,-1 },
+   { {15} ,{15} ,VKBD_NUMPAD },
+
    /* 0 */
-   { "1"  ,"!"   ,RETROK_1},
-   { "2"  ,"\""  ,RETROK_2},
-   { "3"  ,"#"   ,RETROK_3},
-   { "4"  ,"$"   ,RETROK_4},
-   { "5"  ,"%"   ,RETROK_5},
-   { "6"  ,"&"   ,RETROK_6},
-   { "7"  ,"'"   ,RETROK_7},
-   { "8"  ,"("   ,RETROK_8},
-   { "9"  ,")"   ,RETROK_9},
-#ifdef __XPLUS4__
-   { "0"  ,{26}  ,RETROK_0},
+   { "1"  ,"!"  ,RETROK_1 },
+   { "2"  ,"\"" ,RETROK_2 },
+   { "3"  ,"#"  ,RETROK_3 },
+   { "4"  ,"$"  ,RETROK_4 },
+   { "5"  ,"%"  ,RETROK_5 },
+   { "6"  ,"&"  ,RETROK_6 },
+   { "7"  ,"'"  ,RETROK_7 },
+   { "8"  ,"("  ,RETROK_8 },
+   { "9"  ,")"  ,RETROK_9 },
+   { "0"  ,"0"  ,RETROK_0 },
+   { "f1" ,"f2" ,RETROK_F9 },
+
+   /* 11 */
+   { "Q"  ,"Q"  ,RETROK_q },
+   { "W"  ,"W"  ,RETROK_w },
+   { "E"  ,"E"  ,RETROK_e },
+   { "R"  ,"R"  ,RETROK_r },
+   { "T"  ,"T"  ,RETROK_t },
+   { "Y"  ,"Y"  ,RETROK_y },
+   { "U"  ,"U"  ,RETROK_u },
+   { "I"  ,"I"  ,RETROK_i },
+   { "O"  ,"O"  ,RETROK_o },
+   { "P"  ,"P"  ,RETROK_p },
+   { "f3" ,"f4" ,RETROK_F10 },
+
+   /* 22 */
+   { "A"  ,"A"  ,RETROK_a },
+   { "S"  ,"S"  ,RETROK_s },
+   { "D"  ,"D"  ,RETROK_d },
+   { "F"  ,"F"  ,RETROK_f },
+   { "G"  ,"G"  ,RETROK_g },
+   { "H"  ,"H"  ,RETROK_h },
+   { "J"  ,"J"  ,RETROK_j },
+   { "K"  ,"K"  ,RETROK_k },
+   { "L"  ,"L"  ,RETROK_l },
+   { {31} ,{31} ,RETROK_INSERT }, /* £ */
+   { "f5" ,"f6" ,RETROK_F11 },
+
+   /* 33 */
+   { "Z"  ,"Z"  ,RETROK_z },
+   { "X"  ,"X"  ,RETROK_x },
+   { "C"  ,"C"  ,RETROK_c },
+   { "V"  ,"V"  ,RETROK_v },
+   { "B"  ,"B"  ,RETROK_b },
+   { "N"  ,"N"  ,RETROK_n },
+   { "M"  ,"M"  ,RETROK_m },
+   { ","  ,"<"  ,RETROK_COMMA },
+   { "."  ,">"  ,RETROK_PERIOD },
+   { "/"  ,"?"  ,RETROK_SLASH },
+   { "f7" ,"f8" ,RETROK_F12 },
+
+   /* 44 */
+   { {25} ,{25} ,RETROK_BACKQUOTE }, /* Left arrow */
+   { "CTR","CTR",RETROK_TAB },
+   { "+"  ,"+"  ,RETROK_MINUS },
+   { "-"  ,"-"  ,RETROK_EQUALS },
+   { "@"  ,"@"  ,RETROK_LEFTBRACKET },
+   { "*"  ,"*"  ,RETROK_RIGHTBRACKET },
+   { {26} ,{7}  ,RETROK_DELETE }, /* Up arrow / Pi */
+   { ":"  ,"["  ,RETROK_SEMICOLON },
+   { ";"  ,"]"  ,RETROK_QUOTE },
+   { "="  ,"="  ,RETROK_BACKSLASH },
+   { "STB","SVD",VKBD_STATUSBAR_SAVEDISK }, /* Statusbar / Save disk */
+
+   /* 55 */
+   { {24} ,{24} ,RETROK_LCTRL },
+   { "R/S","R/S",RETROK_ESCAPE },
+   { "S/L","S/L",VKBD_SHIFTLOCK }, /* ShiftLock */
+   { "LSH","LSH",RETROK_LSHIFT },
+   { "RSH","RSH",RETROK_RSHIFT },
+   { "RST","RST",RETROK_PAGEUP },
+   { "CLR","CLR",RETROK_HOME },
+   { "DEL","DEL",RETROK_BACKSPACE },
+   { {30} ,{30} ,RETROK_UP },
+   { "RET","RET",RETROK_RETURN },
+   { "JOY","ASR",VKBD_JOYPORT_ASPECT }, /* Switch joyport / Toggle aspect ratio */
+
+   /* 66 */
+   { {17} ,{17} ,VKBD_RESET },  /* Reset */
+   { {19} ,{19} ,VKBD_DATASETTE_RESET }, /* Datasette RESET */
+   { {20} ,{20} ,VKBD_DATASETTE_START }, /* Datasette START */
+   { {21} ,{21} ,VKBD_DATASETTE_RWD }, /* Datasette RWD */
+   { {22} ,{22} ,VKBD_DATASETTE_FWD }, /* Datasette FWD */
+   { {23} ,{23} ,VKBD_DATASETTE_STOP }, /* Datasette STOP */
+   { {18} ,{18} ,RETROK_SPACE },
+   { {27} ,{27} ,RETROK_LEFT },
+   { {28} ,{28} ,RETROK_DOWN },
+   { {29} ,{29} ,RETROK_RIGHT },
+   { "TRF","ZOM",VKBD_TURBO_ZOOM }, /* Toggle turbo fire / Toggle zoom mode */
+
+   /* C128 extra */
+   { "ESC","ESC",RETROK_F1 },
+   { "TAB","TAB",RETROK_F2 },
+   { "ALT","ALT",RETROK_F3 },
+   { "CAPS\1LOCK","CAPS\1LOCK",RETROK_F4 },
+   { {}   ,{}   ,-1 },
+   { "HELP","HELP",RETROK_F5 },
+   { "LINE\1FEED","LINE\1FEED",RETROK_F6 },
+   { "4080\1DSPL","4080\1DSPL",RETROK_F7 },
+   { "NO\1SCRL","NO\1SCRL",RETROK_F8 },
+   { {}   ,{}   ,-1 },
+   { {15} ,{15} ,VKBD_NUMPAD },
+
+   /* 0 */
+   { {15,'1'},{15,'1'},RETROK_KP1 },
+   { {15,'2'},{15,'2'},RETROK_KP2 },
+   { {15,'3'},{15,'3'},RETROK_KP3 },
+   { {15,'4'},{15,'4'},RETROK_KP4 },
+   { {15,'5'},{15,'5'},RETROK_KP5 },
+   { {15,'6'},{15,'6'},RETROK_KP6 },
+   { {15,'7'},{15,'7'},RETROK_KP7 },
+   { {15,'8'},{15,'8'},RETROK_KP8 },
+   { {15,'9'},{15,'9'},RETROK_KP9 },
+   { {15,'0'},{15,'0'},RETROK_KP0 },
+   { "f1" ,"f2" ,RETROK_F9 },
+
+   /* 11 */
+   { "Q"  ,"Q"  ,RETROK_q },
+   { "W"  ,"W"  ,RETROK_w },
+   { "E"  ,"E"  ,RETROK_e },
+   { "R"  ,"R"  ,RETROK_r },
+   { "T"  ,"T"  ,RETROK_t },
+   { "Y"  ,"Y"  ,RETROK_y },
+   { "U"  ,"U"  ,RETROK_u },
+   { "I"  ,"I"  ,RETROK_i },
+   { "O"  ,"O"  ,RETROK_o },
+   { "P"  ,"P"  ,RETROK_p },
+   { "f3" ,"f4" ,RETROK_F10 },
+
+   /* 22 */
+   { "A"  ,"A"  ,RETROK_a },
+   { "S"  ,"S"  ,RETROK_s },
+   { "D"  ,"D"  ,RETROK_d },
+   { "F"  ,"F"  ,RETROK_f },
+   { "G"  ,"G"  ,RETROK_g },
+   { "H"  ,"H"  ,RETROK_h },
+   { "J"  ,"J"  ,RETROK_j },
+   { "K"  ,"K"  ,RETROK_k },
+   { "L"  ,"L"  ,RETROK_l },
+   { {31} ,{31} ,RETROK_INSERT }, /* £ */
+   { "f5" ,"f6" ,RETROK_F11 },
+
+   /* 33 */
+   { "Z"  ,"Z"  ,RETROK_z },
+   { "X"  ,"X"  ,RETROK_x },
+   { "C"  ,"C"  ,RETROK_c },
+   { "V"  ,"V"  ,RETROK_v },
+   { "B"  ,"B"  ,RETROK_b },
+   { "N"  ,"N"  ,RETROK_n },
+   { "M"  ,"M"  ,RETROK_m },
+   { ","  ,"<"  ,RETROK_COMMA },
+   { {15,'.'},{15,'.'},RETROK_KP_PERIOD },
+   { "/"  ,"?"  ,RETROK_SLASH },
+   { "f7" ,"f8" ,RETROK_F12 },
+
+   /* 44 */
+   { {25} ,{25} ,RETROK_BACKQUOTE }, /* Left arrow */
+   { "CTR","CTR",RETROK_TAB },
+   { {15,'+'},{15,'+'},RETROK_KP_PLUS },
+   { {15,'-'},{15,'-'},RETROK_KP_MINUS },
+   { "@"  ,"@"  ,RETROK_LEFTBRACKET },
+   { "*"  ,"*"  ,RETROK_RIGHTBRACKET },
+   { {26} ,{7}  ,RETROK_DELETE }, /* Up arrow / Pi */
+   { ":"  ,"["  ,RETROK_SEMICOLON },
+   { ";"  ,"]"  ,RETROK_QUOTE },
+   { "="  ,"="  ,RETROK_BACKSLASH },
+   { "STB","SVD",VKBD_STATUSBAR_SAVEDISK }, /* Statusbar / Save disk */
+
+   /* 55 */
+   { {24} ,{24} ,RETROK_LCTRL },
+   { "R/S","R/S",RETROK_ESCAPE },
+   { "S/L","S/L",VKBD_SHIFTLOCK }, /* ShiftLock */
+   { "LSH","LSH",RETROK_LSHIFT },
+   { "RSH","RSH",RETROK_RSHIFT },
+   { "RST","RST",RETROK_PAGEUP },
+   { "CLR","CLR",RETROK_HOME },
+   { "DEL","DEL",RETROK_BACKSPACE },
+   { {30} ,{30} ,RETROK_UP },
+   { {15,'E','N','T'},{15,'E','N','T'},RETROK_KP_ENTER },
+   { "JOY","ASR",VKBD_JOYPORT_ASPECT }, /* Switch joyport / Toggle aspect ratio */
+
+   /* 66 */
+   { {17} ,{17} ,VKBD_RESET },  /* Reset */
+   { {19} ,{19} ,VKBD_DATASETTE_RESET }, /* Datasette RESET */
+   { {20} ,{20} ,VKBD_DATASETTE_START }, /* Datasette START */
+   { {21} ,{21} ,VKBD_DATASETTE_RWD }, /* Datasette RWD */
+   { {22} ,{22} ,VKBD_DATASETTE_FWD }, /* Datasette FWD */
+   { {23} ,{23} ,VKBD_DATASETTE_STOP }, /* Datasette STOP */
+   { {18} ,{18} ,RETROK_SPACE },
+   { {27} ,{27} ,RETROK_LEFT },
+   { {28} ,{28} ,RETROK_DOWN },
+   { {29} ,{29} ,RETROK_RIGHT },
+   { "TRF","ZOM",VKBD_TURBO_ZOOM }, /* Toggle turbo fire / Toggle zoom mode */
+
 #else
-   { "0"  ,"0"   ,RETROK_0},
+
+   /* 0 */
+   { "1"  ,"!"  ,RETROK_1 },
+   { "2"  ,"\"" ,RETROK_2 },
+   { "3"  ,"#"  ,RETROK_3 },
+   { "4"  ,"$"  ,RETROK_4 },
+   { "5"  ,"%"  ,RETROK_5 },
+   { "6"  ,"&"  ,RETROK_6 },
+   { "7"  ,"'"  ,RETROK_7 },
+   { "8"  ,"("  ,RETROK_8 },
+   { "9"  ,")"  ,RETROK_9 },
+#ifdef __XPLUS4__
+   { "0"  ,{26} ,RETROK_0 },
+#else
+   { "0"  ,"0"  ,RETROK_0 },
 #endif
 #ifdef __XPLUS4__
-   { "F1" ,"F4"  ,RETROK_F1},
+   { "F1" ,"F4" ,RETROK_F1 },
 #else
-   { "f1" ,"f2"  ,RETROK_F1},
+   { "f1" ,"f2" ,RETROK_F1 },
 #endif
 
    /* 11 */
-   { "Q"  ,"Q"   ,RETROK_q},
-   { "W"  ,"W"   ,RETROK_w},
-   { "E"  ,"E"   ,RETROK_e},
-   { "R"  ,"R"   ,RETROK_r},
-   { "T"  ,"T"   ,RETROK_t},
-   { "Y"  ,"Y"   ,RETROK_y},
-   { "U"  ,"U"   ,RETROK_u},
-   { "I"  ,"I"   ,RETROK_i},
-   { "O"  ,"O"   ,RETROK_o},
-   { "P"  ,"P"   ,RETROK_p},
+   { "Q"  ,"Q"  ,RETROK_q },
+   { "W"  ,"W"  ,RETROK_w },
+   { "E"  ,"E"  ,RETROK_e },
+   { "R"  ,"R"  ,RETROK_r },
+   { "T"  ,"T"  ,RETROK_t },
+   { "Y"  ,"Y"  ,RETROK_y },
+   { "U"  ,"U"  ,RETROK_u },
+   { "I"  ,"I"  ,RETROK_i },
+   { "O"  ,"O"  ,RETROK_o },
+   { "P"  ,"P"  ,RETROK_p },
 #ifdef __XPLUS4__
-   { "F2" ,"F5"  ,RETROK_F2},
+   { "F2" ,"F5" ,RETROK_F2 },
 #else
-   { "f3" ,"f4"  ,RETROK_F3},
+   { "f3" ,"f4" ,RETROK_F3 },
 #endif
 
    /* 22 */
-   { "A"  ,"A"   ,RETROK_a},
-   { "S"  ,"S"   ,RETROK_s},
-   { "D"  ,"D"   ,RETROK_d},
-   { "F"  ,"F"   ,RETROK_f},
-   { "G"  ,"G"   ,RETROK_g},
-   { "H"  ,"H"   ,RETROK_h},
-   { "J"  ,"J"   ,RETROK_j},
-   { "K"  ,"K"   ,RETROK_k},
-   { "L"  ,"L"   ,RETROK_l},
-   { {31} ,{31}  ,RETROK_INSERT}, /* £ */
+   { "A"  ,"A"  ,RETROK_a },
+   { "S"  ,"S"  ,RETROK_s },
+   { "D"  ,"D"  ,RETROK_d },
+   { "F"  ,"F"  ,RETROK_f },
+   { "G"  ,"G"  ,RETROK_g },
+   { "H"  ,"H"  ,RETROK_h },
+   { "J"  ,"J"  ,RETROK_j },
+   { "K"  ,"K"  ,RETROK_k },
+   { "L"  ,"L"  ,RETROK_l },
+   { {31} ,{31} ,RETROK_INSERT }, /* £ */
 #ifdef __XPLUS4__
-   { "F3" ,"F6"  ,RETROK_F3},
+   { "F3" ,"F6" ,RETROK_F3 },
 #else
-   { "f5" ,"f6"  ,RETROK_F5},
+   { "f5" ,"f6" ,RETROK_F5 },
 #endif
 
    /* 33 */
-   { "Z"  ,"Z"   ,RETROK_z},
-   { "X"  ,"X"   ,RETROK_x},
-   { "C"  ,"C"   ,RETROK_c},
-   { "V"  ,"V"   ,RETROK_v},
-   { "B"  ,"B"   ,RETROK_b},
-   { "N"  ,"N"   ,RETROK_n},
-   { "M"  ,"M"   ,RETROK_m},
-   { ","  ,"<"   ,RETROK_COMMA},
-   { "."  ,">"   ,RETROK_PERIOD},
-   { "/"  ,"?"   ,RETROK_SLASH},
+   { "Z"  ,"Z"  ,RETROK_z },
+   { "X"  ,"X"  ,RETROK_x },
+   { "C"  ,"C"  ,RETROK_c },
+   { "V"  ,"V"  ,RETROK_v },
+   { "B"  ,"B"  ,RETROK_b },
+   { "N"  ,"N"  ,RETROK_n },
+   { "M"  ,"M"  ,RETROK_m },
+   { ","  ,"<"  ,RETROK_COMMA },
+   { "."  ,">"  ,RETROK_PERIOD },
+   { "/"  ,"?"  ,RETROK_SLASH },
 #ifdef __XPLUS4__
-   { "HLP" ,"F7" ,RETROK_F8},
+   { "HLP","F7" ,RETROK_F8 },
 #else
-   { "f7" ,"f8"  ,RETROK_F7},
+   { "f7" ,"f8" ,RETROK_F7 },
 #endif
 
    /* 44 */
 #ifdef __XPLUS4__
-   { "ESC","ESC" ,RETROK_BACKQUOTE},
+   { "ESC","ESC",RETROK_BACKQUOTE },
 #else
-   { {25} ,{25}  ,RETROK_BACKQUOTE}, /* Left arrow */
+   { {25} ,{25} ,RETROK_BACKQUOTE }, /* Left arrow */
 #endif
-   { "CTR","CTR" ,RETROK_TAB},
-   { "+"  ,"+"   ,RETROK_MINUS},
-   { "-"  ,"-"   ,RETROK_EQUALS},
-   { "@"  ,"@"   ,RETROK_LEFTBRACKET},
-   { "*"  ,"*"   ,RETROK_RIGHTBRACKET},
-   { {26} ,{7}   ,RETROK_DELETE}, /* Up arrow / Pi */
-   { ":"  ,"["   ,RETROK_SEMICOLON},
-   { ";"  ,"]"   ,RETROK_QUOTE},
-   { "="  ,"="   ,RETROK_BACKSLASH},
-   { "STB","SVD" ,-3}, /* Statusbar / Save disk */
+   { "CTR","CTR",RETROK_TAB },
+   { "+"  ,"+"  ,RETROK_MINUS },
+   { "-"  ,"-"  ,RETROK_EQUALS },
+   { "@"  ,"@"  ,RETROK_LEFTBRACKET },
+   { "*"  ,"*"  ,RETROK_RIGHTBRACKET },
+   { {26} ,{7}  ,RETROK_DELETE }, /* Up arrow / Pi */
+   { ":"  ,"["  ,RETROK_SEMICOLON },
+   { ";"  ,"]"  ,RETROK_QUOTE },
+   { "="  ,"="  ,RETROK_BACKSLASH },
+   { "STB","SVD",VKBD_STATUSBAR_SAVEDISK }, /* Statusbar / Save disk */
 
    /* 55 */
-   { {24} ,{24}  ,RETROK_LCTRL},
-   { "R/S","R/S" ,RETROK_ESCAPE},
-   { "S/L","S/L" ,-10}, /* ShiftLock */
-   { "LSH","LSH" ,RETROK_LSHIFT},
-   { "RSH","RSH" ,RETROK_RSHIFT},
-   { "RST","RST" ,RETROK_PAGEUP},
-   { "CLR","CLR" ,RETROK_HOME},
-   { "DEL","DEL" ,RETROK_BACKSPACE},
-   { {30} ,{30}  ,RETROK_UP},
-   { "RET","RET" ,RETROK_RETURN},
-   { "JOY","ASR" ,-4}, /* Switch joyport / Toggle aspect ratio */
+   { {24} ,{24} ,RETROK_LCTRL },
+   { "R/S","R/S",RETROK_ESCAPE },
+   { "S/L","S/L",VKBD_SHIFTLOCK }, /* ShiftLock */
+   { "LSH","LSH",RETROK_LSHIFT },
+   { "RSH","RSH",RETROK_RSHIFT },
+   { "RST","RST",RETROK_PAGEUP },
+   { "CLR","CLR",RETROK_HOME },
+   { "DEL","DEL",RETROK_BACKSPACE },
+   { {30} ,{30} ,RETROK_UP },
+   { "RET","RET",RETROK_RETURN },
+   { "JOY","ASR",VKBD_JOYPORT_ASPECT }, /* Switch joyport / Toggle aspect ratio */
 
    /* 66 */
-   { {17} ,{17}  ,-2},  /* Reset */
-   { {19} ,{19}  ,-15}, /* Datasette RESET */
-   { {20} ,{20}  ,-12}, /* Datasette PLAY */
-   { {21} ,{21}  ,-14}, /* Datasette RWD */
-   { {22} ,{22}  ,-13}, /* Datasette FWD */
-   { {23} ,{23}  ,-11}, /* Datasette STOP */
-   { {18} ,{18}  ,RETROK_SPACE},
-   { {27} ,{27}  ,RETROK_LEFT},
-   { {28} ,{28}  ,RETROK_DOWN},
-   { {29} ,{29}  ,RETROK_RIGHT},
-   { "TRF","ZOM" ,-5}, /* Toggle turbo fire / Toggle zoom mode */
+   { {17} ,{17} ,-2 },  /* Reset */
+   { {19} ,{19} ,-15 }, /* Datasette RESET */
+   { {20} ,{20} ,-12 }, /* Datasette PLAY */
+   { {21} ,{21} ,-14 }, /* Datasette RWD */
+   { {22} ,{22} ,-13 }, /* Datasette FWD */
+   { {23} ,{23} ,-11 }, /* Datasette STOP */
+   { {18} ,{18} ,RETROK_SPACE },
+   { {27} ,{27} ,RETROK_LEFT },
+   { {28} ,{28} ,RETROK_DOWN },
+   { {29} ,{29} ,RETROK_RIGHT },
+   { "TRF","ZOM",VKBD_TURBO_ZOOM }, /* Toggle turbo fire / Toggle zoom mode */
+
+#endif
 };
 
 static int BKG_PADDING(const char* str)
@@ -179,6 +398,9 @@ static int BKG_PADDING(const char* str)
    unsigned len = strlen(str);
    unsigned padding = 0;
    unsigned i = 0;
+
+   if (strchr(str, '\1'))
+      len = 4;
 
    for (i = 0; i < len; i++)
    {
@@ -195,6 +417,33 @@ static int BKG_PADDING(const char* str)
    return padding;
 }
 
+/* Alternate color keys */
+static int vkbd_alt_keys[] =
+{
+      RETROK_F1, RETROK_F3, RETROK_F5, RETROK_F7,
+#if defined(__XPLUS4__)
+      RETROK_F2, RETROK_F8,
+#elif defined(__X128__)
+      RETROK_F2, RETROK_F4, RETROK_F6, RETROK_F8,
+      RETROK_F9, RETROK_F10, RETROK_F11, RETROK_F12,
+#endif
+};
+static int vkbd_alt_keys_len = sizeof(vkbd_alt_keys) / sizeof(vkbd_alt_keys[0]);
+
+/* Extra color keys */
+static int vkbd_extra_keys[] =
+{
+   VKBD_NUMPAD, VKBD_RESET, VKBD_STATUSBAR_SAVEDISK, VKBD_JOYPORT_ASPECT, VKBD_TURBO_ZOOM
+};
+static int vkbd_extra_keys_len = sizeof(vkbd_extra_keys) / sizeof(vkbd_extra_keys[0]);
+
+/* Datasette color keys */
+static int vkbd_datasette_keys[] =
+{
+   VKBD_DATASETTE_STOP, VKBD_DATASETTE_START, VKBD_DATASETTE_FWD, VKBD_DATASETTE_RWD, VKBD_DATASETTE_RESET
+};
+static int vkbd_datasette_keys_len = sizeof(vkbd_datasette_keys) / sizeof(vkbd_datasette_keys[0]);
+
 void print_vkbd(void)
 {
    libretro_graph_alpha_t ALPHA      = opt_vkbd_alpha;
@@ -202,7 +451,7 @@ void print_vkbd(void)
    long now                          = retro_ticks() / 1000;
    bool shifted                      = false;
    bool text_outline                 = false;
-   int page                          = 0;
+   int page                          = (retro_vkbd_page) ? VKBDX * VKBDY : 0;
    int x                             = 0;
    int y                             = 0;
 
@@ -229,14 +478,14 @@ void print_vkbd(void)
    int BKG_COLOR_SEL                 = 0;
    int BKG_COLOR_ACTIVE              = 0;
 
-   int FONT_MAX                      = 3;
+   int FONT_MAX                      = 10;
    int FONT_WIDTH                    = 1;
    int FONT_HEIGHT                   = 1;
    int FONT_COLOR                    = 0;
    int FONT_COLOR_NORMAL             = 0;
    int FONT_COLOR_SEL                = 0;
 
-   char string[4]                    = {0};
+   char string[11]                   = {0};
    unsigned theme                    = opt_vkbd_theme;
    if (theme & 0x80)
    {
@@ -373,30 +622,6 @@ void print_vkbd(void)
    /* Opacity */
    BKG_ALPHA  = (retro_vkbd_transparent) ? ALPHA : GRAPH_ALPHA_100;
 
-   /* Alternate color keys */
-   int alt_keys[] =
-   {
-      RETROK_F1, RETROK_F3, RETROK_F5, RETROK_F7,
-#ifdef __XPLUS4__
-      RETROK_F2, RETROK_F8
-#endif
-   };
-   int alt_keys_len = sizeof(alt_keys) / sizeof(alt_keys[0]);
-
-   /* Extra color keys */
-   int extra_keys[] =
-   {
-      -3 /* STB */ , -4 /* JOY/ASR */, -5 /* TRF/ZOM */
-   };
-   int extra_keys_len = sizeof(extra_keys) / sizeof(extra_keys[0]);
-
-   /* Datasette color keys */
-   int datasette_keys[] =
-   {
-      -11, -12, -13, -14, -15
-   };
-   int datasette_keys_len = sizeof(datasette_keys) / sizeof(datasette_keys[0]);
-
    /* Key label shifted */
    shifted = false;
    if (retro_capslock || vkey_sticky1 == RETROK_LSHIFT || vkey_sticky2 == RETROK_LSHIFT ||
@@ -418,42 +643,30 @@ void print_vkbd(void)
          BKG_COLOR = BKG_COLOR_NORMAL;
          BKG_ALPHA = (retro_vkbd_transparent) ? ALPHA : GRAPH_ALPHA_100;
 
+         /* Empty key */
+         if (vkeys[(y * VKBDX) + x].value == -1)
+            continue;
          /* Reset key color */
-         if (vkeys[(y * VKBDX) + x].value == -2)
-            BKG_COLOR = RGBc(128, 0, 0);
+         else if (vkeys[(y * VKBDX) + x].value == VKBD_RESET)
+            BKG_COLOR = (pix_bytes == 4) ? COLOR_RED_32 : COLOR_RED_16;
          else
          {
             /* Alternate key color */
-            for (int alt_key = 0; alt_key < alt_keys_len; ++alt_key)
-                if (alt_keys[alt_key] == vkeys[(y * VKBDX) + x + page].value)
+            for (int alt_key = 0; alt_key < vkbd_alt_keys_len; ++alt_key)
+                if (vkbd_alt_keys[alt_key] == vkeys[(y * VKBDX) + x + page].value)
                     BKG_COLOR = BKG_COLOR_ALT;
 
             /* Extra key color */
-            for (int extra_key = 0; extra_key < extra_keys_len; ++extra_key)
-                if (extra_keys[extra_key] == vkeys[(y * VKBDX) + x + page].value)
+            for (int extra_key = 0; extra_key < vkbd_extra_keys_len; ++extra_key)
+                if (vkbd_extra_keys[extra_key] == vkeys[(y * VKBDX) + x + page].value)
                     BKG_COLOR = BKG_COLOR_EXTRA;
 
             /* Datasette key color */
-            for (int datasette_key = 0; datasette_key < datasette_keys_len; ++datasette_key)
-                if (datasette_keys[datasette_key] == vkeys[(y * VKBDX) + x + page].value)
+            for (int datasette_key = 0; datasette_key < vkbd_datasette_keys_len; ++datasette_key)
+                if (vkbd_datasette_keys[datasette_key] == vkeys[(y * VKBDX) + x + page].value)
                     BKG_COLOR = BKG_COLOR_TAPE;
          }
 
-         /* Key centering */
-         BKG_PADDING_X = BKG_PADDING_X_DEFAULT;
-         BKG_PADDING_Y = BKG_PADDING_Y_DEFAULT;
-         if (tape_enabled && vkeys[(y * VKBDX) + x + page].value == -15) /* Datasette Reset */
-            BKG_PADDING_X = BKG_PADDING("000");
-         else if (!shifted && strlen(vkeys[(y * VKBDX) + x + page].normal) > 1)
-            BKG_PADDING_X = BKG_PADDING(vkeys[(y * VKBDX) + x + page].normal);
-         else if (shifted && strlen(vkeys[(y * VKBDX) + x + page].shift) > 1)
-            BKG_PADDING_X = BKG_PADDING(vkeys[(y * VKBDX) + x + page].shift);
-
-         /* Key positions */
-         XKEY  = XOFFSET + XBASEKEY + (x * XSIDE);
-         XTEXT = XOFFSET + XBASETEXT + BKG_PADDING_X + (x * XSIDE);
-         YKEY  = YOFFSET + YBASEKEY + (y * YSIDE);
-         YTEXT = YOFFSET + YBASETEXT + BKG_PADDING_Y + (y * YSIDE);
 
          /* Default font color */
          FONT_COLOR = FONT_COLOR_NORMAL;
@@ -465,14 +678,14 @@ void print_vkbd(void)
          /* Sticky + CapsLock + pressed colors */
          if ( (vkey_sticky1 == vkeys[(y * VKBDX) + x + page].value
           ||   vkey_sticky2 == vkeys[(y * VKBDX) + x + page].value
-          ||(retro_capslock && vkeys[(y * VKBDX) + x + page].value == -10)
+          ||(retro_capslock && vkeys[(y * VKBDX) + x + page].value == VKBD_SHIFTLOCK)
           ||(retro_key_state_internal[current_key])
           ||(vkflag[RETRO_DEVICE_ID_JOYPAD_START] && vkeys[(y * VKBDX) + x + page].value == RETROK_RETURN)
           ||(vkflag[RETRO_DEVICE_ID_JOYPAD_X]     && vkeys[(y * VKBDX) + x + page].value == RETROK_SPACE)
-          ||(tape_enabled && tape_control == 1 && vkeys[(y * VKBDX) + x + page].value == -12)  /* Datasette Play */
-          ||(tape_enabled && tape_control == 2 && vkeys[(y * VKBDX) + x + page].value == -13)  /* Datasette FWD */
-          ||(tape_enabled && tape_control == 3 && vkeys[(y * VKBDX) + x + page].value == -14)) /* Datasette RWD */
-          && BKG_COLOR != BKG_COLOR_EXTRA && vkeys[(y * VKBDX) + x + page].value != -2)
+          ||(tape_enabled && tape_control == 1 && vkeys[(y * VKBDX) + x + page].value == VKBD_DATASETTE_START)
+          ||(tape_enabled && tape_control == 2 && vkeys[(y * VKBDX) + x + page].value == VKBD_DATASETTE_FWD)
+          ||(tape_enabled && tape_control == 3 && vkeys[(y * VKBDX) + x + page].value == VKBD_DATASETTE_RWD))
+          && BKG_COLOR != BKG_COLOR_EXTRA && vkeys[(y * VKBDX) + x + page].value != VKBD_RESET)
          {
             FONT_COLOR = FONT_COLOR_NORMAL;
             BKG_COLOR  = BKG_COLOR_ACTIVE;
@@ -492,36 +705,40 @@ void print_vkbd(void)
             }
          }
 
-         /* Key background */
-         draw_fbox(XKEY+XKEYSPACING, YKEY+YKEYSPACING, XSIDE-XKEYSPACING, YSIDE-YKEYSPACING,
-                   BKG_COLOR, BKG_ALPHA);
-
-         /* Key text */
-         if (tape_enabled && vkeys[(y * VKBDX) + x + page].value == -15) /* Datasette Reset */
+         /* Key string */
+         if (tape_enabled && vkeys[(y * VKBDX) + x + page].value == VKBD_DATASETTE_RESET)
             snprintf(string, sizeof(string), "%03d", tape_counter);
          else
             snprintf(string, sizeof(string), "%s",
                (!shifted) ? vkeys[(y * VKBDX) + x + page].normal : vkeys[(y * VKBDX) + x + page].shift);
 
+         /* Key centering */
+         BKG_PADDING_X = BKG_PADDING_X_DEFAULT;
+         BKG_PADDING_Y = BKG_PADDING_Y_DEFAULT;
+         if (tape_enabled && vkeys[(y * VKBDX) + x + page].value == VKBD_DATASETTE_RESET)
+            BKG_PADDING_X = BKG_PADDING("000");
+         else
+            BKG_PADDING_X = BKG_PADDING(string);
+
+         if (strchr(string, '\1'))
+            BKG_PADDING_Y = -6;
+
+         /* Key positions */
+         XKEY  = XOFFSET + XBASEKEY + (x * XSIDE);
+         XTEXT = XOFFSET + XBASETEXT + BKG_PADDING_X + (x * XSIDE);
+         YKEY  = YOFFSET + YBASEKEY + (y * YSIDE);
+         YTEXT = YOFFSET + YBASETEXT + BKG_PADDING_Y + (y * YSIDE);
+
+         /* Key background */
+         draw_fbox(XKEY+XKEYSPACING, YKEY+YKEYSPACING, XSIDE-XKEYSPACING, YSIDE-YKEYSPACING,
+                   BKG_COLOR, BKG_ALPHA);
+
+         /* Key text */
          draw_text(XTEXT, YTEXT, FONT_COLOR, BKG_COLOR, GRAPH_ALPHA_25,
                    (text_outline) ? GRAPH_BG_OUTLINE : GRAPH_BG_SHADOW, FONT_WIDTH, FONT_HEIGHT, FONT_MAX,
                    string);
       }
    }
-
-   /* Key centering */
-   BKG_PADDING_X = BKG_PADDING_X_DEFAULT;
-   BKG_PADDING_Y = BKG_PADDING_Y_DEFAULT;
-   if (!shifted && strlen(vkeys[(vkey_pos_y * VKBDX) + vkey_pos_x + page].normal) > 1)
-      BKG_PADDING_X = BKG_PADDING(vkeys[(vkey_pos_y * VKBDX) + vkey_pos_x + page].normal);
-   else if (shifted && strlen(vkeys[(vkey_pos_y * VKBDX) + vkey_pos_x + page].shift) > 1)
-      BKG_PADDING_X = BKG_PADDING(vkeys[(vkey_pos_y * VKBDX) + vkey_pos_x + page].shift);
-
-   /* Selected key position */
-   XKEY  = XOFFSET + XBASEKEY + (vkey_pos_x * XSIDE);
-   XTEXT = XOFFSET + XBASETEXT + BKG_PADDING_X + (vkey_pos_x * XSIDE);
-   YKEY  = YOFFSET + YBASEKEY + (vkey_pos_y * YSIDE);
-   YTEXT = YOFFSET + YBASETEXT + BKG_PADDING_Y + (vkey_pos_y * YSIDE);
 
    /* Opacity */
    BKG_ALPHA = (retro_vkbd_transparent) ?
@@ -536,7 +753,13 @@ void print_vkbd(void)
    else
       FONT_COLOR = FONT_COLOR_SEL;
 
-   if (vkeys[(vkey_pos_y * VKBDX) + vkey_pos_x + page].value == -2) /* Reset */
+   /* Selected key string */
+   snprintf(string, sizeof(string), "%s",
+         (!shifted) ? vkeys[(vkey_pos_y * VKBDX) + vkey_pos_x + page].normal
+                    : vkeys[(vkey_pos_y * VKBDX) + vkey_pos_x + page].shift);
+
+   /* Reset key */
+   if (vkeys[(vkey_pos_y * VKBDX) + vkey_pos_x + page].value == VKBD_RESET)
    {
       signed char reset_counter = 0;
       if (last_vkey_pressed_time < now && last_vkey_pressed != -1)
@@ -546,21 +769,27 @@ void print_vkbd(void)
 
       if (last_vkey_pressed != -1 && reset_counter == 0)
       {
-         FONT_COLOR = (pix_bytes == 4) ? COLOR_WHITE_32 : COLOR_WHITE_16;
-         BKG_COLOR_SEL = RGBc(128, 0, 0);
+         FONT_COLOR    = (pix_bytes == 4) ? COLOR_WHITE_32 : COLOR_WHITE_16;
+         BKG_COLOR_SEL = (pix_bytes == 4) ? COLOR_RED_32 : COLOR_RED_16;
       }
 
       if (reset_counter > 0)
          snprintf(string, sizeof(string), "%1d", reset_counter);
-      else
-         snprintf(string, sizeof(string), "%s",
-               (!shifted) ? vkeys[(vkey_pos_y * VKBDX) + vkey_pos_x + page].normal
-                          : vkeys[(vkey_pos_y * VKBDX) + vkey_pos_x + page].shift);
    }
-   else
-      snprintf(string, sizeof(string), "%s",
-            (!shifted) ? vkeys[(vkey_pos_y * VKBDX) + vkey_pos_x + page].normal
-                       : vkeys[(vkey_pos_y * VKBDX) + vkey_pos_x + page].shift);
+
+   /* Key centering */
+   BKG_PADDING_X = BKG_PADDING_X_DEFAULT;
+   BKG_PADDING_Y = BKG_PADDING_Y_DEFAULT;
+   BKG_PADDING_X = BKG_PADDING(string);
+
+   if (strchr(string, '\1'))
+      BKG_PADDING_Y = -6;
+
+   /* Selected key position */
+   XKEY  = XOFFSET + XBASEKEY + (vkey_pos_x * XSIDE);
+   XTEXT = XOFFSET + XBASETEXT + BKG_PADDING_X + (vkey_pos_x * XSIDE);
+   YKEY  = YOFFSET + YBASEKEY + (vkey_pos_y * YSIDE);
+   YTEXT = YOFFSET + YBASETEXT + BKG_PADDING_Y + (vkey_pos_y * YSIDE);
 
    /* Selected key background */
    draw_fbox(XKEY+XKEYSPACING, YKEY+YKEYSPACING, XSIDE-XKEYSPACING, YSIDE-YKEYSPACING,
@@ -750,50 +979,53 @@ void input_vkbd(void)
                       input_state_cb(0, RETRO_DEVICE_POINTER, 0, RETRO_DEVICE_ID_POINTER_PRESSED)))
    {
       vkflag[i] = 1;
-      vkey_pressed = vkeys[(vkey_pos_y * VKBDX) + vkey_pos_x + ((0) ? VKBDX * VKBDY : 0)].value;
+      vkey_pressed = vkeys[(vkey_pos_y * VKBDX) + vkey_pos_x + ((retro_vkbd_page) ? VKBDX * VKBDY : 0)].value;
 
       if (vkey_pressed != -1 && last_vkey_pressed == -1)
       {
          switch (vkey_pressed)
          {
-            case -2: /* Reset on release */
+            case VKBD_NUMPAD:
+               retro_vkbd_page = !retro_vkbd_page;
                break;
-            case -3:
+            case VKBD_RESET: /* Reset on release */
+               break;
+            case VKBD_STATUSBAR_SAVEDISK:
                if (retro_capslock)
                   emu_function(EMU_SAVE_DISK);
                else
                   emu_function(EMU_STATUSBAR);
                break;
-            case -4:
+            case VKBD_JOYPORT_ASPECT:
                if (retro_capslock)
                   emu_function(EMU_ASPECT_RATIO);
                else
                   emu_function(EMU_JOYPORT);
                break;
-            case -5:
+            case VKBD_TURBO_ZOOM:
                if (retro_capslock)
                   emu_function(EMU_ZOOM_MODE);
                else
                   emu_function(EMU_TURBO_FIRE);
                break;
-            case -10: /* ShiftLock */
+            case VKBD_SHIFTLOCK:
                retro_key_down(RETROK_CAPSLOCK);
                retro_key_up(RETROK_CAPSLOCK);
                break;
 
-            case -11:
+            case VKBD_DATASETTE_STOP:
                emu_function(EMU_DATASETTE_STOP);
                break;
-            case -12:
+            case VKBD_DATASETTE_START:
                emu_function(EMU_DATASETTE_START);
                break;
-            case -13:
+            case VKBD_DATASETTE_FWD:
                emu_function(EMU_DATASETTE_FORWARD);
                break;
-            case -14:
+            case VKBD_DATASETTE_RWD:
                emu_function(EMU_DATASETTE_REWIND);
                break;
-            case -15:
+            case VKBD_DATASETTE_RESET:
                emu_function(EMU_DATASETTE_RESET);
                break;
 
@@ -818,7 +1050,7 @@ void input_vkbd(void)
       vkey_pressed = -1;
       vkflag[i] = 0;
 
-      if (last_vkey_pressed == -2)
+      if (last_vkey_pressed == VKBD_RESET)
       {
          /* Reset on long press */
          if (now - last_vkey_pressed_time > VKBD_STICKY_HOLDING_TIME)
@@ -907,17 +1139,33 @@ void input_vkbd(void)
         && now - last_move_time > VKBD_MOVE_DELAY)
         || let_go_of_direction)
       {
+         bool searching = true;
          last_move_time = now;
 
-         if (vkflag[RETRO_DEVICE_ID_JOYPAD_UP])
-            vkey_pos_y -= 1;
-         else if (vkflag[RETRO_DEVICE_ID_JOYPAD_DOWN])
-            vkey_pos_y += 1;
+         /* Handle skipping of empty keys */
+         while (searching)
+         {
+            if (vkflag[RETRO_DEVICE_ID_JOYPAD_UP])
+               vkey_pos_y -= 1;
+            else if (vkflag[RETRO_DEVICE_ID_JOYPAD_DOWN])
+               vkey_pos_y += 1;
 
-         if (vkflag[RETRO_DEVICE_ID_JOYPAD_LEFT])
-            vkey_pos_x -= 1;
-         else if (vkflag[RETRO_DEVICE_ID_JOYPAD_RIGHT])
-            vkey_pos_x += 1;
+            if (vkflag[RETRO_DEVICE_ID_JOYPAD_LEFT])
+               vkey_pos_x -= 1;
+            else if (vkflag[RETRO_DEVICE_ID_JOYPAD_RIGHT])
+               vkey_pos_x += 1;
+
+            if (vkey_pos_x < 0)
+               vkey_pos_x = VKBDX - 1;
+            else if (vkey_pos_x > VKBDX - 1)
+               vkey_pos_x = 0;
+            if (vkey_pos_y < 0)
+               vkey_pos_y = VKBDY - 1;
+            else if (vkey_pos_y > VKBDY - 1)
+               vkey_pos_y = 0;
+
+            searching = (vkeys[(vkey_pos_y * VKBDX) + vkey_pos_x + ((retro_vkbd_page) ? VKBDX * VKBDY : 0)].value == -1);
+         }
       }
       let_go_of_direction = false;
    }

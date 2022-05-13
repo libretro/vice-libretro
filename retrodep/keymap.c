@@ -907,11 +907,11 @@ static void libretro_keyboard()
             keyboard_parse_set_pos_row(RETROK_KP7,          8, 6, 8);   /*     Numpad 7 -> Numpad 7     */
             keyboard_parse_set_pos_row(RETROK_KP8,          8, 1, 8);   /*     Numpad 8 -> Numpad 8     */
             keyboard_parse_set_pos_row(RETROK_KP9,          9, 6, 8);   /*     Numpad 9 -> Numpad 9     */
-            keyboard_parse_set_pos_row(RETROK_KP_MINUS,     9, 1, 8);   /*     Numpad - -> Numpad +     */
+            keyboard_parse_set_pos_row(RETROK_KP_MINUS,     9, 2, 8);   /*     Numpad - -> Numpad -     */
             keyboard_parse_set_pos_row(RETROK_KP4,          8, 5, 8);   /*     Numpad 4 -> Numpad 4     */
             keyboard_parse_set_pos_row(RETROK_KP5,          8, 2, 8);   /*     Numpad 5 -> Numpad 5     */
             keyboard_parse_set_pos_row(RETROK_KP6,          9, 5, 8);   /*     Numpad 6 -> Numpad 6     */
-            keyboard_parse_set_pos_row(RETROK_KP_PLUS,      9, 2, 8);   /*     Numpad + -> Numpad -     */
+            keyboard_parse_set_pos_row(RETROK_KP_PLUS,      9, 1, 8);   /*     Numpad + -> Numpad +     */
             keyboard_parse_set_pos_row(RETROK_KP1,          8, 7, 8);   /*     Numpad 1 -> Numpad 1     */
             keyboard_parse_set_pos_row(RETROK_KP2,          8, 4, 8);   /*     Numpad 2 -> Numpad 2     */
             keyboard_parse_set_pos_row(RETROK_KP3,          9, 7, 8);   /*     Numpad 3 -> Numpad 3     */
