@@ -668,6 +668,15 @@ void uistatusbar_close(void)
     uistatusbar_state = UISTATUSBAR_REPAINT;
 }
 
+#define COLOR_BLACK   0
+#define COLOR_WHITE   RGBc(255, 255, 255)
+#define COLOR_RED     RGBc(204,   0,   0)
+#define COLOR_GREEN_B RGBc(  0, 204,   0)
+#define COLOR_GREEN   RGBc(  0,  85,   0)
+#define COLOR_GREEN_D RGBc(  0,  34,   0)
+#define COLOR_BROWN   RGBc(143, 140, 129)
+#define COLOR_BROWN_D RGBc( 89,  79,  78)
+
 void uistatusbar_draw(void)
 {
     unsigned int i = 0;
@@ -682,14 +691,15 @@ void uistatusbar_draw(void)
     unsigned int color_black, color_white,
             color_red, color_greenb, color_green, color_greend,
             color_brown, color_brownd;
-    color_black  = 0;
-    color_white  = RGBc(255, 255, 255);
-    color_red    = RGBc(204,   0,   0);
-    color_greenb = RGBc(  0, 204,   0);
-    color_green  = RGBc(  0,  85,   0);
-    color_greend = RGBc(  0,  34,   0);
-    color_brown  = RGBc(143, 140, 129);
-    color_brownd = RGBc( 89,  79,  78);
+
+    color_black  = COLOR_BLACK;
+    color_white  = COLOR_WHITE;
+    color_red    = COLOR_RED;
+    color_greenb = COLOR_GREEN_B;
+    color_green  = COLOR_GREEN;
+    color_greend = COLOR_GREEN_D;
+    color_brown  = COLOR_BROWN;
+    color_brownd = COLOR_BROWN_D;
     color_f      = color_white;
     color_b      = color_black;
 
@@ -705,16 +715,16 @@ void uistatusbar_draw(void)
     int bkg_y = y - 1;
     int max_width = zoomed_width;
     int bkg_width = max_width;
-    int bkg_height = (char_width + 1) + 2;
+    int bkg_height = 9;
 
     /* Right alignment offset */
-    int x_align_offset = 2;
+    int x_align_offset = 3;
 
     /* LED section position */
     int led_width = 0;
     int led_x = 0;
     if (drive_enabled)
-        led_width = (char_width * 5) - x_align_offset + 1;
+        led_width = (char_width * 5) - x_align_offset + 2;
     else if (tape_enabled)
         led_width = (char_width * 8) - x_align_offset - 4;
     else

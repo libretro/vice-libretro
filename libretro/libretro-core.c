@@ -7839,7 +7839,7 @@ void retro_run(void)
       statusbar_message_timer--;
 
    /* Forced statusbar messages */
-   if (!retro_statusbar && opt_statusbar & STATUSBAR_MESSAGES && statusbar_message_timer)
+   if ((!retro_statusbar && opt_statusbar & STATUSBAR_MESSAGES && statusbar_message_timer) || retro_statusbar)
       uistatusbar_draw();
 
    /* Set volume back to maximum after starting with mute, due to ReSID 6581 init pop */

@@ -50,10 +50,11 @@ void vsyncarch_init(void)
 
 void vsyncarch_presync(void)
 {
+#if 0
     if (uistatusbar_state & UISTATUSBAR_ACTIVE) {
         uistatusbar_draw();
     }
-
+#endif
     retro_renderloop = 0;
     retro_lightpen_update();
 }

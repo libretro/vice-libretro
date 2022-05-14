@@ -145,7 +145,7 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
    /* 55 */
    { {24} ,{24} ,RETROK_LCTRL },
    { "R/S","R/S",RETROK_ESCAPE },
-   { "S/L","S/L",VKBD_SHIFTLOCK }, /* ShiftLock */
+   { "S/L","S/L",VKBD_SHIFTLOCK },
    { "LSH","LSH",RETROK_LSHIFT },
    { "RSH","RSH",RETROK_RSHIFT },
    { "RST","RST",RETROK_PAGEUP },
@@ -156,12 +156,12 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
    { "JOY","ASR",VKBD_JOYPORT_ASPECT }, /* Switch joyport / Toggle aspect ratio */
 
    /* 66 */
-   { {17} ,{17} ,VKBD_RESET },  /* Reset */
-   { {19} ,{19} ,VKBD_DATASETTE_RESET }, /* Datasette RESET */
-   { {20} ,{20} ,VKBD_DATASETTE_START }, /* Datasette START */
-   { {21} ,{21} ,VKBD_DATASETTE_RWD }, /* Datasette RWD */
-   { {22} ,{22} ,VKBD_DATASETTE_FWD }, /* Datasette FWD */
-   { {23} ,{23} ,VKBD_DATASETTE_STOP }, /* Datasette STOP */
+   { {17} ,{17} ,VKBD_RESET },
+   { {19} ,{19} ,VKBD_DATASETTE_RESET },
+   { {20} ,{20} ,VKBD_DATASETTE_START },
+   { {21} ,{21} ,VKBD_DATASETTE_RWD },
+   { {22} ,{22} ,VKBD_DATASETTE_FWD },
+   { {23} ,{23} ,VKBD_DATASETTE_STOP },
    { {18} ,{18} ,RETROK_SPACE },
    { {27} ,{27} ,RETROK_LEFT },
    { {28} ,{28} ,RETROK_DOWN },
@@ -249,7 +249,7 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
    /* 55 */
    { {24} ,{24} ,RETROK_LCTRL },
    { "R/S","R/S",RETROK_ESCAPE },
-   { "S/L","S/L",VKBD_SHIFTLOCK }, /* ShiftLock */
+   { "S/L","S/L",VKBD_SHIFTLOCK },
    { "LSH","LSH",RETROK_LSHIFT },
    { "RSH","RSH",RETROK_RSHIFT },
    { "RST","RST",RETROK_PAGEUP },
@@ -260,12 +260,12 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
    { "JOY","ASR",VKBD_JOYPORT_ASPECT }, /* Switch joyport / Toggle aspect ratio */
 
    /* 66 */
-   { {17} ,{17} ,VKBD_RESET },  /* Reset */
-   { {19} ,{19} ,VKBD_DATASETTE_RESET }, /* Datasette RESET */
-   { {20} ,{20} ,VKBD_DATASETTE_START }, /* Datasette START */
-   { {21} ,{21} ,VKBD_DATASETTE_RWD }, /* Datasette RWD */
-   { {22} ,{22} ,VKBD_DATASETTE_FWD }, /* Datasette FWD */
-   { {23} ,{23} ,VKBD_DATASETTE_STOP }, /* Datasette STOP */
+   { {17} ,{17} ,VKBD_RESET },
+   { {19} ,{19} ,VKBD_DATASETTE_RESET },
+   { {20} ,{20} ,VKBD_DATASETTE_START },
+   { {21} ,{21} ,VKBD_DATASETTE_RWD },
+   { {22} ,{22} ,VKBD_DATASETTE_FWD },
+   { {23} ,{23} ,VKBD_DATASETTE_STOP },
    { {18} ,{18} ,RETROK_SPACE },
    { {27} ,{27} ,RETROK_LEFT },
    { {28} ,{28} ,RETROK_DOWN },
@@ -366,7 +366,7 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
    /* 55 */
    { {24} ,{24} ,RETROK_LCTRL },
    { "R/S","R/S",RETROK_ESCAPE },
-   { "S/L","S/L",VKBD_SHIFTLOCK }, /* ShiftLock */
+   { "S/L","S/L",VKBD_SHIFTLOCK },
    { "LSH","LSH",RETROK_LSHIFT },
    { "RSH","RSH",RETROK_RSHIFT },
    { "RST","RST",RETROK_PAGEUP },
@@ -377,12 +377,12 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
    { "JOY","ASR",VKBD_JOYPORT_ASPECT }, /* Switch joyport / Toggle aspect ratio */
 
    /* 66 */
-   { {17} ,{17} ,-2 },  /* Reset */
-   { {19} ,{19} ,-15 }, /* Datasette RESET */
-   { {20} ,{20} ,-12 }, /* Datasette PLAY */
-   { {21} ,{21} ,-14 }, /* Datasette RWD */
-   { {22} ,{22} ,-13 }, /* Datasette FWD */
-   { {23} ,{23} ,-11 }, /* Datasette STOP */
+   { {17} ,{17} ,VKBD_RESET },
+   { {19} ,{19} ,VKBD_DATASETTE_RESET },
+   { {20} ,{20} ,VKBD_DATASETTE_START },
+   { {21} ,{21} ,VKBD_DATASETTE_RWD },
+   { {22} ,{22} ,VKBD_DATASETTE_FWD },
+   { {23} ,{23} ,VKBD_DATASETTE_STOP },
    { {18} ,{18} ,RETROK_SPACE },
    { {27} ,{27} ,RETROK_LEFT },
    { {28} ,{28} ,RETROK_DOWN },
@@ -418,7 +418,7 @@ static int BKG_PADDING(const char* str)
 }
 
 /* Alternate color keys */
-static int vkbd_alt_keys[] =
+static const int vkbd_alt_keys[] =
 {
       RETROK_F1, RETROK_F3, RETROK_F5, RETROK_F7,
 #if defined(__XPLUS4__)
@@ -428,26 +428,27 @@ static int vkbd_alt_keys[] =
       RETROK_F9, RETROK_F10, RETROK_F11, RETROK_F12,
 #endif
 };
-static int vkbd_alt_keys_len = sizeof(vkbd_alt_keys) / sizeof(vkbd_alt_keys[0]);
+static const int vkbd_alt_keys_len = sizeof(vkbd_alt_keys) / sizeof(vkbd_alt_keys[0]);
 
 /* Extra color keys */
-static int vkbd_extra_keys[] =
+static const int vkbd_extra_keys[] =
 {
    VKBD_NUMPAD, VKBD_RESET, VKBD_STATUSBAR_SAVEDISK, VKBD_JOYPORT_ASPECT, VKBD_TURBO_ZOOM
 };
-static int vkbd_extra_keys_len = sizeof(vkbd_extra_keys) / sizeof(vkbd_extra_keys[0]);
+static const int vkbd_extra_keys_len = sizeof(vkbd_extra_keys) / sizeof(vkbd_extra_keys[0]);
 
 /* Datasette color keys */
-static int vkbd_datasette_keys[] =
+static const int vkbd_datasette_keys[] =
 {
    VKBD_DATASETTE_STOP, VKBD_DATASETTE_START, VKBD_DATASETTE_FWD, VKBD_DATASETTE_RWD, VKBD_DATASETTE_RESET
 };
-static int vkbd_datasette_keys_len = sizeof(vkbd_datasette_keys) / sizeof(vkbd_datasette_keys[0]);
+static const int vkbd_datasette_keys_len = sizeof(vkbd_datasette_keys) / sizeof(vkbd_datasette_keys[0]);
 
 void print_vkbd(void)
 {
    libretro_graph_alpha_t ALPHA      = opt_vkbd_alpha;
    libretro_graph_alpha_t BKG_ALPHA  = ALPHA;
+   libretro_graph_alpha_t BRD_ALPHA  = ALPHA;
    long now                          = retro_ticks() / 1000;
    bool shifted                      = false;
    bool text_outline                 = false;
@@ -568,23 +569,27 @@ void print_vkbd(void)
          break;
    }
 
+   memset(graphed, 0, sizeof(graphed));
+
 #if defined(__XVIC__)
-   XOFFSET  = 4;
+   /* VIC */
+   XOFFSET  = 0;
    YOFFSET  = 0;
-   XPADDING = 108;
+   XPADDING = 116;
    YPADDING = 118;
 
    if (retro_region == RETRO_REGION_NTSC)
    {
-      XOFFSET  = 12;
+      XOFFSET  = 8;
       YOFFSET  = -1;
-      XPADDING = 60;
+      XPADDING = 68;
       YPADDING = 68;
    }
 #elif defined(__XPLUS4__)
-   XOFFSET  = 4;
+   /* TED */
+   XOFFSET  = 0;
    YOFFSET  = -2;
-   XPADDING = 66;
+   XPADDING = 74;
    YPADDING = 108;
 
    if (retro_region == RETRO_REGION_NTSC)
@@ -620,12 +625,13 @@ void print_vkbd(void)
    vkbd_y_max = YOFFSET + YBASEKEY + (YSIDE * VKBDY);
 
    /* Opacity */
-   BKG_ALPHA  = (retro_vkbd_transparent) ? ALPHA : GRAPH_ALPHA_100;
+   BKG_ALPHA = (retro_vkbd_transparent) ? ALPHA : GRAPH_ALPHA_100;
+   BRD_ALPHA = GRAPH_ALPHA_50;
 
    /* Key label shifted */
    shifted = false;
-   if (retro_capslock || vkey_sticky1 == RETROK_LSHIFT || vkey_sticky2 == RETROK_LSHIFT ||
-                         vkey_sticky1 == RETROK_RSHIFT || vkey_sticky2 == RETROK_RSHIFT)
+   if (retro_capslock || vkey_sticky1 == RETROK_LSHIFT || vkey_sticky2 == RETROK_LSHIFT
+                      || vkey_sticky1 == RETROK_RSHIFT || vkey_sticky2 == RETROK_RSHIFT)
       shifted = true;
    if (vkflag[RETRO_DEVICE_ID_JOYPAD_B] && (vkey_pressed == RETROK_LSHIFT || vkey_pressed == RETROK_RSHIFT))
       shifted = true;
@@ -666,7 +672,6 @@ void print_vkbd(void)
                 if (vkbd_datasette_keys[datasette_key] == vkeys[(y * VKBDX) + x + page].value)
                     BKG_COLOR = BKG_COLOR_TAPE;
          }
-
 
          /* Default font color */
          FONT_COLOR = FONT_COLOR_NORMAL;
@@ -729,14 +734,36 @@ void print_vkbd(void)
          YKEY  = YOFFSET + YBASEKEY + (y * YSIDE);
          YTEXT = YOFFSET + YBASETEXT + BKG_PADDING_Y + (y * YSIDE);
 
-         /* Key background */
-         draw_fbox(XKEY+XKEYSPACING, YKEY+YKEYSPACING, XSIDE-XKEYSPACING, YSIDE-YKEYSPACING,
-                   BKG_COLOR, BKG_ALPHA);
+         /* Empty key */
+         if (vkeys[(y * VKBDX) + x].value == -1)
+         {
+            /* Key background */
+            draw_fbox(XKEY+XKEYSPACING, YKEY+YKEYSPACING,
+                      XSIDE-XKEYSPACING, YSIDE-YKEYSPACING,
+                      0, BRD_ALPHA);
+         }
+         else
+         {
+            int FONT_ALPHA = BKG_ALPHA;
+            FONT_ALPHA = (FONT_ALPHA < GRAPH_ALPHA_25) ? GRAPH_ALPHA_25 : FONT_ALPHA;
+            FONT_ALPHA = (FONT_ALPHA > GRAPH_ALPHA_75) ? GRAPH_ALPHA_75 : FONT_ALPHA;
 
-         /* Key text */
-         draw_text(XTEXT, YTEXT, FONT_COLOR, BKG_COLOR, GRAPH_ALPHA_25,
-                   (text_outline) ? GRAPH_BG_OUTLINE : GRAPH_BG_SHADOW, FONT_WIDTH, FONT_HEIGHT, FONT_MAX,
-                   string);
+            /* Key background */
+            draw_fbox(XKEY+XKEYSPACING, YKEY+YKEYSPACING,
+                      XSIDE-XKEYSPACING, YSIDE-YKEYSPACING,
+                      BKG_COLOR, BKG_ALPHA);
+
+            /* Key text */
+            draw_text(XTEXT, YTEXT, FONT_COLOR, BKG_COLOR, FONT_ALPHA,
+                      (text_outline) ? GRAPH_BG_OUTLINE : GRAPH_BG_SHADOW, FONT_WIDTH, FONT_HEIGHT, FONT_MAX,
+                      string);
+         }
+
+         /* Key border */
+         draw_box(XKEY+XKEYSPACING-FONT_WIDTH, YKEY+YKEYSPACING-FONT_HEIGHT,
+                  XSIDE-XKEYSPACING+FONT_WIDTH, YSIDE-YKEYSPACING+FONT_HEIGHT,
+                  FONT_WIDTH, FONT_HEIGHT,
+                  0, BRD_ALPHA);
       }
    }
 
@@ -792,13 +819,50 @@ void print_vkbd(void)
    YTEXT = YOFFSET + YBASETEXT + BKG_PADDING_Y + (vkey_pos_y * YSIDE);
 
    /* Selected key background */
-   draw_fbox(XKEY+XKEYSPACING, YKEY+YKEYSPACING, XSIDE-XKEYSPACING, YSIDE-YKEYSPACING,
+   draw_fbox(XKEY+XKEYSPACING, YKEY+YKEYSPACING,
+             XSIDE-XKEYSPACING, YSIDE-YKEYSPACING,
              BKG_COLOR_SEL, BKG_ALPHA);
+
+   /* Selected key border */
+   draw_box(XKEY+XKEYSPACING-FONT_WIDTH, YKEY+YKEYSPACING-FONT_HEIGHT,
+            XSIDE-XKEYSPACING+FONT_WIDTH, YSIDE-YKEYSPACING+FONT_HEIGHT,
+            FONT_WIDTH, FONT_HEIGHT,
+            0, BRD_ALPHA);
 
    /* Selected key text */
    draw_text(XTEXT, YTEXT, FONT_COLOR, 0, GRAPH_ALPHA_100,
              GRAPH_BG_NONE, FONT_WIDTH, FONT_HEIGHT, FONT_MAX,
              string);
+
+   /* Corner dimming */
+   {
+      unsigned corner_y_min = 0;
+      unsigned corner_y_max = 0;
+
+      /* Top */
+      corner_y_min = 0;
+      corner_y_max = vkbd_y_min - YKEYSPACING;
+      draw_fbox(0, corner_y_min,
+                retrow, corner_y_max,
+                0, BRD_ALPHA);
+
+      /* Bottom */
+      corner_y_min = vkbd_y_max + YKEYSPACING;
+      corner_y_max = retroh - retroYS_offset - vkbd_y_max - YKEYSPACING;
+      draw_fbox(0, corner_y_min,
+                retrow, corner_y_max,
+                0, BRD_ALPHA);
+
+      /* Left + Right */
+      corner_y_min = vkbd_y_min - YKEYSPACING;
+      corner_y_max = vkbd_y_max - vkbd_y_min + (YKEYSPACING * 2);
+      draw_fbox(0, corner_y_min,
+                vkbd_x_min - XKEYSPACING, corner_y_max,
+                0, BRD_ALPHA);
+      draw_fbox(vkbd_x_max, corner_y_min,
+                retrow - vkbd_x_max , corner_y_max,
+                0, BRD_ALPHA);
+   }
 
 #if POINTER_DEBUG
    draw_hline(pointer_x, pointer_y, 1, 1, RGBc(255, 0, 255));
