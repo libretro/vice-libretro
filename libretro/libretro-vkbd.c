@@ -136,7 +136,7 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
    { "-"  ,"-"  ,RETROK_EQUALS },
    { "@"  ,"@"  ,RETROK_LEFTBRACKET },
    { "*"  ,"*"  ,RETROK_RIGHTBRACKET },
-   { {26} ,{7}  ,RETROK_DELETE }, /* Up arrow / Pi */
+   { {26} ,{6}  ,RETROK_DELETE }, /* Up arrow / Pi */
    { ":"  ,"["  ,RETROK_SEMICOLON },
    { ";"  ,"]"  ,RETROK_QUOTE },
    { "="  ,"="  ,RETROK_BACKSLASH },
@@ -240,7 +240,7 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
    { {15,'-'},{15,'-'},RETROK_KP_MINUS },
    { "@"  ,"@"  ,RETROK_LEFTBRACKET },
    { "*"  ,"*"  ,RETROK_RIGHTBRACKET },
-   { {26} ,{7}  ,RETROK_DELETE }, /* Up arrow / Pi */
+   { {26} ,{6}  ,RETROK_DELETE }, /* Up arrow / Pi */
    { ":"  ,"["  ,RETROK_SEMICOLON },
    { ";"  ,"]"  ,RETROK_QUOTE },
    { "="  ,"="  ,RETROK_BACKSLASH },
@@ -357,7 +357,7 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
    { "-"  ,"-"  ,RETROK_EQUALS },
    { "@"  ,"@"  ,RETROK_LEFTBRACKET },
    { "*"  ,"*"  ,RETROK_RIGHTBRACKET },
-   { {26} ,{7}  ,RETROK_DELETE }, /* Up arrow / Pi */
+   { {26} ,{6}  ,RETROK_DELETE }, /* Up arrow / Pi */
    { ":"  ,"["  ,RETROK_SEMICOLON },
    { ";"  ,"]"  ,RETROK_QUOTE },
    { "="  ,"="  ,RETROK_BACKSLASH },
