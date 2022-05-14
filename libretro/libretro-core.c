@@ -130,6 +130,15 @@ struct vice_core_options vice_opt;
 int vic20mem_forced = -1;
 #endif
 
+#if defined(__X128__)
+int is_forty(void)
+{
+   int forty;
+   resources_get_int("C128ColumnKey", &forty);
+   return forty;
+}
+#endif
+
 unsigned int zoom_mode_id = 0;
 int zoom_mode_id_prev = -1;
 unsigned int opt_zoom_mode_id = 0;
@@ -2178,6 +2187,20 @@ static void retro_set_core_options()
             { NULL, NULL },
          },
          "VICII"
+      },
+      {
+         "vice_c128_vdc_ram",
+         "System > VDC Video RAM",
+         "VDC Video RAM",
+         "",
+         NULL,
+         "system",
+         {
+            { "default", "16kB" },
+            { "64", "64kB" },
+            { NULL, NULL },
+         },
+         "default"
       },
       {
          "vice_c128_go64",
@@ -5153,6 +5176,21 @@ static void update_variables(void)
       vice_opt.C128ColumnKey = c128columnkey;
    }
 
+   var.key = "vice_c128_vdc_ram";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      int vdc64kb = 0;
+
+      if      (!strcmp(var.value, "default")) vdc64kb = 0;
+      else if (!strcmp(var.value, "64"))      vdc64kb = 1;
+
+      if (retro_ui_finalized && vice_opt.VDC64KB != vdc64kb)
+         log_resources_set_int("VDC64KB", vdc64kb);
+
+      vice_opt.VDC64KB = vdc64kb;
+   }
+
    var.key = "vice_c128_go64";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -5531,11 +5569,6 @@ static void update_variables(void)
       else if (!strcmp(var.value, "manual"))       zoom_mode_id = ZOOM_MODE_MANUAL;
       else if (!strcmp(var.value, "auto"))         zoom_mode_id = ZOOM_MODE_AUTO;
       else if (!strcmp(var.value, "auto_disable")) zoom_mode_id = ZOOM_MODE_AUTO_DISABLE;
-
-#if defined(__X128__)
-      if (!vice_opt.C128ColumnKey)
-         zoom_mode_id = 0;
-#endif
 
       opt_zoom_mode_id = zoom_mode_id;
    }
@@ -7287,11 +7320,21 @@ float retro_get_aspect_ratio(unsigned int width, unsigned int height, bool pixel
             par = (float)0.93650794;
             break;
       }
-      ar = ((float)width / (float)height) * par;
 #if defined(__X128__)
-      if (vice_opt.C128ColumnKey == 0)
-         ar = ((float)width / (float)height) / (float)2.0;
+      if (!is_forty())
+      {
+         switch (region)
+         {
+            case RETRO_REGION_NTSC:
+               par = 0.76704375f / 2.0f;
+               break;
+            case RETRO_REGION_PAL:
+               par = 0.92187500f / 2.0f;
+               break;
+         }
+      }
 #endif
+      ar = ((float)width / (float)height) * par;
 #elif defined(__XVIC__)
       switch (region)
       {
@@ -7379,6 +7422,16 @@ void update_geometry(int mode)
             float zoom_dar = 0;
             float zoom_par = retro_get_aspect_ratio(0, 0, true);
 
+            int zoom_width_max  = ZOOM_WIDTH_MAX;
+            int zoom_height_max = ZOOM_HEIGHT_MAX;
+
+#if defined(__X128__)
+            if (!is_forty())
+            {
+               zoom_width_max  = ZOOM_VDC_WIDTH_MAX;
+               zoom_height_max = ZOOM_VDC_HEIGHT_MAX;
+            }
+#endif
             zoom_mode_id_prev = zoom_mode_id;
 
             switch (zoom_mode_id)
@@ -7398,14 +7451,19 @@ void update_geometry(int mode)
                         break;
                      case ZOOM_MODE_AUTO:
                      case ZOOM_MODE_AUTO_DISABLE:
-                        zoom_border_height = vice_raster.last_line - vice_raster.first_line - ZOOM_HEIGHT_MAX;
+#if defined(__X128__)
+                        if (is_forty())
+                           zoom_border_height = vice_raster.last_line - vice_raster.first_line - zoom_height_max;
+#else
+                        zoom_border_height = vice_raster.last_line - vice_raster.first_line - zoom_height_max;
+#endif
                         if (zoom_border_height < 0)
                            zoom_border_height = 0;
                         break;
                   }
 
-                  zoom_crop_width    = retrow - ZOOM_WIDTH_MAX - zoom_border_width;
-                  zoom_crop_height   = retroh - ZOOM_HEIGHT_MAX - zoom_border_height;
+                  zoom_crop_width    = retrow - zoom_width_max - zoom_border_width;
+                  zoom_crop_height   = retroh - zoom_height_max - zoom_border_height;
                   zoom_crop_height_o = zoom_crop_height;
 
                   switch (zoom_mode_crop_id)
@@ -7435,16 +7493,16 @@ void update_geometry(int mode)
                   if (zoom_dar > 0)
                   {
                      if (zoom_mode_crop_id > 4)
-                        zoom_crop_height = retroh - ZOOM_HEIGHT_MAX - ((float)zoom_border_height * (float)zoom_dar / (float)zoom_par);
+                        zoom_crop_height = retroh - zoom_height_max - ((float)zoom_border_height * (float)zoom_dar / (float)zoom_par);
                      zoom_crop_width = retrow - ((float)(retroh - zoom_crop_height) * (float)zoom_dar / (float)zoom_par);
-                     if (retrow - zoom_crop_width <= ZOOM_WIDTH_MAX)
-                        zoom_crop_height = retroh - ((float)ZOOM_WIDTH_MAX / (float)zoom_dar * (float)zoom_par);
+                     if (retrow - zoom_crop_width <= zoom_width_max)
+                        zoom_crop_height = retroh - ((float)zoom_width_max / (float)zoom_dar * (float)zoom_par);
                   }
 
-                  if (retrow - zoom_crop_width < ZOOM_WIDTH_MAX)
-                     zoom_crop_width = retrow - ZOOM_WIDTH_MAX;
-                  if (retroh - zoom_crop_height < ZOOM_HEIGHT_MAX)
-                     zoom_crop_height = retroh - ZOOM_HEIGHT_MAX;
+                  if (retrow - zoom_crop_width < zoom_width_max)
+                     zoom_crop_width = retrow - zoom_width_max;
+                  if (retroh - zoom_crop_height < zoom_height_max)
+                     zoom_crop_height = retroh - zoom_height_max;
 
                   if (zoom_crop_width < 0)
                      zoom_crop_width = 0;
@@ -7458,6 +7516,10 @@ void update_geometry(int mode)
                   zoomed_XS_offset = (zoom_crop_width > 1) ? (zoom_crop_width / 2) : 0;
                   zoomed_YS_offset = (zoom_crop_height > 1) ? (zoom_crop_height / 2) : 0;
                   zoomed_YS_offset -= (retro_region == RETRO_REGION_PAL) ? 1 : 0;
+#if defined(__X128__)
+                  if (!is_forty())
+                     zoomed_YS_offset -= 4;
+#endif
 #elif defined(__XVIC__)
                   zoomed_XS_offset = (zoom_crop_width > 1) ? (zoom_crop_width / 2) : 0;
                   zoomed_XS_offset -= (retro_region == RETRO_REGION_PAL) ? 0 : -8;

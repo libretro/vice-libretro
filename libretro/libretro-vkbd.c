@@ -394,7 +394,7 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
 
 static int BKG_PADDING(const char* str)
 {
-   unsigned font_width_default = 6;
+   unsigned font_width_default = (retrow > 704) ? 12 : 6;
    unsigned len = strlen(str);
    unsigned padding = 0;
    unsigned i = 0;
@@ -413,6 +413,9 @@ static int BKG_PADDING(const char* str)
 
       padding -= (font_width / 2);
    }
+
+   if (retrow > 704)
+      padding--;
 
    return padding;
 }
@@ -478,6 +481,7 @@ void print_vkbd(void)
    int BKG_COLOR_TAPE                = 0;
    int BKG_COLOR_SEL                 = 0;
    int BKG_COLOR_ACTIVE              = 0;
+   int BRD_COLOR                     = 0;
 
    int FONT_MAX                      = 10;
    int FONT_WIDTH                    = 1;
@@ -569,6 +573,8 @@ void print_vkbd(void)
          break;
    }
 
+   BRD_COLOR = (pix_bytes == 4) ? COLOR_10_32 : COLOR_10_16;
+
    memset(graphed, 0, sizeof(graphed));
 
 #if defined(__XVIC__)
@@ -597,6 +603,7 @@ void print_vkbd(void)
       YPADDING = 64;
    }
 #else
+   /* VIC-II */
    XOFFSET  = 0;
    YOFFSET  = 1;
    XPADDING = 74;
@@ -607,6 +614,17 @@ void print_vkbd(void)
       YOFFSET  = -1;
       YPADDING = 72;
    }
+#if defined(__X128__)
+   /* VDC */
+   if (retrow > 704)
+   {
+      YOFFSET     = -8;
+      YPADDING    = 108;
+      XPADDING    = 120;
+      XPADDING   *= 2;
+      FONT_WIDTH *= 2;
+   }
+#endif
 #endif
 
    int XSIDE = (retrow - XPADDING) / VKBDX;
@@ -649,11 +667,8 @@ void print_vkbd(void)
          BKG_COLOR = BKG_COLOR_NORMAL;
          BKG_ALPHA = (retro_vkbd_transparent) ? ALPHA : GRAPH_ALPHA_100;
 
-         /* Empty key */
-         if (vkeys[(y * VKBDX) + x].value == -1)
-            continue;
          /* Reset key color */
-         else if (vkeys[(y * VKBDX) + x].value == VKBD_RESET)
+         if (vkeys[(y * VKBDX) + x].value == VKBD_RESET)
             BKG_COLOR = (pix_bytes == 4) ? COLOR_RED_32 : COLOR_RED_16;
          else
          {

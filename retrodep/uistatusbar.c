@@ -685,6 +685,7 @@ void uistatusbar_draw(void)
 
     unsigned int char_width = 6;
     unsigned int char_offset = 1;
+    unsigned int char_scale_x = 1;
     int x = 0, y = 0;
 
     unsigned int color_f, color_b;
@@ -703,12 +704,17 @@ void uistatusbar_draw(void)
     color_f      = color_white;
     color_b      = color_black;
 
+    if (retrow > 704)
+       char_scale_x = 2;
+
+    char_width *= char_scale_x;
+
     /* Statusbar position */
     x = 1;
     if (opt_statusbar & STATUSBAR_TOP)
         y = zoomed_YS_offset + 1;
     else
-        y = zoomed_height + zoomed_YS_offset - (char_width + 1) - 1;
+        y = zoomed_height + zoomed_YS_offset - 8;
 
     /* Statusbar background */
     int bkg_x = retroXS_offset + x - 1;
@@ -729,7 +735,7 @@ void uistatusbar_draw(void)
         led_width = (char_width * 8) - x_align_offset - 4;
     else
         led_width = (char_width * 3) - x_align_offset - 1;
-    led_x = retroXS_offset + x + max_width - led_width - 1;
+    led_x = retroXS_offset + x + max_width - led_width - 10;
 
     /* Basic mode statusbar background */
     if (opt_statusbar & STATUSBAR_BASIC && !statusbar_message_timer)
@@ -750,14 +756,14 @@ void uistatusbar_draw(void)
     /* Message */
     if (statusbar_message_timer)
     {
-        draw_text(bkg_x + char_offset, y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, 1, 1, 100, statusbar_text);
+        draw_text(bkg_x + char_offset, y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, char_scale_x, 1, 100, statusbar_text);
         draw_fbox(led_x, bkg_y, led_width, bkg_height, 0, GRAPH_ALPHA_100);
     }
     else if (!(opt_statusbar & STATUSBAR_BASIC))
     {
-        draw_text(bkg_x + (max_width / 2) - (20), y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, 1, 1, 10, statusbar_resolution);
-        draw_text(bkg_x + (max_width / 2) + (30), y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, 1, 1, 10, statusbar_memory);
-        draw_text(bkg_x + (max_width / 2) + (80), y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, 1, 1, 10, statusbar_model);
+        draw_text(bkg_x + (max_width / 2) - (20), y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, char_scale_x, 1, 10, statusbar_resolution);
+        draw_text(bkg_x + (max_width / 2) + (30), y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, char_scale_x, 1, 10, statusbar_memory);
+        draw_text(bkg_x + (max_width / 2) + (80), y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, char_scale_x, 1, 10, statusbar_model);
     }
 
     /* Tape indicator + drive & power LEDs */
@@ -826,20 +832,20 @@ void uistatusbar_draw(void)
         if (drive_enabled)
         {
             if (i == STATUSBAR_DRIVE8_TRACK_POS || i == STATUSBAR_DRIVE8_TRACK_POS + 1)
-                x_align -= 2;
+                x_align -= 2 * char_scale_x;
         }
         else if (tape_enabled)
         {
             if (i >= STATUSBAR_TAPE_POS && i < STATUSBAR_SPEED_POS - 4)
-                x_align = x_align - 3 + char_width;
+                x_align = x_align - (3 * char_scale_x) + char_width;
             else if (i >= STATUSBAR_TAPE_POS && i < STATUSBAR_SPEED_POS - 1)
-                x_align = x_align - 2 + char_width;
+                x_align = x_align - (2 * char_scale_x) + char_width;
         }
 
         int x_char = x + char_offset + x_align + (i * char_width);
 
         /* Output */
         snprintf(s, sizeof(s), "%c", c);
-        draw_text(x_char, y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, 1, 1, 10, s);
+        draw_text(x_char - char_scale_x, y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, char_scale_x, 1, 10, s);
     }
 }

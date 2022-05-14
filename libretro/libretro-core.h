@@ -167,6 +167,12 @@ extern int zoom_mode_id_prev;
 #define ZOOM_HEIGHT_MAX  200
 #define ZOOM_TOP_BORDER  VICII_NO_BORDER_FIRST_DISPLAYED_LINE - vicii.first_displayed_line
 #define ZOOM_LEFT_BORDER vicii.screen_leftborderwidth
+#if defined(__X128__)
+#define ZOOM_VDC_WIDTH_MAX   640
+#define ZOOM_VDC_HEIGHT_MAX  200
+#define ZOOM_VDC_TOP_BORDER  44
+#define ZOOM_VDC_LEFT_BORDER 108
+#endif
 #elif defined(__XVIC__)
 /* PAL: 448x284, NTSC: 400x234, VIC: 352x184 */
 #define ZOOM_WIDTH_MAX   352
@@ -275,6 +281,7 @@ struct vice_core_options
    int REUsize;
 #endif
 #if defined(__X128__)
+   int VDC64KB;
    int C128ColumnKey;
    int Go64Mode;
 #elif defined(__XSCPU64__)

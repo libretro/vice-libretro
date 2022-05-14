@@ -477,6 +477,7 @@ int ui_init_finalize(void)
 #if defined(__X128__)
    log_resources_set_int("Go64Mode", vice_opt.Go64Mode);
    log_resources_set_int("C128ColumnKey", vice_opt.C128ColumnKey);
+   log_resources_set_int("VDC64KB", vice_opt.VDC64KB);
 #elif defined(__XVIC__)
    log_resources_set_int("MegaCartNvRAMWriteBack", 1);
    vic20mem_set();
