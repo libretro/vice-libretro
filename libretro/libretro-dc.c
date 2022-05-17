@@ -1128,7 +1128,8 @@ enum dc_image_type dc_get_image_type(const char* filename)
 
    /* Tape image */
    if (strendswith(filename, "tap") ||
-       strendswith(filename, "t64"))
+       strendswith(filename, "t64") ||
+       strendswith(filename, "tcrt"))
       return DC_IMAGE_TYPE_TAPE;
 
    /* Memory image */

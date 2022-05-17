@@ -1245,8 +1245,8 @@ void autostart_advance(void)
         case AUTOSTART_ERROR:
 #ifndef __LIBRETRO__
             log_message(autostart_log, "Error");
-#endif
             restore_drive_emulation_state(autostart_disk_unit, autostart_disk_drive);
+#endif
             autostartmode = AUTOSTART_DONE;
             break;
 

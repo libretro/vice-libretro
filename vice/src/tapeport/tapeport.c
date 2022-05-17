@@ -84,7 +84,9 @@ tapeport_device_list_t *tapeport_device_register(tapeport_device_t *device)
                     use_id = tapeport_devices - 1;
                     ++current->device->id;
                 } else {
+#ifndef __LIBRETRO__
                     ui_error("last tapeport device %s does not support passthrough, and %s does not support passthrough either", current->device->name, device->name);
+#endif
                     return NULL;
                 }
             }

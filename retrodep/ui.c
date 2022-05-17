@@ -398,7 +398,7 @@ int ui_init_finalize(void)
    else
       log_resources_set_int("DriveSoundEmulation", 0);
 
-   if (opt_autoloadwarp & AUTOLOADWARP_DISK && !(opt_autoloadwarp & AUTOLOADWARP_MUTE))
+   if (vice_opt.DriveSoundEmulation && opt_autoloadwarp & AUTOLOADWARP_DISK && !(opt_autoloadwarp & AUTOLOADWARP_MUTE))
       log_resources_set_int("DriveSoundEmulationVolume", 0);
 
 #if !defined(__XSCPU64__) && !defined(__X64DTV__)
@@ -407,21 +407,21 @@ int ui_init_finalize(void)
    else
       log_resources_set_int("DatasetteSound", 0);
 
-   if (opt_autoloadwarp & AUTOLOADWARP_TAPE && !(opt_autoloadwarp & AUTOLOADWARP_MUTE))
+   if (vice_opt.DatasetteSound && opt_autoloadwarp & AUTOLOADWARP_TAPE && !(opt_autoloadwarp & AUTOLOADWARP_MUTE))
       log_resources_set_int("DatasetteSound", 0);
 #endif
 
 #if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__)
    log_resources_set_int("VICIIAudioLeak", vice_opt.AudioLeak);
-   if (opt_autoloadwarp && !(opt_autoloadwarp & AUTOLOADWARP_MUTE))
+   if (vice_opt.AudioLeak && opt_autoloadwarp && !(opt_autoloadwarp & AUTOLOADWARP_MUTE))
       log_resources_set_int("VICIIAudioLeak", 0);
 #elif defined(__XVIC__)
    log_resources_set_int("VICAudioLeak", vice_opt.AudioLeak);
-   if (opt_autoloadwarp && !(opt_autoloadwarp & AUTOLOADWARP_MUTE))
+   if (vice_opt.AudioLeak && opt_autoloadwarp && !(opt_autoloadwarp & AUTOLOADWARP_MUTE))
       log_resources_set_int("VICAudioLeak", 0);
 #elif defined(__XPLUS4__)
    log_resources_set_int("TEDAudioLeak", vice_opt.AudioLeak);
-   if (opt_autoloadwarp && !(opt_autoloadwarp & AUTOLOADWARP_MUTE))
+   if (vice_opt.AudioLeak && opt_autoloadwarp && !(opt_autoloadwarp & AUTOLOADWARP_MUTE))
       log_resources_set_int("TEDAudioLeak", 0);
 #endif
 

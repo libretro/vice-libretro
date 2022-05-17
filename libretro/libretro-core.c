@@ -409,6 +409,18 @@ static int retro_disk_get_image_unit()
    return unit;
 }
 
+void toggle_tde(int on)
+{
+   vice_opt.DriveTrueEmulation = on;
+   vice_opt.VirtualDevices = !on;
+
+   if (retro_ui_finalized)
+   {
+      log_resources_set_int("DriveTrueEmulation", vice_opt.DriveTrueEmulation);
+      log_resources_set_int("VirtualDevices", vice_opt.VirtualDevices);
+   }
+}
+
 /* ReSID 6581 init pop mute shenanigans */
 void sound_volume_counter_reset()
 {
@@ -1561,6 +1573,12 @@ void update_from_vice()
       {
          dc->unit = 1;
          dc_add_file(dc, attachedImage, NULL, NULL, NULL);
+      }
+      else if (!string_is_empty(full_path) && strendswith(full_path, "tcrt"))
+      {
+         /* Special case for Tapecarts */
+         dc->unit = 1;
+         dc_add_file(dc, full_path, NULL, NULL, NULL);
       }
       else
       {
@@ -4923,6 +4941,26 @@ static void update_variables(void)
       }
    }
 
+   /* Tapecart needs TDE */
+   if (!vice_opt.DriveTrueEmulation && (
+         (!string_is_empty(full_path) && strendswith(full_path, "tcrt")) ||
+         (!string_is_empty(dc->files[0]) && strendswith(dc->files[0], "tcrt"))
+      ))
+   {
+      log_cb(RETRO_LOG_INFO, "Tapecart does not work without TDE, enabling..\n");
+      toggle_tde(1);
+   }
+
+   /* D2M/D4M does not accept TDE */
+   if (vice_opt.DriveTrueEmulation && (
+         (!string_is_empty(full_path) && (strendswith(full_path, "d2m") || strendswith(full_path, "d4m"))) ||
+         (!string_is_empty(dc->files[0]) && (strendswith(dc->files[0], "d2m") || strendswith(dc->files[0], "d4m")))
+      ))
+   {
+      log_cb(RETRO_LOG_INFO, "D2M/D4M does not work with TDE, disabling..\n");
+      toggle_tde(0);
+   }
+
    var.key = "vice_drive_sound_emulation";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -7284,7 +7322,7 @@ void retro_get_system_info(struct retro_system_info *info)
 #if defined(__XVIC__)
    info->valid_extensions = "d64|d71|d80|d81|d82|g64|g41|x64|t64|tap|prg|p00|crt|bin|zip|7z|gz|d6z|d7z|d8z|g6z|g4z|x6z|cmd|m3u|vfl|vsf|nib|nbz|d2m|d4m|20|40|60|a0|b0|rom";
 #else
-   info->valid_extensions = "d64|d71|d80|d81|d82|g64|g41|x64|t64|tap|prg|p00|crt|bin|zip|7z|gz|d6z|d7z|d8z|g6z|g4z|x6z|cmd|m3u|vfl|vsf|nib|nbz|d2m|d4m";
+   info->valid_extensions = "d64|d71|d80|d81|d82|g64|g41|x64|t64|tap|prg|p00|crt|bin|zip|7z|gz|d6z|d7z|d8z|g6z|g4z|x6z|cmd|m3u|vfl|vsf|nib|nbz|d2m|d4m|tcrt";
 #endif
    info->need_fullpath    = true;
    info->block_extract    = true;
