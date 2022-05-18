@@ -735,7 +735,7 @@ void uistatusbar_draw(void)
         led_width = (char_width * 8) - x_align_offset - 4;
     else
         led_width = (char_width * 3) - x_align_offset - 1;
-    led_x = retroXS_offset + x + max_width - led_width - 10;
+    led_x = retroXS_offset + x + max_width - led_width - 1;
 
     /* Basic mode statusbar background */
     if (opt_statusbar & STATUSBAR_BASIC && !statusbar_message_timer)
