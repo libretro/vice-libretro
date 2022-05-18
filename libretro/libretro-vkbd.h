@@ -28,6 +28,11 @@ extern int tape_control;
 #define VKBDY 7
 #endif
 
+#define VKBDX_GAP_POS 10
+#define VKBDY_GAP_POS 0
+#define VKBDX_GAP_PAD 4
+#define VKBDY_GAP_PAD 0
+
 #define VKBD_NUMPAD             -2
 #define VKBD_RESET              -3
 #define VKBD_STATUSBAR_SAVEDISK -4
