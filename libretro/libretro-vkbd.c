@@ -131,7 +131,7 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
 
    /* 44 */
    { {25} ,{25} ,RETROK_BACKQUOTE }, /* Left arrow */
-   { "CTR","CTR",RETROK_TAB },
+   { "CTRL","CTRL",RETROK_TAB },
    { "+"  ,"+"  ,RETROK_MINUS },
    { "-"  ,"-"  ,RETROK_EQUALS },
    { "@"  ,"@"  ,RETROK_LEFTBRACKET },
@@ -140,20 +140,20 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
    { ":"  ,"["  ,RETROK_SEMICOLON },
    { ";"  ,"]"  ,RETROK_QUOTE },
    { "="  ,"="  ,RETROK_BACKSLASH },
-   { "STB","SVD",VKBD_STATUSBAR_SAVEDISK }, /* Statusbar / Save disk */
+   { "STBR","SVDS",VKBD_STATUSBAR_SAVEDISK }, /* Statusbar / Save disk */
 
    /* 55 */
    { {24} ,{24} ,RETROK_LCTRL },
-   { "R/S","R/S",RETROK_ESCAPE },
-   { "S/L","S/L",VKBD_SHIFTLOCK },
-   { "LSH","LSH",RETROK_LSHIFT },
-   { "RSH","RSH",RETROK_RSHIFT },
-   { "RST","RST",RETROK_PAGEUP },
-   { "CLR","CLR",RETROK_HOME },
-   { "DEL","DEL",RETROK_BACKSPACE },
+   { "RUN\1STOP","RUN\1STOP",RETROK_ESCAPE },
+   { "SHFT\1LOCK","SHFT\1LOCK",VKBD_SHIFTLOCK },
+   { {27,'\1','S','H','F','T'},{27,'\1','S','H','F','T'},RETROK_LSHIFT },
+   { {' ',' ',' ',29,'\1','S','H','F','T'},{' ',' ',' ',29,'\1','S','H','F','T'},RETROK_RSHIFT },
+   { "RSTR","RSTR",RETROK_PAGEUP },
+   { "CLR\1HOME","CLR\1HOME",RETROK_HOME },
+   { "INST\1DEL","INST\1DEL",RETROK_BACKSPACE },
    { {30} ,{30} ,RETROK_UP },
-   { "RET","RET",RETROK_RETURN },
-   { "JOY","ASR",VKBD_JOYPORT_ASPECT }, /* Switch joyport / Toggle aspect ratio */
+   { {16} ,{16} ,RETROK_RETURN },
+   { "JOYP","ASPR",VKBD_JOYPORT_ASPECT }, /* Switch joyport / Toggle aspect ratio */
 
    /* 66 */
    { {17} ,{17} ,VKBD_RESET },
@@ -166,7 +166,7 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
    { {27} ,{27} ,RETROK_LEFT },
    { {28} ,{28} ,RETROK_DOWN },
    { {29} ,{29} ,RETROK_RIGHT },
-   { "TRF","ZOM",VKBD_TURBO_ZOOM }, /* Toggle turbo fire / Toggle zoom mode */
+   { "TRBF","ZOOM",VKBD_TURBO_ZOOM }, /* Toggle turbo fire / Toggle zoom mode */
 
    /* C128 extra */
    { "ESC","ESC",RETROK_F1 },
@@ -235,7 +235,7 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
 
    /* 44 */
    { {25} ,{25} ,RETROK_BACKQUOTE }, /* Left arrow */
-   { "CTR","CTR",RETROK_TAB },
+   { "CTRL","CTRL",RETROK_TAB },
    { {15,'+'},{15,'+'},RETROK_KP_PLUS },
    { {15,'-'},{15,'-'},RETROK_KP_MINUS },
    { "@"  ,"@"  ,RETROK_LEFTBRACKET },
@@ -244,20 +244,20 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
    { ":"  ,"["  ,RETROK_SEMICOLON },
    { ";"  ,"]"  ,RETROK_QUOTE },
    { "="  ,"="  ,RETROK_BACKSLASH },
-   { "STB","SVD",VKBD_STATUSBAR_SAVEDISK }, /* Statusbar / Save disk */
+   { "STBR","SVDS",VKBD_STATUSBAR_SAVEDISK }, /* Statusbar / Save disk */
 
    /* 55 */
    { {24} ,{24} ,RETROK_LCTRL },
-   { "R/S","R/S",RETROK_ESCAPE },
-   { "S/L","S/L",VKBD_SHIFTLOCK },
-   { "LSH","LSH",RETROK_LSHIFT },
-   { "RSH","RSH",RETROK_RSHIFT },
-   { "RST","RST",RETROK_PAGEUP },
-   { "CLR","CLR",RETROK_HOME },
-   { "DEL","DEL",RETROK_BACKSPACE },
+   { "RUN\1STOP","RUN\1STOP",RETROK_ESCAPE },
+   { "SHFT\1LOCK","SHFT\1LOCK",VKBD_SHIFTLOCK },
+   { {27,'\1','S','H','F','T'},{27,'\1','S','H','F','T'},RETROK_LSHIFT },
+   { {' ',' ',' ',29,'\1','S','H','F','T'},{' ',' ',' ',29,'\1','S','H','F','T'},RETROK_RSHIFT },
+   { "RSTR","RSTR",RETROK_PAGEUP },
+   { "CLR\1HOME","CLR\1HOME",RETROK_HOME },
+   { "INST\1DEL","INST\1DEL",RETROK_BACKSPACE },
    { {30} ,{30} ,RETROK_UP },
-   { {15,'E','N','T'},{15,'E','N','T'},RETROK_KP_ENTER },
-   { "JOY","ASR",VKBD_JOYPORT_ASPECT }, /* Switch joyport / Toggle aspect ratio */
+   { {15,16},{15,16},RETROK_KP_ENTER },
+   { "JOYP","ASPR",VKBD_JOYPORT_ASPECT }, /* Switch joyport / Toggle aspect ratio */
 
    /* 66 */
    { {17} ,{17} ,VKBD_RESET },
@@ -270,7 +270,7 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
    { {27} ,{27} ,RETROK_LEFT },
    { {28} ,{28} ,RETROK_DOWN },
    { {29} ,{29} ,RETROK_RIGHT },
-   { "TRF","ZOM",VKBD_TURBO_ZOOM }, /* Toggle turbo fire / Toggle zoom mode */
+   { "TRBF","ZOOM",VKBD_TURBO_ZOOM }, /* Toggle turbo fire / Toggle zoom mode */
 
 #else
 
@@ -341,7 +341,7 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
    { "."  ,">"  ,RETROK_PERIOD },
    { "/"  ,"?"  ,RETROK_SLASH },
 #ifdef __XPLUS4__
-   { "HLP","F7" ,RETROK_F8 },
+   { "HELP","F7" ,RETROK_F8 },
 #else
    { "f7" ,"f8" ,RETROK_F7 },
 #endif
@@ -352,7 +352,7 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
 #else
    { {25} ,{25} ,RETROK_BACKQUOTE }, /* Left arrow */
 #endif
-   { "CTR","CTR",RETROK_TAB },
+   { "CTRL","CTRL",RETROK_TAB },
    { "+"  ,"+"  ,RETROK_MINUS },
    { "-"  ,"-"  ,RETROK_EQUALS },
    { "@"  ,"@"  ,RETROK_LEFTBRACKET },
@@ -361,20 +361,20 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
    { ":"  ,"["  ,RETROK_SEMICOLON },
    { ";"  ,"]"  ,RETROK_QUOTE },
    { "="  ,"="  ,RETROK_BACKSLASH },
-   { "STB","SVD",VKBD_STATUSBAR_SAVEDISK }, /* Statusbar / Save disk */
+   { "STBR","SVDS",VKBD_STATUSBAR_SAVEDISK }, /* Statusbar / Save disk */
 
    /* 55 */
    { {24} ,{24} ,RETROK_LCTRL },
-   { "R/S","R/S",RETROK_ESCAPE },
-   { "S/L","S/L",VKBD_SHIFTLOCK },
-   { "LSH","LSH",RETROK_LSHIFT },
-   { "RSH","RSH",RETROK_RSHIFT },
-   { "RST","RST",RETROK_PAGEUP },
-   { "CLR","CLR",RETROK_HOME },
-   { "DEL","DEL",RETROK_BACKSPACE },
+   { "RUN\1STOP","RUN\1STOP",RETROK_ESCAPE },
+   { "SHFT\1LOCK","SHFT\1LOCK",VKBD_SHIFTLOCK },
+   { {27,'\1','S','H','F','T'},{27,'\1','S','H','F','T'},RETROK_LSHIFT },
+   { {' ',' ',' ',29,'\1','S','H','F','T'},{' ',' ',' ',29,'\1','S','H','F','T'},RETROK_RSHIFT },
+   { "RSTR","RSTR",RETROK_PAGEUP },
+   { "CLR\1HOME","CLR\1HOME",RETROK_HOME },
+   { "INST\1DEL","INST\1DEL",RETROK_BACKSPACE },
    { {30} ,{30} ,RETROK_UP },
-   { "RET","RET",RETROK_RETURN },
-   { "JOY","ASR",VKBD_JOYPORT_ASPECT }, /* Switch joyport / Toggle aspect ratio */
+   { {16} ,{16} ,RETROK_RETURN },
+   { "JOYP","ASPR",VKBD_JOYPORT_ASPECT }, /* Switch joyport / Toggle aspect ratio */
 
    /* 66 */
    { {17} ,{17} ,VKBD_RESET },
@@ -387,7 +387,7 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
    { {27} ,{27} ,RETROK_LEFT },
    { {28} ,{28} ,RETROK_DOWN },
    { {29} ,{29} ,RETROK_RIGHT },
-   { "TRF","ZOM",VKBD_TURBO_ZOOM }, /* Toggle turbo fire / Toggle zoom mode */
+   { "TRBF","ZOOM",VKBD_TURBO_ZOOM }, /* Toggle turbo fire / Toggle zoom mode */
 
 #endif
 };
