@@ -131,11 +131,14 @@ int vic20mem_forced = -1;
 #endif
 
 #if defined(__X128__)
-int is_forty(void)
+int c128_vdc = 0;
+int is_vdc(void)
 {
-   int forty;
-   resources_get_int("C128ColumnKey", &forty);
-   return forty;
+   int vdc;
+   resources_get_int("C128ColumnKey", &vdc);
+   vdc = !vdc;
+   c128_vdc = vdc;
+   return vdc;
 }
 #endif
 
@@ -7401,7 +7404,7 @@ float retro_get_aspect_ratio(unsigned int width, unsigned int height, bool pixel
          break;
    }
 #if defined(__X128__)
-   if (!is_forty())
+   if (is_vdc())
    {
       switch (region)
       {
@@ -7506,7 +7509,7 @@ void update_geometry(int mode)
             int zoom_height_max = ZOOM_HEIGHT_MAX;
 
 #if defined(__X128__)
-            if (!is_forty())
+            if (is_vdc())
             {
                zoom_width_max  = ZOOM_VDC_WIDTH_MAX;
                zoom_height_max = ZOOM_VDC_HEIGHT_MAX;
@@ -7532,7 +7535,7 @@ void update_geometry(int mode)
                      case ZOOM_MODE_AUTO:
                      case ZOOM_MODE_AUTO_DISABLE:
 #if defined(__X128__)
-                        if (is_forty())
+                        if (!is_vdc())
                            zoom_border_height = vice_raster.last_line - vice_raster.first_line - zoom_height_max;
 #else
                         zoom_border_height = vice_raster.last_line - vice_raster.first_line - zoom_height_max;
@@ -7597,7 +7600,7 @@ void update_geometry(int mode)
                   zoomed_YS_offset = (zoom_crop_height > 1) ? (zoom_crop_height / 2) : 0;
                   zoomed_YS_offset -= (retro_region == RETRO_REGION_PAL) ? 1 : 0;
 #if defined(__X128__)
-                  if (!is_forty())
+                  if (is_vdc())
                      zoomed_YS_offset -= 4;
 #endif
 #elif defined(__XVIC__)

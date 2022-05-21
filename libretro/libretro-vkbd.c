@@ -11,6 +11,10 @@ static bool retro_vkbd_transparent = true;
 signed char retro_vkbd_ready = 0;
 static int vkflag[10] = {0};
 
+#ifdef __X128__
+extern int c128_vdc;
+#endif
+
 #define POINTER_DEBUG 0
 #if POINTER_DEBUG
 static int pointer_x = 0;
@@ -716,6 +720,9 @@ void print_vkbd(void)
           ||   vkey_sticky2 == vkeys[(y * VKBDX) + x + page].value
           ||(retro_capslock && vkeys[(y * VKBDX) + x + page].value == VKBD_SHIFTLOCK)
           ||(retro_key_state_internal[current_key])
+#ifdef __X128__
+          ||(c128_vdc && vkeys[(y * VKBDX) + x + page].value == RETROK_F7) /* 40/80 display toggle */
+#endif
           ||(vkflag[RETRO_DEVICE_ID_JOYPAD_START] && vkeys[(y * VKBDX) + x + page].value == RETROK_RETURN)
           ||(vkflag[RETRO_DEVICE_ID_JOYPAD_X]     && vkeys[(y * VKBDX) + x + page].value == RETROK_SPACE)
           ||(tape_enabled && tape_control == 1 && vkeys[(y * VKBDX) + x + page].value == VKBD_DATASETTE_START)
