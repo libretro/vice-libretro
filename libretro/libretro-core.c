@@ -7391,54 +7391,54 @@ float retro_get_aspect_ratio(unsigned int width, unsigned int height, bool pixel
    }
 
 #if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__)
-      switch (region)
-      {
-         case RETRO_REGION_NTSC:
-            par = (float)0.75000000;
-            break;
-         case RETRO_REGION_PAL:
-            par = (float)0.93650794;
-            break;
-      }
+   switch (region)
+   {
+      case RETRO_REGION_NTSC:
+         par = 0.75000000f;
+         break;
+      case RETRO_REGION_PAL:
+         par = 0.93650794f;
+         break;
+   }
 #if defined(__X128__)
-      if (!is_forty())
+   if (!is_forty())
+   {
+      switch (region)
       {
-         switch (region)
-         {
-            case RETRO_REGION_NTSC:
-               par = 0.76704375f / 2.0f;
-               break;
-            case RETRO_REGION_PAL:
-               par = 0.92187500f / 2.0f;
-               break;
-         }
+         case RETRO_REGION_NTSC:
+            par = 0.76704375f / 2.0f;
+            break;
+         case RETRO_REGION_PAL:
+            par = 0.92187500f / 2.0f;
+            break;
       }
+   }
 #endif
-      ar = ((float)width / (float)height) * par;
+   ar = ((float)width / (float)height) * par;
 #elif defined(__XVIC__)
-      switch (region)
-      {
-         case RETRO_REGION_NTSC:
-            par = ((float)1.50411479 / (float)2.0);
-            break;
-         case RETRO_REGION_PAL:
-            par = ((float)1.66574035 / (float)2.0);
-            break;
-      }
-      ar = ((float)width / (float)height) * par;
+   switch (region)
+   {
+      case RETRO_REGION_NTSC:
+         par = 1.50411479f / 2.0f;
+         break;
+      case RETRO_REGION_PAL:
+         par = 1.66574035f / 2.0f;
+         break;
+   }
+   ar = ((float)width / (float)height) * par;
 #elif defined(__XPLUS4__)
-      switch (region)
-      {
-         case RETRO_REGION_NTSC:
-            par = (float)0.85760931;
-            break;
-         case RETRO_REGION_PAL:
-            par = (float)1.03743478;
-            break;
-      }
-      ar = ((float)width / (float)height) * par;
+   switch (region)
+   {
+      case RETRO_REGION_NTSC:
+         par = 0.85760931f;
+         break;
+      case RETRO_REGION_PAL:
+         par = 1.03743478f;
+         break;
+   }
+   ar = ((float)width / (float)height) * par;
 #else
-      ar = (float)4 / (float)3;
+   ar = (float)4 / (float)3;
 #endif
 
    if (pixel_aspect)
@@ -7652,14 +7652,6 @@ void update_geometry(int mode)
                   zoomed_YS_offset = 0;
                   break;
             }
-
-            /* Skip duplicate calls */
-            if (retroXS_offset == zoomed_XS_offset &&
-                retroYS_offset == zoomed_YS_offset &&
-                prev_zoomed_width  == zoomed_width &&
-                prev_zoomed_height == zoomed_height &&
-                prev_aspect_ratio  == retro_get_aspect_ratio(zoomed_width, zoomed_height, false))
-               return;
 
             retroXS_offset   = zoomed_XS_offset;
             retroYS_offset   = zoomed_YS_offset;
