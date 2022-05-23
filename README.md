@@ -33,7 +33,9 @@ Supported platforms: Linux, Windows, Apple, Android, emscripten, Switch, Vita
 |-----------------|-------------------------|
 | B / Enter       | Keypress                |
 | A               | Toggle transparency     |
-| Y               | Toggle ShiftLock        |
+| Y (Short)       | Toggle ShiftLock        |
+| Y (Long)        | Quick map button        |
+| Y (Very long)   | Quick clear button      |
 | X               | Press Space             |
 | Start           | Press Return            |
 

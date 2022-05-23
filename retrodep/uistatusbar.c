@@ -51,6 +51,7 @@ extern unsigned int opt_joyport_type;
 extern unsigned int opt_autoloadwarp;
 extern int RGBc(int r, int g, int b);
 extern bool retro_statusbar;
+extern float retro_refresh;
 extern int runstate;
 
 /* ----------------------------------------------------------------- */
@@ -336,7 +337,7 @@ void display_current_image(const char *image, bool inserted)
 
         /* Skip the initial insert message with forced message mode */
         if (runstate || (!runstate && !(opt_statusbar & STATUSBAR_MESSAGES)))
-            statusbar_message_timer = 150;
+            statusbar_message_timer = 2 * retro_refresh;
 
         if (inserted)
             statusbar_text[0] = (7 | 0x80);

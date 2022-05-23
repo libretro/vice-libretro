@@ -219,6 +219,8 @@ extern void reload_restart(void);
 extern void emu_reset(int type);
 extern int RGBc(int r, int g, int b);
 extern void display_retro_message(const char *message);
+extern void set_variable(const char *key, const char *value);
+extern char* get_variable(const char *key);
 
 extern void emu_function(int function);
 enum EMU_FUNCTIONS

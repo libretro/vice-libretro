@@ -68,7 +68,7 @@ unsigned int opt_video_options_display = 0;
 unsigned int opt_audio_options_display = 0;
 unsigned int opt_mapping_options_display = 1;
 unsigned int retro_region = 0;
-static float retro_refresh = 0;
+float retro_refresh = 0;
 static unsigned int prev_sound_sample_rate = 0;
 static float prev_aspect_ratio = 0;
 
@@ -1887,18 +1887,6 @@ long retro_ticks(void)
       return retro_now;
 
    return perf_cb.get_time_usec();
-}
-
-static int retro_keymap_id(const char *val)
-{
-   int i = 0;
-   while (retro_keys[i].id < RETROK_LAST)
-   {
-      if (!strcmp(retro_keys[i].value, val))
-         return retro_keys[i].id;
-      i++;
-   }
-   return 0;
 }
 
 unsigned int vice_led_state[RETRO_LED_NUM] = {0};
@@ -5029,9 +5017,31 @@ int log_resources_set_string(const char *name, const char *value)
    return resources_set_string(name, value);
 }
 
+void set_variable(const char* key, const char* value)
+{
+   struct retro_variable var = {0};
+
+   var.key   = strdup(key);
+   var.value = strdup(value);
+   if (environ_cb(RETRO_ENVIRONMENT_SET_VARIABLE, &var))
+      log_cb(RETRO_LOG_INFO, "SET_VARIABLE: %s = \"%s\"\n", var.key, var.value);
+}
+
+char* get_variable(const char* key)
+{
+   struct retro_variable var = {0};
+
+   var.key   = key;
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+      return strdup(var.value);
+
+   return NULL;
+}
+
 static void update_variables(void)
 {
-   struct retro_variable var;
+   struct retro_variable var = {0};
 
 #ifdef RETRO_DEBUG
    log_cb(RETRO_LOG_INFO, "Updating variables, UI finalized = %d\n", retro_ui_finalized);

@@ -16,6 +16,7 @@ extern libretro_graph_alpha_t opt_vkbd_alpha;
 extern unsigned int zoom_mode_id;
 
 extern retro_input_state_t input_state_cb;
+extern void statusbar_message_show(signed char icon, const char *format, ...);
 
 extern int tape_enabled;
 extern int tape_counter;
