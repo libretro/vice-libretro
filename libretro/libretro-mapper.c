@@ -997,7 +997,7 @@ int process_keyboard_pass_through()
               (joypad_bits[1] & (1 << RETRO_DEVICE_ID_JOYPAD_DOWN)) ||
               (joypad_bits[1] & (1 << RETRO_DEVICE_ID_JOYPAD_LEFT)) ||
               (joypad_bits[1] & (1 << RETRO_DEVICE_ID_JOYPAD_RIGHT)))
-            process = 2; /* Skip all keyboard input from RetroPad 2 */
+            process = 2; /* Skip all keyboard input */
          break;
 
       case RETRO_DEVICE_VICE_JOYSTICK:
@@ -1008,7 +1008,7 @@ int process_keyboard_pass_through()
               (joypad_bits[1] & (1 << RETRO_DEVICE_ID_JOYPAD_DOWN)) ||
               (joypad_bits[1] & (1 << RETRO_DEVICE_ID_JOYPAD_LEFT)) ||
               (joypad_bits[1] & (1 << RETRO_DEVICE_ID_JOYPAD_RIGHT)))
-            process = 2; /* Skip all keyboard input from RetroPad 2 */
+            process = 2; /* Skip all keyboard input */
          break;
    }
 
@@ -1423,12 +1423,12 @@ void retro_poll_event()
 #endif
 
             /* Digital mouse speed limits */
-            if (dpadmouse_speed[retro_j] < 2)
-               dpadmouse_speed[retro_j] = 2;
+            if (dpadmouse_speed[retro_j] < 1)
+               dpadmouse_speed[retro_j] = 1;
             if (dpadmouse_speed[retro_j] > opt_dpadmouse_speed)
                dpadmouse_speed[retro_j] = opt_dpadmouse_speed;
-            if (dpadmouse_speed[retro_j] > 20)
-               dpadmouse_speed[retro_j] = 20;
+            if (dpadmouse_speed[retro_j] > 30)
+               dpadmouse_speed[retro_j] = 30;
 
             if (joypad_bits[retro_j] & (1 << RETRO_DEVICE_ID_JOYPAD_RIGHT))
                retro_mouse_x[retro_j] += dpadmouse_speed[retro_j];
@@ -1464,8 +1464,8 @@ void retro_poll_event()
             )
          {
             /* Left analog movement */
-            analog_stick[0] = input_state_cb(retro_j, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X);
-            analog_stick[1] = input_state_cb(retro_j, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y);
+            analog_stick[0] = joypad_axis[retro_j][AXIS_LX];
+            analog_stick[1] = joypad_axis[retro_j][AXIS_LY];
             if (sqrt((analog_stick[0] * analog_stick[0]) + (analog_stick[1] * analog_stick[1])) < analog_deadzone)
                analog_stick[0] = analog_stick[1] = 0;
 
@@ -1491,8 +1491,8 @@ void retro_poll_event()
             )
          {
             /* Right analog movement */
-            analog_stick[0] = input_state_cb(retro_j, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X);
-            analog_stick[1] = input_state_cb(retro_j, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y);
+            analog_stick[0] = joypad_axis[retro_j][AXIS_RX];
+            analog_stick[1] = joypad_axis[retro_j][AXIS_RY];
             if (sqrt((analog_stick[0] * analog_stick[0]) + (analog_stick[1] * analog_stick[1])) < analog_deadzone)
                analog_stick[0] = analog_stick[1] = 0;
 
