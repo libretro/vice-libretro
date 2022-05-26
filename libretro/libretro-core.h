@@ -146,7 +146,6 @@ extern unsigned int retro_region;
 extern int request_model_set;
 
 extern unsigned int retro_warpmode;
-extern int retro_warp_mode_enabled(void);
 extern bool audio_playing(void);
 extern unsigned int zoom_mode_id;
 extern int zoom_mode_id_prev;

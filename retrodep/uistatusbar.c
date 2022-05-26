@@ -37,6 +37,7 @@
 #include "uiapi.h"
 #include "uistatusbar.h"
 #include "videoarch.h"
+#include "vsync.h"
 #include "vsyncapi.h"
 #include "joystick.h"
 #include "archdep.h"
@@ -513,18 +514,18 @@ static void display_tape(void)
     if (tape_enabled)
         vice_led_state[RETRO_LED_TAPE] = (tape_control == 1 && tape_motor) ? 1 : 0;
 
-    if (tape_enabled && (opt_autoloadwarp & AUTOLOADWARP_TAPE || retro_warp_mode_enabled()) && !retro_warpmode)
+    if (tape_enabled && (opt_autoloadwarp & AUTOLOADWARP_TAPE || vsync_get_warp_mode()) && !retro_warpmode)
     {
         bool audio = !(opt_autoloadwarp & AUTOLOADWARP_MUTE) && opt_autoloadwarp & AUTOLOADWARP_TAPE ? audio_playing() : false;
 
-        if (tape_control == 1 && tape_motor == 2 && !audio && !retro_warp_mode_enabled())
+        if (tape_control == 1 && tape_motor == 2 && !audio && !vsync_get_warp_mode())
         {
             resources_set_int("WarpMode", 1);
 #if 0
             printf("Tape Warp  ON, control:%d motor:%d audio:%d\n", tape_control, tape_motor, audio);
 #endif
         }
-        else if ((tape_control != 1 || !tape_motor || audio) && retro_warp_mode_enabled() || !(opt_autoloadwarp & AUTOLOADWARP_TAPE))
+        else if ((tape_control != 1 || !tape_motor || audio) && vsync_get_warp_mode() || !(opt_autoloadwarp & AUTOLOADWARP_TAPE))
         {
             resources_set_int("WarpMode", 0);
 #if 0

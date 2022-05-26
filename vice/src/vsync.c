@@ -148,13 +148,6 @@ static int initial_warp_mode_resource;
 static unsigned long warp_render_tick_interval;
 static unsigned long warp_next_render_tick;
 
-#ifdef __LIBRETRO__
-int retro_warp_mode_enabled()
-{
-	return warp_enabled;
-}
-#endif
-
 /* Triggers the vice thread to update its priorty */
 static volatile int update_thread_priority = 1;
 

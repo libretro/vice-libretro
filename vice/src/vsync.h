@@ -33,10 +33,6 @@
 #define VSYNC_DEBUG
 #endif
 
-#ifdef __LIBRETRO__
-int retro_warp_mode_enabled();
-#endif
-
 typedef void (*vsync_callback_func_t)(void *param);
 typedef struct vsync_callback {
     vsync_callback_func_t callback;

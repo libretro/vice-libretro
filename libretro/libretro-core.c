@@ -6933,7 +6933,7 @@ void emu_reset(int type)
    keyboard_clear_keymatrix();
 
    /* Disable Warp */
-   if (retro_warp_mode_enabled())
+   if (vsync_get_warp_mode())
       resources_set_int("WarpMode", 0);
 
    /* Changing opt_read_vicerc requires reloading */
@@ -7955,7 +7955,7 @@ void retro_run(void)
    retro_poll_event();
 
    /* Main loop with Warp Mode maximizing without too much input lag */
-   unsigned int frame_max = retro_warp_mode_enabled() ? retro_refresh : 1;
+   unsigned int frame_max = vsync_get_warp_mode() ? retro_refresh : 1;
    unsigned int frame_time = 0;
    retro_now += 1000000 / retro_refresh;
 
@@ -7969,7 +7969,7 @@ void retro_run(void)
       if (perf_cb.get_time_usec && frame_max > 1)
          frame_max = 1000000 / (retro_refresh / 5) / (retro_ticks() - frame_time);
 
-      if (frame_max > 1 && (!retro_warp_mode_enabled() || is_audio_playing_while_autoloadwarping()))
+      if (frame_max > 1 && (!vsync_get_warp_mode() || is_audio_playing_while_autoloadwarping()))
          frame_max = 1;
    }
 
@@ -8172,7 +8172,7 @@ static void load_trap(uint16_t addr, void *success)
 static void retro_unserialize_post(void)
 {
    /* Disable warp */
-   if (retro_warp_mode_enabled())
+   if (vsync_get_warp_mode())
       resources_set_int("WarpMode", 0);
    /* Make rewinding sound less jarring */
    sound_volume_counter_reset();
