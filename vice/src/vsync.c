@@ -141,6 +141,10 @@ static int relative_speed;
 
 /* "Warp mode".  If nonzero, attempt to run as fast as possible. */
 static int warp_enabled;
+
+/* "InitialWarpMode" resource controlling whether warp should be enabled from launch. */
+static int initial_warp_mode_resource;
+
 static unsigned long warp_render_tick_interval;
 static unsigned long warp_next_render_tick;
 
@@ -184,6 +188,17 @@ static int set_warp_mode(int val, void *param)
     return 0;
 }
 
+int vsync_get_warp_mode(void)
+{
+    return warp_enabled;
+}
+
+static int set_initial_warp_mode_resource(int val, void *param)
+{
+    initial_warp_mode_resource = val ? 1 : 0;
+
+    return 0;
+}
 
 /* Vsync-related resources. */
 static const resource_int_t resources_int[] = {

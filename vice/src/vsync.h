@@ -57,5 +57,7 @@ extern void vsync_do_end_of_line(void);
 extern int vsync_do_vsync(struct video_canvas_s *c, int been_skipped);
 extern int vsync_disable_timer(void);
 extern void vsync_on_vsync_do(vsync_callback_func_t callback_func, void *callback_param);
+extern void vsync_set_warp_mode(int val);
+extern int vsync_get_warp_mode(void);
 
 #endif
