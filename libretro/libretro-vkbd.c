@@ -459,7 +459,7 @@ void print_vkbd(void)
 {
    libretro_graph_alpha_t ALPHA      = opt_vkbd_alpha;
    libretro_graph_alpha_t BKG_ALPHA  = ALPHA;
-   libretro_graph_alpha_t BRD_ALPHA  = ALPHA;
+   libretro_graph_alpha_t BRD_ALPHA  = opt_vkbd_dim_alpha;
    long now                          = retro_ticks() / 1000;
    bool shifted                      = false;
    bool text_outline                 = false;
@@ -664,7 +664,6 @@ void print_vkbd(void)
 
    /* Opacity */
    BKG_ALPHA = (retro_vkbd_transparent) ? ALPHA : GRAPH_ALPHA_100;
-   BRD_ALPHA = GRAPH_ALPHA_50;
 
    /* Key label shifted */
    shifted = false;
@@ -898,6 +897,9 @@ void print_vkbd(void)
    draw_text(XTEXT, YTEXT, FONT_COLOR, 0, GRAPH_ALPHA_100,
              GRAPH_BG_NONE, FONT_WIDTH, FONT_HEIGHT, FONT_MAX,
              string);
+
+   if (BRD_ALPHA == GRAPH_ALPHA_0)
+      return;
 
    /* Gap backgrounds */
    if (VKBDX_GAP_POS)

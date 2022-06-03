@@ -48,6 +48,7 @@ extern bool retro_vkbd;
 extern void print_vkbd(void);
 unsigned int opt_vkbd_theme = 0;
 libretro_graph_alpha_t opt_vkbd_alpha = GRAPH_ALPHA_75;
+libretro_graph_alpha_t opt_vkbd_dim_alpha = GRAPH_ALPHA_25;
 
 /* Core vars */
 static bool autosys = true;
@@ -3085,6 +3086,23 @@ static void retro_set_core_options()
          "25%"
       },
       {
+         "vice_vkbd_dimming",
+         "OSD > Virtual KBD Dimming",
+         "Virtual KBD Dimming",
+         "Dimming level of the surrounding area.",
+         NULL,
+         "osd",
+         {
+            { "0%",   NULL },
+            { "25%",  NULL },
+            { "50%",  NULL },
+            { "75%",  NULL },
+            { "100%", NULL },
+            { NULL, NULL },
+         },
+         "25%"
+      },
+      {
          "vice_statusbar",
          "OSD > Statusbar Mode",
          "Statusbar Mode",
@@ -4860,6 +4878,8 @@ void retro_set_options_display(void)
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
    option_display.key = "vice_vkbd_transparency";
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+   option_display.key = "vice_vkbd_dimming";
+   environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
    option_display.key = "vice_statusbar";
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
    option_display.key = "vice_statusbar_messages";
@@ -6529,6 +6549,17 @@ static void update_variables(void)
       else if (!strcmp(var.value, "50%"))  opt_vkbd_alpha = GRAPH_ALPHA_50;
       else if (!strcmp(var.value, "75%"))  opt_vkbd_alpha = GRAPH_ALPHA_25;
       else if (!strcmp(var.value, "100%")) opt_vkbd_alpha = GRAPH_ALPHA_0;
+   }
+
+   var.key = "vice_vkbd_dimming";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if      (!strcmp(var.value, "0%"))   opt_vkbd_dim_alpha = GRAPH_ALPHA_0;
+      else if (!strcmp(var.value, "25%"))  opt_vkbd_dim_alpha = GRAPH_ALPHA_25;
+      else if (!strcmp(var.value, "50%"))  opt_vkbd_dim_alpha = GRAPH_ALPHA_50;
+      else if (!strcmp(var.value, "75%"))  opt_vkbd_dim_alpha = GRAPH_ALPHA_75;
+      else if (!strcmp(var.value, "100%")) opt_vkbd_dim_alpha = GRAPH_ALPHA_100;
    }
 
    var.key = "vice_statusbar";
