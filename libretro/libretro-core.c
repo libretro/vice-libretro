@@ -70,6 +70,7 @@ unsigned int opt_audio_options_display = 0;
 unsigned int opt_mapping_options_display = 1;
 unsigned int retro_region = 0;
 float retro_refresh = 0;
+unsigned int retro_refresh_ms = 0;
 static unsigned int prev_sound_sample_rate = 0;
 static float prev_aspect_ratio = 0;
 
@@ -7765,6 +7766,8 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
    retro_refresh = (retro_region == RETRO_REGION_PAL) ? VIC20_PAL_RFSH_PER_SEC : VIC20_NTSC_RFSH_PER_SEC;
 #endif
    info->timing.fps = retro_refresh;
+
+   retro_refresh_ms = (1 / retro_refresh * 1000000);
 }
 
 void retro_set_video_refresh(retro_video_refresh_t cb)
@@ -7987,21 +7990,29 @@ void retro_run(void)
 
    /* Main loop with Warp Mode maximizing without too much input lag */
    unsigned int frame_max = vsync_get_warp_mode() ? retro_refresh : 1;
-   unsigned int frame_time = 0;
+   unsigned int frame_count = 0;
+   long frame_time = 0;
+   long frame_start = retro_ticks();
    retro_now += 1000000 / retro_refresh;
 
-   for (int frame_count = 0; frame_count < frame_max; ++frame_count)
+   for (frame_count = 0; frame_count < frame_max; ++frame_count)
    {
       frame_time = retro_ticks();
+      if (frame_max > 1 && frame_time > 0 && frame_time - frame_start > retro_refresh_ms / 2)
+         break;
+
+      if (frame_max > 1 && (!vsync_get_warp_mode() || is_audio_playing_while_autoloadwarping()))
+         break;
+
       while (retro_renderloop)
          maincpu_mainloop();
       retro_renderloop = 1;
 
-      if (perf_cb.get_time_usec && frame_max > 1)
+      if (frame_max > 1 && perf_cb.get_time_usec)
          frame_max = 1000000 / (retro_refresh / 5) / (retro_ticks() - frame_time);
 
-      if (frame_max > 1 && (!vsync_get_warp_mode() || is_audio_playing_while_autoloadwarping()))
-         frame_max = 1;
+      if (frame_max > retro_refresh)
+         frame_max = retro_refresh;
    }
 
    /* LED interface */
