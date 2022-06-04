@@ -619,8 +619,10 @@ int old_g64=0;
 int read_killer=1;
 int backwards=0;
 
-/* Skip halftrack compression, fixes at least "Ski or Die" */
+/* Skip halftrack compression, fixes "Ski or Die", but breaks "Ultimate Wizard"
+ * unless density is taken into consideration */
 bool skip_compress_halftrack = true;
+unsigned int skip_compress_halftrack_density = 2;
 
 int write_dword(FILE * fd, unsigned int * buf, int num)
 {
@@ -952,7 +954,7 @@ size_t compress_halftrack(int halftrack, BYTE *track_buffer, BYTE density, size_
 	size_t orglen;
 	BYTE gcrdata[NIB_TRACK_LENGTH];
 
-	if (skip_compress_halftrack)
+	if (skip_compress_halftrack && skip_compress_halftrack_density == density)
 		return length;
 
 	/* copy to spare buffer */
