@@ -308,6 +308,8 @@ void emu_function(int function)
 #if defined(__X64DTV__) || defined(__XSCPU64__)
          break;
 #endif
+         if (!tape_enabled)
+            break;
          datasette_control(DATASETTE_CONTROL_STOP);
          /* Statusbar notification */
          statusbar_message_show(23, "%s",
@@ -317,6 +319,8 @@ void emu_function(int function)
 #if defined(__X64DTV__) || defined(__XSCPU64__)
          break;
 #endif
+         if (!tape_enabled)
+            break;
          datasette_control(DATASETTE_CONTROL_START);
          /* Statusbar notification */
          statusbar_message_show(20, "%s",
@@ -326,6 +330,8 @@ void emu_function(int function)
 #if defined(__X64DTV__) || defined(__XSCPU64__)
          break;
 #endif
+         if (!tape_enabled)
+            break;
          datasette_control(DATASETTE_CONTROL_FORWARD);
          /* Statusbar notification */
          statusbar_message_show(22, "%s",
@@ -335,6 +341,8 @@ void emu_function(int function)
 #if defined(__X64DTV__) || defined(__XSCPU64__)
          break;
 #endif
+         if (!tape_enabled)
+            break;
          datasette_control(DATASETTE_CONTROL_REWIND);
          /* Statusbar notification */
          statusbar_message_show(21, "%s",
@@ -344,6 +352,8 @@ void emu_function(int function)
 #if defined(__X64DTV__) || defined(__XSCPU64__)
          break;
 #endif
+         if (!tape_enabled)
+            break;
          datasette_control(DATASETTE_CONTROL_RESET);
          /* Statusbar notification */
          statusbar_message_show(19, "%s",
