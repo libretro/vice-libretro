@@ -3404,9 +3404,15 @@ static void retro_set_core_options()
       },
       {
          "vice_resid_filterbias",
+#if defined(__X64DTV__)
+         "Audio > ReSID Filter Bias",
+         "ReSID Filter Bias",
+         "Filter bias, which can be used to adjust DAC bias in millivolts.",
+#else
          "Audio > ReSID Filter 6581 Bias",
          "ReSID Filter 6581 Bias",
          "Filter bias for 6581, which can be used to adjust DAC bias in millivolts.",
+#endif
          NULL,
          "audio",
          {
@@ -3435,6 +3441,7 @@ static void retro_set_core_options()
          },
          "500"
       },
+#if !defined(__X64DTV__)
       {
          "vice_resid_8580filterbias",
          "Audio > ReSID Filter 8580 Bias",
@@ -3468,6 +3475,7 @@ static void retro_set_core_options()
          },
          "1500"
       },
+#endif
 #endif
 #if defined(__X64__) || defined(__X64SC__) || defined(__X128__)
       {
