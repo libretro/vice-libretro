@@ -1814,6 +1814,7 @@ int pre_main()
    return 0;
 }
 
+static bool log_resource_set = false;
 static void update_variables(void);
 extern int ui_init_finalize(void);
 
@@ -1837,6 +1838,7 @@ void reload_restart(void)
       update_variables();
 
    /* Some resources are not set until we call this */
+   log_resource_set = true;
    ui_init_finalize();
 
    /* And process command line */
@@ -5107,13 +5109,15 @@ void retro_set_environment(retro_environment_t cb)
 
 int log_resources_set_int(const char *name, int value)
 {
-   log_cb(RETRO_LOG_INFO, "Set resource: %s => %d\n", name, value);
+   if (log_resource_set)
+      log_cb(RETRO_LOG_INFO, "Set resource: %s => %d\n", name, value);
    return resources_set_int(name, value);
 }
 
 int log_resources_set_string(const char *name, const char *value)
 {
-   log_cb(RETRO_LOG_INFO, "Set resource: %s => \"%s\"\n", name, value);
+   if (log_resource_set)
+      log_cb(RETRO_LOG_INFO, "Set resource: %s => \"%s\"\n", name, value);
    return resources_set_string(name, value);
 }
 
