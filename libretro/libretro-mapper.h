@@ -28,7 +28,7 @@
 #define RETRO_MAPPER_JOYPORT            26
 #define RETRO_MAPPER_RESET              27
 #define RETRO_MAPPER_ASPECT_RATIO       28
-#define RETRO_MAPPER_ZOOM_MODE          29
+#define RETRO_MAPPER_CROP               29
 #define RETRO_MAPPER_WARP_MODE          30
 #define RETRO_MAPPER_TURBO_FIRE         31
 #define RETRO_MAPPER_SAVE_DISK          32

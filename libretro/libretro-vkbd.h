@@ -14,7 +14,6 @@ extern void toggle_vkbd(void);
 extern unsigned int opt_vkbd_theme;
 extern libretro_graph_alpha_t opt_vkbd_alpha;
 extern libretro_graph_alpha_t opt_vkbd_dim_alpha;
-extern unsigned int zoom_mode_id;
 
 extern retro_input_state_t input_state_cb;
 extern void statusbar_message_show(signed char icon, const char *format, ...);
@@ -39,7 +38,7 @@ extern int tape_control;
 #define VKBD_RESET              -3
 #define VKBD_STATUSBAR_SAVEDISK -4
 #define VKBD_JOYPORT_ASPECT     -5
-#define VKBD_TURBO_ZOOM         -6
+#define VKBD_TURBO_CROP         -6
 #define VKBD_SHIFTLOCK          -10
 
 #define VKBD_DATASETTE_STOP     -11

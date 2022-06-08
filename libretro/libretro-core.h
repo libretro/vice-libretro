@@ -135,10 +135,10 @@ extern unsigned int retroXS_offset;
 extern unsigned int retroYS_offset;
 extern unsigned int retrow;
 extern unsigned int retroh;
-extern unsigned int zoomed_width;
-extern unsigned int zoomed_height;
-extern int zoomed_XS_offset;
-extern int zoomed_YS_offset;
+extern unsigned int retrow_crop;
+extern unsigned int retroh_crop;
+extern int retroXS_crop_offset;
+extern int retroYS_crop_offset;
 extern unsigned int statusbar_message_timer;
 extern unsigned int opt_statusbar;
 extern unsigned int cur_port;
@@ -147,43 +147,51 @@ extern int request_model_set;
 
 extern unsigned int retro_warpmode;
 extern bool audio_playing(void);
-extern unsigned int zoom_mode_id;
-extern int zoom_mode_id_prev;
+extern unsigned int crop_id;
+extern int crop_id_prev;
 
-#define ZOOM_MODE_NONE         0
-#define ZOOM_MODE_SMALL        1
-#define ZOOM_MODE_MEDIUM       2
-#define ZOOM_MODE_MAXIMUM      3
-#define ZOOM_MODE_MANUAL       4
-#define ZOOM_MODE_AUTO         5
-#define ZOOM_MODE_AUTO_DISABLE 6
+#define CROP_NONE            0
+#define CROP_SMALL           1
+#define CROP_MEDIUM          2
+#define CROP_MAXIMUM         3
+#define CROP_MANUAL          4
+#define CROP_AUTO            5
+#define CROP_AUTO_DISABLE    6
+
+#define CROP_MODE_BOTH       0
+#define CROP_MODE_VERTICAL   1
+#define CROP_MODE_HORIZONTAL 2
+#define CROP_MODE_16_9       3
+#define CROP_MODE_16_10      4
+#define CROP_MODE_4_3        5
+#define CROP_MODE_5_4        6
 
 #if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__)
 /* PAL: 384x272, NTSC: 384x247, VIC-II: 320x200 */
 #include "viciitypes.h"
 #include "vicii-timing.h"
-#define ZOOM_WIDTH_MAX   320
-#define ZOOM_HEIGHT_MAX  200
-#define ZOOM_TOP_BORDER  VICII_NO_BORDER_FIRST_DISPLAYED_LINE - vicii.first_displayed_line
-#define ZOOM_LEFT_BORDER vicii.screen_leftborderwidth
+#define CROP_WIDTH_MAX   320
+#define CROP_HEIGHT_MAX  200
+#define CROP_TOP_BORDER  VICII_NO_BORDER_FIRST_DISPLAYED_LINE - vicii.first_displayed_line
+#define CROP_LEFT_BORDER vicii.screen_leftborderwidth
 #if defined(__X128__)
-#define ZOOM_VDC_WIDTH_MAX   640
-#define ZOOM_VDC_HEIGHT_MAX  200
-#define ZOOM_VDC_TOP_BORDER  44
-#define ZOOM_VDC_LEFT_BORDER 108
+#define CROP_VDC_WIDTH_MAX   640
+#define CROP_VDC_HEIGHT_MAX  200
+#define CROP_VDC_TOP_BORDER  44
+#define CROP_VDC_LEFT_BORDER 108
 #endif
 #elif defined(__XVIC__)
 /* PAL: 448x284, NTSC: 400x234, VIC: 352x184 */
-#define ZOOM_WIDTH_MAX   352
-#define ZOOM_HEIGHT_MAX  184
-#define ZOOM_TOP_BORDER  48
-#define ZOOM_LEFT_BORDER 48
+#define CROP_WIDTH_MAX   352
+#define CROP_HEIGHT_MAX  184
+#define CROP_TOP_BORDER  48
+#define CROP_LEFT_BORDER 48
 #else /*#elif defined(__XPLUS4__)*/
 /* PAL: 384x288, NTSC: 384x242, TED: 320x200 */
-#define ZOOM_WIDTH_MAX   320
-#define ZOOM_HEIGHT_MAX  200
-#define ZOOM_TOP_BORDER  40
-#define ZOOM_LEFT_BORDER 32
+#define CROP_WIDTH_MAX   320
+#define CROP_HEIGHT_MAX  200
+#define CROP_TOP_BORDER  40
+#define CROP_LEFT_BORDER 32
 #endif
 
 /* LED interface */
@@ -231,7 +239,7 @@ enum EMU_FUNCTIONS
    EMU_FREEZE,
    EMU_SAVE_DISK,
    EMU_ASPECT_RATIO,
-   EMU_ZOOM_MODE,
+   EMU_CROP,
    EMU_TURBO_FIRE,
    EMU_WARP_MODE,
    EMU_DATASETTE_HOTKEYS,

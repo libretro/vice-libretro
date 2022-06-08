@@ -174,7 +174,7 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
    { {27} ,{27} ,RETROK_LEFT },
    { {28} ,{28} ,RETROK_DOWN },
    { {29} ,{29} ,RETROK_RIGHT },
-   { "TRBF","ZOOM",VKBD_TURBO_ZOOM }, /* Toggle turbo fire / Toggle zoom mode */
+   { "TRBF","CROP",VKBD_TURBO_CROP }, /* Toggle turbo fire / Toggle crop mode */
 
    /* C128 extra */
    { "ESC","ESC",RETROK_F1 },
@@ -278,7 +278,7 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
    { {27} ,{27} ,RETROK_LEFT },
    { {28} ,{28} ,RETROK_DOWN },
    { {29} ,{29} ,RETROK_RIGHT },
-   { "TRBF","ZOOM",VKBD_TURBO_ZOOM }, /* Toggle turbo fire / Toggle zoom mode */
+   { "TRBF","CROP",VKBD_TURBO_CROP }, /* Toggle turbo fire / Toggle crop mode */
 
 #else
 
@@ -395,7 +395,7 @@ static const retro_vkeys vkeys[VKBDX * VKBDY * 2] =
    { {27} ,{27} ,RETROK_LEFT },
    { {28} ,{28} ,RETROK_DOWN },
    { {29} ,{29} ,RETROK_RIGHT },
-   { "TRBF","ZOOM",VKBD_TURBO_ZOOM }, /* Toggle turbo fire / Toggle zoom mode */
+   { "TRBF","CROP",VKBD_TURBO_CROP }, /* Toggle turbo fire / Toggle crop mode */
 
 #endif
 };
@@ -444,7 +444,7 @@ static const int vkbd_alt_keys_len = sizeof(vkbd_alt_keys) / sizeof(vkbd_alt_key
 /* Extra color keys */
 static const int vkbd_extra_keys[] =
 {
-   VKBD_NUMPAD, VKBD_RESET, VKBD_STATUSBAR_SAVEDISK, VKBD_JOYPORT_ASPECT, VKBD_TURBO_ZOOM
+   VKBD_NUMPAD, VKBD_RESET, VKBD_STATUSBAR_SAVEDISK, VKBD_JOYPORT_ASPECT, VKBD_TURBO_CROP
 };
 static const int vkbd_extra_keys_len = sizeof(vkbd_extra_keys) / sizeof(vkbd_extra_keys[0]);
 
@@ -1019,10 +1019,10 @@ static void convert_vkbd_to_mapper(int *vkbd_mapping_key, char **var_value)
             *vkbd_mapping_key = SWITCH_JOYPORT;
          }
          break;
-      case VKBD_TURBO_ZOOM:
+      case VKBD_TURBO_CROP:
          if (retro_capslock)
          {
-            *var_value = get_variable("vice_mapper_zoom_mode_toggle");
+            *var_value = get_variable("vice_mapper_crop_toggle");
             *vkbd_mapping_key = 0;
          }
          else
@@ -1291,8 +1291,8 @@ void input_vkbd(void)
 
    if (p_x != 0 && p_y != 0 && (p_x != last_pointer_x || p_y != last_pointer_y))
    {
-      int px = (int)((p_x + 0x7fff) * zoomed_width / 0xffff + retroXS_offset);
-      int py = (int)((p_y + 0x7fff) * zoomed_height / 0xffff + retroYS_offset);
+      int px = (int)((p_x + 0x7fff) * retrow_crop / 0xffff + retroXS_offset);
+      int py = (int)((p_y + 0x7fff) * retroh_crop / 0xffff + retroYS_offset);
 
       last_pointer_x = p_x;
       last_pointer_y = p_y;
@@ -1436,9 +1436,9 @@ void input_vkbd(void)
                else
                   emu_function(EMU_JOYPORT);
                break;
-            case VKBD_TURBO_ZOOM:
+            case VKBD_TURBO_CROP:
                if (retro_capslock)
-                  emu_function(EMU_ZOOM_MODE);
+                  emu_function(EMU_CROP);
                else
                   emu_function(EMU_TURBO_FIRE);
                break;

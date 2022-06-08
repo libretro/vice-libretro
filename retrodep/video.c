@@ -103,7 +103,7 @@ void video_canvas_refresh(struct video_canvas_s *canvas,
    unsigned i = 0;
    unsigned j = 0;
    unsigned color_diff = 0;
-   unsigned zoom_bottom_border = 0;
+   unsigned crop_bottom_border = 0;
 
 #ifdef RETRO_DEBUG
    printf("XS:%d YS:%d XI:%d YI:%d W:%d H:%d\n",xs,ys,xi,yi,w,h);
@@ -117,32 +117,32 @@ void video_canvas_refresh(struct video_canvas_s *canvas,
          retrow*pix_bytes, 8*pix_bytes
    );
 
-   if (!retroh || zoom_mode_id < ZOOM_MODE_AUTO)
+   if (!retroh || crop_id < CROP_AUTO)
       return;
 
-   /* Reset to maximum zoom */
-   vice_raster.first_line = ZOOM_TOP_BORDER;
-   vice_raster.last_line  = vice_raster.first_line + ZOOM_HEIGHT_MAX;
+   /* Reset to maximum crop */
+   vice_raster.first_line = CROP_TOP_BORDER;
+   vice_raster.last_line  = vice_raster.first_line + CROP_HEIGHT_MAX;
 
-   switch (zoom_mode_id)
+   switch (crop_id)
    {
-      case ZOOM_MODE_AUTO:
+      case CROP_AUTO:
          /* Pixel color per row must return to the background color
           * in order to count as a show-worthy row, otherwise
           * loaders with flashing borders would count as hits */
          color_diff         = 3000 * pix_bytes;
-         zoom_bottom_border = ZOOM_TOP_BORDER + ZOOM_HEIGHT_MAX;
+         crop_bottom_border = CROP_TOP_BORDER + CROP_HEIGHT_MAX;
 
          /* Top border, start from top */
-         for (i = 0; i < ZOOM_TOP_BORDER && !vice_raster.blanked; i++)
+         for (i = 0; i < CROP_TOP_BORDER && !vice_raster.blanked; i++)
          {
             unsigned row   = i * (retrow << (pix_bytes >> 2));
             unsigned pad   = 8;
-            unsigned col_x = row + (ZOOM_LEFT_BORDER + pad) * (pix_bytes >> 1);
+            unsigned col_x = row + (CROP_LEFT_BORDER + pad) * (pix_bytes >> 1);
             unsigned color = retro_bmp[col_x];
             unsigned found = 0;
 
-            for (j = ZOOM_LEFT_BORDER + pad; j < retrow - ZOOM_LEFT_BORDER - pad; j++)
+            for (j = CROP_LEFT_BORDER + pad; j < retrow - CROP_LEFT_BORDER - pad; j++)
             {
                unsigned pixel = row + j * (pix_bytes >> 1);
 
@@ -159,25 +159,25 @@ void video_canvas_refresh(struct video_canvas_s *canvas,
                }
             }
 
-            if (vice_raster.first_line < ZOOM_TOP_BORDER)
+            if (vice_raster.first_line < CROP_TOP_BORDER)
                break;
          }
 
          /* Allow bottom border upwards a few rows if top border is not used much.
           * For oddly shifted cases: Alien Syndrome, Out Run Europa */
          if (vice_raster.first_line > 20)
-            zoom_bottom_border -= 5;
+            crop_bottom_border -= 5;
 
          /* Bottom border, start from bottom, almost */
-         for (i = retroh - 2; i > zoom_bottom_border && !vice_raster.blanked; i--)
+         for (i = retroh - 2; i > crop_bottom_border && !vice_raster.blanked; i--)
          {
             unsigned row   = i * (retrow << (pix_bytes >> 2));
             unsigned pad   = 8;
-            unsigned col_x = row + (ZOOM_LEFT_BORDER + pad) * (pix_bytes >> 1);
+            unsigned col_x = row + (CROP_LEFT_BORDER + pad) * (pix_bytes >> 1);
             unsigned color = retro_bmp[col_x];
             unsigned found = 0;
 
-            for (j = ZOOM_LEFT_BORDER + pad; j < retrow - ZOOM_LEFT_BORDER - pad; j++)
+            for (j = CROP_LEFT_BORDER + pad; j < retrow - CROP_LEFT_BORDER - pad; j++)
             {
                unsigned pixel = row + j * (pix_bytes >> 1);
 
@@ -194,7 +194,7 @@ void video_canvas_refresh(struct video_canvas_s *canvas,
                }
             }
 
-            if (vice_raster.last_line > ZOOM_TOP_BORDER + ZOOM_HEIGHT_MAX)
+            if (vice_raster.last_line > CROP_TOP_BORDER + CROP_HEIGHT_MAX)
                break;
          }
 
@@ -224,7 +224,7 @@ void video_canvas_refresh(struct video_canvas_s *canvas,
 
             if (vice_raster.counter > 3)
             {
-               zoom_mode_id_prev   = -1;
+               crop_id_prev        = -1;
                vice_raster.counter = 0;
                vice_raster.first_line_active = vice_raster.first_line;
                vice_raster.last_line_active  = vice_raster.last_line;
@@ -238,7 +238,7 @@ void video_canvas_refresh(struct video_canvas_s *canvas,
 #endif
          break;
 
-      case ZOOM_MODE_AUTO_DISABLE:
+      case CROP_AUTO_DISABLE:
          if (!vice_raster.blanked)
          {
             vice_raster.first_line = 0;
@@ -263,7 +263,7 @@ void video_canvas_refresh(struct video_canvas_s *canvas,
 
             if (vice_raster.counter > 1)
             {
-               zoom_mode_id_prev   = -1;
+               crop_id_prev        = -1;
                vice_raster.counter = 0;
                vice_raster.first_line_active = vice_raster.first_line;
                vice_raster.last_line_active  = vice_raster.last_line;

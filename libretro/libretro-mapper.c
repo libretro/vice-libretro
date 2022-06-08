@@ -89,9 +89,8 @@ extern float opt_analogmouse_speed;
 bool datasette_hotkeys = false;
 
 extern unsigned int opt_reset_type;
-extern unsigned int zoom_mode_id;
-extern int zoom_mode_id_prev;
-extern unsigned int opt_zoom_mode_id;
+extern unsigned int crop_id;
+extern unsigned int opt_crop_id;
 extern bool opt_keyboard_pass_through;
 extern unsigned int opt_aspect_ratio;
 extern bool opt_aspect_ratio_locked;
@@ -112,8 +111,8 @@ int retro_ui_get_pointer_state(int *px, int *py, unsigned int *pbuttons)
 
    *px = input_state_cb(0, RETRO_DEVICE_POINTER, 0, RETRO_DEVICE_ID_POINTER_X);
    *py = input_state_cb(0, RETRO_DEVICE_POINTER, 0, RETRO_DEVICE_ID_POINTER_Y);
-   *px = (int)((*px + 0x7fff) * zoomed_width / 0xffff + retroXS_offset);
-   *py = (int)((*py + 0x7fff) * zoomed_height / 0xffff + retroYS_offset);
+   *px = (int)((*px + 0x7fff) * retrow_crop / 0xffff + retroXS_offset);
+   *py = (int)((*py + 0x7fff) * retroh_crop / 0xffff + retroYS_offset);
 
    if (opt_joyport_pointer_color > -1)
    {
@@ -256,8 +255,8 @@ void emu_function(int function)
          opt_aspect_ratio++;
          if (opt_aspect_ratio > 3)
             opt_aspect_ratio = 1;
-         /* Reset zoom */
-         zoom_mode_id_prev = -1;
+         /* Reset crop */
+         crop_id_prev = -1;
          /* Lock aspect ratio */
          opt_aspect_ratio_locked = true;
          /* Statusbar notification */
@@ -265,17 +264,17 @@ void emu_function(int function)
                "Pixel Aspect",
                (opt_aspect_ratio == 1) ? "PAL" : (opt_aspect_ratio == 2) ? "NTSC" : "1:1");
          break;
-      case EMU_ZOOM_MODE:
-         if (zoom_mode_id == 0 && opt_zoom_mode_id == 0)
+      case EMU_CROP:
+         if (crop_id == 0 && opt_crop_id == 0)
             break;
-         if (zoom_mode_id > 0)
-            zoom_mode_id = 0;
-         else if (zoom_mode_id == 0)
-            zoom_mode_id = opt_zoom_mode_id;
+         if (crop_id > 0)
+            crop_id = 0;
+         else if (crop_id == 0)
+            crop_id = opt_crop_id;
          /* Statusbar notification */
          statusbar_message_show(5, "%s %s",
-               "Zoom Mode",
-               (zoom_mode_id) ? "ON" : "OFF");
+               "Crop",
+               (crop_id) ? "ON" : "OFF");
          break;
       case EMU_TURBO_FIRE:
          retro_turbo_fire = !retro_turbo_fire;
@@ -504,8 +503,8 @@ void update_input(unsigned disable_keys)
             case RETRO_MAPPER_ASPECT_RATIO:
                emu_function(EMU_ASPECT_RATIO);
                break;
-            case RETRO_MAPPER_ZOOM_MODE:
-               emu_function(EMU_ZOOM_MODE);
+            case RETRO_MAPPER_CROP:
+               emu_function(EMU_CROP);
                break;
             case RETRO_MAPPER_WARP_MODE:
                emu_function(EMU_WARP_MODE);
@@ -702,8 +701,8 @@ void update_input(unsigned disable_keys)
                   emu_function(EMU_RESET);
                else if (mapper_keys[i] == mapper_keys[RETRO_MAPPER_ASPECT_RATIO])
                   emu_function(EMU_ASPECT_RATIO);
-               else if (mapper_keys[i] == mapper_keys[RETRO_MAPPER_ZOOM_MODE])
-                  emu_function(EMU_ZOOM_MODE);
+               else if (mapper_keys[i] == mapper_keys[RETRO_MAPPER_CROP])
+                  emu_function(EMU_CROP);
                else if (mapper_keys[i] == mapper_keys[RETRO_MAPPER_WARP_MODE])
                   emu_function(EMU_WARP_MODE);
                else if (mapper_keys[i] == mapper_keys[RETRO_MAPPER_TURBO_FIRE])
@@ -775,7 +774,7 @@ void update_input(unsigned disable_keys)
                   ; /* nop */
                else if (mapper_keys[i] == mapper_keys[RETRO_MAPPER_ASPECT_RATIO])
                   ; /* nop */
-               else if (mapper_keys[i] == mapper_keys[RETRO_MAPPER_ZOOM_MODE])
+               else if (mapper_keys[i] == mapper_keys[RETRO_MAPPER_CROP])
                   ; /* nop */
                else if (mapper_keys[i] == mapper_keys[RETRO_MAPPER_WARP_MODE])
                   emu_function(EMU_WARP_MODE);

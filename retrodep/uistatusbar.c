@@ -215,7 +215,7 @@ static void display_joyport(void)
     if (opt_statusbar & STATUSBAR_BASIC)
         return;
 
-    snprintf(statusbar_resolution, sizeof(statusbar_resolution), "%dx%d", zoomed_width, zoomed_height);
+    snprintf(statusbar_resolution, sizeof(statusbar_resolution), "%dx%d", retrow_crop, retroh_crop);
 
 #if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__)
     /* Model */
@@ -714,14 +714,14 @@ void uistatusbar_draw(void)
     /* Statusbar position */
     x = 1;
     if (opt_statusbar & STATUSBAR_TOP)
-        y = zoomed_YS_offset + 1;
+        y = retroYS_crop_offset + 1;
     else
-        y = zoomed_height + zoomed_YS_offset - 8;
+        y = retroh_crop + retroYS_crop_offset - 8;
 
     /* Statusbar background */
     int bkg_x = retroXS_offset + x - 1;
     int bkg_y = y - 1;
-    int max_width = zoomed_width;
+    int max_width = retrow_crop;
     int bkg_width = max_width;
     int bkg_height = 9;
 
@@ -824,12 +824,12 @@ void uistatusbar_draw(void)
         /* Right alignment for tape/drive/power */
         int x_align = retroXS_offset;
 #ifdef __XVIC__
-        /* VIC-20 zoom horizontal centering shenanigans */
+        /* VIC-20 crop horizontal centering shenanigans */
         if (i >= STATUSBAR_TAPE_POS && retroXS_offset && retro_region != RETRO_REGION_PAL)
             x_align -= 8;
 #endif
         if (i >= STATUSBAR_TAPE_POS)
-            x_align += x_align_offset + zoomed_width - (MAX_STATUSBAR_LEN * char_width);
+            x_align += x_align_offset + retrow_crop - (MAX_STATUSBAR_LEN * char_width);
 
         if (drive_enabled)
         {
