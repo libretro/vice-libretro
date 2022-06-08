@@ -2616,7 +2616,7 @@ static void retro_set_core_options()
          "vice_video_options_display",
          "Show Video Options",
          NULL,
-         "Page refresh by menu toggle required!",
+         "",
          NULL,
          NULL,
          {
@@ -3207,7 +3207,7 @@ static void retro_set_core_options()
          "vice_audio_options_display",
          "Show Audio Options",
          NULL,
-         "Page refresh by menu toggle required!",
+         "",
          NULL,
          NULL,
          {
@@ -3789,7 +3789,7 @@ static void retro_set_core_options()
          "vice_mapping_options_display",
          "Show Mapping Options",
          NULL,
-         "Page refresh by menu toggle required!",
+         "",
          NULL,
          NULL,
          {
