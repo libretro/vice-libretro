@@ -308,7 +308,7 @@ double vsync_get_refresh_frequency(void)
 void vsync_init(void (*hook)(void))
 {
 #ifdef __LIBRETRO__
-    /* Limit warp rendering to refresh rate */
+    /* Limit warp rendering to suit VKBD */
     warp_render_tick_interval = tick_per_second() / (1 / refresh_frequency * 1000) / 4;
 #else
     /* Limit warp rendering to 10fps */

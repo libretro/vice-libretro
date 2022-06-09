@@ -8163,8 +8163,12 @@ void retro_run(void)
    for (frame_count = 0; frame_count < frame_max; ++frame_count)
    {
       frame_time = retro_ticks();
-      if (frame_max > 1 && frame_time > 0 && frame_time - frame_start > retro_refresh_ms / 2)
+
+#if !defined(__X64SC__) && !defined(__XSCPU64__)
+      /* Slow cores will cripple warp speed severily if smoothness is the target */
+      if (frame_max > 1 && frame_time != 0 && frame_time - frame_start + (frame_time - frame_start) > (retro_refresh_ms / 2))
          break;
+#endif
 
       if (frame_max > 1 && (!vsync_get_warp_mode() || is_audio_playing_while_autoloadwarping()))
          break;
@@ -8172,12 +8176,6 @@ void retro_run(void)
       while (retro_renderloop)
          maincpu_mainloop();
       retro_renderloop = 1;
-
-      if (frame_max > 1 && perf_cb.get_time_usec)
-         frame_max = 1000000 / (retro_refresh / 5) / (retro_ticks() - frame_time);
-
-      if (frame_max > retro_refresh)
-         frame_max = retro_refresh;
    }
 
    /* LED interface */
