@@ -1937,24 +1937,52 @@ void retro_fastforwarding(bool enabled)
 
 bool audio_playing(void)
 {
+   static unsigned int audio_timer_playing = 0;
+   static unsigned int audio_timer_stopped = 0;
+   bool audio_alive = false;
+
    if (audio_buffer)
    {
-      for (unsigned i = 2; i < 20; i++)
+      for (unsigned i = 2; i < 24; i++)
       {
          int target = (i % 2 == 0) ? 0 : 1;
+
          if (audio_buffer[i] != audio_buffer[target] &&
-             abs(audio_buffer[i] - audio_buffer[target]) > 2 &&
+             abs(audio_buffer[i] - audio_buffer[target]) > 5 &&
              abs(audio_buffer[i] - audio_buffer[target]) < 30000 &&
              !(audio_buffer[i] == 0 || audio_buffer[target] == 0) &&
              !(audio_buffer[i] == 1 || audio_buffer[target] == 1))
          {
-            audio_is_playing = true;
-            return true;
+            audio_alive = true;
+            audio_timer_playing++;
+
+            if (audio_timer_playing > 2)
+            {
+               audio_timer_playing = 0;
+               audio_timer_stopped = 0;
+               audio_is_playing = true;
+               //printf("%s: PLAYING %02d i=%08d tar=%08d delta=%08d\n", __func__, i, audio_buffer[i], audio_buffer[target], abs(audio_buffer[i] - audio_buffer[target]));
+               return audio_is_playing;
+            }
          }
       }
    }
-   audio_is_playing = false;
-   return false;
+
+   if (audio_alive && audio_timer_playing)
+      return audio_is_playing;
+
+   if (!audio_alive)
+      audio_timer_stopped++;
+
+   if (audio_timer_stopped > 8)
+   {
+      audio_timer_playing = 0;
+      audio_timer_stopped = 0;
+      audio_is_playing = false;
+      //printf("%s: NOT PLAYING\n", __func__);
+   }
+
+   return audio_is_playing;
 }
 
 bool is_audio_playing_while_autoloadwarping(void)

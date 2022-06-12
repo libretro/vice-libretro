@@ -1241,7 +1241,7 @@ static int sound_run_sound(void)
     snddata.bufptr += nr;
     snddata.lastclk = maincpu_clk;
 #ifdef __LIBRETRO__
-    audio_buffer = snddata.buffer;
+    memcpy(&audio_buffer, &snddata.buffer, sizeof(audio_buffer));
 #endif
     return 0;
 }
