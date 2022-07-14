@@ -48,6 +48,16 @@ ifeq ($(platform), unix)
    LDFLAGS += -shared -Wl,--version-script=$(CORE_DIR)/libretro/link.T -Wl,--gc-sections
    fpic = -fPIC
 
+# Raspberry Pi 4
+else ifneq (,$(findstring rpi4,$(platform)))
+   TARGET := $(TARGET_NAME)_libretro.so
+   fpic := -fPIC
+   SHARED := -shared -Wl,--no-undefined
+   LDFLAGS += -shared -Wl,--version-script=$(CORE_DIR)/libretro/link.T
+   CFLAGS += -march=armv8-a+crc+simd -mcpu=cortex-a72
+   CFLAGS += -DARM -DALIGN_DWORD
+   CXXFLAGS += $(CFLAGS)
+
 # CrossPI
 else ifeq ($(platform), crosspi)
    CC = ~/RPI/tools-master/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64/bin/arm-linux-gnueabihf-gcc
