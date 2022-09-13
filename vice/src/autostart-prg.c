@@ -85,17 +85,15 @@ static autostart_prg_t * load_prg(const char *file_name, fileio_info_t *finfo, l
     }
 
     /* get load addr */
-    if (autostart_basic_load) {
-        mem_get_basic_text(&prg->start_addr, NULL);
-    } else {
-        prg->start_addr = (uint16_t)hi << 8 | (uint16_t)lo;
-    }
+    prg->start_addr = (uint16_t)hi << 8 | (uint16_t)lo;
+
     prg->size -= 2; /* skip load addr */
 
     /* check range */
     end = prg->start_addr + prg->size - 1;
     if (end > 0xffff) {
         log_error(log, "Invalid size of '%s': %" PRIu32, file_name, prg->size);
+        lib_free(prg);
         return NULL;
     }
 
@@ -365,6 +363,13 @@ int autostart_prg_perform_injection(log_t log)
         return -1;
     }
 
+    mem_get_basic_text(&start, &end);
+
+    /* load to basic start if requested */
+    if (autostart_basic_load) {
+        prg->start_addr = start;
+    }
+
     log_message(autostart_log, "Injecting program data at $%04x (size $%04x)",
                 prg->start_addr, (unsigned int)prg->size);
 
@@ -374,7 +379,6 @@ int autostart_prg_perform_injection(log_t log)
     }
 
     /* now simulate a basic load */
-    mem_get_basic_text(&start, &end);
     end = (uint16_t)(prg->start_addr + prg->size);
     mem_set_basic_text(start, end);
 

@@ -84,6 +84,10 @@
 #include "vic20-midi.h"
 #include "zfile.h"
 
+/* Backport from 3.6 */
+#include "crt.h"
+#include "crt.c"
+
 /* #define DEBUGCART */
 
 #ifdef DEBUGCART
@@ -341,6 +345,7 @@ static int cartridge_attach_from_resource(int type, const char *filename)
 
 int cartridge_attach_image(int type, const char *filename)
 {
+    char *abs_filename;
     int type_orig;
     int generic_multifile = 0;
     int ret = 0;
@@ -348,6 +353,21 @@ int cartridge_attach_image(int type, const char *filename)
     /* Attaching no cartridge always works.  */
     if (type == CARTRIDGE_NONE || filename == NULL || *filename == '\0') {
         return 0;
+    }
+
+    if (archdep_path_is_relative(filename)) {
+        archdep_expand_path(&abs_filename, filename);
+    } else {
+        abs_filename = lib_strdup(filename);
+    }
+
+    if (type == CARTRIDGE_CRT) {
+        type = crt_getid(abs_filename);
+        if (type == -1) {
+            log_message(LOG_DEFAULT, "CART: '%s' is not a valid CRT file.", abs_filename);
+            lib_free(abs_filename);
+            return -1;
+        }
     }
 
     log_message(LOG_DEFAULT, "Attached cartridge type %d, file=`%s'.", type, filename);
