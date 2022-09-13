@@ -56,23 +56,19 @@ extern float retro_refresh;
 extern int runstate;
 extern dc_storage *dc;
 
-/* ----------------------------------------------------------------- */
-/* static functions/variables */
-
-#ifndef MIN
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#endif
-
 #if defined(__XVIC__)
 extern int vic20mem_forced;
 #endif
+
+/* ----------------------------------------------------------------- */
+/* static functions/variables */
 
 #define STATUSBAR_RESOLUTION_POS    28
 #define STATUSBAR_MODEL_POS         45
 
 #define STATUSBAR_JOY_POS           0
-#define STATUSBAR_TAPE_POS          56
-#define STATUSBAR_DRIVE_POS         57
+#define STATUSBAR_TAPE_POS          55
+#define STATUSBAR_DRIVE_POS         59
 #define STATUSBAR_DRIVE8_TRACK_POS  59
 #define STATUSBAR_DRIVE9_TRACK_POS  59
 #define STATUSBAR_DRIVE10_TRACK_POS 59
@@ -82,10 +78,10 @@ extern int vic20mem_forced;
 #define MAX_STATUSBAR_LEN           64
 
 unsigned char statusbar_text[RETRO_PATH_MAX] = {0};
-unsigned char statusbar_chars[MAX_STATUSBAR_LEN] = {0};
-unsigned char statusbar_resolution[10] = {0};
-unsigned char statusbar_model[10] = {0};
-unsigned char statusbar_memory[10] = {0};
+static unsigned char statusbar_chars[MAX_STATUSBAR_LEN] = {0};
+static unsigned char statusbar_resolution[10] = {0};
+static unsigned char statusbar_model[10] = {0};
+static unsigned char statusbar_memory[10] = {0};
 
 static unsigned char* joystick_value_human(char val, int vice_device)
 {
@@ -120,178 +116,6 @@ static unsigned char* joystick_value_human(char val, int vice_device)
     return str;
 }
 
-static void display_joyport(void)
-{
-    unsigned char tmpstr[25] = {0};
-
-#if !defined(__XPET__) && !defined(__XCBM2__) && !defined(__XVIC__)
-    unsigned char joy1[2];
-    unsigned char joy2[2];
-    snprintf(joy1, sizeof(joy1), "%s", "1");
-    snprintf(joy2, sizeof(joy2), "%s", "2");
-
-    /* Lightpen/gun */
-    if (opt_joyport_type > 10 && cur_port == 1)
-        snprintf(tmpstr, sizeof(tmpstr), "L%s%3s ", joy1, joystick_value_human(mouse_value[1], 1));
-    /* Mouse */
-    else if (opt_joyport_type > 2 && cur_port == 1)
-        snprintf(tmpstr, sizeof(tmpstr), "M%s%3s ", joy1, joystick_value_human(mouse_value[1], 1));
-    /* Paddles */
-    else if (opt_joyport_type == 2)
-        snprintf(tmpstr, sizeof(tmpstr), "P%s%3s ", joy1, joystick_value_human(mouse_value[1], 1));
-    /* Joystick */
-    else
-        snprintf(tmpstr, sizeof(tmpstr), "J%s%3s ", joy1, joystick_value_human(joystick_value[1], 0));
-
-    /* Lightpen/gun */
-    if (opt_joyport_type > 10 && cur_port == 2)
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "L%s%3s ", joy2, joystick_value_human(mouse_value[2], 1));
-    /* Mouse */
-    else if (opt_joyport_type > 2 && cur_port == 2)
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "M%s%3s ", joy2, joystick_value_human(mouse_value[2], 1));
-    /* Paddles */
-    else if (opt_joyport_type == 2)
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "P%s%3s ", joy2, joystick_value_human(mouse_value[2], 1));
-    /* Joystick */
-    else
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%s%3s ", joy2, joystick_value_human(joystick_value[2], 0));
-#elif defined(__XVIC__)
-    char joy1[2];
-    snprintf(joy1, sizeof(joy1), "%s", "1");
-
-    /* Lightpen/gun */
-    if (opt_joyport_type > 10)
-        snprintf(tmpstr, sizeof(tmpstr), "L%s%3s ", joy1, joystick_value_human(mouse_value[1], 1));
-    /* Mouse */
-    else if (opt_joyport_type > 2)
-       snprintf(tmpstr, sizeof(tmpstr), "M%s%3s ", joy1, joystick_value_human(mouse_value[1], 1));
-    /* Paddles */
-    else if (opt_joyport_type == 2)
-       snprintf(tmpstr, sizeof(tmpstr), "P%s%3s ", joy1, joystick_value_human(mouse_value[1], 1));
-    /* Joystick */
-    else
-       snprintf(tmpstr, sizeof(tmpstr), "J%s%3s ", joy1, joystick_value_human(joystick_value[1], 0));
-#endif
-
-#if !defined(__XPET__) && !defined(__XCBM2__) && !defined(__XVIC__)
-    if (vice_opt.UserportJoyType != -1)
-    {
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 3, joystick_value_human(joystick_value[3], 0));
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 4, joystick_value_human(joystick_value[4], 0));
-    }
-    else
-    {
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%5s", "");
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%5s", "");
-    }
-#elif defined(__XVIC__)
-    if (vice_opt.UserportJoyType != -1)
-    {
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 2, joystick_value_human(joystick_value[2], 0));
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 3, joystick_value_human(joystick_value[3], 0));
-    }
-    else
-    {
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%5s", "");
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%5s", "");
-    }
-#elif defined(__XPET__) || defined(__XCBM2__)
-    if (vice_opt.UserportJoyType != -1)
-    {
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 1, joystick_value_human(joystick_value[1], 0));
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 2, joystick_value_human(joystick_value[2], 0));
-    }
-    else
-    {
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%5s", "");
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%5s", "");
-    }
-#endif
-
-    if (opt_statusbar & STATUSBAR_BASIC)
-        snprintf(tmpstr, sizeof(tmpstr), "%24s", "");
-
-    snprintf(&statusbar_chars[STATUSBAR_JOY_POS], sizeof(statusbar_chars), "%-55s", tmpstr);
-
-    if (opt_statusbar & STATUSBAR_BASIC)
-        return;
-
-    snprintf(statusbar_resolution, sizeof(statusbar_resolution), "%dx%d", retrow_crop, retroh_crop);
-
-#if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__)
-    /* Model */
-    unsigned model = vice_opt.Model;
-    if (request_model_set > -1 && request_model_set != model)
-        model = request_model_set;
-
-    tmpstr[0] = '\0';
-    switch (model)
-    {
-        case C64MODEL_C64_PAL:
-        case C64MODEL_C64_PAL_N:
-        case C64MODEL_C64_OLD_PAL:
-        case C64MODEL_C64_NTSC:
-        case C64MODEL_C64_OLD_NTSC:
-            strcpy(tmpstr, "  C64"); break;
-        case C64MODEL_C64C_PAL:
-        case C64MODEL_C64C_NTSC:
-            strcpy(tmpstr, " C64C"); break;
-        case C64MODEL_C64SX_PAL:
-        case C64MODEL_C64SX_NTSC:
-            strcpy(tmpstr, "SX-64"); break;
-        case C64MODEL_PET64_PAL:
-        case C64MODEL_PET64_NTSC:
-            strcpy(tmpstr, "PET64"); break;
-        case C64MODEL_C64_GS:
-            strcpy(tmpstr, "C64GS"); break;
-        case C64MODEL_C64_JAP:
-            strcpy(tmpstr, "C64JP"); break;
-        case C64MODEL_ULTIMAX:
-            strcpy(tmpstr, "  MAX"); break;
-    }
-
-    /* Memory */
-    unsigned memory = 0;
-#if defined(__XSCPU64__)
-    memory = vice_opt.SIMMSize * 1024;
-#else
-    memory = vice_opt.REUsize;
-#endif
-
-    snprintf(statusbar_memory, sizeof(statusbar_memory), "%5dkB", memory);
-    snprintf(statusbar_model, sizeof(statusbar_model), "%-5s", tmpstr);
-#elif defined(__XVIC__)
-    /* Model */
-    unsigned model = vice_opt.Model;
-    if (request_model_set > -1 && request_model_set != model)
-        model = request_model_set;
-
-    tmpstr[0] = '\0';
-    switch (model)
-    {
-        case VIC20MODEL_VIC20_PAL:
-        case VIC20MODEL_VIC20_NTSC:
-            strcpy(tmpstr, "VIC20"); break;
-        case VIC20MODEL_VIC21:
-            strcpy(tmpstr, "VIC21"); break;
-    }
-
-    /* Memory */
-    unsigned memory = 0;
-    memory = (vic20mem_forced > -1) ? vic20mem_forced : vice_opt.VIC20Memory;
-    if (!memory && vice_opt.Model == VIC20MODEL_VIC21)
-        memory = 3;
-
-    int vic20mems[6]  = {0, 3, 8, 16, 24, 35};
-
-    snprintf(statusbar_memory, sizeof(statusbar_memory), "%5dkB", vic20mems[memory]);
-    snprintf(statusbar_model, sizeof(statusbar_model), "%-5s", tmpstr);
-#endif
-
-    if (uistatusbar_state & UISTATUSBAR_ACTIVE) {
-        uistatusbar_state |= UISTATUSBAR_REPAINT;
-    }
-}
 
 static int per = 0;
 static int fps = 0;
@@ -510,10 +334,8 @@ static int tape_motor = 0;
 
 static void display_tape(void)
 {
-    char tape_chars[5] = {23, 20, 22, 21, 'R'};
-
-    if (drive_enabled)
-        return;
+    const char tape_chars[5] = {23, 20, 22, 21, 'R'};
+    unsigned char tmpstr[5]  = {0};
 
     if (tape_enabled)
         vice_led_state[RETRO_LED_TAPE] = (tape_control == 1 && tape_motor) ? 1 : 0;
@@ -539,9 +361,12 @@ static void display_tape(void)
     }
 
     if (tape_enabled)
-        sprintf(&(statusbar_chars[STATUSBAR_TAPE_POS]), "%c%03d", tape_chars[tape_control], tape_counter);
+        snprintf(tmpstr, sizeof(tmpstr), "%c%03d", tape_chars[tape_control], tape_counter);
     else
-        sprintf(&(statusbar_chars[STATUSBAR_TAPE_POS]), "    ");
+        snprintf(tmpstr, sizeof(tmpstr), "    ");
+
+    /* Skip null terminator */
+    strncpy(&statusbar_chars[STATUSBAR_TAPE_POS], tmpstr, sizeof(tmpstr)-1);
 
     if (uistatusbar_state & UISTATUSBAR_ACTIVE) {
         uistatusbar_state |= UISTATUSBAR_REPAINT;
@@ -658,6 +483,179 @@ int uistatusbar_init_resources(void)
     return resources_register_int(resources_int);
 }
 
+/* Joyport bar */
+static void display_joyport(void)
+{
+    unsigned char tmpstr[25] = {0};
+
+#if !defined(__XPET__) && !defined(__XCBM2__) && !defined(__XVIC__)
+    unsigned char joy1[2];
+    unsigned char joy2[2];
+    snprintf(joy1, sizeof(joy1), "%s", "1");
+    snprintf(joy2, sizeof(joy2), "%s", "2");
+
+    /* Lightpen/gun */
+    if (opt_joyport_type > 10 && cur_port == 1)
+        snprintf(tmpstr, sizeof(tmpstr), "L%s%3s ", joy1, joystick_value_human(mouse_value[1], 1));
+    /* Mouse */
+    else if (opt_joyport_type > 2 && cur_port == 1)
+        snprintf(tmpstr, sizeof(tmpstr), "M%s%3s ", joy1, joystick_value_human(mouse_value[1], 1));
+    /* Paddles */
+    else if (opt_joyport_type == 2)
+        snprintf(tmpstr, sizeof(tmpstr), "P%s%3s ", joy1, joystick_value_human(mouse_value[1], 1));
+    /* Joystick */
+    else
+        snprintf(tmpstr, sizeof(tmpstr), "J%s%3s ", joy1, joystick_value_human(joystick_value[1], 0));
+
+    /* Lightpen/gun */
+    if (opt_joyport_type > 10 && cur_port == 2)
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "L%s%3s ", joy2, joystick_value_human(mouse_value[2], 1));
+    /* Mouse */
+    else if (opt_joyport_type > 2 && cur_port == 2)
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "M%s%3s ", joy2, joystick_value_human(mouse_value[2], 1));
+    /* Paddles */
+    else if (opt_joyport_type == 2)
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "P%s%3s ", joy2, joystick_value_human(mouse_value[2], 1));
+    /* Joystick */
+    else
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%s%3s ", joy2, joystick_value_human(joystick_value[2], 0));
+#elif defined(__XVIC__)
+    char joy1[2];
+    snprintf(joy1, sizeof(joy1), "%s", "1");
+
+    /* Lightpen/gun */
+    if (opt_joyport_type > 10)
+        snprintf(tmpstr, sizeof(tmpstr), "L%s%3s ", joy1, joystick_value_human(mouse_value[1], 1));
+    /* Mouse */
+    else if (opt_joyport_type > 2)
+       snprintf(tmpstr, sizeof(tmpstr), "M%s%3s ", joy1, joystick_value_human(mouse_value[1], 1));
+    /* Paddles */
+    else if (opt_joyport_type == 2)
+       snprintf(tmpstr, sizeof(tmpstr), "P%s%3s ", joy1, joystick_value_human(mouse_value[1], 1));
+    /* Joystick */
+    else
+       snprintf(tmpstr, sizeof(tmpstr), "J%s%3s ", joy1, joystick_value_human(joystick_value[1], 0));
+#endif
+
+#if !defined(__XPET__) && !defined(__XCBM2__) && !defined(__XVIC__)
+    if (vice_opt.UserportJoyType != -1)
+    {
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 3, joystick_value_human(joystick_value[3], 0));
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 4, joystick_value_human(joystick_value[4], 0));
+    }
+    else
+    {
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%5s", "");
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%5s", "");
+    }
+#elif defined(__XVIC__)
+    if (vice_opt.UserportJoyType != -1)
+    {
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 2, joystick_value_human(joystick_value[2], 0));
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 3, joystick_value_human(joystick_value[3], 0));
+    }
+    else
+    {
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%5s", "");
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%5s", "");
+    }
+#elif defined(__XPET__) || defined(__XCBM2__)
+    if (vice_opt.UserportJoyType != -1)
+    {
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 1, joystick_value_human(joystick_value[1], 0));
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 2, joystick_value_human(joystick_value[2], 0));
+    }
+    else
+    {
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%5s", "");
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%5s", "");
+    }
+#endif
+
+    if (opt_statusbar & STATUSBAR_BASIC)
+        snprintf(tmpstr, sizeof(tmpstr), "%24s", "");
+
+    snprintf(&statusbar_chars[STATUSBAR_JOY_POS], sizeof(statusbar_chars), "%-54s", tmpstr);
+
+    if (opt_statusbar & STATUSBAR_BASIC)
+        return;
+
+    snprintf(statusbar_resolution, sizeof(statusbar_resolution), "%dx%d", retrow_crop, retroh_crop);
+
+#if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__)
+    /* Model */
+    unsigned model = vice_opt.Model;
+    if (request_model_set > -1 && request_model_set != model)
+        model = request_model_set;
+
+    tmpstr[0] = '\0';
+    switch (model)
+    {
+        case C64MODEL_C64_PAL:
+        case C64MODEL_C64_PAL_N:
+        case C64MODEL_C64_OLD_PAL:
+        case C64MODEL_C64_NTSC:
+        case C64MODEL_C64_OLD_NTSC:
+            strcpy(tmpstr, "  C64"); break;
+        case C64MODEL_C64C_PAL:
+        case C64MODEL_C64C_NTSC:
+            strcpy(tmpstr, " C64C"); break;
+        case C64MODEL_C64SX_PAL:
+        case C64MODEL_C64SX_NTSC:
+            strcpy(tmpstr, "SX-64"); break;
+        case C64MODEL_PET64_PAL:
+        case C64MODEL_PET64_NTSC:
+            strcpy(tmpstr, "PET64"); break;
+        case C64MODEL_C64_GS:
+            strcpy(tmpstr, "C64GS"); break;
+        case C64MODEL_C64_JAP:
+            strcpy(tmpstr, "C64JP"); break;
+        case C64MODEL_ULTIMAX:
+            strcpy(tmpstr, "  MAX"); break;
+    }
+
+    /* Memory */
+    unsigned memory = 0;
+#if defined(__XSCPU64__)
+    memory = vice_opt.SIMMSize * 1024;
+#else
+    memory = vice_opt.REUsize;
+#endif
+
+    snprintf(statusbar_memory, sizeof(statusbar_memory), "%5dkB", memory);
+    snprintf(statusbar_model - ((tape_enabled && retrow_crop == CROP_WIDTH_MAX) ? 2 : 0), sizeof(statusbar_model), "%-5s", tmpstr);
+#elif defined(__XVIC__)
+    /* Model */
+    unsigned model = vice_opt.Model;
+    if (request_model_set > -1 && request_model_set != model)
+        model = request_model_set;
+
+    tmpstr[0] = '\0';
+    switch (model)
+    {
+        case VIC20MODEL_VIC20_PAL:
+        case VIC20MODEL_VIC20_NTSC:
+            strcpy(tmpstr, "VIC20"); break;
+        case VIC20MODEL_VIC21:
+            strcpy(tmpstr, "VIC21"); break;
+    }
+
+    /* Memory */
+    unsigned memory = 0;
+    memory = (vic20mem_forced > -1) ? vic20mem_forced : vice_opt.VIC20Memory;
+    if (!memory && vice_opt.Model == VIC20MODEL_VIC21)
+        memory = 3;
+
+    int vic20mems[6]  = {0, 3, 8, 16, 24, 35};
+
+    snprintf(statusbar_memory, sizeof(statusbar_memory), "%5dkB", vic20mems[memory]);
+    snprintf(statusbar_model, sizeof(statusbar_model), "%-5s", tmpstr);
+#endif
+
+    if (uistatusbar_state & UISTATUSBAR_ACTIVE) {
+        uistatusbar_state |= UISTATUSBAR_REPAINT;
+    }
+}
 
 /* ----------------------------------------------------------------- */
 /* uistatusbar.h */
@@ -733,14 +731,19 @@ void uistatusbar_draw(void)
     int x_align_offset = 3;
 
     /* LED section position */
+    int led_x     = 0;
     int led_width = 0;
-    int led_x = 0;
     if (drive_enabled)
+    {
         led_width = (char_width * 5) - x_align_offset + 2;
+        if (tape_enabled)
+            led_width += (char_width * 5) - x_align_offset;
+    }
     else if (tape_enabled)
-        led_width = (char_width * 8) - x_align_offset - 4;
+        led_width = (char_width * 8) - x_align_offset - 3;
     else
-        led_width = (char_width * 3) - x_align_offset - 1;
+        led_width = (char_width * 3) - x_align_offset;
+
     led_x = retroXS_offset + x + max_width - led_width - 1;
 
     /* Basic mode statusbar background */
@@ -839,13 +842,24 @@ void uistatusbar_draw(void)
         {
             if (i == STATUSBAR_DRIVE8_TRACK_POS || i == STATUSBAR_DRIVE8_TRACK_POS + 1)
                 x_align -= 2 * char_scale_x;
+
+            if (tape_enabled)
+            {
+                if (i == STATUSBAR_TAPE_POS)
+                    x_align -= ((char_width + 5) * char_scale_x) - char_width;
+                else if (i >= STATUSBAR_TAPE_POS && i < STATUSBAR_TAPE_POS + 4)
+                    x_align -= ((char_width + 4) * char_scale_x) - char_width;
+            }
         }
         else if (tape_enabled)
         {
-            if (i >= STATUSBAR_TAPE_POS && i < STATUSBAR_SPEED_POS - 4)
-                x_align = x_align - (3 * char_scale_x) + char_width;
-            else if (i >= STATUSBAR_TAPE_POS && i < STATUSBAR_SPEED_POS - 1)
-                x_align = x_align - (2 * char_scale_x) + char_width;
+            if (i == STATUSBAR_TAPE_POS)
+                x_align -= (3 * char_scale_x) - (char_width * 2);
+            else if (i >= STATUSBAR_TAPE_POS && i < STATUSBAR_TAPE_POS + 4)
+                x_align -= (2 * char_scale_x) - (char_width * 2);
+
+            if (i == STATUSBAR_DRIVE8_TRACK_POS || i == STATUSBAR_DRIVE8_TRACK_POS + 1)
+                c = '\0';
         }
 
         int x_char = x + char_offset + x_align + (i * char_width);
