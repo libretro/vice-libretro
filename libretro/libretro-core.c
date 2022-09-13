@@ -1843,6 +1843,31 @@ void reload_restart(void)
       if (dc_get_image_type(content_path) == DC_IMAGE_TYPE_TAPE ||
           dc_get_image_type(content_path) == DC_IMAGE_TYPE_MEM)
          sound_drive_mute = true;
+
+#if defined(__XVIC__)
+      /* M3U has to be inspected */
+      if (strcasestr(content_path, ".m3u"))
+      {
+         FILE *fd;
+         char buf[RETRO_PATH_MAX] = {0};
+         char basepath[RETRO_PATH_MAX] = {0};
+         char fullpath[RETRO_PATH_MAX] = {0};
+         snprintf(basepath, sizeof(basepath), "%s", content_path);
+         path_basedir(basepath);
+
+         fd = fopen(content_path, MODE_READ);
+         if (fgets(buf, sizeof(buf), fd) != NULL)
+         {
+            buf[strcspn(buf, "\r\n")] = 0;
+            snprintf(fullpath, sizeof(fullpath), "%s%s", basepath, buf);
+         }
+         fclose(fd);
+
+         if (dc_get_image_type(fullpath) == DC_IMAGE_TYPE_TAPE ||
+             dc_get_image_type(fullpath) == DC_IMAGE_TYPE_MEM)
+            sound_drive_mute = true;
+      }
+#endif
    }
 
    /* Reset file path tag model force */
