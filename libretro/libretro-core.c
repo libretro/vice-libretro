@@ -739,12 +739,12 @@ static int process_cmdline(const char* argv)
       }
 
       /* ZIP */
-      if (strendswith(argv, "zip") || strendswith(argv, "7z"))
+      if (strendswith(argv, ".zip") || strendswith(argv, ".7z"))
       {
          path_mkdir(retro_temp_directory);
-         if (strendswith(argv, "zip"))
+         if (strendswith(argv, ".zip"))
             zip_uncompress(full_path, retro_temp_directory, NULL);
-         else if (strendswith(argv, "7z"))
+         else if (strendswith(argv, ".7z"))
             sevenzip_uncompress(full_path, retro_temp_directory, NULL);
 
          /* Default to directory mode */

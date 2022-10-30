@@ -445,12 +445,12 @@ bool dc_replace_file(dc_storage* dc, int index, const char* filename)
       }
 
       /* ZIP */
-      if (strendswith(full_path_replace, "zip") || strendswith(full_path_replace, "7z"))
+      if (strendswith(full_path_replace, ".zip") || strendswith(full_path_replace, ".7z"))
       {
          path_mkdir(retro_temp_directory);
-         if (strendswith(full_path_replace, "zip"))
+         if (strendswith(full_path_replace, ".zip"))
             zip_uncompress(full_path_replace, retro_temp_directory, NULL);
-         else if (strendswith(full_path_replace, "7z"))
+         else if (strendswith(full_path_replace, ".7z"))
             sevenzip_uncompress(full_path_replace, retro_temp_directory, NULL);
 
          /* Default to directory mode */
@@ -952,14 +952,14 @@ void dc_parse_list(dc_storage* dc, const char* list_file, bool is_vfl, const cha
          }
 
          /* ZIP */
-         if (strendswith(file_path, "zip") || strendswith(file_path, "7z"))
+         if (strendswith(file_path, ".zip") || strendswith(file_path, ".7z"))
          {
             char lastfile[RETRO_PATH_MAX] = {0};
 
             path_mkdir(retro_temp_directory);
-            if (strendswith(file_path, "zip"))
+            if (strendswith(file_path, ".zip"))
                zip_uncompress(file_path, retro_temp_directory, lastfile);
-            else if (strendswith(file_path, "7z"))
+            else if (strendswith(file_path, ".7z"))
                sevenzip_uncompress(file_path, retro_temp_directory, lastfile);
 
             /* Convert all NIBs to G64 */
