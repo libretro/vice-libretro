@@ -176,6 +176,7 @@ unsigned int opt_work_disk_unit = 8;
 #if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
 static unsigned int opt_jiffydos_allow = 1;
 unsigned int opt_jiffydos = 0;
+unsigned int opt_jiffydos_kernal_skip = 0;
 #endif
 #if defined(__XSCPU64__)
 unsigned int opt_supercpu_kernal = 0;
@@ -6828,7 +6829,7 @@ static void update_variables(void)
          opt_jiffydos = 0;
 
       if (retro_ui_finalized)
-         request_reload_restart = (opt_jiffydos != opt_jiffydos_prev) ? true : request_reload_restart;
+         request_reload_restart = (opt_jiffydos != opt_jiffydos_prev || request_restart) ? true : request_reload_restart;
    }
 #endif
 

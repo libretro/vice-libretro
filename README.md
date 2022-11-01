@@ -149,6 +149,7 @@ External ROM files required in `system/vice`:
 | Filename                         | Size   | MD5                              |
 |----------------------------------|-------:|----------------------------------|
 | **JiffyDOS_C64.bin**             |  8 192 | be09394f0576cf81fa8bacf634daf9a2 |
+| **JiffyDOS_SX-64.bin**           |  8 192 | f0d3aa7c5a81d1e1d3e8eeda84e9dbbe |
 | **JiffyDOS_C128.bin**            | 16 384 | cbbd1bbcb5e4fd8046b6030ab71fc021 |
 | **JiffyDOS_1541-II.bin**         | 16 384 | 1b1e985ea5325a1f46eb7fd9681707bf |
 | **JiffyDOS_1571_repl310654.bin** | 32 768 | 41c6cc528e9515ffd0ed9b180f8467c0 |

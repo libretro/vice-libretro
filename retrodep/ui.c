@@ -55,6 +55,10 @@ BYTE scpu64rom_scpu64_rom_original[SCPU64_SCPU64_ROM_MAXSIZE] = {0};
 BYTE c64memrom_kernal64_rom_original[C64_KERNAL_ROM_SIZE] = {0};
 #endif
 
+#if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
+extern unsigned int opt_jiffydos_kernal_skip;
+#endif
+
 #include "libretro-core.h"
 #if defined(__XVIC__)
 extern void vic20mem_set(void);
@@ -304,7 +308,7 @@ int ui_init_finalize(void)
 
    /* ROM */
 #if defined(__XSCPU64__)
-   /* Replace kernal always from backup, because kernal loading replaces the embedded variable */
+   /* Replace kernal always from backup, because kernal loading replaces embedded data */
    memcpy(scpu64rom_scpu64_rom, scpu64rom_scpu64_rom_original, SCPU64_SCPU64_ROM_MAXSIZE);
    switch (opt_supercpu_kernal)
    {
@@ -322,16 +326,17 @@ int ui_init_finalize(void)
 
    /* JiffyDOS */
 #if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
-   /* Replace kernal always from backup, because kernal loading replaces the embedded variable */
+   /* Replace kernal always from backup, because kernal loading replaces embedded data */
 #if defined(__X64__) || defined(__X64SC__)
    memcpy(c64memrom_kernal64_rom, c64memrom_kernal64_rom_original, C64_KERNAL_ROM_SIZE);
 #elif defined(__X128__)
    memcpy(c128kernal64_embedded, c128memrom_kernal64_rom_original, C128_KERNAL64_ROM_SIZE);
    memcpy(kernal_int, c128memrom_kernal128_rom_original, C128_KERNAL_ROM_IMAGE_SIZE);
 #endif
-   char tmp_str[RETRO_PATH_MAX] = {0};
+   opt_jiffydos_kernal_skip = 0;
    if (opt_jiffydos)
    {
+      char tmp_str[RETRO_PATH_MAX] = {0};
       int drive_type;
       resources_get_int("Drive8Type", &drive_type);
 
@@ -387,6 +392,27 @@ int ui_init_finalize(void)
    dtvmodel_set(vice_opt.Model);
 #else
    c64model_set(vice_opt.Model);
+#endif
+
+#if defined(__X64__) || defined(__X64SC__)
+   /* JiffyDOS SX-64 requires setting kernal after model change */
+   if (opt_jiffydos)
+   {
+      char tmp_str[RETRO_PATH_MAX] = {0};
+      switch (vice_opt.Model)
+      {
+         case C64MODEL_C64SX_PAL:
+         case C64MODEL_C64SX_NTSC:
+            snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, FSDEV_DIR_SEP_CHR, "JiffyDOS_SX-64.bin");
+            log_resources_set_string("KernalName", (const char*)tmp_str);
+
+            /* Also must prevent `set_kernal_rom_name()` resetting to default kernel after restart */
+            opt_jiffydos_kernal_skip = 1;
+            break;
+         default:
+            break;
+      }
+   }
 #endif
 
    /* Audio */

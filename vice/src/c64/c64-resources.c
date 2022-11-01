@@ -86,6 +86,12 @@ static int set_chargen_rom_name(const char *val, void *param)
     return c64rom_load_chargen(chargen_rom_name);
 }
 
+#ifdef __LIBRETRO__
+#if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
+extern unsigned int opt_jiffydos_kernal_skip;
+#endif
+#endif
+
 static int set_kernal_rom_name(const char *val, void *param)
 {
     int ret, changed = 1;
@@ -93,6 +99,10 @@ static int set_kernal_rom_name(const char *val, void *param)
     if ((val != NULL) && (kernal_rom_name != NULL)) {
         changed = (strcmp(val, kernal_rom_name) != 0);
     }
+#ifdef __LIBRETRO__
+    if (opt_jiffydos_kernal_skip)
+        return 0;
+#endif
     if (util_string_set(&kernal_rom_name, val)) {
         return 0;
     }
