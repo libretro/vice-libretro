@@ -8270,7 +8270,7 @@ void retro_run(void)
    if (request_restart && retro_now > 20000)
    {
       request_restart = false;
-      emu_reset(-1);
+      emu_reset(0);
    }
 }
 
