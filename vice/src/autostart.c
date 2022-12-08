@@ -1715,6 +1715,10 @@ int autostart_disk(int unit, int drive, const char *file_name, const char *progr
 
     if (name) {
         autostart_disk_cook_name(&name);
+
+        /* detach disk before reattaching */
+        file_system_detach_disk(unit, drive);
+
         if (!(file_system_attach_disk(unit, drive, file_name) < 0)) {
 #if 1
             vdrive_t *vdrive;
