@@ -1716,8 +1716,9 @@ int autostart_disk(int unit, int drive, const char *file_name, const char *progr
     if (name) {
         autostart_disk_cook_name(&name);
 
-        /* detach disk before reattaching */
+#ifdef __LIBRETRO__
         file_system_detach_disk(unit, drive);
+#endif
 
         if (!(file_system_attach_disk(unit, drive, file_name) < 0)) {
 #if 1
