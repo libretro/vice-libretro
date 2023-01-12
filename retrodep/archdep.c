@@ -531,6 +531,7 @@ char *archdep_tmpnam(void)
     return lib_strdup(tmpName);
 #elif __LIBRETRO__
     char tmp_name[RETRO_PATH_MAX];
+    path_mkdir(retro_temp_directory);
     snprintf(tmp_name, sizeof(tmp_name), "%s%s%s%d", retro_temp_directory, FSDEV_DIR_SEP_STR, "vice-tmp-", rand());
     return lib_strdup(tmp_name);
 #else
