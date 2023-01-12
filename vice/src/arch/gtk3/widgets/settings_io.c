@@ -33,12 +33,9 @@
 #include "vice.h"
 #include <gtk/gtk.h>
 
+#include "vice_gtk3.h"
 #include "machine.h"
 #include "resources.h"
-#include "debug_gtk3.h"
-#include "basewidgets.h"
-#include "widgethelpers.h"
-#include "basedialogs.h"
 #include "cartio.h"
 #include "cartridge.h"
 #include "uisettings.h"
@@ -72,13 +69,11 @@ static GtkWidget *create_collision_widget(const char *desc)
     GtkWidget *group;
     char buffer[256];
 
-    grid = gtk_grid_new();
-    gtk_grid_set_column_spacing(GTK_GRID(grid), 16);
-    gtk_grid_set_row_spacing(GTK_GRID(grid), 0);
+    grid = vice_gtk3_grid_new_spaced(VICE_GTK3_DEFAULT, 0);
 
     label = gtk_label_new("I/O collision handling");
     gtk_widget_set_halign(label, GTK_ALIGN_START);
-    g_object_set(label, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(label, 16);
     gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 1, 1);
 
     group = vice_gtk3_resource_radiogroup_new("IOCollisionHandling",
@@ -87,11 +82,11 @@ static GtkWidget *create_collision_widget(const char *desc)
     gtk_grid_attach(GTK_GRID(grid), group, 1, 0, 1, 1);
 
     label = gtk_label_new(NULL);
-    g_snprintf(buffer, 256, "<i>(%s)</i>", desc);
+    g_snprintf(buffer, sizeof(buffer), "<i>(%s)</i>", desc);
     gtk_label_set_markup(GTK_LABEL(label), buffer);
 
     gtk_widget_set_halign(label, GTK_ALIGN_START);
-    g_object_set(label, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(label, 16);
     gtk_grid_attach(GTK_GRID(grid), label, 0, 1, 1, 1);
 
     gtk_widget_show_all(grid);
@@ -109,7 +104,7 @@ static GtkWidget *create_cart_reset_widget(void)
 
     check = vice_gtk3_resource_check_button_new("CartridgeReset",
             "Reset machine on cartridge change");
-    g_object_set(check, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(check, 16);
     return check;
 }
 
@@ -163,12 +158,7 @@ static void create_c128_layout(GtkWidget *grid)
  */
 static void create_c64dtv_layout(GtkWidget *grid)
 {
-#if 0
-    GtkWidget *collision_widget;
-
-    collision_widget = create_collision_widget("$D000-$DFFF");
-    gtk_grid_attach(GTK_GRID(grid), collision_widget, 0, 1, 3, 1);
-#endif
+    /* NOP */
 }
 
 
@@ -243,9 +233,8 @@ GtkWidget *settings_io_widget_create(GtkWidget *parent)
 {
     GtkWidget *grid;
 
-    grid = uihelpers_create_grid_with_label(
-            "Generic I/O extension settings", 3);
-    gtk_grid_set_row_spacing(GTK_GRID(grid), 16);
+    grid = vice_gtk3_grid_new_spaced_with_label(
+            -1, -1, "Generic I/O extension settings", 3);
 
     switch (machine_class) {
 

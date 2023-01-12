@@ -35,9 +35,11 @@
 
 #include <gtk/gtk.h>
 
+#include "archdep.h"
 #include "basewidgets.h"
 #include "debug_gtk3.h"
 #include "keyboard.h"
+#include "keymap.h"
 #include "lib.h"
 #include "openfiledialog.h"
 #include "resources.h"
@@ -100,36 +102,51 @@ static void open_pos_file_callback(GtkWidget *widget, gpointer user_data)
  */
 static GtkWidget *create_symbolic_keymap_browser(void)
 {
-    GtkWidget *browser = vice_gtk3_resource_browser_new(
+    GtkWidget *browser;
+    char *path;
+
+    /* determine path to machine dir */
+    path = archdep_get_vice_machinedir();
+
+    browser = vice_gtk3_resource_browser_new(
             "KeymapUserSymFile",
             keymap_patterns,
             "VICE keymap files",
             "Select user-defined symbolic keymap",
             NULL,
             open_sym_file_callback);
+    vice_gtk3_resource_browser_set_append_dir(browser, path);
+    lib_free(path);
     return browser;
 }
 
 
 /** \brief  Create resource browser widget for the user-defined positional keymap
  *
- * \return  resource browser widget
+ * \return  GtkGrid
  */
 static GtkWidget *create_positional_keymap_browser(void)
 {
-    GtkWidget *browser = vice_gtk3_resource_browser_new(
+    GtkWidget *browser;
+    char *path;
+
+    /* determine path to machine dir */
+    path = archdep_get_vice_machinedir();
+
+    browser = vice_gtk3_resource_browser_new(
             "KeymapUserPosFile",
             keymap_patterns,
             "VICE keymap files",
             "Select user-defined positional keymap",
             NULL,
             open_pos_file_callback);
+    vice_gtk3_resource_browser_set_append_dir(browser, path);
+    lib_free(path);
     return browser;
 }
 
 
 /** \brief  Update the widget depending on external dependencies
- *
  */
 void kbdmapping_widget_update(void)
 {
@@ -153,12 +170,14 @@ void kbdmapping_widget_update(void)
 
 /** \brief  Create a keyboard mapping selection widget
  *
+ * \param[in]   parent  parent widget (unused)
+ *
  * \return  GtkWidget
  *
- * \fixme   I'm not really satisfied with the 'select file' buttons, perhaps
+ * \todo    I'm not really satisfied with the 'select file' buttons, perhaps
  *          they should be placed next to the radio buttons?
  */
-GtkWidget *kbdmapping_widget_create(GtkWidget *widget)
+GtkWidget *kbdmapping_widget_create(GtkWidget *parent)
 {
     GtkWidget *grid;
     GtkWidget *browser_sym;
@@ -176,7 +195,7 @@ GtkWidget *kbdmapping_widget_create(GtkWidget *widget)
             mappings,
             GTK_ORIENTATION_VERTICAL);
     gtk_grid_set_row_homogeneous(GTK_GRID(radio_group), TRUE);
-    g_object_set(G_OBJECT(radio_group), "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(radio_group, 16);
     gtk_grid_attach(GTK_GRID(grid), radio_group, 0, 1, 1, 1);
 
     browser_sym = create_symbolic_keymap_browser();

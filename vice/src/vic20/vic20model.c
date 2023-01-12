@@ -26,14 +26,13 @@
 
 #include "vice.h"
 
-#ifdef HAVE_STRINGS_H
-#include <strings.h>
-#endif
+#include <string.h>
 
 #include "vic20-resources.h"
 #include "vic20cart.h"
 #include "vic20mem.h"
 #include "vic20model.h"
+#include "vic20rom.h"
 #include "machine.h"
 #include "resources.h"
 #include "types.h"
@@ -41,6 +40,8 @@
 struct model_s {
     int video;   /* machine video timing */
     int ramblocks;
+    char *chargenname;
+    char *kernalname;
 };
 
 enum {
@@ -51,21 +52,25 @@ enum {
     BLOCK_5 = 1 << 5
 };
 
+/* FIXME: JAP and NTSC machines should use different kernal ROMs */
 static const struct model_s vic20models[] = {
-    { MACHINE_SYNC_PAL,  NO_EXTRA_RAM},
-    { MACHINE_SYNC_NTSC, NO_EXTRA_RAM},
-    { MACHINE_SYNC_NTSC, BLOCK_1 | BLOCK_2}, /* SuperVIC */
+    { MACHINE_SYNC_PAL,  NO_EXTRA_RAM, VIC20_CHARGEN_NAME, VIC20_KERNAL_REV7_NAME},
+    { MACHINE_SYNC_NTSC, NO_EXTRA_RAM, VIC20_CHARGEN_NAME, VIC20_KERNAL_REV6_NAME},
+    { MACHINE_SYNC_NTSC, BLOCK_1 | BLOCK_2, VIC20_CHARGEN_NAME, VIC20_KERNAL_REV6_NAME}, /* SuperVIC */
+    { MACHINE_SYNC_NTSC, NO_EXTRA_RAM, VIC20_CHARGEN_JAP_NAME, VIC20_KERNAL_REV2_NAME},    /* vic-1001 (japanese VIC20) */
 };
 
 /* ------------------------------------------------------------------------- */
 
-static int vic20model_get_temp(int video, int ramblocks)
+static int vic20model_get_temp(int video, int ramblocks, const char *chargen, const char *kernal)
 {
     int i;
 
     for (i = 0; i < VIC20MODEL_NUM; ++i) {
         if ((vic20models[i].video == video)
-            && (vic20models[i].ramblocks == ramblocks)) {
+            && (vic20models[i].ramblocks == ramblocks)
+            && (chargen && (strcmp(vic20models[i].chargenname, chargen) == 0))
+            && (kernal && (strcmp(vic20models[i].kernalname, kernal) == 0))) {
             return i;
         }
     }
@@ -76,13 +81,17 @@ static int vic20model_get_temp(int video, int ramblocks)
 int vic20model_get(void)
 {
     int video, ramblocks, block0, block1, block2, block3, block5;
+    const char *chargen;
+    const char *kernal;
 
     if ((resources_get_int("MachineVideoStandard", &video) < 0)
         || (resources_get_int("RamBlock0", &block0) < 0)
         || (resources_get_int("RamBlock1", &block1) < 0)
         || (resources_get_int("RamBlock2", &block2) < 0)
         || (resources_get_int("RamBlock3", &block3) < 0)
-        || (resources_get_int("RamBlock5", &block5) < 0)) {
+        || (resources_get_int("RamBlock5", &block5) < 0)
+        || (resources_get_string("ChargenName", &chargen) < 0)
+        || (resources_get_string("KernalName", &kernal) < 0)) {
         return -1;
     }
     ramblocks = (block0 ? BLOCK_0 : 0);
@@ -90,7 +99,7 @@ int vic20model_get(void)
     ramblocks |= (block2 ? BLOCK_2 : 0);
     ramblocks |= (block3 ? BLOCK_3 : 0);
     ramblocks |= (block5 ? BLOCK_5 : 0);
-    return vic20model_get_temp(video, ramblocks);
+    return vic20model_get_temp(video, ramblocks, chargen, kernal);
 }
 
 #if 0
@@ -126,4 +135,6 @@ void vic20model_set(int model)
     resources_set_int("RamBlock2", blocks & BLOCK_2 ? 1 : 0);
     resources_set_int("RamBlock3", blocks & BLOCK_3 ? 1 : 0);
     resources_set_int("RamBlock5", blocks & BLOCK_5 ? 1 : 0);
+    resources_set_string("ChargenName", vic20models[model].chargenname);
+    resources_set_string("KernalName", vic20models[model].kernalname);
 }

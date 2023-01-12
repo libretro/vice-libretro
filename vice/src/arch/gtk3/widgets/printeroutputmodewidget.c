@@ -38,22 +38,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "basewidgets.h"
-#include "resourcehelpers.h"
-#include "widgethelpers.h"
-#include "debug_gtk3.h"
+#include "vice_gtk3.h"
 #include "resources.h"
 #include "printer.h"
 
 #include "printeroutputmodewidget.h"
 
 
-/** \brief  Handler for the "destroy" event of \a widget
+/** \brief  Handler for the 'destroy' event of \a widget
  *
  * Frees memory used by the copy of the resource name.
  *
- * \param[in]   widget      widget
- * \param[in]   user_data   extra event data (unused)
+ * \param[in,out]   widget      widget
+ * \param[in]       user_data   extra event data (unused)
  */
 static void on_widget_destroy(GtkWidget *widget, gpointer user_data)
 {
@@ -61,7 +58,7 @@ static void on_widget_destroy(GtkWidget *widget, gpointer user_data)
 }
 
 
-/** \brief  Handler for the "toggled" event of the radio buttons
+/** \brief  Handler for the 'toggled' event of the radio buttons
  *
  * \param[in]   radio       radio button
  * \param[in]   user_data   new value for resource (`string`)
@@ -69,6 +66,7 @@ static void on_widget_destroy(GtkWidget *widget, gpointer user_data)
 static void on_radio_toggled(GtkWidget *radio, gpointer user_data)
 {
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(radio))) {
+
         GtkWidget *parent;
         const char *new_val;
         const char *old_val;
@@ -105,15 +103,15 @@ GtkWidget *printer_output_mode_widget_create(int device)
      * resource is a string with two possible values: "text" and "graphics"
      */
 
-    grid = uihelpers_create_grid_with_label("Output mode", 1);
+    grid = vice_gtk3_grid_new_spaced_with_label(-1, -1, "Output mode", 1);
 
-    g_snprintf(resource, 256, "Printer%dOutput", device);
+    g_snprintf(resource, sizeof(resource), "Printer%dOutput", device);
     resource_widget_set_resource_name(grid, resource);
 
     radio_text = gtk_radio_button_new_with_label(group, "Text");
-    g_object_set(radio_text, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(radio_text, 16);
     radio_gfx = gtk_radio_button_new_with_label(group, "Graphics");
-    g_object_set(radio_gfx, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(radio_gfx, 16);
     gtk_radio_button_join_group(GTK_RADIO_BUTTON(radio_gfx),
             GTK_RADIO_BUTTON(radio_text));
 

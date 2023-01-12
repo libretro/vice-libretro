@@ -40,7 +40,7 @@
 static console_t *console_log = NULL;
 
 
-void uimon_window_close( void )
+void uimon_window_close(void)
 {
     console_close(console_log);
     console_log = NULL;
@@ -50,25 +50,25 @@ void uimon_window_close( void )
 }
 
 
-console_t *uimon_window_open( void )
+console_t *uimon_window_open(bool display_now)
 {
     console_log = console_open("Monitor");
     return console_log;
 }
 
-void uimon_window_suspend( void )
+void uimon_window_suspend(void)
 {
     uimon_window_close();
 }
 
-console_t *uimon_window_resume( void )
+console_t *uimon_window_resume(void)
 {
-    return uimon_window_open();
+    return uimon_window_open(true);
 }
 
 int uimon_out(const char *buffer)
 {
-    int   rc = 0;
+    int rc = 0;
 
     if (console_log)
     {
@@ -82,11 +82,10 @@ char *uimon_get_in(char **ppchCommandLine, const char *prompt)
     return console_in(console_log, prompt);
 }
 
-void uimon_notify_change( void )
+void uimon_notify_change(void)
 {
 }
 
-void uimon_set_interface(monitor_interface_t **monitor_interface_init,
-                         int count )
+void uimon_set_interface(monitor_interface_t **monitor_interface_init, int count)
 {
 }

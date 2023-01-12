@@ -112,7 +112,7 @@
 #define GMOD3_8MB_FLASH_SIZE (8*1024*1024)
 #define GMOD3_16MB_FLASH_SIZE (16*1024*1024)
 
-static uint8_t gmod3_rom[GMOD3_16MB_FLASH_SIZE];    /* FIXME, should not be static */
+static uint8_t *gmod3_rom = NULL;
 static uint32_t gmod3_flashsize = 0;
 
 static int gmod3_enabled = 0;
@@ -183,7 +183,7 @@ uint8_t gmod3_io1_read(uint16_t addr)
             return eeprom_data_out;
         }
     } else {
-        if ((addr >= 0x00) && (addr <= 0x07)) {
+        if (/*(addr >= 0x00) &&*/ (addr <= 0x07)) {
             gmod3_io1_device.io_source_valid = 1;
             return gmod3_bank & 0xff;
         } else if ((addr >= 0x08) && (addr <= 0x0f)) {
@@ -201,7 +201,7 @@ uint8_t gmod3_io1_peek(uint16_t addr)
             return eeprom_data_out;
         }
     } else {
-        if ((addr >= 0x00) && (addr <= 0x07)) {
+        if (/*(addr >= 0x00) &&*/ (addr <= 0x07)) {
             return gmod3_bank & 0xff;
         } else if ((addr >= 0x08) && (addr <= 0x0f)) {
             return (gmod3_bank & 0x0700) >> 8;
@@ -219,7 +219,7 @@ void gmod3_io1_store(uint16_t addr, uint8_t value)
     addr &= 0xff;
 
     /* banking */
-    if ((addr >= 0x00) && (addr <= 0x07)) {
+    if (/*(addr >= 0x00) &&*/ (addr <= 0x07)) {
         if (gmod3_bitbang_enabled) {
             eeprom_cs = ((value >> 6) & 1);   /* active low */
             eeprom_clock = (value >> 5) & 1;
@@ -277,7 +277,7 @@ static uint8_t vectors[8] = { 0x08, 0x00, 0x08, 0x00, 0x0c, 0x80, 0x0c, 0x00 };
 uint8_t gmod3_romh_read(uint16_t addr)
 {
     DBG(("gmod3_romh_read %04x\n", addr));
-    if (addr >= 0xfff8 && addr <= 0xffff) {
+    if (addr >= 0xfff8 /*&& addr <= 0xffff*/) {
         return vectors[addr & 7];
     }
     return mem_read_without_ultimax(addr);
@@ -301,7 +301,7 @@ int gmod3_peek_mem(export_t *ex, uint16_t addr, uint8_t *value)
         return CART_READ_VALID;
     }
     if (gmod3_vectors_enabled) {
-        if (addr >= 0xfff8 && addr <= 0xffff) {
+        if (addr >= 0xfff8 /*&& addr <= 0xffff*/) {
             *value = gmod3_romh_read(addr);
             return CART_READ_VALID;
         }
@@ -357,6 +357,10 @@ void gmod3_config_setup(uint8_t *rawcart)
 {
     gmod3_cmode = CMODE_8KGAME;
     cart_config_changed_slotmain((uint8_t)gmod3_cmode, (uint8_t)gmod3_cmode, CMODE_READ);
+
+    if (gmod3_rom == NULL) {
+        gmod3_rom = lib_malloc(GMOD3_16MB_FLASH_SIZE);
+    }
 
     spi_flash_set_image(gmod3_rom, gmod3_flashsize);
     memcpy(gmod3_rom, rawcart, GMOD3_16MB_FLASH_SIZE);
@@ -568,6 +572,11 @@ void gmod3_detach(void)
     gmod3_io1_list_item = NULL;
 
     gmod3_enabled = 0;
+
+    if (gmod3_rom) {
+        lib_free(gmod3_rom);
+        gmod3_rom = NULL;
+    }
 }
 
 /* ---------------------------------------------------------------------*/
@@ -621,6 +630,10 @@ int gmod3_snapshot_read_module(snapshot_t *s)
     if (snapshot_version_is_smaller(vmajor, vminor, SNAP_MAJOR, SNAP_MINOR)) {
         snapshot_set_error(SNAPSHOT_MODULE_INCOMPATIBLE);
         goto fail;
+    }
+
+    if (gmod3_rom == NULL) {
+        gmod3_rom = lib_malloc(GMOD3_16MB_FLASH_SIZE);
     }
 
     if (0

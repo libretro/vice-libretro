@@ -28,13 +28,14 @@
 #include "vice.h"
 
 #include <gtk/gtk.h>
+#include <errno.h>
+#include <string.h>
 
-#include "basewidgets.h"
-#include "c64/cart/crt.h"
+#include "vice_gtk3.h"
+#include "crt.h"
 #include "cartridge.h"
-#include "debug_gtk3.h"
+#include "log.h"
 #include "machine.h"
-#include "widgethelpers.h"
 
 #include "crtpreviewwidget.h"
 
@@ -53,11 +54,6 @@ static const gchar *packet_type[4] = {
 static const gchar *romstate[2] = {
     "active (lo)", "inactive (hi)"
 };
-
-/** \brief  Open function */
-static FILE *(*open_func)(const char *, crt_header_t *header) = NULL;
-/** \brief  Function to read chip header */
-static int (*chip_func)(crt_chip_header_t *, FILE *) = NULL;
 
 /* FIXME:   Do we actually need all these references? Perhaps get them via
  *          gtk_grid_get_child_at() ?
@@ -89,7 +85,7 @@ static void load_to_hex(GtkTreeViewColumn *column,
                         GtkCellRenderer *renderer,
                         GtkTreeModel *model,
                         GtkTreeIter *iter,
-                        gpointer userdata)
+                        gpointer user_data)
 {
     gchar buffer[0x10];
     guint value;
@@ -112,7 +108,7 @@ static void size_to_hex(GtkTreeViewColumn *column,
                         GtkCellRenderer *renderer,
                         GtkTreeModel *model,
                         GtkTreeIter *iter,
-                        gpointer userdata)
+                        gpointer user_data)
 {
     gchar buffer[0x10];
     guint value;
@@ -224,8 +220,6 @@ static void chip_packet_add(uint16_t type,
 {
     GtkTreeModel *model = gtk_tree_view_get_model(GTK_TREE_VIEW(chip_tree));
 
-    debug_gtk3("adding row: %u, %u, %u, %u.", type, load, size, bank);
-
     gtk_list_store_insert_with_values(GTK_LIST_STORE(model), NULL, -1,
         0, packet_type[type & 0x03], 1, load, 2, size, 3, bank, -1);
 }
@@ -242,9 +236,7 @@ GtkWidget *crt_preview_widget_create(void)
     GtkWidget *scroll;
     int row;
 
-    grid = uihelpers_create_grid_with_label("CRT Header:", 2);
-    gtk_grid_set_column_spacing(GTK_GRID(grid), 16);
-    gtk_grid_set_row_spacing(GTK_GRID(grid), 8);
+    grid = vice_gtk3_grid_new_spaced_with_label(-1, -1, "CRT header", 2);
     row = 1;
 
     label = create_label("ID:");
@@ -296,31 +288,6 @@ GtkWidget *crt_preview_widget_create(void)
     return grid;
 }
 
-
-/** \brief  Set function to open a CRT file and read its header
- *
- * Required to avoid linking errors with VSID
- *
- * \param[in]   func    crt_open() reference
- */
-void crt_preview_widget_set_open_func(FILE *(*func)(const char *, crt_header_t *))
-{
-    open_func = func;
-}
-
-
-/** \brief  Set function to read a CRT CHIP packet
- *
- * Required to avoid linking errors with VSID
- *
- * \param[in]   func    crt_read_chip_header() reference
- */
-void crt_preview_widget_set_chip_func(int (*func)(crt_chip_header_t *, FILE *))
-{
-    chip_func = func;
-}
-
-
 /** \brief  Update widget with data from CTR image \a path
  *
  * \param[in]   path    path to CRT file
@@ -346,11 +313,10 @@ void crt_preview_widget_update(const gchar *path)
             && machine_class != VICE_MACHINE_C64SC
             && machine_class != VICE_MACHINE_C128)
     {
-        debug_gtk3("Machine class != c64/c128, skipping.");
         return;
     }
 
-    fd = open_func(path, &header);
+    fd = crt_open(path, &header);
     if (fd == NULL) {
         debug_gtk3("failed to open crt image");
         gtk_label_set_text(GTK_LABEL(crtid_label), "<unknown>");
@@ -385,23 +351,23 @@ void crt_preview_widget_update(const gchar *path)
 
 
     while (1) {
-        long int pos;
+        long pos;
         uint32_t skip;
 #if 0
         debug_gtk3("reading packet #%d.", packets++);
 #endif
-        if (chip_func(&chip, fd) != 0) {
+        if (crt_read_chip_header(&chip, fd) != 0) {
             debug_gtk3("couldn't read further CHIP packets, exiting.");
             break;
         }
         skip = chip.size;
-
+#if 0
         debug_gtk3("chip packet contents:");
         debug_gtk3("    skip = %lu", (long unsigned)chip.skip);
         debug_gtk3("    load = %u", chip.start);
         debug_gtk3("    size = %u", chip.size);
         debug_gtk3("    bank = %u", chip.bank);
-
+#endif
         chip_packet_add(chip.type, chip.start, chip.size, chip.bank);
 
         pos = ftell(fd) + skip;
@@ -409,7 +375,9 @@ void crt_preview_widget_update(const gchar *path)
         debug_gtk3("next chip packet offset = %lx", (unsigned long)pos);
 #endif
         if (fseek(fd, pos, SEEK_SET) != 0) {
-            debug_gtk3("OEPS!");
+            log_error(LOG_ERR,
+                    "fseek(%ld) failed: %d: %s",
+                    pos, errno, strerror(errno));
             break;
         }
     }

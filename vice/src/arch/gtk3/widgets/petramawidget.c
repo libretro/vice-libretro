@@ -2,11 +2,11 @@
  * \brief   Widget to set the RAMA area type (PET 8296 only)
  *
  * \author  Bas Wassink <b.wassink@ziggo.nl>
- * \author  André Fachat <fachat@web.de>
+ * \author  Andre Fachat <fachat@web.de>
  */
 
 /*
- * $VICERES Ram9  xpet
+ * $VICERES RamA  xpet
  */
 
 /*
@@ -34,17 +34,16 @@
 
 #include <gtk/gtk.h>
 
-#include "widgethelpers.h"
-#include "debug_gtk3.h"
-#include "basewidgets.h"
+#include "vice_gtk3.h"
 #include "resources.h"
-
 #include "petiosizewidget.h"
 
+#include "petramawidget.h"
 
-/** \brief  Available I/O sizes
- * Defines values for jumper JU2/JU4
- * for details see http://www.6502.org/users/andre/petindex/local/8296desc.txt
+
+/** \brief  Defines values for jumper JU1/JU3
+ *
+ * For details see http://www.6502.org/users/andre/petindex/local/8296desc.txt
  */
 static const vice_gtk3_radiogroup_entry_t area_types[] = {
     { "ROM", 0 },
@@ -53,8 +52,16 @@ static const vice_gtk3_radiogroup_entry_t area_types[] = {
 };
 
 
+/** \brief  Callback function for radio button toggles
+ */
 static void (*user_callback)(int) = NULL;
 
+
+/** \brief  Handler for the 'toggled' event of the radio buttons
+ *
+ * \param[in]   widget  radio button (unused)
+ * \param[in]   id      radio button ID
+ */
 static void on_rama_changed(GtkWidget *widget, int id)
 {
     if (user_callback != NULL) {
@@ -73,24 +80,33 @@ GtkWidget *pet_rama_widget_create(void)
 
     user_callback = NULL;
 
-    grid = uihelpers_create_grid_with_label("$Axxx area type", 1);
+    grid = vice_gtk3_grid_new_spaced_with_label(-1, -1, "$Axxx area type", 1);
     gtk_grid_set_column_spacing(GTK_GRID(grid), 16);
     group = vice_gtk3_resource_radiogroup_new("RamA", area_types,
             GTK_ORIENTATION_VERTICAL);
     vice_gtk3_resource_radiogroup_add_callback(group, on_rama_changed);
-    g_object_set(group, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(group, 16);
     gtk_grid_attach(GTK_GRID(grid), group, 0, 1, 1, 1);
 
     gtk_widget_show_all(grid);
     return grid;
 }
 
-void pet_rama_widget_set_callback(GtkWidget *widget,
-                                     void (*func)(int))
+
+/** \brief  Set custom callback function for radio button toggle events
+ *
+ * \param[in]       func    callback function
+ */
+void pet_rama_widget_set_callback(void (*func)(int))
 {
     user_callback = func;
 }
 
+
+/** \brief  Synchronize \a widget with its resource
+ *
+ * \param[in,out]   widget  PET RAMA widget
+ */
 void pet_rama_widget_sync(GtkWidget *widget)
 {
     int size;

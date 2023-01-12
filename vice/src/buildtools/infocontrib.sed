@@ -178,8 +178,10 @@ s/@b{TMLPiper}/TMLPiper <icolquhoun@users.sourceforge.net>/g
 s/@b{Christopher Phillips}/Christopher Phillips <shrydar@users.sourceforge.net>/g
 s/@b{Michael C. Martin}/Michael C. Martin <mcmartin@gmail.com>/g
 s/@b{Bjoern Odendahl}/Bjoern Odendahl/g
+s/@b{June Tate-Gans}/June Tate-Gans <june@theonelab.com>/g
 s/@b{David Hogan}/David Hogan <david.q.hogan@gmail.com>/g
 s/@b{Empathic Qubit}/Empathic Qubit <empathicqubit@entan.gl>/g
+s/@b{Pablo Roldan}/Pablo Roldan/g
 s/@code{\([^}]*\)}/`\1'/g
 s/@t{\([^}]*\)}/\1/g
 s/@dots{}/..../g

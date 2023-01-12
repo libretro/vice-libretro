@@ -25,21 +25,22 @@
  *
  */
 
-#include "archdep_defs.h"
+#include "vice.h"
 
 #include "archdep_is_windows_nt.h"
 
 
-#ifdef ARCHDEP_OS_WINDOWS
-
-#include <windows.h>
-
-/** \brief  Check if the current OS is Window NT
+/** \fn     archdep_is_windows_nt
+ * \brief   Check if the current OS is Window NT
  *
  * No idea if this is useful anymore.
  *
  * \return  1 if true, 0 if not
  */
+
+#ifdef WINDOWS_COMPILE
+#include <windows.h>
+
 int archdep_is_windows_nt(void)
 {
     OSVERSIONINFO os_version_info;

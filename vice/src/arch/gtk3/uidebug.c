@@ -31,21 +31,17 @@
  */
 
 #include "vice.h"
+#include "debug.h"
+
+#ifdef DEBUG
+
 #include <gtk/gtk.h>
 
-#include <stdio.h>
-#include <string.h>
-#include <gtk/gtk.h>
-
-#include "basedialogs.h"
-#include "basewidgets.h"
 #include "debug_gtk3.h"
-#include "drive.h"
-#include "machine.h"
 #include "resources.h"
 #include "ui.h"
+#include "uiactions.h"
 #include "vice_gtk3.h"
-#include "vsync.h"
 
 #include "uidebug.h"
 
@@ -102,12 +98,10 @@ static GtkWidget *create_trace_widget(void)
             1);
     group = vice_gtk3_resource_radiogroup_new("TraceMode", trace_modes,
             GTK_ORIENTATION_VERTICAL);
-    g_object_set(group,
-            "margin-left", 16,
-            "margin-right", 16,
-            "margin-top", 16,
-            "margin-bottom", 16,
-            NULL);
+    gtk_widget_set_margin_top(group, 16);
+    gtk_widget_set_margin_start(group, 16);
+    gtk_widget_set_margin_end(group, 16);
+    gtk_widget_set_margin_bottom(group, 16);
     gtk_grid_attach(GTK_GRID(grid), group, 0, 1, 1, 1);
 
     gtk_widget_show_all(grid);
@@ -130,12 +124,10 @@ static GtkWidget *create_trace_mode_dialog(void)
             NULL);
 
     content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-    g_object_set(content,
-            "margin-left", 16,
-            "margin-right", 16,
-            "margin-top", 16,
-            "margin-bottom", 16,
-            NULL);
+    gtk_widget_set_margin_top(content, 16);
+    gtk_widget_set_margin_start(content, 16);
+    gtk_widget_set_margin_end(content, 16);
+    gtk_widget_set_margin_bottom(content, 16);
 
     gtk_container_add(GTK_CONTAINER(content), create_trace_widget());
 
@@ -161,6 +153,19 @@ static GtkWidget *create_playback_frames_dialog(void)
     gtk_container_add(GTK_CONTAINER(content), create_playback_widget());
 
     return dialog;
+}
+
+
+/** \brief  Handler for the 'destroy' event of the dialogs
+ *
+ * Signals the UI actions system the action has finished.
+ *
+ * \param[in]   dialog  dialog (unused)
+ * \param[in]   action  UI action ID
+ */
+static void on_destroy(GtkWidget *dialog, gpointer action)
+{
+    ui_action_finish(GPOINTER_TO_INT(action));
 }
 
 
@@ -198,41 +203,41 @@ static void on_response_playback_frames(GtkDialog *dialog,
 }
 
 
-
-/** \brief  Callback for the 'Debug' -> 'Trace mode' menu item
- *
- * \param[in]   widget      parent widget (ignored)
- * \param[in]   user_data   extra data for the callback
- *
- * \return  TRUE
+/** \brief  Show dialog to set trace mode
  */
-gboolean ui_debug_trace_mode_dialog_show(GtkWidget *widget, gpointer user_data)
+void ui_debug_trace_mode_dialog_show(void)
 {
     GtkWidget *dialog;
 
     dialog = create_trace_mode_dialog();
-    g_signal_connect(dialog, "response",
-            G_CALLBACK(on_response_trace_mode), NULL);
+    g_signal_connect(dialog,
+                     "response",
+                     G_CALLBACK(on_response_trace_mode),
+                     NULL);
+    g_signal_connect(dialog,
+                     "destroy",
+                     G_CALLBACK(on_destroy),
+                     GINT_TO_POINTER(ACTION_DEBUG_TRACE_MODE));
     gtk_widget_show_all(dialog);
-    return TRUE;
 }
 
 
-/** \brief  Callback for the 'Debug' -> 'Autoplay playback frames' menu item
-*
-* \param[in]   widget      parent widget (ignored)
-* \param[in]   user_data   extra data for the callback
-*
-* \return   TRUE
+/** \brief  Show 'Autoplay playback frames' dialog
 */
-gboolean ui_debug_playback_frames_dialog_show(GtkWidget *widget,
-                                              gpointer user_data)
+void ui_debug_playback_frames_dialog_show(void)
 {
     GtkWidget *dialog;
 
     dialog = create_playback_frames_dialog();
-    g_signal_connect(dialog, "response",
-            G_CALLBACK(on_response_playback_frames), NULL);
+    g_signal_connect(dialog,
+                     "response",
+                     G_CALLBACK(on_response_playback_frames),
+                     NULL);
+    g_signal_connect(dialog,
+                     "destroy",
+                     G_CALLBACK(on_destroy),
+                     GINT_TO_POINTER(ACTION_DEBUG_AUTOPLAYBACK_FRAMES));
     gtk_widget_show_all(dialog);
-    return TRUE;
 }
+
+#endif

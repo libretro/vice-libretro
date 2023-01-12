@@ -48,18 +48,39 @@
 
 #include "vsidmainwidget.h"
 
+
+/** \brief  Main widget grid */
 static GtkWidget *main_widget;
 
+/** \brief  Left pane grid */
 static GtkWidget *left_pane;
 
+/** \brief  Tune info grid */
 static GtkWidget *tune_info_widget;
+
+/** \brief  Play controls grid */
 static GtkWidget *control_widget;
+
+/** \brief  Mixer controls grid */
 static GtkWidget *mixer_widget;
+
+/** \brief  STIL view grid */
 static GtkWidget *stil_widget;
+
+/** \brief  Playlist grid */
 static GtkWidget *playlist_widget;
 
 
 /** \brief  Handler for the 'drag-motion' event
+ *
+ * \param[in]   widget  widget triggering the event
+ * \param[in]   context drag context
+ * \param[in]   x       x coordinate of the current cursor position
+ * \param[in]   y       y coordinate of the current cursor position
+ * \param[in]   time    timestamp of the event
+ * \param[in]   data    extra event data
+ *
+ * \return  TRUE
  */
 static gboolean on_drag_motion(
         GtkWidget *widget,
@@ -67,14 +88,11 @@ static gboolean on_drag_motion(
         gint x,
         gint y,
         guint time,
-        gpointer user_data)
+        gpointer data)
 {
     gdk_drag_status(context, GDK_ACTION_COPY, time);
     return TRUE;
 }
-
-
-
 
 
 /** \brief  Handler for the 'drag-drop' event of the GtkWindow
@@ -83,10 +101,10 @@ static gboolean on_drag_motion(
  * triggering the 'drag-drop-received' event. Currently just returns TRUE
  *
  * \param[in]   widget  widget triggering the event
- * \param[in]   context gtk drag context
- * \param[in]   x       x position of drag event
- * \param[in]   y       y position of drag event
- * \param[in]   time    (I don't have a clue)
+ * \param[in]   context drag context
+ * \param[in]   x       x coordinate of the current cursor position
+ * \param[in]   y       y coordinate of the current cursor position
+ * \param[in]   time    timestamp of the event
  * \param[in]   data    extra event data (unused)
  *
  * \return  TRUE
@@ -101,8 +119,6 @@ static gboolean on_drag_drop(
 {
     GList *targets;
     GList *t;
-
-    debug_gtk3("called.");
 
     targets = gdk_drag_context_list_targets(context);
     if (targets == NULL) {
@@ -268,10 +284,10 @@ static void on_drag_data_received(
                 tmp = g_filename_from_uri(files[i], NULL, NULL);
                 if (tmp == NULL) {
                     debug_gtk3("adding '%s'.", files[i]);
-                    vsid_playlist_widget_append_file(files[i]);
+                    vsid_playlist_append_file(files[i]);
                 } else {
                     debug_gtk3("adding '%s'.", tmp);
-                    vsid_playlist_widget_append_file(tmp);
+                    vsid_playlist_append_file(tmp);
                     g_free(tmp);
                 }
             }
@@ -281,7 +297,7 @@ static void on_drag_data_received(
                 gchar *tmp = g_filename_from_uri(uris[i], NULL, NULL);
 
                 debug_gtk3("adding '%s'.", tmp);
-                vsid_playlist_widget_append_file(tmp);
+                vsid_playlist_append_file(tmp);
                 g_free(tmp);
             }
         }
@@ -315,15 +331,15 @@ void vsid_main_widget_update(void)
 GtkWidget *vsid_main_widget_create(void)
 {
     GtkWidget *grid;
+#if 0
     GtkWidget *view;
+#endif
 
-    grid = vice_gtk3_grid_new_spaced(32, 32);
-    g_object_set(G_OBJECT(grid),
-            "margin-left", 16,
-            "margin-right", 16,
-            "margin-top", 16,
-            "margin-bottom", 16,
-            NULL);
+    grid = vice_gtk3_grid_new_spaced(32, 8);
+    gtk_widget_set_margin_top(grid, 16);
+    gtk_widget_set_margin_start(grid, 16);
+    gtk_widget_set_margin_end(grid, 16);
+    gtk_widget_set_margin_bottom(grid, 16);
 
     /* left pane: info, playback controls, mixer */
     left_pane = vice_gtk3_grid_new_spaced(0, 16);
@@ -335,21 +351,24 @@ GtkWidget *vsid_main_widget_create(void)
     gtk_grid_attach(GTK_GRID(left_pane), control_widget, 0, 1, 1, 1);
 
     mixer_widget = vsid_mixer_widget_create();
+    gtk_widget_set_valign(mixer_widget, GTK_ALIGN_END);
     gtk_grid_attach(GTK_GRID(left_pane), mixer_widget, 0, 2, 1, 1);
 
     gtk_widget_set_hexpand(left_pane, FALSE);
-    gtk_grid_attach(GTK_GRID(grid), left_pane, 0, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), left_pane, 0, 0, 1, 2);
 
-    /* middle pane: STIL widget */
+    /* right top pane: STIL widget */
     stil_widget = hvsc_stil_widget_create();
-    gtk_widget_set_vexpand(stil_widget, TRUE);
+    /*gtk_widget_set_vexpand(stil_widget, TRUE);*/
     gtk_widget_set_hexpand(stil_widget, FALSE);
     gtk_grid_attach(GTK_GRID(grid), stil_widget, 1, 0, 1, 1);
 
-    /* right pane: playlist */
+    /* right bottom pane: playlist */
     playlist_widget = vsid_playlist_widget_create();
-    gtk_grid_attach(GTK_GRID(grid), playlist_widget, 2, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), playlist_widget, 1, 1, 1, 1);
 
+
+    gtk_widget_set_vexpand(grid, TRUE);
 
     /*
      * Set up drag-n-drop handlers
@@ -381,10 +400,17 @@ GtkWidget *vsid_main_widget_create(void)
     g_signal_connect(stil_widget, "drag-drop",
                      G_CALLBACK(on_drag_drop), NULL);
 
+    /* Enabling the following makes the GtTextView widget accept all sorts of
+     * data, including pasting text from the clipboard with the context menu.
+     * So for now dropping a SID onto the text view is disabled until I find
+     * a better solution. --compyx
+     */
+#if 0
     /* not the cleanest method maybe, but somehow the GtkTextView doesn't
      * trigger the drag-drop events otherwise */
     view = hvsc_stil_widget_get_view();
     gtk_text_view_set_editable(GTK_TEXT_VIEW(view), TRUE);
+
     gtk_drag_dest_set(
             view,
             GTK_DEST_DEFAULT_ALL,
@@ -397,6 +423,8 @@ GtkWidget *vsid_main_widget_create(void)
                      G_CALLBACK(on_drag_drop), NULL);
     g_signal_connect(stil_widget, "drag-motion",
                      G_CALLBACK(on_drag_motion), NULL);
+#endif
+
     /* right pane: playlist */
     gtk_drag_dest_set(
             playlist_widget,
@@ -409,58 +437,7 @@ GtkWidget *vsid_main_widget_create(void)
     g_signal_connect(playlist_widget, "drag-drop",
                      G_CALLBACK(on_drag_drop), NULL);
 
-
-
-
-    gtk_widget_show_all(grid);
-
-
-
     main_widget = grid;
+    gtk_widget_show_all(grid);
     return grid;
-}
-
-
-/** \brief  Set number of tunes
- *
- * \param[in]   n   tune count
- */
-void vsid_main_widget_set_tune_count(int n)
-{
-    vsid_control_widget_set_tune_count(n);
-    vsid_tune_info_widget_set_tune_count(n);
-}
-
-/** \brief  Set current tune
- *
- * \param[in]   n   tune number
- */
-void vsid_main_widget_set_tune_current(int n)
-{
-
-    vsid_control_widget_set_tune_current(n);
-    vsid_tune_info_widget_set_tune_current(n);
-
-    /* update mixer widget to use the SID model of the current tune */
-    if (mixer_widget != NULL) {
-
-        GtkWidget *left = gtk_grid_get_child_at(
-                GTK_GRID(main_widget), 0, 0);
-
-        gtk_widget_destroy(mixer_widget);
-        mixer_widget = vsid_mixer_widget_create();
-
-        gtk_grid_attach(GTK_GRID(left), mixer_widget, 0, 2, 1, 1);
-    }
-}
-
-
-/** \brief  Set default tune
- *
- * \param[in]   n   tune number
- */
-void vsid_main_widget_set_tune_default(int n)
-{
-    vsid_control_widget_set_tune_default(n);
-    vsid_tune_info_widget_set_tune_default(n);
 }

@@ -47,7 +47,7 @@
 
 /* Some prototypes are needed */
 static int vic_sound_machine_init(sound_t *psid, int speed, int cycles_per_sec);
-static int vic_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, int sound_output_channels, int sound_chip_channels, int *delta_t);
+static int vic_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, int sound_output_channels, int sound_chip_channels, CLOCK *delta_t);
 static void vic_sound_machine_store(sound_t *psid, uint16_t addr, uint8_t value);
 
 static int vic_sound_machine_cycle_based(void)
@@ -62,7 +62,7 @@ static int vic_sound_machine_channels(void)
 
 /* VIC20 VIC sound device */
 static sound_chip_t vic_sound_chip = {
-    NULL,                                /* NO sound chip open function */ 
+    NULL,                                /* NO sound chip open function */
     vic_sound_machine_init,              /* sound chip init function */
     NULL,                                /* NO sound chip close function */
     vic_sound_machine_calculate_samples, /* sound chip calculate samples function */
@@ -271,9 +271,9 @@ typedef struct sound_vic20_s sound_vic20_t;
 
 static struct sound_vic20_s snd;
 
-void vic_sound_clock(int cycles);
+void vic_sound_clock(CLOCK cycles);
 
-static int vic_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, int soc, int scc, int *delta_t)
+static int vic_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, int soc, int scc, CLOCK *delta_t)
 {
     int s = 0;
     int i;
@@ -334,9 +334,10 @@ void vic_sound_store(uint16_t addr, uint8_t value)
 static uint16_t noise_LFSR = 0x0000;
 static uint8_t noise_LFSR0_old = 0;
 
-void vic_sound_clock(int cycles)
+void vic_sound_clock(CLOCK cycles)
 {
-    int i, j, enabled;
+    CLOCK i;
+    int j, enabled;
 
     if (cycles <= 0) {
         return;
@@ -358,7 +359,7 @@ void vic_sound_clock(int cycles)
                     snd.ch[j].ctr += a << chspeed;
                     enabled = (snd.ch[j].reg & 128) >> 7;
                     edge_trigger = (noise_LFSR & 1) & !noise_LFSR0_old;
-                    
+
                     if((j != 3) || ((j == 3) && edge_trigger)) {
                         uint8_t shift = snd.ch[j].shift;
                         shift = ((shift << 1) | (((((shift & 128) >> 7)) ^ 1) & enabled));
@@ -376,7 +377,7 @@ void vic_sound_clock(int cycles)
                         noise_LFSR0_old = noise_LFSR & 1;
                         noise_LFSR = (noise_LFSR << 1) | gate4;
                     }
-                    snd.ch[j].out = snd.ch[j].shift & (j == 3 ? enabled : 1);                    
+                    snd.ch[j].out = snd.ch[j].shift & (j == 3 ? enabled : 1);
                 }
                 snd.accum += snd.ch[j].out; /* FIXME: doesn't take DC offset into account */
             }
@@ -515,11 +516,6 @@ static int vic_sound_machine_init(sound_t *psid, int speed, int cycles_per_sec)
     }
 
     return 1;
-}
-
-void sound_machine_prevent_clk_overflow(sound_t *psid, CLOCK sub)
-{
-    sid_sound_machine_prevent_clk_overflow(psid, sub);
 }
 
 char *sound_machine_dump_state(sound_t *psid)

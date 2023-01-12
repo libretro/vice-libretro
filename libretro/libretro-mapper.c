@@ -8,10 +8,12 @@
 #include "joystick.h"
 #include "keyboard.h"
 #include "machine.h"
+#include "vsync.h"
 #include "mouse.h"
 #include "resources.h"
 #include "autostart.h"
 #include "datasette.h"
+#include "tapeport.h"
 #include "kbd.h"
 #include "mousedrv.h"
 #include "cartridge.h"
@@ -290,7 +292,7 @@ void emu_function(int function)
          break;
       case EMU_WARP_MODE:
          retro_warpmode = (retro_warpmode) ? 0 : 1;
-         resources_set_int("WarpMode", retro_warpmode);
+         vsync_set_warp_mode(retro_warpmode);
          break;
       case EMU_DATASETTE_HOTKEYS:
 #if defined(__X64DTV__) || defined(__XSCPU64__)
@@ -309,7 +311,7 @@ void emu_function(int function)
 #endif
          if (!tape_enabled)
             break;
-         datasette_control(DATASETTE_CONTROL_STOP);
+         datasette_control(TAPEPORT_PORT_1, DATASETTE_CONTROL_STOP);
          /* Statusbar notification */
          statusbar_message_show(23, "%s",
                "Datasette STOP");
@@ -320,7 +322,7 @@ void emu_function(int function)
 #endif
          if (!tape_enabled)
             break;
-         datasette_control(DATASETTE_CONTROL_START);
+         datasette_control(TAPEPORT_PORT_1, DATASETTE_CONTROL_START);
          /* Statusbar notification */
          statusbar_message_show(20, "%s",
                "Datasette PLAY");
@@ -331,7 +333,7 @@ void emu_function(int function)
 #endif
          if (!tape_enabled)
             break;
-         datasette_control(DATASETTE_CONTROL_FORWARD);
+         datasette_control(TAPEPORT_PORT_1, DATASETTE_CONTROL_FORWARD);
          /* Statusbar notification */
          statusbar_message_show(22, "%s",
                "Datasette F.FWD");
@@ -342,7 +344,7 @@ void emu_function(int function)
 #endif
          if (!tape_enabled)
             break;
-         datasette_control(DATASETTE_CONTROL_REWIND);
+         datasette_control(TAPEPORT_PORT_1, DATASETTE_CONTROL_REWIND);
          /* Statusbar notification */
          statusbar_message_show(21, "%s",
                "Datasette REWIND");
@@ -353,7 +355,7 @@ void emu_function(int function)
 #endif
          if (!tape_enabled)
             break;
-         datasette_control(DATASETTE_CONTROL_RESET);
+         datasette_control(TAPEPORT_PORT_1, DATASETTE_CONTROL_RESET);
          /* Statusbar notification */
          statusbar_message_show(19, "%s",
                "Datasette RESET");
@@ -419,9 +421,9 @@ void retro_key_down(int key)
       kbd_handle_keydown(key);
 }
 
-void process_key(unsigned disable_keys)
+void process_key(uint8_t disable_keys)
 {
-   unsigned i = 0;
+   uint16_t i = 0;
 
    for (i = RETROK_BACKSPACE; i < RETROK_LAST; i++)
    {
@@ -455,11 +457,10 @@ void retro_keyboard_event(bool down, unsigned code,
       case RETROK_PAUSE:
          return;
    }
-
    retro_key_event_state[code] = down;
 }
 
-void update_input(unsigned disable_keys)
+void update_input(uint8_t disable_keys)
 {
    /* RETRO  B  Y  SL ST UP DN LT RT A  X  L   R   L2  R2  L3  R3  LR  LL  LD  LU  RR  RL  RD  RU
     * INDEX  0  1  2  3  4  5  6  7  8  9  10  11  12  13  14  15  16  17  18  19  20  21  22  23
@@ -1026,7 +1027,7 @@ int process_keyboard_pass_through()
 
 void retro_poll_event()
 {
-   unsigned i, j;
+   uint8_t i, j;
    for (j = 0; j < RETRO_DEVICES; j++)
    {
       if (libretro_supports_bitmasks)
@@ -1049,20 +1050,20 @@ void retro_poll_event()
    }
 
    /* Keyboard pass-through */
-   unsigned disable_keys = 0;
+   uint8_t disable_keys = 0;
    if (!opt_keyboard_pass_through)
       disable_keys = process_keyboard_pass_through();
    update_input(disable_keys);
 
    /* Joystick port iteration */
-   unsigned retro_port;
-   unsigned max_port = (vice_opt.UserportJoyType != -1) ? 4 : 2;
+   uint8_t retro_port;
+   uint8_t max_port = (vice_opt.UserportJoyType != -1) ? 4 : 2;
    for (retro_port = 0; retro_port < max_port; retro_port++)
    {
       if (retro_devices[retro_port] == RETRO_DEVICE_VICE_JOYSTICK ||
           retro_devices[retro_port] == RETRO_DEVICE_JOYPAD)
       {
-         int vice_port = cur_port;
+         int8_t vice_port  = cur_port;
          uint8_t joy_value = 0;
 
          if (vice_opt.UserportJoyType != -1)
@@ -1085,7 +1086,7 @@ void retro_poll_event()
          if (opt_joyport_type == 2)
             continue;
 
-         joy_value = get_joystick_value(vice_port);
+         joy_value = get_joystick_value(vice_port - 1);
 
          /* Up */
          if (((joypad_bits[retro_port] & (1 << RETRO_DEVICE_ID_JOYPAD_UP) && !mapper_keys[RETRO_DEVICE_ID_JOYPAD_UP])
@@ -1310,7 +1311,7 @@ void retro_poll_event()
             }
          }
 
-         joystick_set_value_absolute(vice_port, joy_value);
+         joystick_set_value_absolute(vice_port - 1, joy_value);
 
 #if 0
          if (vice_port == 2)
@@ -1355,14 +1356,14 @@ void retro_poll_event()
 #endif
       }
 
-      int j = cur_port - 1;
-      int retro_j = 0;
+      int8_t j = cur_port - 1;
+      int8_t retro_j = 0;
       static float mouse_multiplier[4] = {1};
-      static int dpadmouse_speed[4] = {0};
-      static int dpadmouse_pressed[4] = {0};
+      static uint8_t dpadmouse_speed[4] = {0};
+      static uint8_t dpadmouse_pressed[4] = {0};
 #ifdef MOUSE_DPAD_ACCEL
       long now = 0;
-      now = retro_ticks() / 1000;
+      now      = retro_ticks() / 1000;
 #endif
 
       int retro_mouse_x[4] = {0}, retro_mouse_y[4] = {0};
@@ -1552,16 +1553,16 @@ void retro_poll_event()
             if (retro_j == 0)
             {
                mouse_x = retro_mouse_x[retro_j];
-               mouse_y = -retro_mouse_x[retro_j+1];
+               mouse_y = -retro_mouse_x[retro_j + 1];
                mouse_l = retro_mouse_l[retro_j];
-               mouse_r = retro_mouse_l[retro_j+1];
+               mouse_r = retro_mouse_l[retro_j + 1];
             }
             else if (retro_j == 1)
             {
-               mouse_x = retro_mouse_x[retro_j+1];
-               mouse_y = -retro_mouse_x[retro_j+2];
-               mouse_l = retro_mouse_l[retro_j+1];
-               mouse_r = retro_mouse_l[retro_j+2];
+               mouse_x = retro_mouse_x[retro_j + 1];
+               mouse_y = -retro_mouse_x[retro_j + 2];
+               mouse_l = retro_mouse_l[retro_j + 1];
+               mouse_r = retro_mouse_l[retro_j + 2];
             }
          }
          else
@@ -1580,7 +1581,7 @@ void retro_poll_event()
          if (mouse_l && !vice_mouse_l[retro_j])
          {
             if (opt_joyport_type == 2 && retro_j == 1)
-               joystick_set_value_or(vice_j, JOYPAD_W);
+               joystick_set_value_or(vice_j - 1, JOYPAD_W);
             else
                mouse_button(0, 1);
             mouse_value[vice_j] |= JOYPAD_FIRE;
@@ -1589,7 +1590,7 @@ void retro_poll_event()
          else if (!mouse_l && vice_mouse_l[retro_j])
          {
             if (opt_joyport_type == 2 && retro_j == 1)
-               joystick_set_value_and(vice_j, ~JOYPAD_W);
+               joystick_set_value_and(vice_j - 1, ~JOYPAD_W);
             else
                mouse_button(0, 0);
             mouse_value[vice_j] &= ~JOYPAD_FIRE;
@@ -1600,7 +1601,7 @@ void retro_poll_event()
          if (mouse_r && !vice_mouse_r[retro_j])
          {
             if (opt_joyport_type == 2 && retro_j == 1)
-               joystick_set_value_or(vice_j, JOYPAD_E);
+               joystick_set_value_or(vice_j - 1, JOYPAD_E);
             else
                mouse_button(1, 1);
             mouse_value[vice_j] |= JOYPAD_FIRE2;
@@ -1609,7 +1610,7 @@ void retro_poll_event()
          else if (!mouse_r && vice_mouse_r[retro_j])
          {
             if (opt_joyport_type == 2 && retro_j == 1)
-               joystick_set_value_and(vice_j, ~JOYPAD_E);
+               joystick_set_value_and(vice_j - 1, ~JOYPAD_E);
             else
                mouse_button(1, 0);
             mouse_value[vice_j] &= ~JOYPAD_FIRE2;

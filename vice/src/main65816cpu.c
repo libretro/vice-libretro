@@ -33,7 +33,7 @@
 #include "6510core.h"
 #include "alarm.h"
 #include "archdep.h"
-#include "clkguard.h"
+#include "autostart.h"
 #include "debug.h"
 #include "interrupt.h"
 #include "log.h"
@@ -115,7 +115,6 @@ struct interrupt_cpu_status_s *maincpu_int_status = NULL;
 #ifndef CYCLE_EXACT_ALARM
 alarm_context_t *maincpu_alarm_context = NULL;
 #endif
-clk_guard_t *maincpu_clk_guard = NULL;
 monitor_interface_t *maincpu_monitor_interface = NULL;
 
 /* This flag is an obsolete optimization. It's always 0 for the 65816 CPU,
@@ -252,7 +251,7 @@ void maincpu_mainloop(void)
 {
     /* Notice that using a struct for these would make it a lot slower (at
        least, on gcc 2.7.2.x).  */
-static union regs {
+ static union regs {
      uint16_t reg_s;
      uint8_t reg_q[2];
  } regs65802;
@@ -285,14 +284,14 @@ static unsigned retro_mainloop = 0;
 if (!retro_mainloop)
 {
     retro_mainloop = 1;
-    
+
     /*
      * Enable maincpu_resync_limits functionality .. in the old code
      * this is where the local stack var had its address copied to
      * the global.
      */
     bank_base_ready = true;
-    
+
     reg_c = 0;
 
     machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
@@ -361,6 +360,8 @@ if (!retro_mainloop)
             log_error(LOG_DEFAULT, "cycle limit reached.");
             archdep_vice_exit(EXIT_FAILURE);
         }
+
+        autostart_advance();
 #if 0
         if (CLK > 246171754)
             debug.maincpu_traceflg = 1;
@@ -402,14 +403,14 @@ void maincpu_mainloop(void)
 #ifndef NEED_REG_PC
     unsigned int reg_pc;
 #endif
-    
+
     /*
      * Enable maincpu_resync_limits functionality .. in the old code
      * this is where the local stack var had its address copied to
      * the global.
      */
     bank_base_ready = true;
-    
+
     reg_c = 0;
 
     machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
@@ -478,6 +479,8 @@ void maincpu_mainloop(void)
             log_error(LOG_DEFAULT, "cycle limit reached.");
             archdep_vice_exit(EXIT_FAILURE);
         }
+
+        autostart_advance();
 #if 0
         if (CLK > 246171754)
             debug.maincpu_traceflg = 1;
@@ -485,6 +488,7 @@ void maincpu_mainloop(void)
     }
 }
 #endif /* __LIBRETRO__ */
+
 /* ------------------------------------------------------------------------- */
 
 void maincpu_set_pc(int pc) {
@@ -543,7 +547,7 @@ unsigned int maincpu_get_sp(void) {
 
 static char snap_module_name[] = "MAIN6565802CPU";
 #define SNAP_MAJOR 1
-#define SNAP_MINOR 1
+#define SNAP_MINOR 2
 
 int maincpu_snapshot_write_module(snapshot_t *s)
 {
@@ -555,7 +559,7 @@ int maincpu_snapshot_write_module(snapshot_t *s)
         return -1;
 
     if (0
-        || SMW_DW(m, maincpu_clk) < 0
+        || SMW_CLOCK(m, maincpu_clk) < 0
         || SMW_B(m, (uint8_t)WDC65816_REGS_GET_A(&maincpu_regs)) < 0
         || SMW_B(m, (uint8_t)WDC65816_REGS_GET_B(&maincpu_regs)) < 0
         || SMW_W(m, (uint16_t)WDC65816_REGS_GET_X(&maincpu_regs)) < 0
@@ -601,7 +605,7 @@ int maincpu_snapshot_read_module(snapshot_t *s)
 
     /* XXX: Assumes `CLOCK' is the same size as a `DWORD'.  */
     if (0
-        || SMR_DW(m, &maincpu_clk) < 0
+        || SMR_CLOCK(m, &maincpu_clk) < 0
         || SMR_B(m, &a) < 0
         || SMR_B(m, &b) < 0
         || SMR_W(m, &x) < 0

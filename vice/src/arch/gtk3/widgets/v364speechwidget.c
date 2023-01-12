@@ -68,12 +68,9 @@ static void (*user_callback)(GtkWidget *, int value) = NULL;
  */
 static void on_enable_toggled(GtkToggleButton *button, gpointer data)
 {
-    int active = gtk_toggle_button_get_active(button);
-
-    debug_gtk3("v364 widget toggled: %s", active ? "TRUE" : "FALSE");
     if (user_callback != NULL) {
-        debug_gtk3("Triggering v364 user callback");
-        user_callback(GTK_WIDGET(button), active);
+        user_callback(GTK_WIDGET(button),
+                      gtk_toggle_button_get_active(button));
     }
 }
 
@@ -87,9 +84,10 @@ GtkWidget *v364_speech_widget_create(void)
     instance = vice_gtk3_resource_check_button_new("SpeechEnabled",
                                                    "Enable V364 Speech");
 
+    /* set up extra signal handler to trigger the optional callback */
+    user_callback = NULL;
     g_signal_connect(instance, "toggled", G_CALLBACK(on_enable_toggled), NULL);
 
-    user_callback = NULL;
     return instance;
 }
 

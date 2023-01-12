@@ -37,6 +37,7 @@
 #include "raster-modes.h"
 #include "types.h"
 #include "vdc-draw.h"
+#include "vdc-mem.h"
 #include "vdc-resources.h"
 #include "vdc.h"
 #include "vdctypes.h"
@@ -119,7 +120,7 @@ static unsigned int dmask;           /* used to mask off bits in the rendered ch
 static unsigned int d2mask;          /* used to mask off bits in the intercharacter gap, if there is one, so that we only display the 'correct' number of pixels */
 static unsigned int semi_gfx_test;   /* a combo flag & bitmask, if 0 there is no semi-graphics effect. >0 it's the bit mask to check against, e.g. 0x08 for bit 3 */
 static unsigned int semi_gfx_mask;   /* used to mask 'on' the remainder of the character, e.g. for semi_gfx_test 0x08, semi_gfx_mask= 0x07 to mask on bits 0-2 inclusive */
-static unsigned int semi_gfx_type;   /* 0 = semi-graphics does not extend through intercharacter gap, 0xFF = it does */      
+static unsigned int semi_gfx_type;   /* 0 = semi-graphics does not extend through intercharacter gap, 0xFF = it does */
 
 
 /* These functions draw the background from `start_pixel' to `end_pixel'.  */
@@ -183,13 +184,13 @@ static void calculate_draw_masks(void)
         semi_gfx_test - a combo flag & bitmask, if 0 there is no semi-graphics effect. >0 it's the bit mask to check against, e.g. 0x08 for bit 3
         semi_gfx_mask - used to mask 'on' the remainder of the character, e.g. for semi_gfx_test 0x08, semi_gfx_mask= 0x07 to mask on bits 0-2 inclusive
         semi_gfx_type - flag/mask for the intercharacter gap, 0 = semi-graphics does not extend through intercharacter gap, 0xFF = it does
-        
+
         i, displayedpixels is not required, just temp values used in calculations
     */
-    
+
     unsigned int i;
     int displayedpixels;
-    
+
     if (vdc.regs[25] & 0x10) { /* double pixel / 40 column mode */
         /* half the values for 40column mode are 0x10 further down, so compensate the table lookup */
         if (!(vdc.regs[22] & 0x08) && (vdc.regs[22] >= 0x10)) {
@@ -249,7 +250,7 @@ static void calculate_draw_masks(void)
         }
     }
     semi_gfx_mask = semigfxmask[displayedpixels - 1];   /* mask for any extra pixels to turn on if semigrfx mode is active */
-    
+
 }
 
 
@@ -569,7 +570,7 @@ static void draw_std_text_cached(raster_cache_t *cache, unsigned int xs,
 
     unsigned int i;
     int icsi = -1;  /* Inter Character Spacing Index - used as a combo flag/index as to whether there is any intercharacter gap to render */
-    
+
     if (vdc.regs[25] & 0x10) { /* double pixel a.k.a 40column mode */
         if (vdc.charwidth > 16) {   /* Is there inter character spacing to render? */
             icsi = vdc.charwidth / 2 - 8;
@@ -657,13 +658,13 @@ static void draw_std_text(void)
    screen, attr(ibute) and char(set) ram (which are one byte per 8 pixels */
 {
     uint8_t *p, *q;
-    uint32_t *table_ptr, *pdl_ptr, *pdh_ptr;
-    uint8_t *attr_ptr, *screen_ptr, *char_ptr;
+    uint32_t *table_ptr, *pdl_ptr, *pdh_ptr, char_index;
+    uint8_t *attr_ptr, *screen_ptr;
 
     unsigned int i, d, d2;
     unsigned int cpos = 0xFFFF;
     int icsi = -1;  /* Inter Character Spacing Index - used as a combo flag/index as to whether there is any intercharacter gap to render */
-    
+
     cpos = vdc.crsrpos - vdc.screen_adr - vdc.mem_counter;
 
     if(vdc.regs[25] & 0x10) { /* double pixel a.k.a 40column mode */
@@ -675,7 +676,7 @@ static void draw_std_text(void)
             icsi = vdc.charwidth - 8;
         }
     }
-    
+
     p = vdc.raster.draw_buffer_ptr
         + vdc.border_width
         + ((vdc.regs[25] & 0x10) ? 2 : 0)
@@ -686,10 +687,10 @@ static void draw_std_text(void)
     attr_ptr = &vdc.attrbuf[vdc.attrbufdraw];
     /* screen_ptr = vdc.ram + ((vdc.screen_adr + vdc.mem_counter) & vdc.vdc_address_mask);*/ /* as above */
     screen_ptr = &vdc.scrnbuf[vdc.attrbufdraw];
-    char_ptr = vdc.ram + vdc.chargen_adr + vdc.raster.ycounter;
-    
+    char_index = vdc.chargen_adr + vdc.raster.ycounter;
+
     calculate_draw_masks();
-    
+
     /* Now actually render everything */
     if (vdc.regs[25] & 0x40) {  /* Attribute mode - background colour from regs[26] but foreground from attribute ram */
         table_ptr = hr_table + ((vdc.regs[26] & 0x0F) << 4);    /* regs[26] & 0xF is the background colour */
@@ -700,13 +701,13 @@ static void draw_std_text(void)
                 /* Return nothing if > Vertical Character Size */
                 d = 0x00;
             } else {
-                d = *(char_ptr
+                d = vdc_ram_read(char_index
                   + ((*(attr_ptr + i) & VDC_ALTCHARSET_ATTR) ? 0x100 * vdc.bytes_per_char : 0) /* the offset to the alternate character set is either 0x1000 or 0x2000, depending on the character size (16 or 32) */
                   + (*(screen_ptr + i) * vdc.bytes_per_char));
             }
             d &= dmask; /* mask off to active pixels only */
             d2 = 0x00;
-            
+
             /* set underline if the underline attrib is set for this char */
             /* Pixels per char does not apply to the underline but the underline does blink, reverse and extend through inter-character spacing */
             if ((vdc.raster.ycounter == vdc.regs[29]) && (*(attr_ptr + i) & VDC_UNDERLINE_ATTR)) {
@@ -725,7 +726,7 @@ static void draw_std_text(void)
                 d |= semi_gfx_mask;  /* .. mask the rest of the right hand side on */
                 d2 = semi_gfx_type;  /* this will get masked off later on, so we just set all (or none) inter-char pixels on for now */
             }
-            
+
             /* reverse if the reverse attribute is set for this char */
             if (*(attr_ptr + i) & VDC_REVERSE_ATTR) {
                 d ^= 0xFF;
@@ -751,7 +752,7 @@ static void draw_std_text(void)
                 d ^= 0xFF;
                 d2 ^= 0xFF;
             }
-            
+
             d2 &= d2mask;   /* Mask off any extra "on" pixels from the inter-character gap */
 
             /* actually render the byte into 8 bytes of colour pixels using the lookup tables */
@@ -789,7 +790,8 @@ static void draw_std_text(void)
                 /* Return nothing if > Vertical Character Size */
                 d = 0x00;
             } else {
-                d = *(char_ptr + (*(screen_ptr + i) * vdc.bytes_per_char));
+                d = vdc_ram_read(char_index
+                  + (*(screen_ptr + i) * vdc.bytes_per_char));
             }
             d &= dmask; /* mask off to active pixels only */
             d2 = 0x00;
@@ -799,7 +801,7 @@ static void draw_std_text(void)
                 d |= semi_gfx_mask;  /* .. mask the rest of the right hand side on */
                 d2 = semi_gfx_type;  /* this will get masked off later on, so we just set all (or none) inter-char pixels on for now */
             }
-            
+
             if (cpos == i) { /* handle cursor if this is the cursor */
                 if ((vdc.frame_counter | 1) & crsrblink[(vdc.regs[10] >> 5) & 3]) {
                     /* invert current byte of the character if we are within the cursor area */
@@ -821,7 +823,7 @@ static void draw_std_text(void)
             }
 
             d2 &= d2mask;   /* Mask off any extra "on" pixels from the inter-character gap */
-            
+
             /* actually render the byte into 8 bytes of colour pixels using the lookup tables */
             if (vdc.regs[25] & 0x10) { /* double pixel mode */
                 *((uint32_t *)p) = *(pdwh + (d >> 4));
@@ -987,9 +989,9 @@ static void draw_std_bitmap(void)
    See draw_std_text(), this is for bitmap mode. */
 {
     uint8_t *p, *q;
-    uint8_t *attr_ptr, *bitmap_ptr;
+    uint8_t *attr_ptr;
 
-    unsigned int i, d, d2, j, fg, bg;
+    unsigned int i, d, d2, j, fg, bg, bitmap_index;
     int icsi = -1;  /* Inter Character Spacing Index - used as a combo flag/index as to whether there is any intercharacter gap to render */
 
     if(vdc.regs[25] & 0x10) { /* double pixel a.k.a 40column mode */
@@ -1001,7 +1003,7 @@ static void draw_std_bitmap(void)
             icsi = vdc.charwidth - 8;
         }
     }
-    
+
     p = vdc.raster.draw_buffer_ptr
         + vdc.border_width
         + ((vdc.regs[25] & 0x10) ? 2 : 0)
@@ -1010,10 +1012,10 @@ static void draw_std_bitmap(void)
 
     /*attr_ptr = vdc.ram + ((vdc.attribute_adr + vdc.mem_counter) & vdc.vdc_address_mask);*/    /* keep pre-buffer pointer set-up for testing */
     attr_ptr = &vdc.attrbuf[vdc.attrbufdraw];
-    bitmap_ptr = vdc.ram + ((vdc.screen_adr + vdc.bitmap_counter) & vdc.vdc_address_mask);
+    bitmap_index = vdc.screen_adr + vdc.bitmap_counter;
 
     calculate_draw_masks();
-    
+
     for (i = 0; i < vdc.mem_counter_inc; i++, p += vdc.charwidth) {
         uint32_t *ptr, *pdwl, *pdwh;
 
@@ -1033,22 +1035,22 @@ static void draw_std_bitmap(void)
             /* Return nothing if > Vertical Character Size */
             d = 0x00;
         } else {
-            d = *(bitmap_ptr + i); /* grab the data byte from the bitmap */
+            d = vdc_ram_read(bitmap_index + i); /* grab the data byte from the bitmap */
         }
         d &= dmask; /* mask off to active pixels only */
         d2 = 0x00;
-        
+
         /* Handle semi-graphics mode. Note semi_gfx_test doubles as a flag, if it's 0 this just falls through */
         if (d & semi_gfx_test) { /* if the far right pixel is on.. */
             d |= semi_gfx_mask;  /* .. mask the rest of the right hand side on */
             d2 = semi_gfx_type;  /* this will get masked off later on, so we just set all (or none) inter-char pixels on for now */
         }
-        
+
         if (vdc.regs[24] & VDC_REVERSE_ATTR) { /* whole screen reverse */
             d ^= 0xff;
             d2 ^= 0xFF;
         }
-        
+
         d2 &= d2mask;   /* Mask off any extra "on" pixels from the inter-character gap */
 
         /* actually render the byte into 8 bytes of colour pixels using the lookup tables */
@@ -1076,7 +1078,7 @@ static void draw_std_bitmap(void)
     }
 
     /* fill the last few pixels of the display with bg colour if xsmooth scroll != maximum  */
-    d = *(bitmap_ptr + i);
+    d = vdc_ram_read(bitmap_index + i); /* grab the data byte from the bitmap */
     if (vdc.regs[24] & VDC_REVERSE_ATTR) { /* reverse screen bit */
         d ^= 0xff;
     }

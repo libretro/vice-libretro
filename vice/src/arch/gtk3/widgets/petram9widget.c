@@ -2,7 +2,7 @@
  * \brief   Widget to set the RAM9 area type (PET 8296 only)
  *
  * \author  Bas Wassink <b.wassink@ziggo.nl>
- * \author  André Fachat <fachat@web.de>
+ * \author  Andre Fachat <fachat@web.de>
  */
 
 /*
@@ -34,17 +34,16 @@
 
 #include <gtk/gtk.h>
 
-#include "widgethelpers.h"
-#include "debug_gtk3.h"
-#include "basewidgets.h"
+#include "vice_gtk3.h"
 #include "resources.h"
-
 #include "petiosizewidget.h"
 
+#include "petram9widget.h"
 
-/** \brief  Available I/O sizes
- * Defines values for jumper JU2/JU4
- * for details see http://www.6502.org/users/andre/petindex/local/8296desc.txt
+
+/** \brief  Defines values for jumper JU2/JU4
+ *
+ * For details see http://www.6502.org/users/andre/petindex/local/8296desc.txt
  */
 static const vice_gtk3_radiogroup_entry_t area_types[] = {
     { "ROM", 0 },
@@ -52,8 +51,17 @@ static const vice_gtk3_radiogroup_entry_t area_types[] = {
     { NULL, -1 }
 };
 
+
+/** \brief  Callback function for radio button toggles
+ */
 static void (*user_callback)(int) = NULL;
 
+
+/** \brief  Handler for the 'toggled' event of the radio buttons
+ *
+ * \param[in]   widget  radio button (unused)
+ * \param[in]   id      radio button ID
+ */
 static void on_ram9_changed(GtkWidget *widget, int id)
 {
     if (user_callback != NULL) {
@@ -61,7 +69,8 @@ static void on_ram9_changed(GtkWidget *widget, int id)
     }
 }
 
-/** \brief  Create PET I/O area size widget
+
+/** \brief  Create PET RAM9 widget
  *
  * \return  GtkGrid
  */
@@ -72,29 +81,38 @@ GtkWidget *pet_ram9_widget_create(void)
 
     user_callback = NULL;
 
-    grid = uihelpers_create_grid_with_label("$9xxx area type", 1);
-    gtk_grid_set_column_spacing(GTK_GRID(grid), 16);
+    grid = vice_gtk3_grid_new_spaced_with_label(-1, -1, "$9xxx area type", 1);
     group = vice_gtk3_resource_radiogroup_new("Ram9", area_types,
             GTK_ORIENTATION_VERTICAL);
     vice_gtk3_resource_radiogroup_add_callback(group, on_ram9_changed);
-    g_object_set(group, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(group, 16);
     gtk_grid_attach(GTK_GRID(grid), group, 0, 1, 1, 1);
 
     gtk_widget_show_all(grid);
     return grid;
 }
 
-void pet_ram9_widget_set_callback(GtkWidget *widget,
-                                     void (*func)(int))
+
+/** \brief  Set custom callback function for radio button toggle events
+ *
+ * \param[in]       func    callback function
+ */
+void pet_ram9_widget_set_callback(void (*func)(int))
 {
     user_callback = func;
 }
 
+
+/** \brief  Synchronize \a widget with its resource
+ *
+ * \param[in,out]   widget  PET RAM9 widget
+ */
 void pet_ram9_widget_sync(GtkWidget *widget)
 {
     int size;
+    GtkWidget *group;
 
     resources_get_int("Ram9", &size);
-    GtkWidget *group = gtk_grid_get_child_at(GTK_GRID(widget), 0, 1);
+    group = gtk_grid_get_child_at(GTK_GRID(widget), 0, 1);
     vice_gtk3_resource_radiogroup_set(group, size);
 }

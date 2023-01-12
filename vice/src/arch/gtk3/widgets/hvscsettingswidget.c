@@ -28,6 +28,7 @@
 #include "vice.h"
 
 #include <gtk/gtk.h>
+#include <stdlib.h>
 
 #include "resources.h"
 #include "vice_gtk3.h"
@@ -46,6 +47,22 @@
 static GtkWidget *hvsc_root_entry;
 
 
+/** \brief  Callback for the directory-select dialog
+ *
+ * \param[in]   dialog      directory-select dialog
+ * \param[in]   filename    filename (NULL if canceled)
+ * \param[in]   param       extra data (unused)
+ */
+static void browse_callback(GtkDialog *dialog, gchar *filename, gpointer param)
+{
+    if (filename != NULL) {
+        vice_gtk3_resource_entry_full_set(GTK_WIDGET(hvsc_root_entry), filename);
+        g_free(filename);
+    }
+    gtk_widget_destroy(GTK_WIDGET(dialog));
+}
+
+
 /** \brief  Handler for the 'clicked' event of the HVSC root "browse" button
  *
  * \param[in]   widget  browse button (ignored)
@@ -53,7 +70,7 @@ static GtkWidget *hvsc_root_entry;
  */
 static void on_browse_clicked(GtkWidget *widget, gpointer data)
 {
-    gchar *path;
+    GtkWidget *dialog;
     const char *current = NULL;
 
     /* try to get the current HVSC root dir */
@@ -62,18 +79,14 @@ static void on_browse_clicked(GtkWidget *widget, gpointer data)
     }
 
     /* pop up dialog */
-    path = vice_gtk3_select_directory_dialog(
+    dialog = vice_gtk3_select_directory_dialog(
             "Select HVSC root directory",
             current,
             FALSE,
+            NULL,
+            browse_callback,
             NULL);
-
-    /* handle input */
-    if (path != NULL) {
-        debug_gtk3("Got path '%s'.", path);
-        vice_gtk3_resource_entry_full_set(hvsc_root_entry, path);
-        g_free(path);
-    }
+    gtk_widget_show(dialog);
 }
 
 
@@ -88,6 +101,8 @@ GtkWidget *hvsc_settings_widget_create(GtkWidget *parent)
     GtkWidget *grid;
     GtkWidget *label;
     GtkWidget *browse;
+    gchar buffer[1024];
+    char *hvsc_base = getenv("HVSC_BASE");
 
     grid = vice_gtk3_grid_new_spaced(VICE_GTK3_DEFAULT, VICE_GTK3_DEFAULT);
 
@@ -100,6 +115,15 @@ GtkWidget *hvsc_settings_widget_create(GtkWidget *parent)
     gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), hvsc_root_entry, 1, 0, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), browse, 2, 0, 1, 1);
+
+    g_snprintf(buffer,
+               sizeof(buffer),
+               "Leave empty to use the <tt>HVSC_BASE</tt> environment variable.\n"
+               "(Current value: <tt>%s</tt>)",
+               hvsc_base != NULL && *hvsc_base != '\0' ? hvsc_base : "&lt;none&gt;");
+    label = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(label), buffer);
+    gtk_grid_attach(GTK_GRID(grid), label, 1, 1, 2, 1);
 
     g_signal_connect(browse, "clicked", G_CALLBACK(on_browse_clicked), NULL);
 

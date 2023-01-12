@@ -34,12 +34,11 @@
 
 #include <gtk/gtk.h>
 
-#include "c64-resources.h"
-#include "debug_gtk3.h"
+#include "vice_gtk3.h"
+#include "c64rom.h"
 #include "lib.h"
 #include "resources.h"
 #include "vsync.h"
-#include "widgethelpers.h"
 
 #include "kernalrevisionwidget.h"
 
@@ -53,7 +52,9 @@ static const vice_gtk3_radiogroup_entry_t revisions[] = {
     { "Revision 2",         C64_KERNAL_REV2 },
     { "Revision 3",         C64_KERNAL_REV3 },
     { "SX-64",              C64_KERNAL_SX64 },
+    { "C64 GS",             C64_KERNAL_GS64 },
     { "PET64/Educator64",   C64_KERNAL_4064 },
+    { "Japanese",           C64_KERNAL_JAP },
     { NULL, -1 }
 };
 
@@ -107,23 +108,26 @@ GtkWidget *kernal_revision_widget_create(void)
     int i;
     int rev;
     int index;
+    GtkWidget *title;
 
     resources_get_int("KernalRev", &rev);
     index = get_revision_index(rev);
 
-    grid = uihelpers_create_grid_with_label("KERNAL revision", 1);
+    grid = vice_gtk3_grid_new_spaced_with_label(-1, 0, "KERNAL revision", 1);
+    title = gtk_grid_get_child_at(GTK_GRID(grid), 0, 0);
+    gtk_widget_set_margin_bottom(title, 8);
 
     /* 'unknown' radio button (only used when using a custom KERNAL, cannot
      * be selected through the UI, only set through code */
     radio = gtk_radio_button_new_with_label(group, "Unknown");
-    g_object_set(radio, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(radio, 16);
     gtk_widget_set_sensitive(radio, FALSE);
     gtk_grid_attach(GTK_GRID(grid), radio, 0, 1, 1, 1);
 
     last = GTK_RADIO_BUTTON(radio);
     for (i = 0; revisions[i].name != NULL; i++) {
         radio = gtk_radio_button_new_with_label(group, revisions[i].name);
-        g_object_set(radio, "margin-left", 16, NULL);
+        gtk_widget_set_margin_start(radio, 16);
         gtk_radio_button_join_group(GTK_RADIO_BUTTON(radio), last);
 
         /* check if we got the right revision */
@@ -181,7 +185,7 @@ void kernal_revision_widget_sync(GtkWidget *widget)
 
 /** \brief  Add extra callback
  *
- * \param[in[   callback    extra callback for widget changes
+ * \param[in]   callback    extra callback for widget changes
  */
 void kernal_revision_widget_add_callback(void (*callback)(int))
 {

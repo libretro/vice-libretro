@@ -42,13 +42,14 @@
 
 
 #include "keyboard.h"
+#include "keymap.h"
 #include "kbd.h"
 
 
 int kbd_arch_get_host_mapping(void)
 {
     /* printf("%s\n", __func__); */
-    
+
     return KBD_MAPPING_US;
 }
 
@@ -58,7 +59,7 @@ int kbd_arch_get_host_mapping(void)
 void kbd_arch_init(void)
 {
     /* printf("%s\n", __func__); */
-    
+
     /* do NOT call kbd_hotkey_init(), keyboard.c calls this function *after*
      * the UI init stuff is called, allocating the hotkeys array again and thus
      * causing a memory leak
@@ -68,21 +69,21 @@ void kbd_arch_init(void)
 void kbd_arch_shutdown(void)
 {
     /* printf("%s\n", __func__); */
-    
+
     /* Also don't call kbd_hotkey_shutdown() here */
 }
 
 signed long kbd_arch_keyname_to_keynum(char *keyname)
 {
     /* printf("%s\n", __func__); */
-    
+
     return -1;
 }
 
 const char *kbd_arch_keynum_to_keyname(signed long keynum)
 {
     /* printf("%s\n", __func__); */
-    
+
     static char keyname[20];
 
     memset(keyname, 0, 20);

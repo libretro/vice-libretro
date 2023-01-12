@@ -1,5 +1,5 @@
 /** \file   archdep_ethernet_available.h
- * \brief   Determine if ethernet support (libpcap) will actually work - header
+ * \brief   Determine if ethernet support is available for the current process
  *
  * \author  Bas Wassink <b.wassink@ziggo.nl>
  */

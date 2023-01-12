@@ -5,6 +5,7 @@
  *  Hannu Nuotio <hannu.nuotio@tut.fi>
  *  Marco van den Heuvel <blackystardust68@yahoo.com>
  *  Michael C. Martin <mcmartin@gmail.com>
+ *  June Tate-Gans <june@theonelab.com>
  *
  * Based on code by
  *  Ettore Perazzoli
@@ -84,20 +85,12 @@ static log_t sdlvideo_log = LOG_ERR;
 static int sdl_bitdepth;
 
 /* Initial w/h for windowed display */
-static int sdl_initial_width = 0;
-static int sdl_initial_height = 0;
+static int sdl_initial_width[2] = { 0, 0 };
+static int sdl_initial_height[2] = { 0, 0 };
 
 /* Custom w/h, used for non-desktop fullscreen */
 static int sdl_custom_width = 0;
 static int sdl_custom_height = 0;
-
-/* State variable for making sure that the OS let us leave fullscreen sanely */
-static int leaving_fullscreen = 0;
-
-/* Recorded width/height, for dealing with windowing systems that forget
- * how big the window was when leaving fullscreen. */
-static int last_width = 0;
-static int last_height = 0;
 
 int sdl_active_canvas_num = 0;
 static int sdl_num_screens = 0;
@@ -106,6 +99,7 @@ video_canvas_t *sdl_active_canvas = NULL;
 
 static int sdl_gl_aspect_mode;
 static char *aspect_ratio_s = NULL;
+static char *aspect_ratio_factory_value_s = NULL;
 static double aspect_ratio;
 
 static int sdl_gl_flipx;
@@ -113,11 +107,11 @@ static int sdl_gl_flipy;
 
 static int sdl_gl_filter_res;
 static int sdl_gl_filter;
+static int sdl2_dual_window;
+static int sdl_vsync;
 
 static char *sdl2_renderer_name = NULL;
 static SDL_RendererFlip flip;
-static SDL_Window *sdl2_window = NULL;
-static SDL_Renderer *sdl2_renderer = NULL;
 static Uint32 rmask = 0, gmask = 0, bmask = 0, amask = 0;
 static int texformat = 0;
 static int recreate_textures = 0;
@@ -132,28 +126,9 @@ static void sdl_correct_logical_and_minimum_size(void);
 static int set_sdl_bitdepth(int d, void *param)
 {
     switch (d) {
-        case 8:
-            texformat = SDL_PIXELFORMAT_RGB332;
-            rmask = 0x000000e0, gmask = 0x0000001c, bmask = 0x00000003, amask = 0x00000000;
-            break;
-        case 15:
-            /* Fixme: add render support for that format */
-            return -1;
-        case 16:
-            texformat = SDL_PIXELFORMAT_RGB565;
-            rmask = 0x0000f800, gmask = 0x000007e0, bmask = 0x0000001f, amask = 0x00000000;
-            break;
-        case 24:
-            texformat = SDL_PIXELFORMAT_RGB24;
-            rmask = 0x000000ff, gmask = 0x0000ff00, bmask = 0x00ff0000, amask = 0x00000000;
-            break;
         case 32:
             texformat = SDL_PIXELFORMAT_ARGB8888;
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-            rmask = 0x0000ff00, gmask = 0x00ff0000, bmask = 0xff000000, amask = 0x000000ff;
-#else
             rmask = 0x00ff0000, gmask = 0x0000ff00, bmask = 0x000000ff, amask = 0xff000000;
-#endif
             break;
         default:
             return -1;
@@ -201,21 +176,23 @@ static int set_sdl_custom_height(int h, void *param)
 
 static int set_sdl_initial_width(int w, void *param)
 {
+    int idx = vice_ptr_to_int(param);
     if (w < 0) {
         return -1;
     }
 
-    sdl_initial_width = w;
+    sdl_initial_width[idx] = w;
     return 0;
 }
 
 static int set_sdl_initial_height(int h, void *param)
 {
+    int idx = vice_ptr_to_int(param);
     if (h < 0) {
         return -1;
     }
 
-    sdl_initial_height = h;
+    sdl_initial_height[idx] = h;
     return 0;
 }
 
@@ -267,7 +244,7 @@ static int set_aspect_ratio(const char *val, void *param)
     util_string_set(&aspect_ratio_s, buf);
 
     if (old_aspect != aspect_ratio) {
-        if (sdl_active_canvas && sdl_active_canvas->videoconfig->hwscale) {
+        if (sdl_active_canvas) {
             video_viewport_resize(sdl_active_canvas, 1);
             sdl_correct_logical_and_minimum_size();
         }
@@ -303,42 +280,55 @@ static int set_sdl_gl_flipy(int v, void *param)
 }
 
 
-static void sdl_ui_recreate_textures(void)
+static void recreate_canvas_textures(video_canvas_t *canvas)
 {
-    int i;
-    if (!sdl2_renderer) {
+    SDL_Surface *surface;
+    int width, height;
+
+    if (!canvas || !canvas->container) {
         return;
     }
+
+    surface = canvas->screen;
+    if (!surface) {
+        return;
+    }
+    width = surface->w;
+    height = surface->h;
+
+    /* This hint controls the scaling mode of textures created afterwards */
+    if (sdl_gl_filter_res == SDL_FILTER_LINEAR) {
+        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+    } else {
+        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
+    }
+
+    if (canvas->texture) {
+        SDL_DestroyTexture(canvas->texture);
+    }
+    canvas->texture = SDL_CreateTexture(canvas->container->renderer, texformat, SDL_TEXTUREACCESS_STREAMING, width, height);
+    if (!canvas->texture) {
+        log_error(sdlvideo_log, "SDL_CreateTexture() failed on recreation: %s\n", SDL_GetError());
+        return;
+    }
+
+    if (canvas->previous_frame_texture) {
+        SDL_DestroyTexture(canvas->previous_frame_texture);
+    }
+    canvas->previous_frame_texture = SDL_CreateTexture(canvas->container->renderer, texformat, SDL_TEXTUREACCESS_STREAMING, width, height);
+    if (!canvas->previous_frame_texture) {
+        log_error(sdlvideo_log, "SDL_CreateTexture() failed on recreation: %s\n", SDL_GetError());
+        return;
+    }
+}
+
+
+static void recreate_all_textures(void)
+{
+    int i;
+
     for (i = 0; i < sdl_num_screens; ++i) {
-        video_canvas_t *canvas;
-        SDL_Surface *surface;
-        SDL_Texture *texture;
-        int width, height;
-        canvas = sdl_canvaslist[i];
-        if (!canvas) {
-            continue;
-        }
-        surface = canvas->screen;
-        if (!surface) {
-            continue;
-        }
-        width = surface->w;
-        height = surface->h;
-        if (sdl_gl_filter_res == SDL_FILTER_LINEAR) {
-            SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
-        } else {
-            SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
-        }
-        texture = SDL_CreateTexture(sdl2_renderer, texformat, SDL_TEXTUREACCESS_STREAMING, width, height);
-        if (texture) {
-            if (canvas->texture) {
-                SDL_DestroyTexture(canvas->texture);
-            }
-            canvas->texture = texture;
-            
-        } else {
-            log_error(sdlvideo_log, "SDL_CreateTexture() failed on recreation: %s\n", SDL_GetError());
-        }
+        recreate_canvas_textures(sdl_canvaslist[i]);
     }
 }
 
@@ -372,10 +362,25 @@ static int set_sdl2_renderer_name(const char *val, void *param)
     return 0;
 }
 
-static const resource_string_t resources_string[] = {
-    { "AspectRatio", "1.0", RES_EVENT_NO, NULL,
+static int set_sdl2_dual_window(int v, void *param)
+{
+    sdl2_dual_window = v ? 1 : 0;
+
+    return 0;
+}
+
+static int set_sdl_vsync(int v, void *param)
+{
+    sdl_vsync = v ? 1 : 0;
+
+    return 0;
+}
+
+static resource_string_t resources_string[] = {
+    /* CAUTION: position hardcoded below */
+    { "AspectRatio", NULL, RES_EVENT_NO, NULL,
       &aspect_ratio_s, set_aspect_ratio, NULL },
-    { "SDL2Renderer", "", RES_EVENT_NO, NULL,
+    { "SDL2Backend", "", RES_EVENT_NO, NULL,
       &sdl2_renderer_name, set_sdl2_renderer_name, NULL },
     RESOURCE_STRING_LIST_END
 };
@@ -385,6 +390,8 @@ static const resource_string_t resources_string[] = {
 #define SDLCUSTOMWIDTH_DEFAULT   800
 #define SDLCUSTOMHEIGHT_DEFAULT  600
 
+/* FIXME: more resources should have the same name as their GTK counterparts,
+          and the SDL prefix removed */
 static const resource_int_t resources_int[] = {
     { "SDLBitdepth", VICE_DEFAULT_BITDEPTH, RES_EVENT_NO, NULL,
       &sdl_bitdepth, set_sdl_bitdepth, NULL },
@@ -392,10 +399,10 @@ static const resource_int_t resources_int[] = {
       &sdl_custom_width, set_sdl_custom_width, NULL },
     { "SDLCustomHeight", SDLCUSTOMHEIGHT_DEFAULT, RES_EVENT_NO, NULL,
       &sdl_custom_height, set_sdl_custom_height, NULL },
-    { "SDLWindowWidth", 0, RES_EVENT_NO, NULL,
-      &sdl_initial_width, set_sdl_initial_width, NULL },
-    { "SDLWindowHeight", 0, RES_EVENT_NO, NULL,
-      &sdl_initial_height, set_sdl_initial_height, NULL },
+    { "Window0Width", 0, RES_EVENT_NO, NULL,
+      &sdl_initial_width[0], set_sdl_initial_width, (void*)0 },
+    { "Window0Height", 0, RES_EVENT_NO, NULL,
+      &sdl_initial_height[0], set_sdl_initial_height, (void*)0 },
     { "SDLGLAspectMode", SDL_ASPECT_MODE_TRUE, RES_EVENT_NO, NULL,
       &sdl_gl_aspect_mode, set_sdl_gl_aspect_mode, NULL },
     { "SDLGLFlipX", 0, RES_EVENT_NO, NULL,
@@ -404,21 +411,49 @@ static const resource_int_t resources_int[] = {
       &sdl_gl_flipy, set_sdl_gl_flipy, NULL },
     { "SDLGLFilter", SDL_FILTER_LINEAR, RES_EVENT_NO, NULL,
       &sdl_gl_filter_res, set_sdl_gl_filter, NULL },
+#ifdef USE_SDL2UI
+    { "DualWindow", 0, RES_EVENT_NO, NULL,
+      &sdl2_dual_window, set_sdl2_dual_window, NULL },
+#endif
+    { "VSync", 1, RES_EVENT_NO, NULL,
+      &sdl_vsync, set_sdl_vsync, NULL },
     RESOURCE_INT_LIST_END
 };
 
+static const resource_int_t resources_int_c128[] = {
+    { "Window1Width", 0, RES_EVENT_NO, NULL,
+      &sdl_initial_width[1], set_sdl_initial_width, (void*)1 },
+    { "Window1Height", 0, RES_EVENT_NO, NULL,
+      &sdl_initial_height[1], set_sdl_initial_height, (void*)1 },
+    RESOURCE_INT_LIST_END
+};
+
+
 int video_arch_resources_init(void)
 {
+    char buf[0x10];
     DBG(("%s", __func__));
 
     if (machine_class == VICE_MACHINE_VSID) {
-        if (joy_arch_resources_init() < 0) {
+        if (joy_sdl_resources_init() < 0) {
             return -1;
         }
     }
 
+    /* KLUDGES: setup the factory default with a string, needs to be done at
+       runtime since float format depends on locale */
+    sprintf(buf, "%f", 1.0f);
+    util_string_set(&aspect_ratio_factory_value_s, buf);
+    resources_string[0].factory_value = aspect_ratio_factory_value_s;
+
     if (resources_register_string(resources_string) < 0) {
         return -1;
+    }
+
+    if (machine_class == VICE_MACHINE_C128) {
+        if (resources_register_int(resources_int_c128) < 0) {
+            return -1;
+        }
     }
 
     return resources_register_int(resources_int);
@@ -434,19 +469,14 @@ void video_arch_resources_shutdown(void)
 
     lib_free(aspect_ratio_s);
     lib_free(sdl2_renderer_name);
-    if (sdl2_renderer) {
-        SDL_DestroyRenderer(sdl2_renderer);
-        sdl2_renderer=NULL;
-    }
-    if (sdl2_window) {
-        SDL_DestroyWindow(sdl2_window);
-        sdl2_window = NULL;
-    }
+    lib_free(aspect_ratio_factory_value_s);
 }
 
 /* ------------------------------------------------------------------------- */
 /* Video-related command-line options.  */
 
+/* FIXME: more options should have the same name as their GTK counterparts,
+          and the SDL prefix removed */
 static const cmdline_option_t cmdline_options[] =
 {
     { "-sdlbitdepth", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
@@ -454,15 +484,15 @@ static const cmdline_option_t cmdline_options[] =
       "<bpp>", "Set bitdepth (0 = current, 8, 15, 16, 24, 32)" },
     { "-sdlcustomw", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
       NULL, NULL, "SDLCustomWidth", NULL,
-      "<width>", "Set custom resolution width" },
+      "<width>", "Set custom fullscreen resolution width" },
     { "-sdlcustomh", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
       NULL, NULL, "SDLCustomHeight", NULL,
-      "<height>", "Set custom resolution height" },
+      "<height>", "Set custom fullscreen resolution height" },
     { "-sdlinitialw", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
-      NULL, NULL, "SDLWindowWidth", NULL,
+      NULL, NULL, "Window0Width", NULL,
       "<width>", "Set initial window width" },
     { "-sdlinitialh", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
-      NULL, NULL, "SDLWindowHeight", NULL,
+      NULL, NULL, "Window0Height", NULL,
       "<height>", "Set initial window height" },
     { "-sdlaspectmode", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
       NULL, NULL, "SDLGLAspectMode", NULL,
@@ -485,9 +515,34 @@ static const cmdline_option_t cmdline_options[] =
     { "-sdlglfilter", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
       NULL, NULL, "SDLGLFilter", NULL,
       "<mode>", "Set OpenGL filtering mode (0 = nearest, 1 = linear)" },
-    { "-sdl2renderer", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
-      NULL, NULL, "SDL2Renderer", NULL,
-      "<renderer name>", "Set the preferred SDL2 renderer" },
+    { "-sdl2backend", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
+      NULL, NULL, "SDL2Backend", NULL,
+      "<backend name>", "Set the preferred SDL2 backend" },
+#ifdef USE_SDL2UI
+    { "-dualwindow", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
+      NULL, NULL, "DualWindow", (void *)1,
+      NULL, "Enable dual window rendering"},
+    { "+dualwindow", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
+      NULL, NULL, "DualWindow", (void *)0,
+      NULL, "Disable dual window rendering"},
+#endif
+    { "-vsync", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
+      NULL, NULL, "VSync", (void *)1,
+      NULL, "Enable vsync to prevent tearing"},
+    { "+vsync", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
+      NULL, NULL, "VSync", (void *)0,
+      NULL, "Disable vsync"},
+    CMDLINE_LIST_END
+};
+
+static const cmdline_option_t cmdline_options_c128[] =
+{
+    { "-sdlinitialw1", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
+      NULL, NULL, "Window1Width", NULL,
+      "<width>", "Set initial window width" },
+    { "-sdlinitialh1", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
+      NULL, NULL, "Window1Height", NULL,
+      "<height>", "Set initial window height" },
     CMDLINE_LIST_END
 };
 
@@ -497,6 +552,12 @@ int video_arch_cmdline_options_init(void)
 
     if (machine_class == VICE_MACHINE_VSID) {
         if (joystick_cmdline_options_init() < 0) {
+            return -1;
+        }
+    }
+
+    if (machine_class == VICE_MACHINE_C128) {
+        if (cmdline_register_options(cmdline_options_c128) < 0) {
             return -1;
         }
     }
@@ -526,39 +587,121 @@ void video_shutdown(void)
 /* ------------------------------------------------------------------------- */
 /* static helper functions */
 
-static int sdl_window_create(const char *title, unsigned int width, unsigned int height, int flags)
+/** \brief  Given a canvas, generate a set of SDL_WindowFlags
+ *
+ * \return  A set of SDL_WindowFlags appropriate to the window resources.
+ */
+static SDL_WindowFlags sdl2_ui_generate_flags_for_canvas(const video_canvas_t* canvas)
+{
+    SDL_WindowFlags flags = 0;
+    int minimized = 0;
+    int hide_vdc = 0;
+
+    if (machine_class == VICE_MACHINE_C128) {
+        resources_get_int("C128HideVDC", &hide_vdc);
+    }
+    resources_get_int("StartMinimized", &minimized);
+
+    if (minimized) {
+      flags |= SDL_WINDOW_MINIMIZED;
+    }
+
+    if (hide_vdc && (canvas->index == VIDEO_CANVAS_IDX_VDC)) {
+      flags |= SDL_WINDOW_HIDDEN;
+    }
+
+    if (canvas->fullscreenconfig->enable) {
+      flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+    } else {
+      flags |= SDL_WINDOW_RESIZABLE;
+    }
+
+    return flags;
+}
+
+/** \brief Destroys an sdl_container_t that was previously created using
+ *         sdl_container_create.
+ */
+static void sdl_container_destroy(video_container_t* container)
+{
+    if (!container) {
+        return;
+    }
+
+    if (container->renderer) {
+        SDL_DestroyRenderer(container->renderer);
+        container->renderer = NULL;
+    }
+
+    if (container->window) {
+        SDL_DestroyWindow(container->window);
+        container->window = NULL;
+    }
+
+    lib_free(container);
+}
+
+/** \brief  Given a canvas index, create an sdl_container_t and return it.
+ *
+ * This creates a window using the dimensions from the canvas referred to by
+ * canvas_idx, and finally allocates a renderer. This does not allocate the
+ * texture -- that is done by `video_canvas_resize`.
+ *
+ * \return  a fully initialized and allocated sdl_container_t struct, or NULL on
+ *          failure.
+ */
+static video_container_t* sdl_container_create(int canvas_idx)
 {
     char rendername[256] = { 0 };
     char **renderlist = NULL;
     int renderamount = SDL_GetNumRenderDrivers();
     int it, l;
     int drv_index;
-    int window_width = width, window_height = height;
+    unsigned int window_width = 0, window_height = 0;
+    unsigned int width = 0, height = 0;
     SDL_RendererInfo info;
-    if (sdl2_window) {
-        /* We've already created the window here */
-        return 1;
+    video_canvas_t* canvas = sdl_canvaslist[canvas_idx];
+    video_container_t* container = NULL;
+    SDL_WindowFlags flags = sdl2_ui_generate_flags_for_canvas(canvas);
+    int vsync = 0;
+
+    container = lib_calloc(1, sizeof(*container));
+
+    width = canvas->width;
+    height = canvas->height;
+    if (sdl_gl_aspect_mode == SDL_ASPECT_MODE_CUSTOM) {
+        width *= aspect_ratio;
     }
-    if (width == 0 || height == 0) {
-        /* Early startup; we don't actually know the screen size yet */
-        return 1;
-    }
-    /* Obtain the Window with the corresponding size and behavior based on the flags */
-    if (sdl_initial_width > window_width) {
-        window_width = sdl_initial_width;
-    }
-    if (sdl_initial_height > window_height) {
-        window_height = sdl_initial_height;
-    }
-    sdl2_window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height, flags);
-    if (sdl2_window == NULL) {
-        log_error(sdlvideo_log, "SDL_CreateWindow() failed: %s\n", SDL_GetError());
-        return 0;
+    if (sdl_gl_aspect_mode == SDL_ASPECT_MODE_TRUE) {
+        width *= canvas->geometry->pixel_aspect_ratio;
     }
 
-    sdl_ui_set_window_icon(sdl2_window);
-    last_width = window_width;
-    last_height = window_height;
+    window_width = width;
+    window_height = height;
+
+    /* Obtain the Window with the corresponding size and behavior based on the flags */
+    if (sdl_initial_width[canvas_idx] > window_width) {
+        window_width = sdl_initial_width[canvas_idx];
+    }
+    if (sdl_initial_height[canvas_idx] > window_height) {
+        window_height = sdl_initial_height[canvas_idx];
+    }
+
+    container->window = SDL_CreateWindow("",
+                                         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                                         window_width, window_height,
+                                         flags);
+    if (container->window == NULL) {
+        sdl_container_destroy(container);
+        log_error(sdlvideo_log, "SDL_CreateWindow() failed: %s\n", SDL_GetError());
+        return NULL;
+    }
+
+    SDL_SetWindowData(container->window, VIDEO_SDL2_CANVAS_INDEX_KEY, (void*)(canvas));
+    sdl_ui_set_window_icon(container->window);
+
+    container->last_width = window_width;
+    container->last_height = window_height;
 
     /* Allocate renderlist strings */
     renderlist = lib_malloc((renderamount + 1) * sizeof(char *));
@@ -582,7 +725,7 @@ static int sdl_window_create(const char *title, unsigned int width, unsigned int
             }
         }
         if (drv_index == -1) {
-            log_warning(sdlvideo_log, "Resource preferred renderer %s not available, trying arch default renderer(s)", sdl2_renderer_name);
+            log_warning(sdlvideo_log, "Resource preferred backend %s not available, trying arch default backend(s)", sdl2_renderer_name);
         }
     }
 
@@ -592,25 +735,69 @@ static int sdl_window_create(const char *title, unsigned int width, unsigned int
     lib_free(renderlist);
     renderlist = NULL;
 
-    log_message(sdlvideo_log, "Available Renderers: %s", rendername);
 
-    sdl2_renderer = SDL_CreateRenderer(sdl2_window, drv_index, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if (!sdl2_renderer) {
-        log_error(sdlvideo_log, "SDL_CreateRenderer() failed: %s", SDL_GetError());
-        SDL_DestroyWindow(sdl2_window);
-        sdl2_window = NULL;
-        return 0;
+    log_message(sdlvideo_log, "Available backends: %s", rendername);
+
+    /* setup vsync */
+    /* FIXME: this only works by setting the hint and then creating the
+       renderer - so to do this at runtime some magic has to be implemented
+       that destroys current renderer(s), changes the hint, and then creates
+       them again */
+    resources_get_int("VSync", &vsync);
+    log_message(sdlvideo_log, "VSync is %s.", vsync ? "enabled" : "disabled");
+    if (vsync) {
+        SDL_SetHintWithPriority(SDL_HINT_RENDER_VSYNC, "1", SDL_HINT_OVERRIDE);
+        container->renderer = SDL_CreateRenderer(container->window,
+                                                drv_index,
+                                                SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    } else {
+        SDL_SetHintWithPriority(SDL_HINT_RENDER_VSYNC, "0", SDL_HINT_OVERRIDE);
+        container->renderer = SDL_CreateRenderer(container->window,
+                                                drv_index,
+                                                SDL_RENDERER_ACCELERATED);
     }
-    SDL_GetRendererInfo(sdl2_renderer, &info);
-    log_message(sdlvideo_log, "SDL2 renderer driver selected: %s", info.name);
-    SDL_SetRenderDrawColor(sdl2_renderer, 0, 0, 0, 255);
-    SDL_RenderClear(sdl2_renderer);
-    SDL_RenderPresent(sdl2_renderer);
+
+    if (!container->renderer) {
+        log_error(sdlvideo_log, "SDL_CreateRenderer() failed: %s", SDL_GetError());
+        sdl_container_destroy(container);
+        return NULL;
+    }
+
+    SDL_GetRendererInfo(container->renderer, &info);
+    log_message(sdlvideo_log, "SDL2 backend driver selected: %s", info.name);
+    SDL_SetRenderDrawColor(container->renderer, 0, 0, 0, 255);
+    SDL_RenderClear(container->renderer);
+    SDL_RenderPresent(container->renderer);
 
     /* Enable file/text drag and drop support */
     SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
 
-    return 1;
+    /* Explicitly minimize if the window was created minimized */
+    if ((flags & SDL_WINDOW_MINIMIZED) != 0) {
+        SDL_MinimizeWindow(container->window);
+    }
+
+    return container;
+}
+
+/** \brief Predicate function to determine if a canvas is visible to the user.
+ *
+ * \returns 1 if the canvas is currently visible to the user, or 0 if not.
+ */
+static int sdl_canvas_is_visible(struct video_canvas_s *canvas)
+{
+    if (canvas == sdl_active_canvas) {
+        return 1;
+    }
+
+    int other_canvas_idx = canvas->index ^ 1;
+    video_canvas_t* other_canvas = sdl_canvaslist[other_canvas_idx];
+
+    if (canvas->container != other_canvas->container) {
+        return 1;
+    }
+
+    return 0;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -623,11 +810,20 @@ video_canvas_t *video_canvas_create(video_canvas_t *canvas, unsigned int *width,
     return canvas;
 }
 
-void video_canvas_refresh(struct video_canvas_s *canvas, unsigned int xs, unsigned int ys, unsigned int xi, unsigned int yi, unsigned int w, unsigned int h)
+void video_canvas_refresh(struct video_canvas_s *canvas,
+                          unsigned int xs, unsigned int ys,
+                          unsigned int xi, unsigned int yi,
+                          unsigned int w, unsigned int h)
 {
+    SDL_Texture *texture_swap;
     uint8_t *backup;
 
-    if ((canvas == NULL) || (canvas->screen == NULL) || (canvas != sdl_active_canvas)) {
+    /* If the canvas isn't initialized, skip this */
+    if ((canvas == NULL) || (canvas->screen == NULL)) {
+        return;
+    }
+
+    if (sdl_canvas_is_visible(canvas) == 0) {
         return;
     }
 
@@ -670,41 +866,71 @@ void video_canvas_refresh(struct video_canvas_s *canvas, unsigned int xs, unsign
 
         backup = canvas->draw_buffer->draw_buffer;
         canvas->draw_buffer->draw_buffer = canvas->draw_buffer_vsid->draw_buffer;
-        video_canvas_render(canvas, (uint8_t *)canvas->screen->pixels, w, h, xs, ys, xi, yi, canvas->screen->pitch, canvas->screen->format->BitsPerPixel);
+        video_canvas_render(canvas, (uint8_t *)canvas->screen->pixels, w, h, xs, ys, xi, yi, canvas->screen->pitch);
         canvas->draw_buffer->draw_buffer = backup;
     } else {
-        video_canvas_render(canvas, (uint8_t *)canvas->screen->pixels, w, h, xs, ys, xi, yi, canvas->screen->pitch, canvas->screen->format->BitsPerPixel);
+        video_canvas_render(canvas, (uint8_t *)canvas->screen->pixels, w, h, xs, ys, xi, yi, canvas->screen->pitch);
     }
 
     if (recreate_textures) {
-        sdl_ui_recreate_textures();
+        recreate_all_textures();
         recreate_textures = 0;
         /* NOTE: The texture isn't holding the screen's values
          *       here. We can get away with that because the call to
          *       SDL_UpdateTexture below updates the entire canvas */
     }
+
+    /* Upload the new frame to the GPU texture. TODO: use SDL_LockTexture for this as the docs day it's faster. */
     SDL_UpdateTexture(canvas->texture, NULL, canvas->screen->pixels, canvas->screen->pitch);
-    SDL_RenderClear(sdl2_renderer);
-    SDL_RenderCopyEx(sdl2_renderer, canvas->texture, NULL, NULL, 0, NULL, flip);
-    SDL_RenderPresent(sdl2_renderer);
-    if (leaving_fullscreen) {
+
+    /* Render. */
+    SDL_RenderClear(canvas->container->renderer);
+
+    if (canvas->videoconfig->interlaced && !sdl_menu_state) {
+        /*
+         * Interlaced mode: Re-render last frame to render new frame over.
+         * We don't do this if the SDL menu is showing, otherwise the first
+         * render of the menu shows the emu screen behind it!
+         */
+        SDL_SetTextureBlendMode(canvas->previous_frame_texture, SDL_BLENDMODE_NONE);
+        SDL_RenderCopyEx(canvas->container->renderer, canvas->previous_frame_texture, NULL, NULL, 0, NULL, flip);
+        SDL_SetTextureBlendMode(canvas->texture, SDL_BLENDMODE_BLEND);
+    } else {
+        SDL_SetTextureBlendMode(canvas->texture, SDL_BLENDMODE_NONE);
+    }
+    SDL_RenderCopyEx(canvas->container->renderer, canvas->texture, NULL, NULL, 0, NULL, flip);
+
+    SDL_RenderPresent(canvas->container->renderer);
+
+    /* Swap the textures references so we can easily re-render this frame under the next frame. */
+    texture_swap = canvas->previous_frame_texture;
+    canvas->previous_frame_texture = canvas->texture;
+    canvas->texture = texture_swap;
+
+    if (canvas->container->leaving_fullscreen) {
         int curr_w, curr_h, flags;
-        SDL_GetWindowSize(sdl2_window, &curr_w, &curr_h);
-        flags = SDL_GetWindowFlags(sdl2_window);
-        leaving_fullscreen = 0;
+        int last_width = canvas->container->last_width;
+        int last_height = canvas->container->last_height;
+
+        SDL_GetWindowSize(canvas->container->window, &curr_w, &curr_h);
+        flags = SDL_GetWindowFlags(canvas->container->window);
+        canvas->container->leaving_fullscreen = 0;
+
         if ((curr_w != last_width || curr_h != last_height) &&
             (flags & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP |
                       SDL_WINDOW_MAXIMIZED)) == 0) {
             log_message(sdlvideo_log, "Resolution anomaly leaving fullscreen: expected %dx%d, got %dx%d", last_width, last_height, curr_w, curr_h);
-            SDL_SetWindowSize(sdl2_window, last_width, last_height);
+            SDL_SetWindowSize(canvas->container->window, last_width, last_height);
         }
     }
+
     ui_autohide_mouse_cursor();
 }
 
 int video_canvas_set_palette(struct video_canvas_s *canvas, struct palette_s *palette)
 {
     unsigned int i, col = 0;
+    video_render_color_tables_t *color_tables = &canvas->videoconfig->color_tables;
     SDL_PixelFormat *fmt;
 
     DBG(("video_canvas_set_palette canvas: %p", canvas));
@@ -715,6 +941,10 @@ int video_canvas_set_palette(struct video_canvas_s *canvas, struct palette_s *pa
 
     canvas->palette = palette;
 
+    if (canvas->screen == NULL) {
+        log_error(LOG_DEFAULT, "FIXME: video_canvas_set_palette() canvas->screen is NULL");
+        return 0;
+    }
     fmt = canvas->screen->format;
 
     /* Fixme: needs further investigation how it can reach here without being fully initialized */
@@ -732,7 +962,7 @@ int video_canvas_set_palette(struct video_canvas_s *canvas, struct palette_s *pa
 
     if (canvas->depth % 8 == 0) {
         for (i = 0; i < 256; i++) {
-            video_render_setrawrgb(i, SDL_MapRGB(fmt, (Uint8)i, 0, 0), SDL_MapRGB(fmt, 0, (Uint8)i, 0), SDL_MapRGB(fmt, 0, 0, (Uint8)i));
+            video_render_setrawrgb(color_tables, i, SDL_MapRGB(fmt, (Uint8)i, 0, 0), SDL_MapRGB(fmt, 0, (Uint8)i, 0), SDL_MapRGB(fmt, 0, 0, (Uint8)i));
         }
         video_render_initraw(canvas->videoconfig);
     }
@@ -742,39 +972,57 @@ int video_canvas_set_palette(struct video_canvas_s *canvas, struct palette_s *pa
 
 static void sdl_correct_logical_size(void)
 {
-    if (sdl2_window && sdl2_renderer && sdl_active_canvas && sdl_active_canvas->texture) {
-        int corrected_width, corrected_height;
-        if (sdl_gl_aspect_mode == SDL_ASPECT_MODE_OFF) {
-            SDL_GetWindowSize(sdl2_window, &corrected_width, &corrected_height);
-        } else {
-            double aspect = (sdl_gl_aspect_mode == SDL_ASPECT_MODE_CUSTOM) ? aspect_ratio : sdl_active_canvas->geometry->pixel_aspect_ratio;
-            corrected_width = sdl_active_canvas->width * aspect;
-            corrected_height = sdl_active_canvas->height;
+    for (int i = 0; i < sdl_num_screens; ++i) {
+        video_canvas_t* canvas = sdl_canvaslist[i];
+        video_container_t* container = canvas->container;
+
+        if (container && canvas->texture) {
+            int corrected_width, corrected_height;
+
+            if (sdl_gl_aspect_mode == SDL_ASPECT_MODE_OFF) {
+                SDL_GetWindowSize(container->window, &corrected_width, &corrected_height);
+            } else {
+                double aspect = (sdl_gl_aspect_mode == SDL_ASPECT_MODE_CUSTOM) ? aspect_ratio : sdl_active_canvas->geometry->pixel_aspect_ratio;
+                corrected_width = sdl_active_canvas->width * aspect;
+                corrected_height = sdl_active_canvas->height;
+            }
+
+            SDL_RenderSetLogicalSize(container->renderer, corrected_width, corrected_height);
         }
-        SDL_RenderSetLogicalSize(sdl2_renderer, corrected_width, corrected_height);
     }
 }
 
 static void sdl_correct_logical_and_minimum_size(void)
 {
-    if (sdl2_window && sdl2_renderer && sdl_active_canvas && sdl_active_canvas->texture) {
-        if (sdl_gl_aspect_mode == SDL_ASPECT_MODE_OFF) {
-            SDL_SetWindowMinimumSize(sdl2_window, sdl_active_canvas->width, sdl_active_canvas->height);
-            sdl_correct_logical_size();
-        } else {
-            int width, height;
-            sdl_correct_logical_size();
-            SDL_RenderGetLogicalSize(sdl2_renderer, &width, &height);
-            SDL_SetWindowMinimumSize(sdl2_window, width, height);
+    for (int i = 0; i < sdl_num_screens; ++i) {
+        video_canvas_t* canvas = sdl_canvaslist[i];
+        video_container_t* container = canvas->container;
+
+        if (container && container->window && container->renderer && canvas->texture) {
+            if (sdl_gl_aspect_mode == SDL_ASPECT_MODE_OFF) {
+                SDL_SetWindowMinimumSize(container->window, canvas->width, canvas->height);
+                sdl_correct_logical_size();
+            } else {
+                int width, height;
+                sdl_correct_logical_size();
+                SDL_RenderGetLogicalSize(container->renderer, &width, &height);
+                SDL_SetWindowMinimumSize(container->window, width, height);
+            }
         }
     }
 }
 
-/* called from video_viewport_resize */
+/** \brief Given a canvas, resizes the associated window to match and allocates textures
+ *         for rendering the canvas to the container.
+ *
+ * This function is called from called from video_viewport_resize, and is
+ * responsible for setting the fullscreen behavior of a window. Despite its
+ * name, this does resize the texture.
+ */
 void video_canvas_resize(struct video_canvas_s *canvas, char resize_canvas)
 {
     unsigned int width, height;
-    if (!(canvas && canvas->draw_buffer && canvas->videoconfig && canvas->fullscreenconfig)) {
+    if (!(canvas && canvas->container && canvas->draw_buffer && canvas->videoconfig && canvas->fullscreenconfig)) {
         return;
     }
     width = canvas->draw_buffer->canvas_width * canvas->videoconfig->scalex;
@@ -783,61 +1031,49 @@ void video_canvas_resize(struct video_canvas_s *canvas, char resize_canvas)
     DBG(("%s: %ux%u (%i)", __func__, width, height, canvas->index));
 
     /* Update the fullscreen status, if any */
-    if (sdl2_window) {
+    if (canvas->container) {
         if (canvas == sdl_active_canvas) {
             if (canvas->fullscreenconfig->enable) {
                 if (canvas->fullscreenconfig->mode == FULLSCREEN_MODE_CUSTOM) {
-                    SDL_SetWindowSize(sdl2_window, sdl_custom_width, sdl_custom_height);
-                    SDL_SetWindowFullscreen(sdl2_window, SDL_WINDOW_FULLSCREEN);
+                    SDL_SetWindowSize(canvas->container->window, sdl_custom_width, sdl_custom_height);
+                    SDL_SetWindowFullscreen(canvas->container->window, SDL_WINDOW_FULLSCREEN);
                 } else {
-                    SDL_SetWindowFullscreen(sdl2_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+                    SDL_SetWindowFullscreen(canvas->container->window, SDL_WINDOW_FULLSCREEN_DESKTOP);
                 }
             } else {
-                int flags = SDL_GetWindowFlags(sdl2_window);
+                int flags = SDL_GetWindowFlags(canvas->container->window);
                 if (flags & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP)) {
-                    SDL_SetWindowFullscreen(sdl2_window, 0);
-                    leaving_fullscreen = 1;
+                    SDL_SetWindowFullscreen(canvas->container->window, 0);
+                    canvas->container->leaving_fullscreen = 1;
                 }
             }
         }
     }
 
     /* Ignore bad values, or values that don't change anything */
-    if (width == 0 || height == 0 || (canvas->texture && width == canvas->width && height == canvas->height)) {
+    if (width == 0 || height == 0 ||
+        (canvas->texture && width == canvas->width && height == canvas->height)) {
         return;
     }
+
     canvas->depth = sdl_bitdepth;
     canvas->width = canvas->actual_width = width;
     canvas->height = canvas->actual_height = height;
 
-    if (sdl2_renderer) {
-        SDL_Surface *new_screen = SDL_CreateRGBSurface(0, width, height, sdl_bitdepth, rmask, gmask, bmask, amask);
-        SDL_Texture *new_texture;
+    if (canvas->container->renderer) {
+        SDL_Surface *new_screen;
+
+        new_screen = SDL_CreateRGBSurface(0, width, height, sdl_bitdepth, rmask, gmask, bmask, amask);
         if (!new_screen) {
             log_error(sdlvideo_log, "SDL_CreateRGBSurface() failed: %s\n", SDL_GetError());
             return;
         }
-        if (sdl_gl_filter_res == SDL_FILTER_LINEAR) {
-            SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
-        } else {
-            SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
-        }
-        new_texture = SDL_CreateTexture(sdl2_renderer, texformat, SDL_TEXTUREACCESS_STREAMING, width, height);
-        if (!new_texture) {
-            log_error(sdlvideo_log, "SDL_CreateTexture() failed: %s\n", SDL_GetError());
-            SDL_FreeSurface(new_screen);
-            return;
-        }
-
         if (canvas->screen) {
             SDL_FreeSurface(canvas->screen);
         }
         canvas->screen = new_screen;
-        if (canvas->texture) {
-            SDL_DestroyTexture(canvas->texture);
-        }
-        canvas->texture = new_texture;
-        canvas->videoconfig->hwscale = 1;
+
+        recreate_canvas_textures(canvas);
 
         log_message(sdlvideo_log, "%s (%s) %ux%u %ibpp %s", canvas->videoconfig->chip_name, (canvas == sdl_active_canvas) ? "active" : "inactive", width, height, sdl_bitdepth, (canvas->fullscreenconfig->enable) ? " (fullscreen)" : "");
 #ifdef SDL_DEBUG
@@ -850,28 +1086,38 @@ void video_canvas_resize(struct video_canvas_s *canvas, char resize_canvas)
 }
 
 /* Resize window to w/h. */
-void sdl_video_resize_event(unsigned int w, unsigned int h)
+void sdl2_video_resize_event(int canvas_idx, unsigned int w, unsigned int h)
 {
-    int flags = SDL_GetWindowFlags(sdl2_window);
+    video_container_t* container = sdl_canvaslist[canvas_idx]->container;
+    SDL_Window* window = container->window;
+    int flags = SDL_GetWindowFlags(window);
+
     if ((flags & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP |
                   SDL_WINDOW_MAXIMIZED)) == 0) {
         /* We aren't in some fullscreen-or-close-to-it mode, and so this is
          * a "legitimate" resize. Record that size for comparison against
          * what we see when we leave fullscreen. */
-        last_width = w;
-        last_height = h;
+        container->last_width = w;
+        container->last_height = h;
+
+        resources_set_int_sprintf("Window%dWidth", w, canvas_idx);
+        resources_set_int_sprintf("Window%dHeight", h, canvas_idx);
     }
+
     sdl_correct_logical_size();
 }
 
 /* Resize window to stored real size */
 void sdl_video_restore_size(void)
 {
-    int w, h;
+    for (int i=0; i<sdl_num_screens; i++) {
+        video_container_t* container = sdl_canvaslist[i]->container;
+        int w, h;
 
-    if (sdl2_renderer) {
-        SDL_RenderGetLogicalSize(sdl2_renderer, &w, &h);
-        SDL_SetWindowSize(sdl2_window, w, h);
+        if (container->renderer) {
+            SDL_RenderGetLogicalSize(container->renderer, &w, &h);
+            SDL_SetWindowSize(container->window, w, h);
+        }
     }
 }
 
@@ -893,8 +1139,23 @@ void sdl_video_canvas_switch(int index)
 
     canvas = sdl_canvaslist[sdl_active_canvas_num];
     sdl_active_canvas = canvas;
-    sdl_correct_logical_and_minimum_size();
+
+    if (sdl_active_canvas->container) {
+        SDL_SetWindowData(sdl_active_canvas->container->window,
+                          VIDEO_SDL2_CANVAS_INDEX_KEY,
+                          (void*)(sdl_active_canvas));
+    }
+
     video_viewport_resize(canvas, 1);
+}
+
+int video_arch_get_active_chip(void)
+{
+    if (sdl_active_canvas_num == VIDEO_CANVAS_IDX_VDC) {
+        return VIDEO_CHIP_VDC;
+    } else {
+        return VIDEO_CHIP_VICII;
+    }
 }
 
 void video_arch_canvas_init(struct video_canvas_s *canvas)
@@ -905,8 +1166,6 @@ void video_arch_canvas_init(struct video_canvas_s *canvas)
         log_error(sdlvideo_log, "Too many canvases!");
         archdep_vice_exit(-1);
     }
-
-    canvas->video_draw_buffer_callback = NULL;
 
     canvas->fullscreenconfig = lib_calloc(1, sizeof(fullscreenconfig_t));
 
@@ -919,9 +1178,18 @@ void video_arch_canvas_init(struct video_canvas_s *canvas)
     sdl_canvaslist[sdl_num_screens++] = canvas;
 
     canvas->screen = NULL;
-    canvas->texture = NULL;
     canvas->real_width = 0;
     canvas->real_height = 0;
+
+#ifdef USE_SDL2UI
+    canvas->container = NULL;
+#endif
+
+    /*
+     * the render output can always be read from in SDL2,
+     * it's not a direct video memory buffer.
+     */
+    canvas->videoconfig->readable = 1;
 }
 
 void video_canvas_destroy(struct video_canvas_s *canvas)
@@ -931,11 +1199,22 @@ void video_canvas_destroy(struct video_canvas_s *canvas)
     DBG(("%s: (%p, %i)", __func__, canvas, canvas->index));
 
     for (i = 0; i < sdl_num_screens; ++i) {
-        if ((sdl_canvaslist[i] == canvas) && (canvas == sdl_active_canvas)) {
+        if (sdl_canvaslist[i] == canvas) {
+#ifdef USE_SDL2UI
+            /* If the second window isn't visible, then both canvas lists should
+               be sharing the same container. Set the other one to NULL
+               directly so we don't accidentally double free. */
+            if (sdl_canvaslist[i ^ 1]) {
+                if (sdl_canvaslist[i]->container == sdl_canvaslist[i ^ 1]->container) {
+                    sdl_canvaslist[i ^ 1]->container = NULL;
+                }
+            }
+            sdl_container_destroy(sdl_canvaslist[i]->container);
+            sdl_canvaslist[i]->container = NULL;
+#endif
+
             SDL_FreeSurface(sdl_canvaslist[i]->screen);
             sdl_canvaslist[i]->screen = NULL;
-            SDL_DestroyTexture(sdl_canvaslist[i]->texture);
-            sdl_canvaslist[i]->texture = NULL;
         }
     }
 
@@ -947,36 +1226,115 @@ char video_canvas_can_resize(video_canvas_t *canvas)
     return 1;
 }
 
+/** \brief  Hides the secondary window.
+ *
+ * Internally this just destroys the window and its textures.
+ */
+void sdl2_hide_second_window(void)
+{
+    int inactive_canvas_idx = sdl_active_canvas->index ^ 1;
+    video_canvas_t* inactive_canvas = sdl_canvaslist[inactive_canvas_idx];
+    video_container_t* inactive_container = inactive_canvas->container;
+    video_container_t* active_container = sdl_active_canvas->container;
+
+    if (active_container != inactive_container) {
+        DBG(("%s active: %d, inactive: %d", __func__,
+             sdl_active_canvas->index, inactive_canvas_idx));
+
+        inactive_canvas->container = active_container;
+
+        SDL_DestroyTexture(inactive_canvas->texture);
+        inactive_canvas->texture = NULL;
+        SDL_DestroyTexture(inactive_canvas->previous_frame_texture);
+        inactive_canvas->previous_frame_texture = NULL;
+
+        sdl_container_destroy(inactive_container);
+
+        /* Force a recretion of the textures since we have effectively changed
+           our renderer, and SDL textures can't be shared between renderers. */
+        recreate_all_textures();
+
+        sdl_ui_refresh();
+    }
+}
+
+/** \brief  Shows the secondary window.
+ *
+ * Internally, this creates a new window by calling `sdl_container_create`.
+ */
+void sdl2_show_second_window(void)
+{
+    int inactive_canvas_idx = sdl_active_canvas->index ^ 1;
+    video_canvas_t* inactive_canvas = sdl_canvaslist[inactive_canvas_idx];
+    video_container_t* inactive_container = inactive_canvas->container;
+    video_container_t* active_container = sdl_active_canvas->container;
+
+    if (active_container == inactive_container) {
+        video_container_t* new_container = sdl_container_create(inactive_canvas_idx);
+
+        DBG(("%s active: %d, inactive: %d", __func__,
+             sdl_active_canvas->index, inactive_canvas_idx));
+
+        inactive_canvas->container = new_container;
+
+        /* Force a recretion of the textures since we have effectively changed
+           our renderer, and SDL textures can't be shared between renderers. */
+        recreate_all_textures();
+        sdl_ui_refresh();
+
+        SDL_RaiseWindow(active_container->window);
+    }
+}
+
 void sdl_ui_init_finalize(void)
 {
-    unsigned int width = sdl_active_canvas->width;
-    unsigned int height = sdl_active_canvas->height;
-    int flags = sdl_active_canvas->fullscreenconfig->enable ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_RESIZABLE;
-    int i, minimized = 0;
+    int minimized = 0;
+    int dual_windows = 0;
+    int hide_vdc = 0;
+    video_container_t* container = NULL;
 
-    if (sdl_gl_aspect_mode == SDL_ASPECT_MODE_CUSTOM) {
-        width *= aspect_ratio;
+    resources_get_int("DualWindow", &dual_windows);
+    if (machine_class == VICE_MACHINE_C128) {
+        resources_get_int("C128HideVDC", &hide_vdc);
     }
-    if (sdl_gl_aspect_mode == SDL_ASPECT_MODE_TRUE) {
-        width *= sdl_active_canvas->geometry->pixel_aspect_ratio;
-    }
-
-    /* create window minimized if -minimized was used */
     resources_get_int("StartMinimized", &minimized);
-    if (minimized) {
-        flags |= SDL_WINDOW_MINIMIZED;
-    }
 
-    sdl_window_create(sdl_active_canvas->viewport->title, width, height, flags);
+    /* Setup the primary window using the active canvas */
+    container = sdl_container_create(sdl_active_canvas->index);
 
-    /* explicitly minimize incase the window was still not created minimized */
-    if (minimized) {
-        SDL_MinimizeWindow(sdl2_window);
-    }
-
-    for (i = 0; i < sdl_num_screens; ++i) {
+    for (int i = 0; i < sdl_num_screens; i++) {
+        video_canvas_t* canvas = sdl_canvaslist[i];
+        canvas->container = container;
         video_canvas_resize(sdl_canvaslist[i], 1);
     }
+
+    /* If we're setup for dual windows, then we need to allocate a new container
+     * for the VDC. We do that here, but only associate the new window with the
+     * VDC canvas.
+     */
+    if (dual_windows && !hide_vdc) {
+        video_canvas_t* vdc_canvas = sdl_canvaslist[VIDEO_CANVAS_IDX_VDC];
+
+        container = sdl_container_create(VIDEO_CANVAS_IDX_VDC);
+        if (!container) {
+            fprintf(stderr, "error: unable to create canvas container\n");
+            archdep_vice_exit(-1);
+        }
+
+        vdc_canvas->container = container;
+        video_canvas_resize(vdc_canvas, 1);
+
+        /* Explicitly raise the VIC-II window in dual head mode -- creating the
+         * windows in reverse order still results in the VDC window being on top
+         * because SDL does not raise windows on creation.
+         */
+        if (!minimized) {
+            video_canvas_t* vic_canvas = sdl_canvaslist[VIDEO_CANVAS_IDX_VICII];
+            container = vic_canvas->container;
+            SDL_RaiseWindow(container->window);
+        }
+    }
+
     mousedrv_mouse_changed();
 }
 
@@ -985,20 +1343,24 @@ static int last_mouse_y = -1;
 
 int sdl_ui_get_mouse_state(int *px, int *py, unsigned int *pbuttons)
 {
+    SDL_Window* window = sdl_active_canvas->container->window;
+    SDL_Renderer* renderer = sdl_active_canvas->container->renderer;
     int x, y, w, h;
     Uint32 buttons;
     double ratio;
-    if (!sdl2_window || !sdl2_renderer || !sdl_active_canvas) {
+
+    if (!window || !renderer || !sdl_active_canvas) {
         /* Not initialized yet */
         return 0;
     }
-    if (!(SDL_GetWindowFlags(sdl2_window) & SDL_WINDOW_MOUSE_FOCUS)) {
+
+    if (!(SDL_GetWindowFlags(window) & SDL_WINDOW_MOUSE_FOCUS)) {
         /* We don't have mouse focus */
         return 0;
     }
 
     buttons = SDL_GetMouseState(&x, &y);
-    SDL_RenderGetLogicalSize(sdl2_renderer, &w, &h);
+    SDL_RenderGetLogicalSize(renderer, &w, &h);
     x = last_mouse_x;
     y = last_mouse_y;
     ratio = (double) w / (double)sdl_active_canvas->width;
@@ -1028,7 +1390,7 @@ void sdl_ui_consume_mouse_event(SDL_Event *event)
 
 void sdl_ui_set_window_title(char *title)
 {
-    if (sdl2_window) {
-        SDL_SetWindowTitle(sdl2_window, title);
+    if (sdl_active_canvas->container) {
+        SDL_SetWindowTitle(sdl_active_canvas->container->window, title);
     }
 }

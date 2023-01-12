@@ -47,19 +47,17 @@
 /** \brief  List of text/id pairs for the speed rates
  */
 static const vice_gtk3_radiogroup_entry_t speed_rates[] = {
-    { "200%", 200 },
-    { "150%", 150 },
-    { "100%", 100 },
-    { "50%", 50 },
-    { "20%", 20 },
-    { "10%", 10 },
-    { NULL, -1 }
+    { "200%",   200 },
+    { "150%",   150 },
+    { "100%",   100 },
+    { "50%",    50 },
+    { "20%",    20 },
+    { "10%",    10 },
+    { NULL,     -1 }
 };
 
 
 /** \brief  Create 'speed' widget
- *
- * \todo    Get current speed from resources and set proper radio button
  *
  * \return  GtkGrid
  */
@@ -72,7 +70,7 @@ GtkWidget *speed_widget_create(void)
             VICE_GTK3_DEFAULT, VICE_GTK3_DEFAULT, "Speed", 1);
     group = vice_gtk3_resource_radiogroup_new(
             "Speed", speed_rates, GTK_ORIENTATION_VERTICAL);
-    g_object_set(group, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(group, 16);
     gtk_grid_attach(GTK_GRID(grid), group, 0, 1, 1, 1);
     gtk_widget_show_all(grid);
     return grid;

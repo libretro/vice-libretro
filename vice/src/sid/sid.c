@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "alarm.h"
 #include "catweaselmkiii.h"
 #include "fastsid.h"
 #include "hardsid.h"
@@ -62,7 +63,7 @@
 extern sid_engine_t resid33_hooks;
 #endif
 extern sid_engine_t residfp_hooks;
-#endif
+#endif /* __LIBRETRO__ */
 #endif
 
 /* SID engine hooks. */
@@ -116,6 +117,34 @@ static void sid_write_off(uint16_t addr, uint8_t val, int chipno)
 
 /* ------------------------------------------------------------------------- */
 
+/* FIXME: we should really use an alarm to update the POT values every 512
+          cycles. unfortunately the current mouse code will not work with
+          this approach
+*/
+#if 0
+struct alarm_s *sid_pot_alarm = NULL;
+
+static void sid_pot_alarm_handler(CLOCK offset, void *data)
+{
+    if (_mouse_enabled) {
+        mouse_poll();
+    }
+    val_pot_x = read_joyport_potx();
+    val_pot_y = read_joyport_poty();
+
+    alarm_set(sid_pot_alarm, maincpu_clk + 512);
+}
+
+static void sid_alarm_init(void)
+{
+    if (sid_pot_alarm == NULL) {
+        sid_pot_alarm = alarm_new(maincpu_alarm_context, "SIDPotAlarm", sid_pot_alarm_handler, NULL);
+        alarm_set(sid_pot_alarm, maincpu_clk + 512);
+    }
+}
+#endif
+/* ------------------------------------------------------------------------- */
+
 static uint8_t sid_read_chip(uint16_t addr, int chipno)
 {
     int val = -1;
@@ -126,6 +155,7 @@ static uint8_t sid_read_chip(uint16_t addr, int chipno)
 
 #ifdef HAVE_MOUSE
     if (chipno == 0 && (addr == 0x19 || addr == 0x1a)) {
+#if 1
         if ((maincpu_clk ^ pot_cycle) & ~511) {
             pot_cycle = maincpu_clk & ~511; /* simplistic 512 cycle sampling */
 
@@ -136,6 +166,7 @@ static uint8_t sid_read_chip(uint16_t addr, int chipno)
             val_pot_x = read_joyport_potx();
             val_pot_y = read_joyport_poty();
         }
+#endif
         val = (addr == 0x19) ? val_pot_x : val_pot_y;
 
     } else {
@@ -418,6 +449,12 @@ void sid_reset(void)
     sound_reset();
 
     memset(siddata, 0, sizeof(siddata));
+
+/* FIXME: we should really use an alarm to update the POT values every 512
+          cycles. unfortunately the current mouse code will not work with
+          this approach
+*/
+    /* sid_alarm_init(); */
 }
 
 static int sidengine;
@@ -447,7 +484,7 @@ bool sid_sound_machine_set_engine_hooks(void)
     if (sidengine == SID_ENGINE_RESIDFP) {
         sid_engine = residfp_hooks;
     }
-#endif
+#endif /* __LIBRETRO__ */
 #endif
     if (sidengine >= 0) {
         return true;
@@ -572,7 +609,7 @@ void sid_sound_machine_reset(sound_t *psid, CLOCK cpu_clk)
     sid_engine.reset(psid, cpu_clk);
 }
 
-int sid_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, int soc, int scc, int *delta_t)
+int sid_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, int soc, int scc, CLOCK *delta_t)
 {
     int i;
     int16_t *tmp_buf1;
@@ -583,7 +620,7 @@ int sid_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, i
     int16_t *tmp_buf6;
     int16_t *tmp_buf7;
     int tmp_nr = 0;
-    int tmp_delta_t = *delta_t;
+    CLOCK tmp_delta_t = *delta_t;
 
     if (soc == 1 && scc == 1) {
         return sid_engine.calculate_samples(psid[0], pbuf, nr, 1, delta_t);
@@ -864,11 +901,6 @@ int sid_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, i
     return tmp_nr;
 }
 
-void sid_sound_machine_prevent_clk_overflow(sound_t *psid, CLOCK sub)
-{
-    sid_engine.prevent_clk_overflow(psid, sub);
-}
-
 char *sid_sound_machine_dump_state(sound_t *psid)
 {
     return sid_engine.dump_state(psid);
@@ -886,7 +918,7 @@ int sid_sound_machine_cycle_based(void)
         case SID_ENGINE_RESID33:
 #endif
         case SID_ENGINE_RESIDFP:
-#endif
+#endif /* __LIBRETRO__ */
             return 1;
 #endif
 #ifdef HAVE_CATWEASELMKIII
@@ -946,7 +978,7 @@ static void set_sound_func(void)
             sid_store_func = sound_store;
             sid_dump_func = sound_dump;
         }
-#endif
+#endif /* __LIBRETRO__ */
 #endif
 #ifdef HAVE_CATWEASELMKIII
         if (sid_engine_type == SID_ENGINE_CATWEASELMKIII) {
@@ -1099,7 +1131,7 @@ int sid_engine_get_max_sids(int engine)
         case SID_ENGINE_RESIDFP:
 #endif
             return SID_ENGINE_RESID_NUM_SIDS;
-       case SID_ENGINE_CATWEASELMKIII:
+        case SID_ENGINE_CATWEASELMKIII:
             return SID_ENGINE_CATWEASELMKIII_NUM_SIDS;
         case SID_ENGINE_HARDSID:
             return SID_ENGINE_HARDSID_NUM_SIDS;

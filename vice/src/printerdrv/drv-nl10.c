@@ -37,6 +37,7 @@
 #include "output-select.h"
 #include "output.h"
 #include "palette.h"
+#include "printer.h"
 #include "sysfile.h"
 #include "types.h"
 #include "lib.h"
@@ -422,11 +423,21 @@ inline static void draw_point2(nl10_t *nl10, int x, int y)
 */
 
     nl10->line[y][x] = 1;
-    nl10->line[y][x + 1] = 1;
-    nl10->line[y + 1][x] = 1;
-    nl10->line[y - 1][x] = 1;
-    nl10->line[y + 1][x + 1] = 1;
-    nl10->line[y - 1][x + 1] = 1;
+    if (x < MAX_COL - 1) {
+        nl10->line[y][x + 1] = 1;
+    }
+    if (y < BUF_ROW - 1) {
+        nl10->line[y + 1][x] = 1;
+    }
+    if (y > 0) {
+        nl10->line[y - 1][x] = 1;
+    }
+    if ((y < BUF_ROW - 1) && (x < MAX_COL - 1)) {
+        nl10->line[y + 1][x + 1] = 1;
+    }
+    if ((y > 0) && (x < MAX_COL - 1)) {
+        nl10->line[y - 1][x + 1] = 1;
+    }
 }
 
 inline static void draw_point3(nl10_t *nl10, int x, int y)
@@ -437,11 +448,22 @@ inline static void draw_point3(nl10_t *nl10, int x, int y)
     *
 */
 
+    if ((x < 0) || (x >= MAX_COL) || (y < 0) || (y >= BUF_ROW)) {
+        return;
+    }
     nl10->line[y][x] = 1;
-    nl10->line[y][x - 1] = 1;
-    nl10->line[y][x + 1] = 1;
-    nl10->line[y - 1][x] = 1;
-    nl10->line[y + 1][x] = 1;
+    if (x > 0) {
+        nl10->line[y][x - 1] = 1;
+    }
+    if (x < MAX_COL - 1) {
+        nl10->line[y][x + 1] = 1;
+    }
+    if (y > 0) {
+        nl10->line[y - 1][x] = 1;
+    }
+    if (y < BUF_ROW - 1) {
+        nl10->line[y + 1][x] = 1;
+    }
 }
 
 static void draw_char_nlq(nl10_t *nl10, const uint8_t c)
@@ -2012,10 +2034,10 @@ int drv_nl10_init(void)
         return -1;
     }
 
-    if (palette_load("nl10" FSDEV_EXT_SEP_STR "vpl", palette) < 0) {
+    if (palette_load("nl10.vpl", "PRINTER", palette) < 0) {
 #ifndef __LIBRETRO__
         log_error(drvnl10_log, "Cannot load palette file `%s'.",
-                  "nl10" FSDEV_EXT_SEP_STR "vpl");
+                  "nl10.vpl");
 #endif
         return -1;
     }
@@ -2206,14 +2228,14 @@ static const uint8_t drv_nl10_charset_mapping[3][256] =
 
 static int drv_nl10_init_charset(void)
 {
-    char *name = "nl10-cbm";
+    char *name = NL10_ROM_NAME;
     int i, j;
 
     memset(drv_nl10_charset_nlq, 0, CHARSET_SIZE * 47);
     memset(drv_nl10_charset_nlq_italic, 0, CHARSET_SIZE * 47);
 
     /* load nl-10 rom file */
-    if (sysfile_load(name, drv_nl10_rom, NL10_ROM_SIZE, NL10_ROM_SIZE) < 0) {
+    if (sysfile_load(name, "PRINTER", drv_nl10_rom, NL10_ROM_SIZE, NL10_ROM_SIZE) < 0) {
         memset(drv_nl10_rom, 0, NL10_ROM_SIZE);
         log_error(drvnl10_log, "Could not load NL-10 ROM file '%s'.", name);
         return -1;

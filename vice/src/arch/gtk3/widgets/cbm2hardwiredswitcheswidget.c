@@ -33,12 +33,10 @@
 
 #include <gtk/gtk.h>
 
-#include "basewidgets.h"
-#include "debug_gtk3.h"
+#include "vice_gtk3.h"
 #include "lib.h"
 #include "machine.h"
 #include "resources.h"
-#include "widgethelpers.h"
 
 #include "cbm2hardwiredswitcheswidget.h"
 
@@ -71,11 +69,15 @@ GtkWidget *cbm2_hardwired_switches_widget_create(void)
     GtkWidget *grid;
     GtkWidget *radio_group;
 
-    grid = uihelpers_create_grid_with_label("Hardwired switches", 1);
+    grid = vice_gtk3_grid_new_spaced_with_label(
+            -1, -1, "Hardwired switches", 1);
+    gtk_widget_set_margin_start(grid, 8);
+    gtk_widget_set_margin_end(grid, 8);
+
     radio_group = vice_gtk3_resource_radiogroup_new("ModelLine",
             machine_class == VICE_MACHINE_CBM5x0 ? models_cbm5x0 : models_cbm6x0,
             GTK_ORIENTATION_VERTICAL);
-    g_object_set(radio_group, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(radio_group, 16);
     gtk_grid_attach(GTK_GRID(grid), radio_group, 0, 1, 1, 1);
     gtk_widget_show_all(grid);
     return grid;
@@ -86,7 +88,8 @@ GtkWidget *cbm2_hardwired_switches_widget_create(void)
  *
  * The \a callback is called with the ModelLine as its argument
  *
- * \param[in]   callback    user-defined callback
+ * \param[in,out]   widget      ModelLine widget
+ * \param[in]       callback    user-defined callback
  */
 void cbm2_hardwired_switches_widget_set_callback(
         GtkWidget *widget,

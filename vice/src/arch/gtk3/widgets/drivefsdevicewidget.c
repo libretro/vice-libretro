@@ -66,28 +66,44 @@
  */
 
 
-/** \brief  Handler for the "clicked" event of the fs dir browse button
+/** \brief  Callback for the directory-select dialog
+ *
+ * \param[in]   dialog      directory-select dialog
+ * \param[in]   filename    filename (NULL if canceled)
+ * \param[in]   param       entry box for the filename
+ */
+static void fsdir_browse_callback(GtkDialog *dialog, gchar *filename, gpointer param)
+{
+    if (filename != NULL) {
+        vice_gtk3_resource_entry_full_set(GTK_WIDGET(param), filename);
+        g_free(filename);
+    }
+    gtk_widget_destroy(GTK_WIDGET(dialog));
+}
+
+/** \brief  Handler for the 'clicked' event of the FS directory browse button
  *
  * \param[in]   widget      fs dir browse button
  * \param[in]   user_data   extra event data (entry widget)
  */
 static void on_fsdir_browse_clicked(GtkWidget *widget, gpointer user_data)
 {
-    GtkWidget *entry = GTK_WIDGET(user_data);
-    gchar *filename;
+    GtkWidget *dialog;
 
-    filename = vice_gtk3_select_directory_dialog("Select file system directory",
-            NULL, TRUE, NULL);
-    if (filename != NULL) {
-        vice_gtk3_resource_entry_full_set(entry, filename);
-        g_free(filename);
-    }
+    dialog = vice_gtk3_select_directory_dialog(
+            "Select filesystem directory",
+            NULL,
+            TRUE,
+            NULL,
+            fsdir_browse_callback,
+            user_data);
+    gtk_widget_show(dialog);
 }
 
 
 /** \brief  Create text entry for file system directory for \a unit
  *
- * \param[in]   unit    unit number
+ * \param[in]   unit    unit number (8-11)
  *
  * \return  GtkEntry
  */
@@ -107,7 +123,7 @@ static GtkWidget *create_fsdir_entry_widget(int unit)
 
 /** \brief  Create widget to control P00-settings
  *
- * \param[in]   unit    unit number
+ * \param[in]   unit    unit number (8-11)
  *
  * \return  GtkGrid
  */
@@ -118,8 +134,7 @@ static GtkWidget *create_p00_widget(int unit)
     GtkWidget *p00_only;
     GtkWidget *p00_save;
 
-    grid = gtk_grid_new();
-    gtk_grid_set_column_spacing(GTK_GRID(grid), 8);
+    grid = vice_gtk3_grid_new_spaced(8, 0);
 
     /* Label texts have been converted to shorter strings, using vice.texi
      * So don't blame me.
@@ -162,12 +177,11 @@ GtkWidget *drive_fsdevice_widget_create(int unit)
     GtkWidget *p00;
 
     grid = gtk_grid_new();
-    gtk_grid_set_column_spacing(GTK_GRID(grid), 8);
-    gtk_grid_set_row_spacing(GTK_GRID(grid), 8);
+    grid = vice_gtk3_grid_new_spaced(8, 8);
 
     label = gtk_label_new("Directory");
     gtk_widget_set_halign(label, GTK_ALIGN_START);
-    g_object_set(label, "margin-left", 8, NULL);
+    gtk_widget_set_margin_start(label, 8);
     entry = create_fsdir_entry_widget(unit);
     browse = gtk_button_new_with_label("Browse ...");
     g_signal_connect(browse, "clicked", G_CALLBACK(on_fsdir_browse_clicked),
@@ -177,7 +191,8 @@ GtkWidget *drive_fsdevice_widget_create(int unit)
     gtk_grid_attach(GTK_GRID(grid), browse, 2, 1, 1, 1);
 
     p00 = create_p00_widget(unit);
-    g_object_set(p00, "margin-left", 16, "margin-top", 8, NULL);
+    gtk_widget_set_margin_start(p00, 16);
+    gtk_widget_set_margin_end(p00, 16);
     gtk_grid_attach(GTK_GRID(grid), p00, 0, 2, 3, 1);
 
     gtk_widget_show_all(grid);

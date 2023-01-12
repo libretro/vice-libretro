@@ -44,11 +44,11 @@
 #include "c64gluelogic.h"
 #include "c64mem.h"
 #include "cia.h"
-#include "clkguard.h"
 #include "debug.h"
 #include "drive.h"
 #include "imagecontents.h"
 #include "init.h"
+#include "joystick.h"
 #include "kbdbuf.h"
 #include "log.h"
 #include "machine-drive.h"
@@ -62,7 +62,7 @@
 #include "sid-cmdline-options.h"
 #include "sid-resources.h"
 #include "sid.h"
-#include "viciivsid.h"
+#include "vicii.h"
 #include "vicii-mem.h"
 #include "video.h"
 #include "vsid-cmdline-options.h"
@@ -137,7 +137,7 @@ int machine_cmdline_options_init(void)
         init_cmdline_options_fail("c64");
         return -1;
     }
-#if defined(USE_SDLUI) || defined(USE_SDLUI2)
+#if defined(USE_SDLUI) || defined(USE_SDL2UI)
     if (vicii_cmdline_options_init() < 0) {
         init_cmdline_options_fail("vicii");
         return -1;
@@ -188,7 +188,7 @@ void machine_setup_context(void)
 /* C64-specific initialization.  */
 int machine_specific_init(void)
 {
-#if defined(USE_SDLUI) || defined(USE_SDLUI2)
+#if defined(USE_SDLUI) || defined(USE_SDL2UI)
     if (console_mode) {
         video_disabled_mode = 1;
     }
@@ -210,6 +210,10 @@ int machine_specific_init(void)
 
     cia1_init(machine_context.cia1);
     cia2_init(machine_context.cia2);
+
+    if (!video_disabled_mode) {
+        joystick_init();
+    }
 
     c64_monitor_init();
 
@@ -282,7 +286,7 @@ void machine_specific_shutdown(void)
     psid_shutdown();
 }
 
-void machine_handle_pending_alarms(int num_write_cycles)
+void machine_handle_pending_alarms(CLOCK num_write_cycles)
 {
     vicii_handle_pending_alarms_external(num_write_cycles);
 }
@@ -322,8 +326,6 @@ static void machine_vsync_hook(void)
         time = playtime;
         vsid_ui_display_time(playtime);
     }
-
-    clk_guard_prevent_overflow(maincpu_clk_guard);
 }
 
 void machine_set_restore_key(int v)
@@ -397,9 +399,8 @@ void machine_change_timing(int timeval, int border_mode)
     sound_set_machine_parameter(machine_timing.cycles_per_sec, machine_timing.cycles_per_rfsh);
     debug_set_machine_parameter(machine_timing.cycles_per_line, machine_timing.screen_lines);
     sid_set_machine_parameter(machine_timing.cycles_per_sec);
-    clk_guard_set_clk_base(maincpu_clk_guard, (CLOCK)machine_timing.cycles_per_rfsh);
 
-    vicii_change_timing(&machine_timing);
+    vicii_change_timing(&machine_timing, border_mode);
 
     cia1_set_timing(machine_context.cia1,
                     (int)machine_timing.cycles_per_sec,

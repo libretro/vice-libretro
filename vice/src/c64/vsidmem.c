@@ -47,7 +47,6 @@
 #include "cartio.h"
 #include "cartridge.h"
 #include "cia.h"
-#include "clkguard.h"
 #include "machine.h"
 #include "maincpu.h"
 #include "mem.h"
@@ -114,7 +113,7 @@ static int mem_config;
 /* Tape sense status: 1 = some button pressed, 0 = no buttons pressed.  */
 static int tape_sense = 0;
 
-/* Current watchpoint state. 
+/* Current watchpoint state.
           0 = no watchpoints
     bit0; 1 = watchpoints active
     bit1; 2 = watchpoints trigger on dummy accesses
@@ -197,27 +196,8 @@ void mem_toggle_watchpoints(int flag, void *context)
     see testprogs/CPU/cpuport for details and tests
 */
 
-static void clk_overflow_callback(CLOCK sub, void *unused_data)
-{
-    if (pport.data_set_clk_bit6 > (CLOCK)0) {
-        pport.data_set_clk_bit6 -= sub;
-    }
-    if (pport.data_falloff_bit6 && (pport.data_set_clk_bit6 < maincpu_clk)) {
-        pport.data_falloff_bit6 = 0;
-        pport.data_set_bit6 = 0;
-    }
-    if (pport.data_set_clk_bit7 > (CLOCK)0) {
-        pport.data_set_clk_bit7 -= sub;
-    }
-    if (pport.data_falloff_bit7 && (pport.data_set_clk_bit7 < maincpu_clk)) {
-        pport.data_falloff_bit7 = 0;
-        pport.data_set_bit7 = 0;
-    }
-}
-
 void c64_mem_init(void)
 {
-    clk_guard_add_callback(maincpu_clk_guard, clk_overflow_callback, NULL);
 }
 
 void mem_pla_config_changed(void)
@@ -636,7 +616,7 @@ void mem_set_basic_text(uint16_t start, uint16_t end)
 }
 
 /* this function should always read from the screen currently used by the kernal
-   for output, normally this does just return system ram - except when the 
+   for output, normally this does just return system ram - except when the
    videoram is not memory mapped.
    used by autostart to "read" the kernal messages
 */
@@ -798,7 +778,7 @@ static const char *banknames[MAXBANKS + 1] = {
     NULL
 };
 
-static const int banknums[MAXBANKS + 1] = { 1, 0, 1, 2, 3, -1 };
+static const int banknums[MAXBANKS + 1] = { 0, 0, 1, 2, 3, -1 };
 static const int bankindex[MAXBANKS + 1] = { -1, -1, -1, -1, -1, -1 };
 static const int bankflags[MAXBANKS + 1] = { 0, 0, 0, 0, 0, -1 };
 
@@ -977,7 +957,7 @@ void mem_get_screen_parameter(uint16_t *base, uint8_t *rows, uint8_t *columns, i
 
 /* used by autostart to locate and "read" kernal output on the current screen
  * this function should return whatever the kernal currently uses, regardless
- * what is currently visible/active in the UI 
+ * what is currently visible/active in the UI
  */
 void mem_get_cursor_parameter(uint16_t *screen_addr, uint8_t *cursor_column, uint8_t *line_length, int *blinking)
 {

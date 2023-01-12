@@ -5,7 +5,7 @@
 # File format:
 # - comment lines start with '#'
 # - keyword lines start with '!keyword'
-# - normal line has 'keysym/scancode row column shiftflag'
+# - normal lines have 'keysym/scancode row column shiftflag'
 #
 # Keywords and their lines are:
 # '!CLEAR'               clear whole table
@@ -13,25 +13,74 @@
 # '!LSHIFT row col'      left shift keyboard row/column
 # '!RSHIFT row col'      right shift keyboard row/column
 # '!VSHIFT shiftkey'     virtual shift key (RSHIFT or LSHIFT)
+# '!SHIFTL shiftkey'     shift lock key (RSHIFT or LSHIFT)
+#  for emulated keyboards that have only one shift key, set both LSHIFT
+#  and RSHIFT to the same row/col and use RSHIFT for VSHIFT and SHIFTL.
+# '!LCTRL row col'       left control keyboard row/column
+# '!VCTRL ctrlkey'       virtual control key (LCTRL)
+# '!LCBM row col'        left CBM keyboard row/column
+# '!VCBM cbmkey'         virtual CBM key (LCBM)
 # '!UNDEF keysym'        remove keysym from table
 #
-# Shiftflag can have the values:
-# 0      key is not shifted for this keysym/scancode
-# 1      key is shifted for this keysym/scancode
-# 2      left shift
-# 4      right shift
-# 8      key can be shifted or not with this keysym/scancode
-# 16     deshift key for this keysym/scancode
-# 32     another definition for this keysym/scancode follows
+# Shiftflag can have these values, flags can be ORed to combine them:
+# 0x0000      0  key is not shifted for this keysym/scancode
+# 0x0001      1  key is combined with shift for this keysym/scancode
+# 0x0002      2  key is left shift on emulated machine
+# 0x0004      4  key is right shift on emulated machine (use only this one
+#                for emulated keyboards that have only one shift key)
+# 0x0008      8  key can be shifted or not with this keysym/scancode
+# 0x0010     16  deshift key for this keysym/scancode
+# 0x0020     32  another definition for this keysym/scancode follows
+# 0x0040     64  key is shift-lock on emulated machine
+# 0x0080    128  shift modifier required on host
+# 0x0100    256  key is used for an alternative keyboard mapping, e.g. C64 mode in x128
+# 0x0200    512  alt-r (alt-gr) modifier required on host
+# 0x0400   1024  ctrl modifier required on host
+# 0x0800   2048  key is combined with cbm for this keysym/scancode
+# 0x1000   4096  key is combined with ctrl for this keysym/scancode
+# 0x2000   8192  key is (left) cbm on emulated machine
+# 0x4000  16384  key is (left) ctrl on emulated machine
 #
 # Negative row values:
-# 'keysym -1 n' joystick #1, direction n
-# 'keysym -2 n' joystick #2, direction n
+# 'keysym -1 n' joystick keymap A, direction n
+# 'keysym -2 n' joystick keymap B, direction n
 # 'keysym -3 0' first RESTORE key
 # 'keysym -3 1' second RESTORE key
-# 'keysym -4 0' 40/80 column key
-# 'keysym -4 1' CAPS (ASCII/DIN) key
+# 'keysym -4 0' 40/80 column key (x128)
+# 'keysym -4 1' CAPS (ASCII/DIN) key (x128)
+# 'keysym -5 n' joyport keypad, key n (not supported in x128)
 #
+# Joystick direction values:
+# 0      Fire
+# 1      South/West
+# 2      South
+# 3      South/East
+# 4      West
+# 5      East
+# 6      North/West
+# 7      North
+# 8      North/East
+#
+# Joyport keypad key layout:
+# --------------------------
+# |  0 |  1 |  2 |  3 |  4 |
+# --------------------------
+# |  5 |  6 |  7 |  8 |  9 |
+# --------------------------
+# | 10 | 11 | 12 | 13 | 14 |
+# --------------------------
+# | 15 | 16 | 17 | 18 | 19 |
+# --------------------------
+#
+# When a bigger spaced key is used,
+# it uses the upper left most key value.
+
+# Positional Mapping, US Layout, C128, SDL
+
+# note: For some reason SDL does not get keyboard events for "dead keys" at all,
+#       so a "nodeadkeys" layout must be used. CAUTION: apparently SDL generates
+#       some tables internally at startup - switching the host layout while
+#       the emulator is running produces unpredictable results (broken keycodes)
 
 # C128 Keyboard matrix
 #
@@ -65,10 +114,25 @@
 # |Bit 10| ALT | KP 0| KP .|A.UP |A.DWN|A.LFT|A.RGT|NOSCR|
 # +------+-----+-----+-----+-----+-----+-----+-----+-----+
 
+# C128 Keyboard layout:
+#
+#   ESC TAB ALT CAPS       HELP L/F 40/80 NOSCRL     up down left right  F1/2 F3/4 F5/6 F7/8
+#
+#   arrow 1!  2"  3#  4$  5%  6&  7'  8(  9)  0   +   -   pound clr del     7   8   9   +
+#    ctrl   q   w   e   r   t   y   u   i   o   p   @   *   ^   restore     4   5   6   -
+#   r/s SL    a   s   d   f   g   h   j   k   l   :[  ;]  =   return        1   2   3   enter
+#   CBM LSHFT   z   x   c   v   b   n   m   ,<  .>  /?  RSHFT   u/d l/r     0       .
+#                               SPACE
+
 !CLEAR
 !LSHIFT 1 7
 !RSHIFT 6 4
 !VSHIFT RSHIFT
+!SHIFTL LSHIFT
+!LCBM 7 5
+!VCBM LCBM
+!LCTRL 7 2
+!VCTRL LCTRL
 
 27 7 7 8                /*          ESC -> Run/Stop     */
 96 7 1 8                /*            ` -> Left Arrow   */
@@ -85,7 +149,8 @@
 45 5 0 8                /*        Minus -> Plus         */
 61 5 3 8                /*        Equal -> Minus        */
 8 0 0 8                 /*    Backspace -> Del          */
-9 7 2 8                 /*          TAB -> Ctrl         */
+
+9 7 2 16384             /*          TAB -> Ctrl         */
 113 7 6 8               /*            Q -> Q            */
 119 1 1 8               /*            W -> W            */
 101 1 6 8               /*            E -> E            */
@@ -99,7 +164,8 @@
 91 5 6 8                /*            [ -> @            */
 93 6 1 8                /*            ] -> *            */
 13 0 1 8                /*       Return -> Return       */
-306 7 5 8               /*    Left Ctrl -> CBM          */
+
+306 7 5 8192            /*    Left Ctrl -> CBM          */
 97 1 2 8                /*            A -> A            */
 115 1 5 8               /*            S -> S            */
 100 2 2 8               /*            D -> D            */
@@ -111,7 +177,8 @@
 108 5 2 8               /*            L -> L            */
 59 5 5 8                /*            ; -> :            */
 39 6 2 8                /*            ' -> ;            */
-92 6 5 8                /*            \ -> =            */
+92 6 6 8                /*            \ -> arrow up     */
+
 304 1 7 2               /*   Left Shift -> Left Shift   */
 122 1 4 8               /*            Z -> Z            */
 120 2 7 8               /*            X -> X            */
@@ -124,33 +191,32 @@
 46 5 4 8                /*            . -> .            */
 47 6 7 8                /*            / -> /            */
 303 6 4 4               /*  Right Shift -> Right Shift  */
+
 32 7 4 8                /*        Space -> Space        */
-282 0 4 8               /*           F1 -> F1           */
-283 0 5 8               /*           F2 -> F3           */
-284 0 6 8               /*           F3 -> F5           */
-285 0 3 8               /*           F4 -> F7           */
-286 10 3 8              /*           F5 -> UP           */
-287 10 4 8              /*           F6 -> DOWN         */
-288 10 5 8              /*           F7 -> LEFT         */
-289 10 6 8              /*           F8 -> RIGHT        */
-290 9 0 8               /*           F9 -> ESC          */
-291 8 3 8               /*          F10 -> TAB          */
-292 -4 1                /*          F11 -> CAPS         */
+
+/* alternative set (c64 mode) */
+273 0 7 0x101          /*           Up -> CRSR UP      */
+274 0 7 0x108          /*         Down -> CRSR DOWN    */
+275 0 2 0x108          /*        Right -> CRSR RIGHT   */
+276 0 2 0x101          /*         Left -> CRSR LEFT    */
+/* normal set (c128 mode) */
+273 10 3 0x008         /*           Up -> A.UP         */
+274 10 4 0x008         /*         Down -> A.DOWN       */
+275 10 6 0x008         /*        Right -> A.RIGHT      */
+276 10 5 0x008         /*         Left -> A.LEFT       */
+
+# Restore key mappings
 280 -3 0                /*         PgUp -> RESTORE      */
-281 8 0 8               /*       PgDown -> HELP         */
-19 9 3 8                /*  Pause/Break -> LINE FEED    */
-268 10 7 8              /*     Numpad * -> NO SCROLL    */
-274 0 7 8               /*  Cursor Down -> Cursor Down  */
-276 0 2 1               /*  Cursor Left -> Cursor Left  */
-275 0 2 8               /* Cursor Right -> Cursor Right */
-273 0 7 1               /*    Cursor Up -> Cursor Up    */
+
+127 0 0 8               /*          Ins -> Ins          */
+277 0 0 1               /*          Del -> Del          */
 278 6 3 8               /*         Home -> CLR/HOME     */
-277 6 0 8               /*          Ins -> Pound        */
-127 6 6 8               /*          Del -> Up Arrow     */
+279 6 0 8               /*          End -> Pound        */
+
+# Numeric keypad
 263 8 6 8               /*     Numpad 7 -> Numpad 7     */
 264 8 1 8               /*     Numpad 8 -> Numpad 8     */
 265 9 6 8               /*     Numpad 9 -> Numpad 9     */
-267 -4 0                /*     Numpad / -> 40/80COL     */
 269 9 1 8               /*     Numpad - -> Numpad +     */
 260 8 5 8               /*     Numpad 4 -> Numpad 4     */
 261 8 2 8               /*     Numpad 5 -> Numpad 5     */
@@ -163,3 +229,21 @@
 266 10 2 8              /*     Numpad . -> Numpad .     */
 271 9 4 8               /* Numpad Enter -> Numpad Enter */
 
+/* top row */
+282 0 4 8              /*           F1 -> F1           */
+283 0 5 8              /*           F2 -> F3           */
+284 0 6 8              /*           F3 -> F5           */
+285 0 3 8              /*           F4 -> F7           */
+
+286 8 0 8              /*           F5 -> Help         */
+287 9 3 8              /*           F6 -> Linefeed     */
+288 -4 0               /*           F7 -> 40/80        */
+289 10 7 0             /*           F8 -> No scroll    */
+
+290 9 0 8              /*           F9 -> ESC          */
+291 8 3 8              /*          F10 -> TAB          */
+292 10 0 8             /*          F11 -> ALT          */
+# CAPS (ASCII/DIN) key - We can't map this to F12 because F12 is SDL MENU key
+#293 -4 1 0             /*          F12 -> CAPS         */
+# So mapped to pause/break key for now until some better idea comes along
+19 -4 1                /*  Pause/Break -> CAPS         */

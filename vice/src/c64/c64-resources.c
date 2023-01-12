@@ -43,7 +43,6 @@
 #include "lib.h"
 #include "log.h"
 #include "machine.h"
-#include "patchrom.h"
 #include "resources.h"
 #include "reu.h"
 #include "georam.h"
@@ -189,33 +188,110 @@ static int set_cia2_model(int val, void *param)
     return 0;
 }
 
+#define NUM_TRAP_DEVICES 9  /* FIXME: is there a better constant ? */
+static int trapfl[NUM_TRAP_DEVICES];
+static int trapdevices[NUM_TRAP_DEVICES + 1] = { 1, 4, 5, 6, 7, 8, 9, 10, 11, -1 };
+
+static void get_trapflags(void)
+{
+    int i;
+    for(i = 0; trapdevices[i] != -1; i++) {
+        resources_get_int_sprintf("VirtualDevice%d", &trapfl[i], trapdevices[i]);
+    }
+}
+
+static void clear_trapflags(void)
+{
+    int i;
+    for(i = 0; trapdevices[i] != -1; i++) {
+        resources_set_int_sprintf("VirtualDevice%d", 0, trapdevices[i]);
+    }
+}
+
+static void restore_trapflags(void)
+{
+    int i;
+    for(i = 0; trapdevices[i] != -1; i++) {
+        resources_set_int_sprintf("VirtualDevice%d", trapfl[i], trapdevices[i]);
+    }
+}
+
+struct kernal_s {
+    const char *name;
+    int rev;
+};
+
+/* NOTE: also update the table in c64rom.c */
+static struct kernal_s kernal_match[] = {
+    { C64_KERNAL_REV1_NAME, C64_KERNAL_REV1 },
+    { C64_KERNAL_REV2_NAME, C64_KERNAL_REV2 },
+    { C64_KERNAL_REV3_NAME, C64_KERNAL_REV3 },
+    { C64_KERNAL_JAP_NAME,  C64_KERNAL_JAP },
+    { C64_KERNAL_SX64_NAME, C64_KERNAL_SX64 },
+    { C64_KERNAL_GS64_NAME, C64_KERNAL_GS64 },
+    { C64_KERNAL_4064_NAME, C64_KERNAL_4064 },
+    { C64_KERNAL_NONE_NAME, C64_KERNAL_NONE },
+    { NULL, C64_KERNAL_UNKNOWN }
+};
+
 static int set_kernal_revision(int val, void *param)
 {
-    int trapfl;
+    int n = 0, rev = C64_KERNAL_UNKNOWN;
+    const char *name = NULL;
+    log_verbose("set_kernal_revision was kernal_revision: %d new val:%d", kernal_revision, val);
 
-    log_verbose("set_kernal_revision (\"KernalRev\") val:%d kernal_revision: %d", val, kernal_revision);
-    if(!c64rom_isloaded()) {
+    if (val == C64_KERNAL_UNKNOWN) {
+        if(!c64rom_isloaded()) {
+            /* disable device traps before kernal patching */
+            if (machine_class != VICE_MACHINE_VSID) {
+                get_trapflags();
+                clear_trapflags();
+            }
+        }
+        kernal_revision = C64_KERNAL_UNKNOWN;
         return 0;
     }
-    /* disable device traps before kernal patching */
-    if (machine_class != VICE_MACHINE_VSID) {
-        resources_get_int("VirtualDevices", &trapfl);
-        resources_set_int("VirtualDevices", 0);
+
+    /* find given revision */
+    do {
+        if (kernal_match[n].rev == val) {
+            rev = kernal_match[n].rev;
+            name = kernal_match[n].name;
+        }
+        ++n;
+    } while ((rev == C64_KERNAL_UNKNOWN) && (kernal_match[n].name != NULL));
+
+    if (rev == C64_KERNAL_UNKNOWN) {
+        log_error(LOG_DEFAULT, "invalid kernal revision (%d)", val);
+        return -1;
     }
-    /* patch kernal to given revision */
-    if ((val != -1) && (patch_rom_idx(val) < 0)) {
-        val = -1;
+
+    if(!c64rom_isloaded()) {
+        /* disable device traps before kernal patching */
+        if (machine_class != VICE_MACHINE_VSID) {
+            get_trapflags();
+            clear_trapflags();
+        }
     }
+
+    log_verbose("set_kernal_revision found rev:%d name: %s", rev, name);
+
+    if (resources_set_string("KernalName", name) < 0) {
+        log_error(LOG_DEFAULT, "failed to set kernal name (%s)", name);
+        return -1;
+    }
+
     memcpy(c64memrom_kernal64_trap_rom, c64memrom_kernal64_rom, C64_KERNAL_ROM_SIZE);
-    if (kernal_revision != val) {
+
+    if (kernal_revision != rev) {
         machine_trigger_reset(MACHINE_RESET_MODE_HARD);
     }
     /* restore traps */
     if (machine_class != VICE_MACHINE_VSID) {
-        resources_set_int("VirtualDevices", trapfl);
+        restore_trapflags();
     }
-    kernal_revision = val;
-    log_verbose("set_kernal_revision (\"KernalRev\") new kernal_revision: %d", kernal_revision);
+    kernal_revision = rev;
+    log_verbose("set_kernal_revision new kernal_revision: %d", kernal_revision);
     return 0;
 }
 
@@ -246,13 +322,13 @@ static int set_sync_factor(int val, void *param)
 }
 
 static const resource_string_t resources_string[] = {
-    { "ChargenName", "chargen", RES_EVENT_NO, NULL,
+    { "ChargenName", C64_CHARGEN_NAME, RES_EVENT_NO, NULL,
       /* FIXME: should be same but names may differ */
       &chargen_rom_name, set_chargen_rom_name, NULL },
-    { "KernalName", "kernal", RES_EVENT_NO, NULL,
+    { "KernalName", C64_KERNAL_REV3_NAME, RES_EVENT_NO, NULL,
       /* FIXME: should be same but names may differ */
       &kernal_rom_name, set_kernal_rom_name, NULL },
-    { "BasicName", "basic", RES_EVENT_NO, NULL,
+    { "BasicName", C64_BASIC_NAME, RES_EVENT_NO, NULL,
       /* FIXME: should be same but names may differ */
       &basic_rom_name, set_basic_rom_name, NULL },
     RESOURCE_STRING_LIST_END

@@ -320,7 +320,7 @@ static void set_eos(t6721_state *state)
  LA05-124 Gate Array
 
  4bit parallel to serial converter/buffer:
- 
+
 18 in   t6721 DTRD
 20 in   t6721 phi2
  6 in   t6721 APD (reset, will also reset FIFO)
@@ -847,7 +847,7 @@ static const export_resource_t export_res = {
 /* Some prototypes are needed */
 static int magicvoice_sound_machine_init(sound_t *psid, int speed, int cycles_per_sec);
 static void magicvoice_sound_machine_close(sound_t *psid);
-static int magicvoice_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, int sound_output_channels, int sound_chip_channels, int *delta_t);
+static int magicvoice_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, int sound_output_channels, int sound_chip_channels, CLOCK *delta_t);
 static void magicvoice_sound_machine_reset(sound_t *psid, CLOCK cpu_clk);
 
 static int magicvoice_sound_machine_cycle_based(void)
@@ -862,7 +862,7 @@ static int magicvoice_sound_machine_channels(void)
 
 /* MagicVoice cartridge sound chip */
 static sound_chip_t magicvoice_sound_chip = {
-    NULL,                                       /* NO sound chip open function */ 
+    NULL,                                       /* NO sound chip open function */
     magicvoice_sound_machine_init,              /* sound chip init function */
     magicvoice_sound_machine_close,             /* sound chip close function */
     magicvoice_sound_machine_calculate_samples, /* sound chip calculate samples function */
@@ -1096,7 +1096,8 @@ static int set_magicvoice_enabled(int value, void *param)
             /* if the param is != NULL, then we should load the default image file */
             if (magicvoice_filename) {
                 if (*magicvoice_filename) {
-                    if (cartridge_attach_image(CARTRIDGE_MAGIC_VOICE, magicvoice_filename) < 0) {
+                    if ((cartridge_attach_image(CARTRIDGE_CRT, magicvoice_filename) < 0) &&
+                        (cartridge_attach_image(CARTRIDGE_MAGIC_VOICE, magicvoice_filename) < 0)) {
                         DBG(("MV: set_enabled did not register\n"));
                         return -1;
                     }
@@ -1364,6 +1365,7 @@ int magicvoice_bin_attach(const char *filename, uint8_t *rawcart)
     if (util_file_load(filename, rawcart, MV_ROM_SIZE, UTIL_FILE_LOAD_SKIP_ADDRESS) < 0) {
         return -1;
     }
+    set_magicvoice_filename(filename, NULL); /* set the resource */
     return magicvoice_common_attach();
 }
 
@@ -1388,7 +1390,7 @@ int magicvoice_bin_attach(const char *filename, uint8_t *rawcart)
  * $000040 CHIP ROM   #000 $8000 $4000 $4010
  *
  */
-int magicvoice_crt_attach(FILE *fd, uint8_t *rawcart)
+int magicvoice_crt_attach(FILE *fd, uint8_t *rawcart, const char *filename)
 {
     int i;
     crt_chip_header_t chip;
@@ -1414,6 +1416,7 @@ int magicvoice_crt_attach(FILE *fd, uint8_t *rawcart)
     if (i != 1 && i != 2) {
         return -1;
     }
+    set_magicvoice_filename(filename, NULL); /* set the resource */
     return magicvoice_common_attach();
 }
 
@@ -1462,7 +1465,7 @@ void magicvoice_reset(void)
 /*
     called periodically for every sound fragment that is played
 */
-static int magicvoice_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, int soc, int scc, int *delta_t)
+static int magicvoice_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, int soc, int scc, CLOCK *delta_t)
 {
     int i;
     int16_t *buffer;

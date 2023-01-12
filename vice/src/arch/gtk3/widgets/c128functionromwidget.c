@@ -8,9 +8,6 @@
  * $VICERES InternalFunctionROM         x128
  * $VICERES InternalFunctionName        x128
  * $VICERES InternalFunctionROMRTCSave  x128
- * $VICERES ExternalFunctionROM         x128
- * $VICERES ExternalFunctionName        x128
- * $VICERES ExternalFunctionROMRTCSave  x128
  */
 
 /*
@@ -36,11 +33,8 @@
 #include "vice.h"
 #include <gtk/gtk.h>
 
-#include "basewidgets.h"
-#include "debug_gtk3.h"
+#include "vice_gtk3.h"
 #include "functionrom.h"
-#include "openfiledialog.h"
-#include "widgethelpers.h"
 #include "ui.h"
 
 #include "c128functionromwidget.h"
@@ -59,48 +53,6 @@ static const vice_gtk3_radiogroup_entry_t rom_types[] = {
     { "RTC",    INT_FUNCTION_RTC },
     { NULL, - 1 },
 };
-
-
-/** \brief  Reference to the text entry for the filename
- */
-static GtkWidget *entry_widget;
-
-
-/** \brief  Callback for the open-file dialog
- *
- * \param[in,out]   dialog      open-file dialog
- * \param[in]       filename    filename or NULL on cancel
- * \param[in]       data        extra data (unused)
- */
-static void browse_filename_callback(GtkDialog *dialog,
-                                     gchar *filename,
-                                     gpointer data)
-{
-    debug_gtk3("got filename '%s'.", filename);
-
-    if (filename != NULL) {
-        vice_gtk3_resource_entry_full_set(entry_widget, filename);
-        g_free(filename);
-    }
-    gtk_widget_destroy(GTK_WIDGET(dialog));
-}
-
-
-/** \brief  Handler for the "clicked" event of a "browse" button
- *
- * \param[in]   widget  browse button
- * \param[in]   data    entry to store filename
- */
-static void on_browse_clicked(GtkWidget *widget, gpointer data)
-{
-    vice_gtk3_open_file_dialog(
-            "Open ROM file",
-            NULL,
-            NULL,
-            NULL,
-            browse_filename_callback,
-            NULL);
-}
 
 
 /** \brief  Create ROM type widget
@@ -128,84 +80,75 @@ static GtkWidget *create_rom_type_widget(const char *prefix)
  */
 static GtkWidget *create_rom_file_widget(const char *prefix)
 {
-    GtkWidget *grid;
-    GtkWidget *browse;
+    gchar buffer[256];
 
-    grid = gtk_grid_new();
-    gtk_grid_set_column_spacing(GTK_GRID(grid), 8);
-
-    entry_widget = vice_gtk3_resource_entry_full_new_sprintf("%sFunctionName",
-                                                             prefix);
-    gtk_widget_set_hexpand(entry_widget, TRUE);
-    gtk_grid_attach(GTK_GRID(grid), entry_widget, 0, 0, 1, 1);
-
-    browse = gtk_button_new_with_label("Browse ...");
-    gtk_grid_attach(GTK_GRID(grid), browse, 1, 0, 1,1);
-    g_signal_connect(browse, "clicked", G_CALLBACK(on_browse_clicked), NULL);
-
-    gtk_widget_show_all(grid);
-    return grid;
+    g_snprintf(buffer, sizeof(buffer), "%sFunctionName", prefix);
+    return vice_gtk3_resource_browser_new(buffer,
+                                          NULL,
+                                          NULL,
+                                          "Select Function ROM image",
+                                          NULL,
+                                          NULL);
 }
 
 
 /** \brief  Create External/Internal ROM widget
  *
- * \param[in]   parent  parent widget
  * \param[in]   prefix  resource prefix
  *
  * \return GtkGrid
  */
-static GtkWidget *create_rom_widget(GtkWidget *parent, const char *prefix)
+static GtkWidget *create_rom_widget(const char *prefix)
 {
     GtkWidget *grid;
+    GtkWidget *type;
     GtkWidget *label;
     GtkWidget *rtc;
     char buffer[256];
 
     g_snprintf(buffer, sizeof(buffer), "%s Function ROM", prefix);
-    grid = uihelpers_create_grid_with_label(buffer, 1);
-    gtk_grid_set_column_spacing(GTK_GRID(grid), 16);
-    gtk_grid_set_row_spacing(GTK_GRID(grid), 8);
+    grid = vice_gtk3_grid_new_spaced_with_label(-1, -1, buffer, 2);
 
-    gtk_widget_show_all(grid);
-
+    /* row 1: ROM type */
     label = gtk_label_new("ROM type");
     gtk_widget_set_halign(label, GTK_ALIGN_START);
-    g_object_set(label, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(label, 16);
     gtk_grid_attach(GTK_GRID(grid), label, 0, 1, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), create_rom_type_widget(prefix), 1, 1, 1, 1);
+    type = create_rom_type_widget(prefix);
+    gtk_grid_attach(GTK_GRID(grid), type, 1, 1, 1, 1);
 
+    /* row 2: ROM image browser */
     label = gtk_label_new("ROM file");
     gtk_widget_set_halign(label, GTK_ALIGN_START);
-    g_object_set(label, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(label, 16);
     gtk_grid_attach(GTK_GRID(grid), label, 0, 2, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), create_rom_file_widget(prefix), 1, 2, 1, 1);
 
     rtc = vice_gtk3_resource_check_button_new_sprintf("%sFunctionROMRTCSave",
             "Save RTC data", prefix);
-    g_object_set(rtc, "margin-left", 16, NULL);
-    gtk_grid_attach(GTK_GRID(grid), rtc, 0, 3, 3, 1);
+    gtk_widget_set_margin_start(rtc, 16);
+    gtk_grid_attach(GTK_GRID(grid), rtc, 0, 3, 2, 1);
 
+    gtk_widget_show_all(grid);
     return grid;
 }
 
 
 /** \brief  Create widget to select Internal/External function ROMs
  *
- * \param[in]   parent  parent widget
+ * \param[in]   parent  parent widget (unused)
  *
  * \return  GtkGrid
  */
 GtkWidget *c128_function_rom_widget_create(GtkWidget *parent)
 {
     GtkWidget *grid;
+    GtkWidget *internal_widget;
 
-    grid = gtk_grid_new();
+    grid = vice_gtk3_grid_new_spaced(16, 32);
 
-    gtk_grid_attach(GTK_GRID(grid), create_rom_widget(parent, "Internal"),
-            0, 0, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), create_rom_widget(parent, "External"),
-            0, 1, 1, 1);
+    internal_widget = create_rom_widget("Internal");
+    gtk_grid_attach(GTK_GRID(grid), internal_widget, 0, 0, 1, 1);
 
     gtk_widget_show_all(grid);
     return grid;

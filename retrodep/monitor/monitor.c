@@ -463,7 +463,7 @@ void mon_reset_machine(int type)
 {
 }
 
-void mon_tape_ctrl(int command)
+void mon_tape_ctrl(int port, int command)
 {
 }
 

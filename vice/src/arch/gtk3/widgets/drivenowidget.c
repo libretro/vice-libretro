@@ -63,7 +63,9 @@ static void on_radio_toggled(GtkWidget *widget, gpointer user_data)
     int number = GPOINTER_TO_INT(user_data);
 
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+#if 0
         debug_gtk3("setting drive number to %d.", number);
+#endif
         if (number_target != NULL) {
             *number_target = number;
         }
@@ -121,12 +123,16 @@ static GtkWidget *create_radio_group(int number)
 
 /** \brief  Create a drive#-selection widget
  *
- * \param[in]   number  currently selected drive number (0/1)
- * \param[out]  target  destination of the drive number on radio button clicks
+ * \param[in]   number      currently selected drive number (0/1)
+ * \param[out]  target      destination of the drive number on radio button
+ *                          clicks
+ * \param[in]   callback    user callback function to receieve drive number
  *
  * \return  GtkGrid
  */
-GtkWidget *drive_no_widget_create(int number, int *target, void (*callback)(int))
+GtkWidget *drive_no_widget_create(int number,
+                                  int *target,
+                                  void (*callback)(int))
 {
     GtkWidget *grid;
     GtkWidget *label;
@@ -140,8 +146,7 @@ GtkWidget *drive_no_widget_create(int number, int *target, void (*callback)(int)
         *target = number; /* make sure we don't end up with unintialized data */
     }
 
-    grid = gtk_grid_new();
-    gtk_grid_set_column_spacing(GTK_GRID(grid), 8);
+    grid = vice_gtk3_grid_new_spaced(8, 0);
 
     label = gtk_label_new("Drive #:");
     gtk_widget_set_halign(label, GTK_ALIGN_START);
@@ -150,7 +155,6 @@ GtkWidget *drive_no_widget_create(int number, int *target, void (*callback)(int)
     gtk_grid_attach(GTK_GRID(grid), group, 1, 0, 1, 1);
 
     /* connect signal handlers */
-    debug_gtk3("Connecting event handlers");
 
     /* The limit used to be NUM_DISK_UNITS, but that indicates the number of
      * units, not drives, so we may have to rename a few defines to cope with
@@ -177,8 +181,8 @@ GtkWidget *drive_no_widget_create(int number, int *target, void (*callback)(int)
 
 /** \brief  Update widget by setting a \a drive number
  *
- * \param[in,out]   drive number widget
- * \param[in]       drive number
+ * \param[in,out]   widget  drive number widget
+ * \param[in]       drive   drive number
  */
 void drive_no_widget_update(GtkWidget *widget, int drive)
 {

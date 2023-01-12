@@ -34,6 +34,7 @@
 #include "debug.h"
 #include "c128mem.h"
 #include "c128ui.h"
+#include "c128rom.h"
 #include "menu_c128hw.h"
 #include "menu_c64_common_expansions.h"
 #include "menu_c64cart.h"
@@ -47,6 +48,7 @@
 #include "menu_help.h"
 #include "menu_jam.h"
 #include "menu_joyport.h"
+#include "menu_joystick.h"
 #include "menu_media.h"
 #include "menu_midi.h"
 #include "menu_monitor.h"
@@ -61,6 +63,7 @@
 #include "menu_sound.h"
 #include "menu_speed.h"
 #include "menu_tape.h"
+#include "menu_userport.h"
 #include "menu_video.h"
 #include "resources.h"
 #include "ui.h"
@@ -170,7 +173,7 @@ static ui_menu_entry_t x128_main_menu[] = {
       MENU_ENTRY_SUBMENU,
       submenu_callback,
       (ui_callback_data_t)settings_manager_menu },
-#ifdef USE_SDLUI2
+#ifdef USE_SDL2UI
     { "Edit",
       MENU_ENTRY_SUBMENU,
       submenu_callback,
@@ -192,7 +195,7 @@ static ui_menu_entry_t x128_main_menu[] = {
 #endif
 static UI_MENU_CALLBACK(pause_callback_wrapper)
 {
-    x128_main_menu[MENU_ADVANCE_FRAME_IDX].status = 
+    x128_main_menu[MENU_ADVANCE_FRAME_IDX].status =
         sdl_pause_state || !sdl_menu_state ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
     x128_main_menu[MENU_VIRTUAL_KEYBOARD_IDX].status =
         sdl_pause_state ? MENU_STATUS_INACTIVE : MENU_STATUS_ACTIVE;
@@ -251,7 +254,9 @@ int c128ui_init(void)
 
     sdl_ui_set_menu_params = c128ui_set_menu_params;
 
-    uijoyport_menu_create(1, 1, 1, 1, 0);
+    uijoyport_menu_create(1, 1, 1, 1, 1);
+    uijoystick_menu_create(1, 1, 1, 1, 1);
+    uiuserport_menu_create(1);
     uisampler_menu_create();
     uicart_menu_create();
     uidrive_menu_create();
@@ -262,7 +267,7 @@ int c128ui_init(void)
     uiclockport_ide64_menu_create();
     uimedia_menu_create();
     sdl_ui_set_main_menu(x128_main_menu);
-    sdl_ui_vicii_font_init();
+    sdl_ui_font_init(C128_CHARGEN_NAME, 0, 0x800, 0);
     sdl_vkbd_set_vkbd(&vkbd_c128);
 
 #ifdef HAVE_FFMPEG
@@ -279,6 +284,9 @@ void c128ui_shutdown(void)
     uicart_menu_shutdown();
     uipalette_menu_shutdown();
     uijoyport_menu_shutdown();
+    uijoystick_menu_shutdown();
+    uiuserport_menu_shutdown();
+    uitapeport_menu_shutdown();
     uimedia_menu_shutdown();
 #ifdef HAVE_MIDI
     sdl_menu_midi_in_free();
@@ -292,5 +300,5 @@ void c128ui_shutdown(void)
 #ifdef HAVE_FFMPEG
     sdl_menu_ffmpeg_shutdown();
 #endif
-    sdl_ui_vicii_font_shutdown();
+    sdl_ui_font_shutdown();
 }

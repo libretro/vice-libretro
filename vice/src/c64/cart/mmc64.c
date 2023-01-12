@@ -196,7 +196,7 @@ static io_source_t mmc64_io1_clockport_enable_device = {
 
 /* from http://www.schoenfeld.de/inside/mmc64doc.txt:
  *
- * $DE01 / $DF21(W)(*):	bit 0: 0 = disable clock port, 1 = enable clockport
+ * $DE01 / $DF21(W)(*): bit 0: 0 = disable clock port, 1 = enable clockport
  *
  * (*) location depends on bit 3 of $DF11
  */
@@ -345,7 +345,7 @@ void mmc64_reset(void)
         cart_set_port_exrom_slot0(1);
         cart_port_config_changed_slot0();
 #else
-        cart_config_changed_slot0(0, 0, CMODE_READ);
+        cart_config_changed_slot0(CMODE_8KGAME, CMODE_8KGAME, CMODE_READ);
 #endif
     }
 }
@@ -450,7 +450,9 @@ static int set_mmc64_enabled(int value, void *param)
             LOG(("MMC64: set_enabled(1) '%s'", mmc64_bios_filename));
             if (mmc64_bios_filename) {
                 if (*mmc64_bios_filename) {
-                    if (cartridge_attach_image(CARTRIDGE_MMC64, mmc64_bios_filename) < 0) {
+                    /* try .crt first */
+                    if ((cartridge_attach_image(CARTRIDGE_CRT, mmc64_bios_filename) < 0) &&
+                        (cartridge_attach_image(CARTRIDGE_MMC64, mmc64_bios_filename) < 0)) {
                         LOG(("MMC64: set_enabled(1) did not register"));
                         return -1;
                     }
@@ -764,7 +766,7 @@ static void mmc64_reg_store(uint16_t addr, uint8_t value, int active)
                 if (mmc64_active) {
                     /* cart_set_port_exrom_slot0(0); */
                     log_message(mmc64_log, "disabling MMC64 (exrom:%d game:%d) mmc64_active: %d", mmc64_extexrom, mmc64_extgame, mmc64_active);
-                    cart_config_changed_slot0((uint8_t)(((mmc64_extexrom ^ 1) << 1) | mmc64_extgame), 
+                    cart_config_changed_slot0((uint8_t)(((mmc64_extexrom ^ 1) << 1) | mmc64_extgame),
                                               (uint8_t)(((mmc64_extexrom ^ 1) << 1) | mmc64_extgame), CMODE_READ);
                     mmc64_io2_device.io_source_prio = 0;
                 } else {
@@ -1354,10 +1356,11 @@ int mmc64_bin_attach(const char *filename, uint8_t *rawcart)
 
     mmc64_bios_offset = amount_read & 3;
     mmc64_bios_type = CARTRIDGE_FILETYPE_BIN;
+    set_mmc64_bios_filename(filename, NULL); /* set the resource */
     return mmc64_common_attach();
 }
 
-int mmc64_crt_attach(FILE *fd, uint8_t *rawcart)
+int mmc64_crt_attach(FILE *fd, uint8_t *rawcart, const char *filename)
 {
     crt_chip_header_t chip;
 
@@ -1375,6 +1378,7 @@ int mmc64_crt_attach(FILE *fd, uint8_t *rawcart)
 
     mmc64_bios_offset = 0;
     mmc64_bios_type = CARTRIDGE_FILETYPE_CRT;
+    set_mmc64_bios_filename(filename, NULL); /* set the resource */
     return mmc64_common_attach();
 }
 

@@ -29,15 +29,15 @@
 
 #include <stdio.h>
 
+#include "archdep.h"
 #include "c64-memory-hacks.h"
-#include "c64-snapshot.h"
 #include "c64.h"
 #include "c64gluelogic.h"
 #include "c64memsnapshot.h"
 #include "cia.h"
 #include "drive-snapshot.h"
 #include "drive.h"
-#include "ioutil.h"
+#include "serial.h"
 #include "joyport.h"
 #include "joystick.h"
 #include "keyboard.h"
@@ -53,8 +53,11 @@
 #include "vice-event.h"
 #include "vicii.h"
 
-#define SNAP_MAJOR 1
-#define SNAP_MINOR 1
+#include "c64-snapshot.h"
+
+
+#define SNAP_MAJOR 2
+#define SNAP_MINOR 0
 
 int c64_snapshot_write(const char *name, int save_roms, int save_disks, int event_mode)
 {
@@ -76,6 +79,7 @@ int c64_snapshot_write(const char *name, int save_roms, int save_disks, int even
         || ciacore_snapshot_write_module(machine_context.cia2, s) < 0
         || sid_snapshot_write_module(s) < 0
         || drive_snapshot_write_module(s, save_disks, save_roms) < 0
+        || fsdrive_snapshot_write_module(s) < 0
         || vicii_snapshot_write_module(s) < 0
         || c64_glue_snapshot_write_module(s) < 0
         || event_snapshot_write_module(s, event_mode) < 0
@@ -86,7 +90,7 @@ int c64_snapshot_write(const char *name, int save_roms, int save_disks, int even
         || joyport_snapshot_write_module(s, JOYPORT_2) < 0
         || userport_snapshot_write_module(s) < 0) {
         snapshot_close(s);
-        ioutil_remove(name);
+        archdep_remove(name);
         return -1;
     }
 
@@ -120,6 +124,7 @@ int c64_snapshot_read(const char *name, int event_mode)
         || ciacore_snapshot_read_module(machine_context.cia2, s) < 0
         || sid_snapshot_read_module(s) < 0
         || drive_snapshot_read_module(s) < 0
+        || fsdrive_snapshot_read_module(s) < 0
         || vicii_snapshot_read_module(s) < 0
         || c64_glue_snapshot_read_module(s) < 0
         || event_snapshot_read_module(s, event_mode) < 0

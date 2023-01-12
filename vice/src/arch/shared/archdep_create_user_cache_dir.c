@@ -1,5 +1,5 @@
 /** \file   archdep_create_user_cache_dir.c
- * \brief   Create user cache dir if it doesn't exist already
+ * \brief   Create XDG user cache dir
  *
  * \author  Bas Wassink <b.wassink@ziggo.nl>
  */
@@ -33,29 +33,26 @@
 #include <errno.h>
 #include <string.h>
 
-#include "lib.h"
-#include "log.h"
 #include "archdep_exit.h"
 #include "archdep_home_path.h"
-#include "archdep_join_paths.h"
-#include "archdep_mkdir.h"
 #include "archdep_user_cache_path.h"
-
-#ifdef ARCHDEP_OS_UNIX
-# include <sys/stat.h>
-# include <sys/types.h>
-#endif
+#include "archdep_mkdir.h"
+#include "lib.h"
+#include "log.h"
+#include "util.h"
 
 #include "archdep_create_user_cache_dir.h"
 
 
-/** \brief  Create user config dir if it doesn't exist
+/** \brief  Create user cache dir
+ *
+ * Create the XDG Base Directory Specification <tt>~/.cache/vice</tt> directory.
  */
 void archdep_create_user_cache_dir(void)
 {
-    char *cache = archdep_user_cache_path();
+    const char *cache = archdep_user_cache_path();
 
-#if defined(ARCHDEP_OS_UNIX) || defined(ARCHDEP_OS_HAIKU)
+#if defined(UNIX_COMPILE) || defined(HAIKU_COMPILE)
     const char *home = archdep_home_path();
     char *tmp;
 
@@ -65,7 +62,7 @@ void archdep_create_user_cache_dir(void)
      * XDG is a Freedesktop spec. We use it however for vicerc and other files
      * and it expected to be there
      */
-    tmp = archdep_join_paths(home, ".cache", NULL);    /* TODO: use define */
+    tmp = util_join_paths(home, ARCHDEP_XDG_CACHE_HOME, NULL);
     archdep_mkdir(tmp, 0755);
     errno = 0;
     lib_free(tmp);

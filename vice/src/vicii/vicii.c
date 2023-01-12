@@ -57,7 +57,6 @@
 #include "c64cartmem.h"
 #include "c64dtvblitter.h"
 #include "c64dtvdma.h"
-#include "clkguard.h"
 #include "dma.h"
 #include "lib.h"
 #include "log.h"
@@ -142,15 +141,6 @@ vicii_t vicii;
 
 static void vicii_set_geometry(void);
 
-static void clk_overflow_callback(CLOCK sub, void *unused_data)
-{
-    vicii.raster_irq_clk -= sub;
-    vicii.last_emulate_line_clk -= sub;
-    vicii.fetch_clk -= sub;
-    vicii.draw_clk -= sub;
-    vicii.sprite_fetch_clk -= sub;
-}
-
 void vicii_change_timing(machine_timing_t *machine_timing, int border_mode)
 {
     vicii_timing_set(machine_timing, border_mode);
@@ -191,13 +181,13 @@ inline void vicii_delay_clk(void)
 #endif
 }
 
-inline void vicii_handle_pending_alarms(int num_write_cycles)
+inline void vicii_handle_pending_alarms(CLOCK num_write_cycles)
 {
     if (vicii.viciie != 0) {
         vicii_delay_clk();
     }
 
-    if (num_write_cycles != 0) {
+    if (num_write_cycles != 0 && num_write_cycles <= maincpu_clk) {
         int f;
 
         /* Cycles can be stolen only during the read accesses, so we serve
@@ -260,7 +250,7 @@ inline void vicii_handle_pending_alarms(int num_write_cycles)
     }
 }
 
-void vicii_handle_pending_alarms_external(int num_write_cycles)
+void vicii_handle_pending_alarms_external(CLOCK num_write_cycles)
 {
     if (vicii.initialized) {
         vicii_handle_pending_alarms(num_write_cycles);
@@ -304,9 +294,9 @@ static int vicii_get_crt_type(void)
     switch (video) {
         case MACHINE_SYNC_PAL:
         case MACHINE_SYNC_PALN:
-            return 1; /* PAL */
+            return VIDEO_CRT_TYPE_PAL;
         default:
-            return 0; /* NTSC */
+            return VIDEO_CRT_TYPE_NTSC;
     }
 }
 
@@ -350,7 +340,9 @@ static int init_raster(void)
         return -1;
     }
     raster_modes_set_idle_mode(raster->modes, VICII_IDLE_MODE);
-    resources_touch("VICIIVideoCache");
+    if (machine_class != VICE_MACHINE_VSID) {
+        resources_touch("VICIIVideoCache");
+    }
 
     vicii_set_geometry();
 
@@ -358,8 +350,6 @@ static int init_raster(void)
         log_error(vicii.log, "Cannot load palette.");
         return -1;
     }
-
-    raster_set_title(raster, machine_name);
 
     if (raster_realize(raster) < 0) {
         return -1;
@@ -428,8 +418,6 @@ raster_t *vicii_init(unsigned int flag)
     vicii.buf_offset = 0;
 
     vicii.initialized = 1;
-
-    clk_guard_add_callback(maincpu_clk_guard, clk_overflow_callback, NULL);
 
     return &vicii.raster;
 }
@@ -1251,9 +1239,7 @@ void vicii_raster_draw_alarm_handler(CLOCK offset, void *data)
     if (vicii.raster.current_line == 0) {
         /* no vsync here for NTSC  */
         if ((unsigned int)vicii.last_displayed_line < vicii.screen_height) {
-            raster_skip_frame(&vicii.raster,
-                              vsync_do_vsync(vicii.raster.canvas,
-                                             vicii.raster.skip_frame));
+            vsync_do_vsync(vicii.raster.canvas);
         }
         vicii.memptr = 0;
         vicii.mem_counter = 0;
@@ -1294,9 +1280,7 @@ void vicii_raster_draw_alarm_handler(CLOCK offset, void *data)
     /* vsync for NTSC */
     if ((unsigned int)vicii.last_displayed_line >= vicii.screen_height
         && vicii.raster.current_line == vicii.last_displayed_line - vicii.screen_height + 1) {
-        raster_skip_frame(&vicii.raster,
-                          vsync_do_vsync(vicii.raster.canvas,
-                                         vicii.raster.skip_frame));
+        vsync_do_vsync(vicii.raster.canvas);
     }
 
     if (vicii.viciidtv) {

@@ -31,31 +31,23 @@
 #include <string.h>
 #include <gtk/gtk.h>
 
+#include "archdep.h"
 #include "debug_gtk3.h"
-
+#include "vice_gtk3.h"
+#include "hotkeymap.h"
 #include "kbd.h"
 #include "lib.h"
+#include "log.h"
 #include "machine.h"
 #include "resources.h"
+#include "ui.h"
+#include "uiactions.h"
 #include "uiapi.h"
 #include "uiabout.h"
 #include "uistatusbar.h"
 #include "util.h"
 
 #include "uimenu.h"
-
-
-/** \brief  Menu accelerator object
- */
-typedef struct ui_accel_data_s {
-    GtkWidget *widget;      /**< widget connected to the accelerator */
-    ui_menu_item_t *item;   /**< menu item connected to the accelerator */
-} ui_accel_data_t;
-
-
-/** \brief  Reference to the accelerator group
- */
-static GtkAccelGroup *accel_group = NULL;
 
 
 /** \brief  Create an empty submenu and add it to a menu bar
@@ -79,192 +71,200 @@ GtkWidget *ui_menu_submenu_create(GtkWidget *bar, const char *label)
 }
 
 
-/** \brief  Constructor for accelerator data
- *
- * \param[in]   widget  widget for the accelerator data
- * \param[in]   item    menu item for the accelerator data
- *
- * \return  heap-allocated accelerator data (owned by VICE)
- */
-static ui_accel_data_t *ui_accel_data_new(GtkWidget *widget, ui_menu_item_t *item)
-{
-    ui_accel_data_t *accel_data = lib_malloc(sizeof(ui_accel_data_t));
-    accel_data->widget = widget;
-    accel_data->item = item;
-    return accel_data;
-}
-
-
-/** \brief  Destructor for accelerator data
- *
- * FIXME:   this doesn't get triggered
- *
- * \param[in,out]   data    accelerator data
- * \param[in]       closure closure (unused)
- */
-static void ui_accel_data_delete(gpointer data, GClosure *closure)
-{
-    debug_gtk3("Freeing accelerator data\n");
-#if 0
-    lib_free(data);
-#endif
-}
-
-
 /** \brief  Handler for the 'destroy' event of a menu item
  *
- * This 'hack' is needed since the 'finalize' callback of the GClosures we use
- * for accelerators doesn't get called, which means the accelerator data doesn't
- * get cleaned up, which means we leak memory.
- *
  * \param[in]       item        menu item
- * \param[in,out]   accel_data  accelator data (optional)
+ * \param[in,out]   unused      extra event data (unused)
  */
-static void on_menu_item_destroy(GtkWidget *item, gpointer accel_data)
+static void on_menu_item_destroy(GtkWidget *item, gpointer unused)
 {
-    if (accel_data != NULL) {
-        lib_free(accel_data);
+    GtkAccelLabel *label;
+    label = GTK_ACCEL_LABEL(gtk_bin_get_child(GTK_BIN(item)));
+    if (label != NULL) {
+        guint keysym;
+        guint mask;
+
+        gtk_accel_label_get_accel(label, &keysym, &mask);
+        ui_remove_accelerator(keysym, mask);
     }
 }
 
-
-/** \brief  Callback that forwards accelerator codes
+/** \brief  Handler for the 'activate' event of a menu item
  *
- * \param[in]       accel_grp       accelerator group (unused)
- * \param[in]       acceleratable   ? (unused)
- * \param[in]       keyval          GDK keyval (unused)
- * \param[in]       modifier        GDK key modifier(s) (unused)
- * \param[in,out]   user_data       accelerator data
+ * Used for non-radio button items.
+ *
+ * \param[in]   item        menu item
+ * \param[in]   action_id   UI action ID
  */
-static void handle_accelerator(GtkAccelGroup *accel_grp,
-                               GObject *acceleratable,
-                               guint keyval,
-                               GdkModifierType modifier,
-                               gpointer user_data)
+static void on_menu_item_activate(GtkWidget *item, gpointer action_id)
 {
-    ui_accel_data_t *accel_data = (ui_accel_data_t *)user_data;
-    accel_data->item->callback(accel_data->widget, accel_data->item->data);
+    debug_gtk3("Called with action ID %d", GPOINTER_TO_INT(action_id));
+    ui_action_trigger(GPOINTER_TO_INT(action_id));
+}
+
+/** \brief  Handler for the 'toggled' event of a menu item
+ *
+ * Used for radio button items.
+ *
+ * \param[in]   item        menu item
+ * \param[in]   action_id   UI action ID
+ */
+static void on_menu_item_toggled(GtkWidget *item, gpointer action_id)
+{
+    gint id = GPOINTER_TO_INT(action_id);
+#if 0
+    debug_gtk3("Called with action ID %d (%s)", id, ui_action_get_name(id));
+#endif
+    /* only trigger the associated action when the radio button is on */
+    if (gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(item))) {
+#if 0
+        debug_gtk3("Item is active");
+#endif
+        ui_action_trigger(id);
+    }
 }
 
 
 /** \brief  Add menu \a items to \a menu
  *
- * \param[in,out]   menu    Gtk menu
- * \param[in]       items   menu items to add to \a menu
+ * \param[in,out]   menu        Gtk menu
+ * \param[in]       items       menu items to add to \a menu
+ * \param[in]       window_id   window ID (PRIMARY_WINDOW or SECONDARY_WINDOW)
  *
  * \return  \a menu
  */
-GtkWidget *ui_menu_add(GtkWidget *menu, ui_menu_item_t *items)
+GtkWidget *ui_menu_add(GtkWidget *menu, const ui_menu_item_t *items, gint window_id)
 {
     size_t i = 0;
+    GSList *group = NULL;
+
     while (items[i].label != NULL || items[i].type >= 0) {
         GtkWidget *item = NULL;
         GtkWidget *submenu;
-        ui_accel_data_t *accel_data = NULL;
+        gulong handler_id = 0;
 
         switch (items[i].type) {
-            case UI_MENU_TYPE_ITEM_ACTION:  /* fall through */
+            case UI_MENU_TYPE_ITEM_ACTION:
                 /* normal callback item */
+                group = NULL;   /* terminate radio button group */
                 item = gtk_menu_item_new_with_mnemonic(items[i].label);
-                if (items[i].callback != NULL) {
-                    if (items[i].unlocked) {
-                        g_signal_connect_unlocked(
-                            item,
-                            "activate",
-                            G_CALLBACK(items[i].callback),
-                            (gpointer)(items[i].data));
-                    } else {
-                        g_signal_connect(
-                            item,
-                            "activate",
-                            G_CALLBACK(items[i].callback),
-                            (gpointer)(items[i].data));
-                    }
-                } else {
-                    /* no callback: 'grey-out'/'ghost' the item */
-                    gtk_widget_set_sensitive(item, FALSE);
-                }
                 break;
+
             case UI_MENU_TYPE_ITEM_CHECK:
                 /* check mark item */
+                group = NULL;   /* terminate radio button group */
                 item = gtk_check_menu_item_new_with_mnemonic(items[i].label);
-                if (items[i].callback != NULL) {
-                   /* use `data` as the resource to determine the state of
-                     * the checkmark
-                     */
-                    if (items[i].data != NULL) {
-                        int state;
-                        resources_get_int((const char *)items[i].data, & state);
-                        gtk_check_menu_item_set_active(
-                                GTK_CHECK_MENU_ITEM(item), (gboolean)state);
-                    }
-                    /* connect signal handler AFTER setting the state, otherwise
-                     * the callback gets triggered, leading to odd results */
-                    if (items[i].unlocked) {
-                        g_signal_connect_unlocked(
-                            item,
-                            "activate",
-                            G_CALLBACK(items[i].callback),
-                            items[i].data);
-                    } else {
-                        g_signal_connect(
-                            item,
-                            "activate",
-                            G_CALLBACK(items[i].callback),
-                            items[i].data);
-                    }
-                } else {
-                    /* grey out */
-                    gtk_widget_set_sensitive(item, FALSE);
-                }
+                break;
+
+            case UI_MENU_TYPE_ITEM_RADIO_INT:   /* fall through */
+            case UI_MENU_TYPE_ITEM_RADIO_STR:
+                /* radio button item */
+                item = gtk_radio_menu_item_new_with_label(group, items[i].label);
+                group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(item));
                 break;
 
             case UI_MENU_TYPE_SEPARATOR:
                 /* add a separator */
+                group = NULL;   /* terminate radio button group */
                 item = gtk_separator_menu_item_new();
                 break;
 
             case UI_MENU_TYPE_SUBMENU:
                 /* add a submenu */
+                group = NULL;   /* terminate radio button group */
                 submenu = gtk_menu_new();
                 item = gtk_menu_item_new_with_mnemonic(items[i].label);
                 gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), submenu);
-                ui_menu_add(submenu, (ui_menu_item_t *)items[i].data);
+                ui_menu_add(submenu, items[i].submenu, window_id);
                 break;
 
             default:
+                group = NULL;
                 item = NULL;
                 break;
         }
-        if (item != NULL) {
 
-            if (items[i].keysym != 0 && items[i].callback != NULL) {
-                GClosure *accel_closure;
-
-                /* Normally you would use gtk_widget_add_accelerator
-                 * here, but that will disable the accelerators if the
-                 * menu is hidden, which can be configured to happen
-                 * while in fullscreen. We instead create the closure
-                 * by hand, add it to the GtkAccelGroup, and update
-                 * the accelerator information. */
-                accel_data = ui_accel_data_new(item, &items[i]);
-                accel_closure = g_cclosure_new(G_CALLBACK(handle_accelerator),
-                                               accel_data,
-                                               ui_accel_data_delete);
+        if (items[i].action_id > ACTION_NONE) {
+            /* radio buttons use the "toggled" event */
+            if (items[i].type == UI_MENU_TYPE_ITEM_RADIO_INT ||
+                    items[i].type == UI_MENU_TYPE_ITEM_RADIO_STR) {
                 if (items[i].unlocked) {
-                    gtk_accel_group_connect(accel_group, items[i].keysym, items[i].modifier, GTK_ACCEL_MASK, accel_closure);
+                    handler_id = g_signal_connect_unlocked(
+                            item, "toggled",
+                            G_CALLBACK(on_menu_item_toggled),
+                            GINT_TO_POINTER(items[i].action_id));
                 } else {
-                    vice_locking_gtk_accel_group_connect(accel_group, items[i].keysym, items[i].modifier, GTK_ACCEL_MASK, accel_closure);
+                    handler_id = g_signal_connect(
+                            item, "toggled",
+                            G_CALLBACK(on_menu_item_toggled),
+                            GINT_TO_POINTER(items[i].action_id));
                 }
-                gtk_accel_label_set_accel(GTK_ACCEL_LABEL(gtk_bin_get_child(GTK_BIN(item))), items[i].keysym, items[i].modifier);
+            } else {
+                if (items[i].unlocked) {
+                    handler_id = g_signal_connect_unlocked(
+                            item, "activate",
+                            G_CALLBACK(on_menu_item_activate),
+                            GINT_TO_POINTER(items[i].action_id));
+                } else {
+                    handler_id = g_signal_connect(
+                            item, "activate",
+                            G_CALLBACK(on_menu_item_activate),
+                            GINT_TO_POINTER(items[i].action_id));
+                }
             }
+        }
 
+        if (item != NULL) {
             gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
-            /* the closure's callback doesn't trigger due to mysterious reasons,
-             * so we use the menu item to free the accelerator's data
+
+            /* destroy handler to remove an accelerator from its accelerator
+             * group, should we decide to add/remove menu items during runtime.
              */
-            g_signal_connect_unlocked(item, "destroy", G_CALLBACK(on_menu_item_destroy),
-                    accel_data);
+            g_signal_connect_unlocked(item,
+                                      "destroy",
+                                      G_CALLBACK(on_menu_item_destroy),
+                                      NULL);
+
+            /* set signal handler ID of the 'activate' signal which we later
+             * have to use to toggle the checkbox from the callback while
+             * temporarily blocking the signal handler to avoid recursively
+             * triggering the callback.
+             */
+            g_object_set_data(G_OBJECT(item),
+                              "HandlerID",
+                              GULONG_TO_POINTER(handler_id));
+
+            /* set action name */
+            g_object_set_data(G_OBJECT(item),
+                              "ActionID",
+                              GINT_TO_POINTER(items[i].action_id));
+
+            /* add item to table of references if it triggers a UI action */
+            if (items[i].action_id > ACTION_NONE) {
+
+                hotkey_map_t *map;
+
+                /* add to hotkey maps or update */
+                if (window_id == PRIMARY_WINDOW) {
+                    map = hotkey_map_new();
+                    map->action = items[i].action_id;
+                    map->decl = &items[i];
+                    hotkey_map_append(map);
+                } else {
+                    map = hotkey_map_get_by_action(items[i].action_id);
+                    if (map == NULL) {
+                        /* this shouldn't happen! */
+                        debug_gtk3("Failed to locate hotkey mapping object"
+                                   "for action %d (%s).",
+                                   items[i].action_id,
+                                   ui_action_get_name(items[i].action_id));
+                    }
+                }
+                if (map != NULL) {
+                    map->item[window_id] = item;
+                    map->handler[window_id] = handler_id;
+                }
+            }
         }
         i++;
     }
@@ -272,13 +272,7 @@ GtkWidget *ui_menu_add(GtkWidget *menu, ui_menu_item_t *items)
 }
 
 
-/** \brief  Create accelerator group and add it to \a window
- *
- * \param[in]       window  top level window
- */
-void ui_menu_init_accelerators(GtkWidget *window)
-{
-    accel_group = gtk_accel_group_new();
-    gtk_window_add_accel_group(GTK_WINDOW(window), accel_group);
-}
+
+
+
 

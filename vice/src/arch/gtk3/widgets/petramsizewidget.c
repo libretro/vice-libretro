@@ -68,7 +68,6 @@ static void (*glue_func)(int);
  */
 static void on_ram_size_changed_callback(GtkWidget *widget, int ram)
 {
-    debug_gtk3("RAM = %dKiB.", ram);
     if (glue_func != NULL) {
         glue_func(ram);
     }
@@ -91,10 +90,10 @@ GtkWidget *pet_ram_size_widget_create(void)
     grid = vice_gtk3_grid_new_spaced_with_label(
             VICE_GTK3_DEFAULT, VICE_GTK3_DEFAULT,
             "Memory size", 1);
-    g_object_set(G_OBJECT(grid), "margin-top", 8, NULL);
+    gtk_widget_set_margin_top(grid, 8);
     group = vice_gtk3_resource_radiogroup_new("RamSize", ram_sizes,
             GTK_ORIENTATION_VERTICAL);
-    g_object_set(group, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(group, 16);
     gtk_grid_attach(GTK_GRID(grid), group, 0, 1, 1, 1);
 
     gtk_widget_show_all(grid);
@@ -131,11 +130,5 @@ void pet_ram_size_widget_sync(GtkWidget *widget)
     GtkWidget *group;
 
     group = gtk_grid_get_child_at(GTK_GRID(widget), 0, 1);
-    debug_gtk3("updating RAM size from resource.");
-    if (vice_gtk3_resource_radiogroup_sync(group)) {
-        debug_gtk3("OK.");
-    } else {
-        debug_gtk3("failed.");
-    }
-
+    vice_gtk3_resource_radiogroup_sync(group);
 }

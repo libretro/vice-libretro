@@ -30,14 +30,16 @@
 
 #include <string.h>
 
+#include "archdep.h"
 #include "charset.h"
-#include "fsdevice-filename.h"
 #include "fsdevicetypes.h"
-#include "ioutil.h"
 #include "lib.h"
 #include "log.h"
 #include "resources.h"
 #include "vdrive.h"
+
+#include "fsdevice-filename.h"
+
 
 #ifdef DEBUGFILENAME
 #define DBG(x)  printf x
@@ -45,9 +47,9 @@
 #define DBG(x)
 #endif
 
-/* A lot of programs will not work right with filenames that are longer than 16 
-   characters, so we must shorten them somehow. unfortunately this is less than 
-   trivial :/ 
+/* A lot of programs will not work right with filenames that are longer than 16
+   characters, so we must shorten them somehow. unfortunately this is less than
+   trivial :/
 
    - when creating a new file, we can just pad the name to 16 characters. this
      is pretty much what a real CBM drive would do and should cause no side
@@ -67,7 +69,7 @@
         testfoobartestest.prg   becomes     testfoobartest0/
         testfoobartestAB.prg    becomes     testfoobartest1/
 
-   - when opening an existing file, we iterate through the current work 
+   - when opening an existing file, we iterate through the current work
      directory, convert each filename to a short name using the algorithm above,
      and then compare if the result matches the filename we want to open. if so,
      we can use the long name of the file to open it.
@@ -76,6 +78,12 @@
     provided names in any way) when "FSDeviceLongNames" is set to "1".
 
 */
+
+/* character to be used as a marker for long names. this must be a valid character
+   in a petscii filename, but an invalid character in the host filesystem. in
+   practise that means we have to use the forward slash, as this is the only
+   invalid character in filenames on linux. */
+#define LONGNAMEMARKER '/'
 
 /*
     convert real (long) name into shortened representation
@@ -86,43 +94,42 @@
 
 #define MAXDIRPOSMARK (10+26+26)
 
-static int _limit_longname(struct ioutil_dir_s *ioutil_dir, vdrive_t *vdrive, char *longname, int mode)
+static int _limit_longname(archdep_dir_t *archdep_dir, vdrive_t *vdrive, char *longname, int mode)
 {
-    char *direntry;
-    char *newname;
+    const char *direntry;
+    char newname[ARCHDEP_PATH_MAX];
     int longnames;
     int dirpos = 0;
     int tmppos;
-    char *dirposmark = { "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" };
+    char *dirposmark[2] = {
+        "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"};
 
     DBG(("limit_longname enter '%s' mode: %d\n", longname, mode));
-    if (resources_get_int("FSDeviceLongNames", &longnames) < 0) {    
+    if (resources_get_int("FSDeviceLongNames", &longnames) < 0) {
         return -1;
     }
 
-    /* get a buffer for the new name */
-    newname = lib_malloc(ioutil_maxpathlen());
-
     if (!longnames) {
         if (strlen(longname) > 16) {
-            tmppos = ioutil_getdirpos(ioutil_dir);
-            ioutil_resetdir(ioutil_dir);
+            tmppos = archdep_telldir(archdep_dir);
+            archdep_rewinddir(archdep_dir);
 
             while(1) {
-                direntry = ioutil_readdir(ioutil_dir);
+                direntry = archdep_readdir(archdep_dir);
                 if (direntry == NULL) {
                     break;
                 }
                 strcpy(newname, direntry);
                 if (mode) {
-                    charset_petconvstring((uint8_t *)newname, 0);   /* ASCII name to PETSCII */
+                    charset_petconvstring((uint8_t *)newname, CONVERT_TO_PETSCII);   /* ASCII name to PETSCII */
                 }
                 if (!strncmp(newname, longname, 14)) {
                     dirpos++;
                     /* handle max count */
                     if (dirpos == MAXDIRPOSMARK) {
                         log_error(LOG_DEFAULT, "could not make a unique short name for '%s'", longname);
-                        ioutil_setdirpos(ioutil_dir, tmppos);
+                        archdep_seekdir(archdep_dir, tmppos);
                         return -1;
                     }
                     DBG(("limit_longname found partial '%s'\n", longname));
@@ -130,33 +137,32 @@ static int _limit_longname(struct ioutil_dir_s *ioutil_dir, vdrive_t *vdrive, ch
                 DBG(("limit_longname>%d '%s'->'%s' (%s)\n", dirpos, direntry, newname, longname));
                 if (!strcmp(newname, longname)) {
                     DBG(("limit_longname found full '%s'\n", longname));
-                    longname[14] = dirposmark[dirpos];
-                    longname[15] = '/';     /* FIXME: use macro */
+                    longname[14] = dirposmark[mode][dirpos];
+                    longname[15] = LONGNAMEMARKER;
                     longname[16] = 0;
                     break;
                 }
             }
-            ioutil_setdirpos(ioutil_dir, tmppos);
+            archdep_seekdir(archdep_dir, tmppos);
         }
     }
     DBG(("limit_longname return '%s'\n", longname));
-    lib_free(newname);
 
     return 0;
 }
 
 static int limit_longname(vdrive_t *vdrive, char *longname, int mode)
 {
-    struct ioutil_dir_s *ioutil_dir;
+    archdep_dir_t *archdep_dir;
     char *prefix;
     int ret = -1;
 
     prefix = fsdevice_get_path(vdrive->unit);
     DBG(("limit_longname path '%s'\n", prefix));
 
-    ioutil_dir = ioutil_opendir(prefix, IOUTIL_OPENDIR_ALL_FILES);
-    ret = _limit_longname(ioutil_dir, vdrive, longname, mode);
-    ioutil_closedir(ioutil_dir);
+    archdep_dir = archdep_opendir(prefix, ARCHDEP_OPENDIR_ALL_FILES);
+    ret = _limit_longname(archdep_dir, vdrive, longname, mode);
+    archdep_closedir(archdep_dir);
 
     return ret;
 }
@@ -170,49 +176,49 @@ static int limit_longname(vdrive_t *vdrive, char *longname, int mode)
 
 static char *expand_shortname(vdrive_t *vdrive, char *shortname, int mode)
 {
-    struct ioutil_dir_s *ioutil_dir;
-    char *direntry;
+    archdep_dir_t *host_dir;
+    const char *direntry;
     char *prefix;
     char *longname;
     int longnames;
 
-    if (resources_get_int("FSDeviceLongNames", &longnames) < 0) {    
+    if (resources_get_int("FSDeviceLongNames", &longnames) < 0) {
         longnames = 0;
     }
 
     DBG(("expand_shortname shortname '%s' mode: %d\n", shortname, mode));
 
     /* get a buffer for the new name */
-    longname = lib_malloc(ioutil_maxpathlen());
+    longname = lib_malloc(ARCHDEP_PATH_MAX);
 
     if (!longnames) {
         prefix = fsdevice_get_path(vdrive->unit);
         DBG(("expand_shortname path '%s'\n", prefix));
 
-        ioutil_dir = ioutil_opendir(prefix, IOUTIL_OPENDIR_ALL_FILES);
+        host_dir = archdep_opendir(prefix, ARCHDEP_OPENDIR_ALL_FILES);
 
         while(1) {
-            direntry = ioutil_readdir(ioutil_dir);
+            direntry = archdep_readdir(host_dir);
             if (direntry == NULL) {
                 break;
             }
             /* create the short name for this entry and see if it matches */
             strcpy(longname, direntry);
-            _limit_longname(ioutil_dir, vdrive, longname, 0);
+            _limit_longname(host_dir, vdrive, longname, 0);
             if (mode) {
-                charset_petconvstring((uint8_t *)longname, 0);   /* ASCII name to PETSCII */
+                charset_petconvstring((uint8_t *)longname, CONVERT_TO_PETSCII);   /* ASCII name to PETSCII */
             }
             DBG(("expand_shortname>'%s'->'%s'('%s')\n", direntry, longname, shortname));
             if (!strcmp(longname, shortname)) {
                 strcpy(longname, direntry);
                 if (mode) {
-                    charset_petconvstring((uint8_t *)longname, 0);   /* ASCII name to PETSCII */            
+                    charset_petconvstring((uint8_t *)longname, CONVERT_TO_PETSCII);   /* ASCII name to PETSCII */
                 }
-                ioutil_closedir(ioutil_dir);
+                archdep_closedir(host_dir);
                 return longname;
             }
         }
-        ioutil_closedir(ioutil_dir);
+        archdep_closedir(host_dir);
     }
     /* copy original string to the new name */
     strcpy(longname, shortname);
@@ -227,7 +233,13 @@ static char *expand_shortname(vdrive_t *vdrive, char *shortname, int mode)
 */
 char *fsdevice_expand_shortname(vdrive_t *vdrive, char *name)
 {
+#ifdef DEBUGFILENAME
+    char *ptr = expand_shortname(vdrive, name, 1);
+    DBG(("fsdevice_expand_shortname '%s' (%02x) -> '%s'\n", name, (unsigned char)name[14], ptr));
+    return ptr;
+#else
     return expand_shortname(vdrive, name, 1);
+#endif
 }
 
 /* takes a short name and returns a pointer to a long name
@@ -236,12 +248,18 @@ char *fsdevice_expand_shortname(vdrive_t *vdrive, char *name)
 */
 char *fsdevice_expand_shortname_ascii(vdrive_t *vdrive, char *name)
 {
+#ifdef DEBUGFILENAME
+    char *ptr = expand_shortname(vdrive, name, 1);
+    DBG(("fsdevice_expand_shortname_ascii '%s' (%02x) -> '%s'\n", name, (unsigned char)name[14], ptr));
+    return ptr;
+#else
     return expand_shortname(vdrive, name, 0);
+#endif
 }
 
 
 /* limit a filename length to 16 characters. works in-place, ie it changes
-   the input string 
+   the input string
 
    used when listing the directory, in this case we must create a unique short
    name that can be expanded to the full long name later.
@@ -254,7 +272,7 @@ int fsdevice_limit_namelength(vdrive_t *vdrive, uint8_t *name)
 }
 
 /* limit a filename length to 16 characters. works in-place, ie it changes
-   the input string 
+   the input string
 
    used when listing the directory, in this case we must create a unique short
    name that can be expanded to the full long name later.
@@ -267,7 +285,7 @@ int fsdevice_limit_namelength_ascii(vdrive_t *vdrive, char *name)
 }
 
 /* limit a filename length to 16 characters. works in-place, ie it changes
-   the input string 
+   the input string
 
     used when creating a file. in this case we can simply cut off the long
     name after 16 chars - just like a real CBM drive would do.
@@ -276,7 +294,7 @@ int fsdevice_limit_createnamelength(vdrive_t *vdrive, char *name)
 {
     int longnames;
 
-    if (resources_get_int("FSDeviceLongNames", &longnames) < 0) {    
+    if (resources_get_int("FSDeviceLongNames", &longnames) < 0) {
         return -1;
     }
 

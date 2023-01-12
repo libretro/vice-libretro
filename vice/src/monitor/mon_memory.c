@@ -219,9 +219,9 @@ static void memory_to_string(char *buf, MEMSPACE mem, uint16_t addr,
     for (i = 0; i < len; i++) {
         val = mon_get_mem_val(mem, addr);
 
-#ifndef SDL_UI_SUPPORT
+#if !defined(USE_SDLUI) && !defined(USE_SDL2UI)
         if (petscii) {
-            val = charset_p_toascii(val, 0);
+            val = charset_p_toascii(val, CONVERT_WITHOUT_CTRLCODES);
         }
 
         buf[i] = isprint(val) ? val : '.';
@@ -319,10 +319,10 @@ void mon_memory_display(int radix_type, MON_ADDR start_addr, MON_ADDR end_addr, 
             switch (radix_type) {
                 case 0: /* special case == petscii text */
                     if (format == DF_PETSCII) {
-                        mon_out("%c", charset_p_toascii(v, 1));
+                        mon_out("%c", charset_p_toascii(v, CONVERT_WITH_CTRLCODES));
                     } else {
                         mon_out("%c", charset_p_toascii(
-                                    charset_screencode_to_petcii(v), 1));
+                                    charset_screencode_to_petcii(v), CONVERT_WITH_CTRLCODES));
                     }
                     real_width++;
                     cnt++;

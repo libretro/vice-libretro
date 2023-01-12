@@ -27,6 +27,9 @@
 
 /* #define DEBUG_VIDEO */
 
+/* use all neutral settings in the color calculations */
+/* #define DEBUG_NEUTRAL_SETTINGS */
+
 #ifdef DEBUG_VIDEO
 #define DBG(_x_)        log_debug _x_
 #else
@@ -51,20 +54,6 @@
 #include "video-color.h"
 #include "video.h"
 
-uint32_t gamma_red[256 * 3];
-uint32_t gamma_grn[256 * 3];
-uint32_t gamma_blu[256 * 3];
-
-uint32_t gamma_red_fac[256 * 3 * 2];
-uint32_t gamma_grn_fac[256 * 3 * 2];
-uint32_t gamma_blu_fac[256 * 3 * 2];
-
-uint32_t alpha = 0;
-
-static uint32_t color_red[256];
-static uint32_t color_grn[256];
-static uint32_t color_blu[256];
-
 #define RMIN(x,min) (((x) < (min)) ? (min) : (x))
 #define RMAX(x,max) (((x) > (max)) ? (max) : (x))
 #define RMINMAX(x,min,max) RMIN(RMAX(x,max),min)
@@ -82,16 +71,16 @@ typedef struct video_ycbcr_palette_s {
     video_ycbcr_color_t *entries;
 } video_ycbcr_palette_t;
 
-void video_render_setrawrgb(unsigned int index, uint32_t r, uint32_t g, uint32_t b)
+void video_render_setrawrgb(video_render_color_tables_t *color_tab, unsigned int index, uint32_t r, uint32_t g, uint32_t b)
 {
-    color_red[index] = r;
-    color_grn[index] = g;
-    color_blu[index] = b;
+    color_tab->color_red[index] = r;
+    color_tab->color_grn[index] = g;
+    color_tab->color_blu[index] = b;
 }
 
-void video_render_setrawalpha(uint32_t a)
+void video_render_setrawalpha(video_render_color_tables_t *color_tab, uint32_t a)
 {
-    alpha = a;
+    color_tab->alpha = a;
 }
 
 static video_ycbcr_palette_t *video_ycbcr_palette_create(unsigned int num_entries)
@@ -322,16 +311,16 @@ static inline void video_convert_rgb_to_ycbcr(const palette_entry_t *src, video_
 #define INT_SAT_ADJ (1.75f)
 
 static void video_convert_cbm_to_ycbcr(const video_cbm_color_t *src,
-                                       float basesat, float phase,
+                                       float phase,
                                        video_ycbcr_color_t *dst, int video)
 {
+    float basesat = src->saturation / INT_SAT_ADJ;
     /* DBG(("video_convert_cbm_to_ycbcr sat:%f phase:%f", basesat, phase)); */
 
     dst->y = src->luminance;
     /* FIXME: this is a hack to adjust the output of the internal color generator somewhat
               to align with the pepto palette when all neutral parameters are used */
     dst->y /= INT_LUMA_ADJ;
-    basesat /= INT_SAT_ADJ;
 
     /* chrominance (U and V) of color */
     if (video) {
@@ -397,7 +386,6 @@ static void video_convert_renderer_to_rgb(video_ycbcr_color_t *src,
         video_convert_yiq_to_rgb(src, &r, &g, &b);
     }
 
-    dst->dither = 0;
     dst->red = (uint8_t)r;
     dst->green = (uint8_t)g;
     dst->blue = (uint8_t)b;
@@ -452,7 +440,6 @@ static void video_convert_renderer_to_rgb_gamma(video_ycbcr_color_t *src, float 
     g = (int)gf;
     b = (int)bf;
 
-    dst->dither = 0;
     dst->red = (uint8_t)RMAX(r,255);
     dst->green = (uint8_t)RMAX(g,255);
     dst->blue = (uint8_t)RMAX(b,255);
@@ -493,20 +480,27 @@ static float video_get_gamma(video_resources_t *video_resources, int video)
 }
 
 /* gammatable calculation */
-static void video_calc_gammatable(video_resources_t *video_resources, int video)
+static void video_calc_gammatable(video_render_color_tables_t *color_tab, video_resources_t *video_resources, int video)
 {
     int i;
     float bri, con, gam, scn, v;
     double factor;
     uint32_t vi;
-
-    bri = ((float)(video_resources->color_brightness - 1000))
-          * (128.0f / 1000.0f);
+    DBG(("video_calc_gammatable"));
+#ifdef DEBUG_NEUTRAL_SETTINGS
+    scn = 1.0;
+    bri = 0.0;
+    con = 1.0;
+    gam = 1.0;
+#else
+    /* default: bri:0,000000 con:1,250000 gam:0,785714 scn:0,750000 */
+    bri = ((float)(video_resources->color_brightness - 1000)) * (128.0f / 1000.0f);
     con = ((float)(video_resources->color_contrast   )) / 1000.0f;
     gam = video_get_gamma(video_resources, video);
     scn = ((float)(video_resources->pal_scanlineshade)) / 1000.0f;
-
+#endif
     factor = pow(255.0f, 1.0f - gam);
+    DBG((" bri:%f con:%f gam:%f scn:%f", bri, con, gam, scn));
     for (i = 0; i < (256 * 3); i++) {
         v = video_gamma((float)(i - 256), factor, gam, bri, con);
 
@@ -514,27 +508,32 @@ static void video_calc_gammatable(video_resources_t *video_resources, int video)
         if (vi > 255) {
             vi = 255;
         }
-        gamma_red[i] = color_red[vi];
-        gamma_grn[i] = color_grn[vi];
-        gamma_blu[i] = color_blu[vi];
+        color_tab->gamma_red[i] = color_tab->color_red[vi];
+        color_tab->gamma_grn[i] = color_tab->color_grn[vi];
+        color_tab->gamma_blu[i] = color_tab->color_blu[vi];
 
         vi = (uint32_t)(v * scn);
         if (vi > 255) {
             vi = 255;
         }
-        gamma_red_fac[i * 2] = color_red[vi];
-        gamma_grn_fac[i * 2] = color_grn[vi];
-        gamma_blu_fac[i * 2] = color_blu[vi];
+        color_tab->gamma_red_fac[i * 2] = color_tab->color_red[vi];
+        color_tab->gamma_grn_fac[i * 2] = color_tab->color_grn[vi];
+        color_tab->gamma_blu_fac[i * 2] = color_tab->color_blu[vi];
         v = video_gamma((float)(i - 256) + 0.5f, factor, gam, bri, con);
         vi = (uint32_t)(v * scn);
         if (vi > 255) {
             vi = 255;
         }
-        gamma_red_fac[i * 2 + 1] = color_red[vi];
-        gamma_grn_fac[i * 2 + 1] = color_grn[vi];
-        gamma_blu_fac[i * 2 + 1] = color_blu[vi];
+        color_tab->gamma_red_fac[i * 2 + 1] = color_tab->color_red[vi];
+        color_tab->gamma_grn_fac[i * 2 + 1] = color_tab->color_grn[vi];
+        color_tab->gamma_blu_fac[i * 2 + 1] = color_tab->color_blu[vi];
     }
 }
+
+
+/* FIXME: this is a hack to adjust the output of the internal color generator somewhat
+          to align with the pepto palette when all neutral parameters are used */
+#define CRT_SAT_MUL (1.5f+0.25f)
 
 /* ycbcr table calculation */
 /* called by video_color_update_palette, internal and external palette */
@@ -555,15 +554,23 @@ static void video_calc_ycbcrtable(video_resources_t *video_resources,
 
     lf = 64 * video_resources->pal_blur / 1000;
     hf = 255 - (lf << 1);
-    sat = ((float)(video_resources->color_saturation)) * (256.0f / 1000.0f);
+#ifdef DEBUG_NEUTRAL_SETTINGS
+    sat = 256.0;
+    tin = 0.0;
+    bri = 0.0;
+    con = 1.0;
+    gam = 1.0;
+#else
+    /* default: sat:320,000000 bri:0,000000 con:1,250000 gam:0,785714 tin:0,000000 */
+    sat = ((float)(video_resources->color_saturation)) * (256.0f / 1000.0f) * CRT_SAT_MUL;
     tin = (((float)(video_resources->color_tint)) * (50.0f / 2000.0f)) - 25.0f;
     bri = ((float)(video_resources->color_brightness - 1000)) * (112.0f / 1000.0f);
     con = ((float)(video_resources->color_contrast   )) / 1000.0f;
     gam = video_get_gamma(video_resources, video);
-
+#endif
     factor = pow(256.0f, 1.0f - gam);
 
-    DBG((" sat:%d bri:%d con:%d gam:%d tin:%d", (int)sat, (int)bri, (int)con, (int)gam, (int)tin));
+    DBG((" sat:%f bri:%f con:%f gam:%f tin:%f", sat, bri, con, gam, tin));
 
     for (i = 0; i < p->num_entries; i++) {
         int32_t val;
@@ -597,7 +604,7 @@ static void video_calc_ycbcrtable(video_resources_t *video_resources,
 
 #ifdef DEBUG_VIDEO
         video_convert_renderer_to_rgb(primary, &temp, video);
-        DBG((" %2d  'Cb':%4d 'Cr':%4d     'Cr':%6d 'Cb':%6d     R:%4d G:%4d B:%4d", i,
+        DBG((" %2u  'Cb':%4d 'Cr':%4d     'Cr':%6d 'Cb':%6d     R:%4d G:%4d B:%4d", i,
             (int)primary->cb, (int)primary->cr,
             (int)color_tab->cbtable[i], (int)color_tab->crtable[i],
             temp.red, temp.green, temp.blue
@@ -615,14 +622,14 @@ static void video_calc_ycbcrtable(video_resources_t *video_resources,
             vf = (float)(0.877283f * (primary->cr + tin) * sat * con * 224.0 / 256.0 / 256.0 + 128.5);
         }
 
-        /* sanity check: cbtable and crtable must be kept in 16 bit range or we 
+        /* sanity check: cbtable and crtable must be kept in 16 bit range or we
                          might get overflows in eg the CRT renderer */
         /* FIXME: we need to check more and clamp the values accordingly - it is
                   still possible to "overdrive" the renderer in NTSC mode */
         len = sqrt(((double)color_tab->cbtable[i] * (double)color_tab->cbtable[i]) +
                    ((double)color_tab->crtable[i] * (double)color_tab->crtable[i]));
         if (len >= (double)0x10000) {
-            log_error(LOG_DEFAULT, 
+            log_error(LOG_DEFAULT,
                 "video_calc_ycbcrtable: color %u cbcr vector too long, use lower base saturation.", i);
         }
 
@@ -636,10 +643,6 @@ static void video_calc_ycbcrtable(video_resources_t *video_resources,
     color_tab->yuv_updated = 0;
 }
 
-/* FIXME: this is a hack to adjust the output of the internal color generator somewhat
-          to align with the pepto palette when all neutral parameters are used */
-#define CRT_SAT_MUL (1.5f+0.25f)
-
 static void video_calc_ycbcrtable_oddlines(video_resources_t *video_resources,
                                            const video_ycbcr_palette_t *p, video_render_color_tables_t *color_tab, int video)
 {
@@ -649,11 +652,17 @@ static void video_calc_ycbcrtable_oddlines(video_resources_t *video_resources,
 
     DBG(("video_calc_ycbcrtable_oddlines"));
 
+#ifdef DEBUG_NEUTRAL_SETTINGS
+    sat = 256.0;
+    tin = 0.0;
+#else
+    /* default: sat:560,000000 tin:0,000000 */
     sat = ((float)(video_resources->color_saturation)) * (256.0f / 1000.0f) * CRT_SAT_MUL;
     tin = (((float)(video_resources->color_tint)) * (50.0f / 2000.0f)) - 25.0f;
-
+#endif
+    DBG((" sat:%f tin:%f", sat, tin));
     for (i = 0; i < p->num_entries; i++) {
-       int32_t val;
+        int32_t val;
 
         /* create primary table */
         primary = &p->entries[i];
@@ -682,7 +691,7 @@ static void video_palette_to_ycbcr(const palette_t *p, video_ycbcr_palette_t* yc
             video_convert_rgb_to_renderer(&p->entries[i], &ycbcr->entries[i], video);
 #ifdef DEBUG_VIDEO
             video_convert_renderer_to_rgb(&ycbcr->entries[i], &temp, video);
-            DBG((" %2d R:%3d G:%3d B:%3d    Y:%4d Cb:%4d Cr:%4d    R:%3d G:%3d B:%3d", i,
+            DBG((" %2u R:%3d G:%3d B:%3d    Y:%4d Cb:%4d Cr:%4d    R:%3d G:%3d B:%3d", i,
                 p->entries[i].red, p->entries[i].green, p->entries[i].blue,
                 (int)ycbcr->entries[i].y, (int)ycbcr->entries[i].cb, (int)ycbcr->entries[i].cr,
                 temp.red, temp.green, temp.blue
@@ -692,7 +701,7 @@ static void video_palette_to_ycbcr(const palette_t *p, video_ycbcr_palette_t* yc
             video_convert_rgb_to_yiq(&p->entries[i], &ycbcr->entries[i]);
 #ifdef DEBUG_VIDEO
             video_convert_yiq_to_rgb(&ycbcr->entries[i], &r, &g, &b);
-            DBG((" %2d R:%3d G:%3d B:%3d    Y:%4d I:%4d Q:%4d    R:%3d G:%3d B:%3d", i,
+            DBG((" %2u R:%3d G:%3d B:%3d    Y:%4d I:%4d Q:%4d    R:%3d G:%3d B:%3d", i,
                 p->entries[i].red, p->entries[i].green, p->entries[i].blue,
                 (int)ycbcr->entries[i].y, (int)ycbcr->entries[i].cb, (int)ycbcr->entries[i].cr,
                 r, g, b
@@ -723,7 +732,7 @@ static void video_cbm_palette_to_ycbcr(const video_cbm_palette_t *p, video_ycbcr
     int cb, cr;
 #endif
 
-    DBG(("video_cbm_palette_to_ycbcr"));
+    DBG(("video_cbm_palette_to_ycbcr (even)"));
 
     if (p->type == CBM_PALETTE_RGB) {
         /* special case for handling chips that output RGB (such as the VDC),
@@ -732,26 +741,32 @@ static void video_cbm_palette_to_ycbcr(const video_cbm_palette_t *p, video_ycbcr
         for (i = 0; i < p->num_entries; i++) {
             src.red = (uint8_t)p->entries[i].luminance;
             src.green = (uint8_t)p->entries[i].angle;
-            src.blue = p->entries[i].direction;
+            src.blue = (uint8_t)p->entries[i].saturation;
             video_convert_rgb_to_renderer(&src, &ycbcr->entries[i], video);
         }
     } else {
         for (i = 0; i < p->num_entries; i++) {
-            video_convert_cbm_to_ycbcr(&p->entries[i], p->saturation, p->phase, &ycbcr->entries[i], video);
+            if ((p->entries_even != NULL) && (p->entries_odd != NULL)) {
+                /* we have seperate palettes for odd and even lines */
+                video_convert_cbm_to_ycbcr(&p->entries_even[i], p->phase, &ycbcr->entries[i], video);
+            } else {
+                /* common palette for odd and even lines */
+                video_convert_cbm_to_ycbcr(&p->entries[i], p->phase, &ycbcr->entries[i], video);
+            }
 #ifdef DEBUG_VIDEO
             cb = ycbcr->entries[i].cb;
             cr = ycbcr->entries[i].cr;
             if (video) {
                 video_convert_ycbcr_to_yuv(&ycbcr->entries[i], &ycbcr->entries[i]);
-                DBG((" %2d: Luma:%4d Angle:%4d Dir:%2d    Y:%4d Cb:%4d Cr:%4d    Y:%4d U:%4d V:%4d", i,
-                    (int)p->entries[i].luminance, (int)p->entries[i].angle, (int)p->entries[i].direction,
+                DBG((" %2u: Luma:%4d Angle:%4d Sat:%4d Dir:%2d    Y:%4d Cb:%4d Cr:%4d    Y:%4d U:%4d V:%4d", i,
+                    (int)p->entries[i].luminance, (int)p->entries[i].angle, (int)p->entries[i].saturation, (int)p->entries[i].direction,
                     (int)ycbcr->entries[i].y, cb, cr,
                     (int)ycbcr->entries[i].y, (int)ycbcr->entries[i].cb, (int)ycbcr->entries[i].cr
                     ));
             } else {
                 /* video_convert_ycbcr_to_yiq(&ycbcr->entries[i], &ycbcr->entries[i]); */
-                DBG((" %2d: Luma:%4d Angle:%4d Dir:%2d    Y:%4d Cb:%4d Cr:%4d    Y:%4d I:%4d Q:%4d", i,
-                    (int)p->entries[i].luminance, (int)p->entries[i].angle, (int)p->entries[i].direction,
+                DBG((" %2u: Luma:%4d Angle:%4d Sat:%4d Dir:%2d    Y:%4d Cb:%4d Cr:%4d    Y:%4d I:%4d Q:%4d", i,
+                    (int)p->entries[i].luminance, (int)p->entries[i].angle, (int)p->entries[i].saturation, (int)p->entries[i].direction,
                     (int)ycbcr->entries[i].y, cb, cr,
                     (int)ycbcr->entries[i].y, (int)ycbcr->entries[i].cb, (int)ycbcr->entries[i].cr
                     ));
@@ -781,7 +796,14 @@ static void video_cbm_palette_to_ycbcr_oddlines(video_resources_t *video_resourc
     DBG(("video_cbm_palette_to_ycbcr_oddlines"));
 
     for (i = 0; i < p->num_entries; i++) {
-        video_convert_cbm_to_ycbcr(&p->entries[i], p->saturation, (p->phase + offs), &ycbcr->entries[i], video);
+        if ((p->entries_even != NULL) && (p->entries_odd != NULL)) {
+            /* we have seperate palettes for odd and even lines */
+            offs = 180.0f;
+            video_convert_cbm_to_ycbcr(&p->entries_odd[i], (p->phase + offs), &ycbcr->entries[i], video);
+        } else {
+            /* common palette for odd and even lines */
+            video_convert_cbm_to_ycbcr(&p->entries[i], (p->phase + offs), &ycbcr->entries[i], video);
+        }
     }
 }
 
@@ -799,25 +821,31 @@ static palette_t *video_calc_palette(struct video_canvas_s *canvas, const video_
     float sat, bri, con, gam, tin;
     video_resources_t *video_resources = &(canvas->videoconfig->video_resources);
 
-    DBG(("video_calc_palette"));
-
+    DBG(("video_calc_palette (no crt)"));
+#ifdef DEBUG_NEUTRAL_SETTINGS
+    sat = 1.0;
+    tin = 0.0;
+    bri = 0.0;
+    con = 1.0;
+    gam = 1.0;
+#else
     sat = ((float)(video_resources->color_saturation)) / 1000.0f;
     bri = ((float)(video_resources->color_brightness - 1000)) * (128.0f / 1000.0f);
     con = ((float)(video_resources->color_contrast)) / 1000.0f;
     gam = video_get_gamma(video_resources, video);
     tin = (((float)(video_resources->color_tint)) / (2000.0f / 50.0f)) - 25.0f;
-
+#endif
     /* create RGB palette with the base colors of the video chip */
     prgb = palette_create(p->num_entries, NULL);
     if (prgb == NULL) {
         return NULL;
     }
 
-    DBG((" sat:%d bri:%d con:%d gam:%d tin:%d", (int)sat, (int)bri, (int)con, (int)gam, (int)tin));
+    DBG((" sat:%f bri:%f con:%f gam:%f tin:%f", sat, bri, con, gam, tin));
 
     for (i = 0; i < p->num_entries; i++) {
         video_convert_renderer_to_rgb_gamma(&p->entries[i], sat, bri, con, gam, tin, &prgb->entries[i], video);
-        DBG((" %2d: Y:%4d Cb:%4d Cr:%4d  R:%3d G:%3d B:%3d", i,
+        DBG((" %2u: Y:%4d Cb:%4d Cr:%4d  R:%3d G:%3d B:%3d", i,
             (int)p->entries[i].y, (int)p->entries[i].cb, (int)p->entries[i].cr,
             (int)prgb->entries[i].red, (int)prgb->entries[i].green, (int)prgb->entries[i].blue));
     }
@@ -837,8 +865,9 @@ static palette_t *video_load_palette(const video_cbm_palette_t *p,
         return NULL;
     }
 
-    if (!video_disabled_mode && palette_load(name, palette) < 0) {
+    if (!video_disabled_mode && palette_load(name, machine_name, palette) < 0) {
         /* log_message(vicii.log, "Cannot load palette file `%s'.", name); */
+        palette_free(palette);
         return NULL;
     }
 
@@ -896,7 +925,7 @@ int video_color_update_palette(struct video_canvas_s *canvas)
             return -1;
         }
 
-        video_calc_gammatable(video_resources, video);
+        video_calc_gammatable(&canvas->videoconfig->color_tables, video_resources, video);
         ycbcr = video_ycbcr_palette_create(palette->num_entries);
         video_palette_to_ycbcr(palette, ycbcr, video);
         video_calc_ycbcrtable(video_resources, ycbcr, &canvas->videoconfig->color_tables, video);
@@ -908,7 +937,7 @@ int video_color_update_palette(struct video_canvas_s *canvas)
         video_palette_to_ycbcr_oddlines(palette, ycbcr, video);
         video_calc_ycbcrtable_oddlines(video_resources, ycbcr, &canvas->videoconfig->color_tables, video);
     } else {
-        video_calc_gammatable(video_resources, video);
+        video_calc_gammatable(&canvas->videoconfig->color_tables, video_resources, video);
         ycbcr = video_ycbcr_palette_create(canvas->videoconfig->cbm_palette->num_entries);
         video_cbm_palette_to_ycbcr(canvas->videoconfig->cbm_palette, ycbcr, video);
         video_calc_ycbcrtable(video_resources, ycbcr, &canvas->videoconfig->color_tables, video);
@@ -944,5 +973,5 @@ void video_render_initraw(struct video_render_config_s *videoconfig)
 {
     int video;
     resources_get_int("MachineVideoStandard", &video);
-    video_calc_gammatable(&(videoconfig->video_resources), video);
+    video_calc_gammatable(&videoconfig->color_tables, &videoconfig->video_resources, video);
 }

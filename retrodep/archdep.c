@@ -62,19 +62,34 @@
 
 #include "archdep.h"
 #include "findpath.h"
-#include "ioutil.h"
 #include "lib.h"
 #include "log.h"
 #include "machine.h"
 #include "ui.h"
 #include "util.h"
 #include "keyboard.h"
+#include "keymap.h"
 
-#include "arch/shared/archdep_extra_title_text.c"
+#include "arch/shared/archdep_access.c"
+#include "arch/shared/archdep_chdir.c"
+#include "arch/shared/archdep_close.c"
+#include "arch/shared/archdep_current_dir.c"
 #include "arch/shared/archdep_default_portable_resource_file_name.c"
-#include "arch/shared/archdep_join_paths.c"
+#include "arch/shared/archdep_dir.c"
+#include "arch/shared/archdep_expand_path.c"
+#include "arch/shared/archdep_extra_title_text.c"
+#include "arch/shared/archdep_file_size.c"
+#include "arch/shared/archdep_fseeko.c"
+#include "arch/shared/archdep_ftello.c"
+#include "arch/shared/archdep_getcwd.c"
 #include "arch/shared/archdep_kbd_get_host_mapping.h"
+#include "arch/shared/archdep_program_path.c"
 #include "arch/shared/archdep_quote_unzip.c"
+#include "arch/shared/archdep_real_path.c"
+#include "arch/shared/archdep_remove.c"
+#include "arch/shared/archdep_set_openmp_wait_policy.c"
+#include "arch/shared/archdep_tick.c"
+#include "arch/shared/coproc.c"
 
 #include "libretro-core.h"
 extern unsigned int opt_read_vicerc;
@@ -83,6 +98,8 @@ extern char retro_temp_directory[RETRO_PATH_MAX];
 
 static char *argv0 = NULL;
 static char *boot_path = NULL;
+
+char archdep_startup_error[4096];
 
 static int libretro_stat(const char *path, struct stat *statbuf)
 {
@@ -94,7 +111,7 @@ static int libretro_stat(const char *path, struct stat *statbuf)
 }
 
 #if defined(__SWITCH__)
-char* getcwd( char* buf, size_t size )
+char* getcwd(char* buf, size_t size)
 {
     if (size > strlen(retro_system_data_directory) && buf)
     {
@@ -105,11 +122,11 @@ char* getcwd( char* buf, size_t size )
     return NULL;
 }
 
-int chdir( const char* path)
+int chdir(const char* path)
 {
     return 0;
 }
-#endif
+#endif /* __SWITCH__ */
 
 #ifdef __PS3__
 #include <pthread_types.h>
@@ -133,16 +150,24 @@ int access(const char *fpath, int mode)
     return libretro_stat(fpath, &buffer);
 }
 #endif
+#endif /* __PS3__ */
+
+
+#ifdef USE_LIBRETRO_VFS
+RFILE *archdep_fdopen(int fd, const char *mode)
+{
+    return (RFILE*)fdopen(fd, mode);
+}
+#else
+FILE *archdep_fdopen(int fd, const char *mode)
+{
+    return fdopen(fd, mode);
+}
 #endif
 
 int joystick_arch_cmdline_options_init(void)
 {
     return 1;
-}
-
-int kbd_arch_get_host_mapping(void)
-{
-    return KBD_MAPPING_US;
 }
 
 int archdep_rtc_get_centisecond(void)
@@ -171,11 +196,6 @@ char *archdep_default_rtc_file_name(void)
     }
 }
 
-int archdep_rename(const char *oldpath, const char *newpath)
-{
-    return rename(oldpath, newpath);
-}
-
 const char *archdep_program_name(void)
 {
     static char *program_name = NULL;
@@ -196,6 +216,10 @@ const char *archdep_program_name(void)
     return program_name;
 }
 
+void archdep_program_name_free(void)
+{
+}
+
 const char *archdep_boot_path(void)
 {  
     return retro_system_data_directory;
@@ -204,6 +228,11 @@ const char *archdep_boot_path(void)
 const char *archdep_home_path(void)
 {
     return retro_system_data_directory;
+}
+
+char *archdep_get_vice_datadir(void)
+{
+    return lib_strdup(retro_system_data_directory);
 }
 
 char *archdep_default_autostart_disk_image_file_name(void)
@@ -216,84 +245,6 @@ char *archdep_default_autostart_disk_image_file_name(void)
     } else {
         return util_concat(boot_path, "/autostart-", machine_name, ".d64", NULL);
     }
-}
-
-
-char *archdep_default_sysfile_pathlist(const char *emu_id)
-{
-    static char *default_path;
-
-#if defined(MINIXVMD) || defined(MINIX_SUPPORT)
-    static char *default_path_temp;
-#endif
-
-    if (default_path == NULL) {
-        const char *boot_path;
-        const char *home_path;
-
-        boot_path = archdep_boot_path();
-        home_path = archdep_home_path();
-
-        /* First search in the `LIBDIR' then the $HOME/.vice/ dir (home_path)
-           and then in the `boot_path'.  */
-
-#if defined(MINIXVMD) || defined(MINIX_SUPPORT)
-        default_path_temp = util_concat(LIBDIR, "/", emu_id,
-                                   ARCHDEP_FINDPATH_SEPARATOR_STRING,
-                                   home_path, "/", VICEUSERDIR, "/", emu_id,NULL);
-
-        default_path = util_concat(default_path_temp,
-                                   ARCHDEP_FINDPATH_SEPARATOR_STRING,
-                                   boot_path, "/", emu_id,
-                                   ARCHDEP_FINDPATH_SEPARATOR_STRING,
-                                   LIBDIR, "/DRIVES",
-                                   ARCHDEP_FINDPATH_SEPARATOR_STRING,
-                                   home_path, "/", VICEUSERDIR, "/DRIVES",
-                                   ARCHDEP_FINDPATH_SEPARATOR_STRING,
-                                   boot_path, "/DRIVES",
-                                   ARCHDEP_FINDPATH_SEPARATOR_STRING,
-                                   LIBDIR, "/PRINTER",
-                                   ARCHDEP_FINDPATH_SEPARATOR_STRING,
-                                   home_path, "/", VICEUSERDIR, "/PRINTER",
-                                   ARCHDEP_FINDPATH_SEPARATOR_STRING,
-                                   boot_path, "/PRINTER",
-                                   NULL);
-        lib_free(default_path_temp);
-#elif defined(__WIN32__) 
-        default_path = util_concat(home_path, "\\", emu_id, ARCHDEP_FINDPATH_SEPARATOR_STRING,
-                                   home_path, "\\DRIVES", ARCHDEP_FINDPATH_SEPARATOR_STRING,
-                                   home_path, "\\PRINTER", NULL);
-
-#elif 1
-        default_path = util_concat(LIBDIR, "/", emu_id,
-                                   ARCHDEP_FINDPATH_SEPARATOR_STRING,
-                                   LIBDIR, "/DRIVES",
-                                   ARCHDEP_FINDPATH_SEPARATOR_STRING,
-                                   LIBDIR, "/PRINTER",
-                                   NULL);
-#else
-        default_path = util_concat(LIBDIR, "/", emu_id,
-                                   ARCHDEP_FINDPATH_SEPARATOR_STRING,
-                                   home_path, "/", VICEUSERDIR, "/", emu_id,
-                                   ARCHDEP_FINDPATH_SEPARATOR_STRING,
-                                   boot_path, "/", emu_id,
-                                   ARCHDEP_FINDPATH_SEPARATOR_STRING,
-                                   LIBDIR, "/DRIVES",
-                                   ARCHDEP_FINDPATH_SEPARATOR_STRING,
-                                   home_path, "/", VICEUSERDIR, "/DRIVES",
-                                   ARCHDEP_FINDPATH_SEPARATOR_STRING,
-                                   boot_path, "/DRIVES",
-                                   ARCHDEP_FINDPATH_SEPARATOR_STRING,
-                                   LIBDIR, "/PRINTER",
-                                   ARCHDEP_FINDPATH_SEPARATOR_STRING,
-                                   home_path, "/", VICEUSERDIR, "/PRINTER",
-                                   ARCHDEP_FINDPATH_SEPARATOR_STRING,
-                                   boot_path, "/PRINTER",
-                                   NULL);
-#endif
-    }
-
-    return default_path;
 }
 
 /* Return a malloc'ed backup file name for file `fname'.  */
@@ -317,29 +268,29 @@ char *archdep_default_resource_file_name(void)
             {
                snprintf(content_basename, sizeof(content_basename), "%s", path_basename(full_path));
                path_remove_extension(content_basename);
-               snprintf(content_vicerc, sizeof(content_vicerc), "%s%s%s.vicerc", SAVEDIR, FSDEV_DIR_SEP_STR, content_basename);
+               snprintf(content_vicerc, sizeof(content_vicerc), "%s%s%s.vicerc", SAVEDIR, ARCHDEP_DIR_SEP_STR, content_basename);
                /* Process "saves/[content].vicerc" */
-               if (!ioutil_access(content_vicerc, IOUTIL_ACCESS_R_OK))
+               if (!archdep_access(content_vicerc, ARCHDEP_R_OK))
                   return util_concat(content_vicerc, NULL);
                else
                   log_message(LOG_DEFAULT, "No configuration file found at '%s'.", content_vicerc);
             }
             /* Process "saves/vicerc" */
-            snprintf(content_vicerc, sizeof(content_vicerc), "%s%svicerc", SAVEDIR, FSDEV_DIR_SEP_STR);
-            if (!ioutil_access(content_vicerc, IOUTIL_ACCESS_R_OK))
+            snprintf(content_vicerc, sizeof(content_vicerc), "%s%svicerc", SAVEDIR, ARCHDEP_DIR_SEP_STR);
+            if (!archdep_access(content_vicerc, ARCHDEP_R_OK))
                return util_concat(content_vicerc, NULL);
             else
                log_message(LOG_DEFAULT, "No configuration file found at '%s'.", content_vicerc);
             /* Process "system/vice/vicerc" */
-            snprintf(content_vicerc, sizeof(content_vicerc), "%s%svicerc", boot_path, FSDEV_DIR_SEP_STR);
-            if (ioutil_access(content_vicerc, IOUTIL_ACCESS_R_OK))
+            snprintf(content_vicerc, sizeof(content_vicerc), "%s%svicerc", boot_path, ARCHDEP_DIR_SEP_STR);
+            if (archdep_access(content_vicerc, ARCHDEP_R_OK))
                log_message(LOG_DEFAULT, "No configuration file found at '%s'.", content_vicerc);
-            return util_concat(boot_path, FSDEV_DIR_SEP_STR, "vicerc", NULL);
+            return util_concat(boot_path, ARCHDEP_DIR_SEP_STR, "vicerc", NULL);
         }
         else
             /* Offer unreadable directory instead of non-existing dummy or NULL,
              * because `resources_reset_and_load()` expects something */
-            return util_concat(boot_path, FSDEV_DIR_SEP_STR, "", NULL);
+            return util_concat(boot_path, ARCHDEP_DIR_SEP_STR, "", NULL);
     }
 }
 
@@ -353,11 +304,6 @@ char *archdep_default_fliplist_file_name(void)
     } else {
       return util_concat(boot_path, "/fliplist-", machine_name, ".vfl", NULL);
     }
-}
-
-FILE *archdep_open_default_log_file(void)
-{
-    return NULL;
 }
 
 int archdep_num_text_lines(void)
@@ -382,8 +328,25 @@ int archdep_num_text_columns(void)
     return atoi(s);
 }
 
-int archdep_default_logger(const char *level_string, const char *txt) {
+FILE *archdep_open_default_log_file(void)
+{
+    return NULL;
+}
+
+int archdep_default_logger(const char *level_string, const char *txt)
+{
     return 0;
+}
+
+void archdep_startup_log_error(const char *format, ...)
+{
+    va_list ap;
+
+    char *begin = archdep_startup_error + strlen(archdep_startup_error);
+    char *end   = archdep_startup_error + sizeof(archdep_startup_error);
+
+    va_start(ap, format);
+    begin += vsnprintf(begin, end - begin, format, ap);
 }
 
 int archdep_path_is_relative(const char *path)
@@ -465,35 +428,6 @@ int archdep_spawn(const char *name, char **argv,
 #endif
 }
 
-/* return malloc'd version of full pathname of orig_name */
-int archdep_expand_path(char **return_path, const char *orig_name)
-{
-    /* Unix version.  */
-    if (*orig_name == '/') {
-        *return_path = lib_strdup(orig_name);
-    } else {
-        static char *cwd;
-
-        cwd = ioutil_current_dir();
-        *return_path = util_concat(cwd, "/", orig_name, NULL);
-        lib_free(cwd);
-    }
-    return 0;
-}
-
-char archdep_startup_error[4096];
-
-void archdep_startup_log_error(const char *format, ...)
-{
-    va_list ap;
-
-    char *begin=archdep_startup_error+strlen(archdep_startup_error);
-    char *end=archdep_startup_error+sizeof(archdep_startup_error);
-
-    va_start(ap, format);
-    begin+=vsnprintf(begin, end-begin, format, ap);
-}
-
 char *archdep_filename_parameter(const char *name)
 {
     /* nothing special(?) */
@@ -514,10 +448,10 @@ char *archdep_tmpnam(void)
     int fd;
     char* tmp;
 
-    tmpName = (char *)lib_malloc(ioutil_maxpathlen());
+    tmpName = (char *)lib_malloc(archdep_maxpathlen());
     if ((tmp = getenv("TMPDIR")) != NULL ) {
-        strncpy(tmpName, tmp, ioutil_maxpathlen());
-        tmpName[ioutil_maxpathlen() - sizeof(mkstempTemplate)] = '\0';
+        strncpy(tmpName, tmp, archdep_maxpathlen());
+        tmpName[archdep_maxpathlen() - sizeof(mkstempTemplate)] = '\0';
     }
     else
         strcpy(tmpName, "/tmp" );
@@ -532,7 +466,7 @@ char *archdep_tmpnam(void)
 #elif __LIBRETRO__
     char tmp_name[RETRO_PATH_MAX];
     path_mkdir(retro_temp_directory);
-    snprintf(tmp_name, sizeof(tmp_name), "%s%s%s%d", retro_temp_directory, FSDEV_DIR_SEP_STR, "vice-tmp-", rand());
+    snprintf(tmp_name, sizeof(tmp_name), "%s%s%s%d", retro_temp_directory, ARCHDEP_DIR_SEP_STR, "vice-tmp-", rand());
     return lib_strdup(tmp_name);
 #else
     return lib_strdup(tmpnam(NULL));
@@ -642,6 +576,11 @@ int archdep_rmdir(const char *pathname)
     return 0;
 }
 
+int archdep_rename(const char *oldpath, const char *newpath)
+{
+    return rename(oldpath, newpath);
+}
+
 int archdep_file_is_blockdev(const char *name)
 {
     struct stat buf;
@@ -684,20 +623,11 @@ int archdep_stat(const char *path, size_t *len, unsigned int *isdir)
 
 void archdep_shutdown(void)
 {
-#if 0
-    log_message(LOG_DEFAULT, "\nExiting...");
-#endif
-
     lib_free(argv0);
     lib_free(boot_path);
 }
 
-int archdep_network_init(void)
-{
-    return 0;
-}
-
-void archdep_network_shutdown(void)
+void archdep_fix_streams(void)
 {
 }
 
@@ -737,4 +667,10 @@ bool archdep_is_exiting(void)
 
 void archdep_vice_exit(int excode)
 {
+}
+
+/* 3.7 -> */
+char *archdep_default_sysfile_pathlist(const char *emu_id)
+{
+    return lib_strdup(boot_path);
 }

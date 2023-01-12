@@ -7,10 +7,14 @@
 /* FIXME:   Some of the resources mentioned here are actually controlled by
  *          widgets in other files:
  *
- * $VICERES IECDevice4                  -vsid
- * $VICERES IECDevice5                  -vsid
- * $VICERES IECDevice6                  -vsid
- * $VICERES IECDevice7                  -vsid
+ * $VICERES VirtualDevice4              -vsid
+ * $VICERES VirtualDevice5              -vsid
+ * $VICERES VirtualDevice6              -vsid
+ * $VICERES VirtualDevice7              -vsid
+ * $VICERES IECDevice4                  -vsid -xvic
+ * $VICERES IECDevice5                  -vsid -xvic
+ * $VICERES IECDevice6                  -vsid -xvic
+ * $VICERES IECDevice7                  -vsid -xvic
  * $VICERES Printer4                    -vsid
  * $VICERES Printer5                    -vsid
  * $VICERES Printer6                    -vsid
@@ -96,7 +100,6 @@ static void on_real_device7_toggled(GtkCheckButton *check, gpointer user_data)
     } else {
         state = PRINTER_DEVICE_NONE;
     }
-    debug_gtk3("setting Printer7 to '%s'.", state ? "REAL" : "NONE");
     resources_set_int("Printer7", state);
 }
 
@@ -111,10 +114,25 @@ static void on_text_device_changed(GtkEntry *entry, gpointer user_data)
     int num = GPOINTER_TO_INT(user_data);
     const gchar *text = gtk_entry_get_text(entry);
 
-    debug_gtk3("setting PrinterTextDevice%d to '%s'.", num, text);
     resources_set_string_sprintf("PrinterTextDevice%d", text, num);
 }
 
+
+/** \brief  Create Virtual device widget for \a device
+ *
+ * \param[in]   device  printer device
+ *
+ * \return  GtkCheckButton
+ */
+static GtkWidget *create_virtual_device_widget(int device)
+{
+    GtkWidget *check;
+
+    check = vice_gtk3_resource_check_button_new_sprintf("VirtualDevice%d",
+            "Enable Virtual Device", device);
+    gtk_widget_set_margin_start(check, 16);
+    return check;
+}
 
 /** \brief  Create IEC device emulation widget for \a device
  *
@@ -128,7 +146,7 @@ static GtkWidget *create_iec_widget(int device)
 
     check = vice_gtk3_resource_check_button_new_sprintf("IECDevice%d",
             "Enable IEC device", device);
-    g_object_set(check, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(check, 16);
     return check;
 }
 
@@ -146,7 +164,7 @@ static GtkWidget *create_real_device7_checkbox(void)
     int value;
 
     check = gtk_check_button_new_with_label("Real device access");
-    g_object_set(check, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(check, 16);
     resources_get_int("Printer7", &value);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check), value);
     g_signal_connect(check, "toggled", G_CALLBACK(on_real_device7_toggled),
@@ -166,7 +184,6 @@ static void on_formfeed_clicked(GtkWidget *widget, gpointer data)
 
     device = GPOINTER_TO_INT(data);
 
-    debug_gtk3("Sending formfeed to device %d.", device);
     printer_formfeed((unsigned int)device - 4);
 }
 
@@ -202,10 +219,9 @@ static GtkWidget *create_printer_widget(int device)
     GtkWidget *grid;
     char title[256];
 
-    g_snprintf(title, 256, "Printer #%d settings", device);
+    g_snprintf(title, sizeof(title), "Printer #%d settings", device);
 
-    grid = uihelpers_create_grid_with_label(title, 4);
-    gtk_grid_set_column_spacing(GTK_GRID(grid), 8);
+    grid = vice_gtk3_grid_new_spaced_with_label(-1, -1, title, 4);
 
     if (device == 4 || device == 5 || device == 6) {
         /* device 4,5,6 are 'normal' printers */
@@ -218,7 +234,10 @@ static GtkWidget *create_printer_widget(int device)
             case VICE_MACHINE_SCPU64:   /* fall through */
             case VICE_MACHINE_C128:     /* fall through */
             case VICE_MACHINE_C64DTV:   /* fall through */
+#if 0
+            /* FIXME: xvic does not use the generic IEC bus code in src/iecbus/iecbus.c yet */
             case VICE_MACHINE_VIC20:    /* fall through */
+#endif
             case VICE_MACHINE_PLUS4:
 
                 wrapper = gtk_grid_new();
@@ -226,7 +245,9 @@ static GtkWidget *create_printer_widget(int device)
                         printer_emulation_type_widget_create(device),
                         0, 0, 1, 1);
                 gtk_grid_attach(GTK_GRID(wrapper),
-                        create_iec_widget(device), 0, 1, 1, 1);
+                        create_virtual_device_widget(device), 0, 1, 1, 1);
+                gtk_grid_attach(GTK_GRID(wrapper),
+                        create_iec_widget(device), 0, 2, 1, 1);
 
                 gtk_grid_attach(GTK_GRID(grid), wrapper, 0, 1, 1, 1);
                 break;
@@ -236,6 +257,8 @@ static GtkWidget *create_printer_widget(int device)
                 gtk_grid_attach(GTK_GRID(grid),
                         printer_emulation_type_widget_create(device),
                         0, 1, 1, 1);
+                gtk_grid_attach(GTK_GRID(grid),
+                        create_virtual_device_widget(device), 0, 2, 1, 1);
                 break;
         }
 
@@ -250,7 +273,8 @@ static GtkWidget *create_printer_widget(int device)
 
     } else if (device == 7) {
         /* device 7 is 'special' */
-        GtkWidget *iec_widget = create_iec_widget(device);
+        GtkWidget *iec_widget;
+        GtkWidget *virtual_device_widget = create_virtual_device_widget(device);
 
         gtk_grid_attach(GTK_GRID(grid), create_real_device7_checkbox(),
                 0, 1, 1, 1);
@@ -262,9 +286,14 @@ static GtkWidget *create_printer_widget(int device)
             case VICE_MACHINE_SCPU64:   /* fall through */
             case VICE_MACHINE_C128:     /* fall through */
             case VICE_MACHINE_C64DTV:   /* fall through */
+#if 0
+            /* FIXME: xvic does not use the generic IEC bus code in src/iecbus/iecbus.c yet */
             case VICE_MACHINE_VIC20:    /* fall through */
+#endif
             case VICE_MACHINE_PLUS4:
-                gtk_grid_attach(GTK_GRID(grid), iec_widget, 0, 2, 1, 1);
+                iec_widget = create_iec_widget(device);
+                gtk_grid_attach(GTK_GRID(grid), virtual_device_widget, 0, 2, 1, 1);
+                gtk_grid_attach(GTK_GRID(grid), iec_widget, 0, 3, 1, 1);
                 break;
 
             default:
@@ -286,19 +315,19 @@ static GtkWidget *create_printer_text_devices_widget(void)
     GtkWidget *grid;
     int i;
 
-    grid = uihelpers_create_grid_with_label("Printer output devices", 6);
-    gtk_grid_set_column_spacing(GTK_GRID(grid), 8);
+    grid = vice_gtk3_grid_new_spaced_with_label(
+            -1, -1, "Printer output devices", 6);
     for (i = 0; i < 3; i++) {
         GtkWidget *label;
         GtkWidget *entry;
         const char *text;
         gchar title[64];
 
-        g_snprintf(title, 64, "#%d", i + 1);
+        g_snprintf(title, sizeof(title), "#%d", i + 1);
 
         label= gtk_label_new(title);
         if (i == 0) {
-            g_object_set(label, "margin-left", 16, NULL);
+            gtk_widget_set_margin_start(label, 16);
         }
         gtk_grid_attach(GTK_GRID(grid), label, i * 2, 1, 1, 1);
         entry = gtk_entry_new();
@@ -330,7 +359,7 @@ GtkWidget *settings_printer_widget_create(GtkWidget *parent)
     int p;
     char buffer[256];
 
-    layout = gtk_grid_new();
+    layout = vice_gtk3_grid_new_spaced(0, 16);
 
     stack = gtk_stack_new();
     gtk_stack_set_transition_type(GTK_STACK(stack),

@@ -1,34 +1,25 @@
 #include "vice.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "archdep.h"
-#include "cia.h"
-#include "drive-snapshot.h"
-#include "drive.h"
-#include "ioutil.h"
-#include "joyport.h"
-#include "joystick.h"
-#include "keyboard.h"
 #include "lib.h"
 #include "log.h"
-#include "machine.h"
-#ifdef __XSCPU64__
-#include "main65816cpu.h"
-#else
-#include "maincpu.h"
+#ifdef USE_SVN_REVISION
+#include "svnversion.h"
 #endif
-#include "sid-snapshot.h"
-#include "snapshot.h"
-#include "sound.h"
-#include "tapeport.h"
 #include "types.h"
 #include "uiapi.h"
-#include "userport.h"
 #include "version.h"
 #include "vsync.h"
-#include "vice-event.h"
 #include "zfile.h"
 
+#include "snapshot.h"
+
 #include "snapshot_stream.h"
+#include "libretro-core.h"
 
 #ifndef offsetof
 #define offsetof(type, member) ((size_t)((char*)&(((type*)0)->member) - (char*)0))
@@ -36,6 +27,22 @@
 
 #ifndef container_of
 #define container_of(ptr, type, member) ((type*)((char*)(ptr) - offsetof(type, member)))
+#endif
+
+#ifndef acia1_snapshot_read_module
+int acia1_snapshot_read_module(struct snapshot_s *p) { return 0; };
+#endif
+
+#ifndef _acia_snapshot_read_module
+int _acia_snapshot_read_module(struct snapshot_s *p) { return 0; };
+#endif
+
+#ifndef acia1_store
+void acia1_store(uint16_t a, uint8_t b) {};
+#endif
+
+#ifndef acia_store
+void acia_store(uint16_t a, uint8_t b) {};
 #endif
 
 typedef struct snapshot_file_stream_s snapshot_file_stream_t;
@@ -189,7 +196,7 @@ static int snapshot_file_fclose_erase(snapshot_stream_t *f)
 {
     snapshot_file_stream_t* file_stream = container_of(f, snapshot_file_stream_t, istream);
     int res = fclose(file_stream->file);
-    ioutil_remove(file_stream->filename);
+    archdep_remove(file_stream->filename);
     lib_free(file_stream->filename);
     lib_free(file_stream);
     return res;
@@ -214,7 +221,7 @@ static int snapshot_zfile_fclose_erase(snapshot_stream_t *f)
 {
     snapshot_file_stream_t* file_stream = container_of(f, snapshot_file_stream_t, istream);
     int res = zfile_fclose(file_stream->file);
-    ioutil_remove(file_stream->filename);
+    archdep_remove(file_stream->filename);
     lib_free(file_stream->filename);
     lib_free(file_stream);
     return res;
@@ -348,7 +355,8 @@ static size_t snapshot_memory_write(snapshot_stream_t* f, const void* ptr, size_
             return -1;
         }
 
-        memcpy(stream->buffer + pointer, ptr, size);
+        if (ptr)
+            memcpy(stream->buffer + pointer, ptr, size);
     }
 
     stream->pointer = pointer + size;
@@ -518,6 +526,16 @@ static int snapshot_write_dword(snapshot_stream_t *f, uint32_t data)
     return 0;
 }
 
+static int snapshot_write_qword(snapshot_stream_t *f, uint64_t data)
+{
+    if (snapshot_write_dword(f, (uint32_t)(data & 0xffffffff)) < 0
+        || snapshot_write_dword(f, (uint32_t)(data >> 32)) < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
 static int snapshot_write_double(snapshot_stream_t *f, double data)
 {
     uint8_t *byte_data = (uint8_t *)&data;
@@ -639,6 +657,18 @@ static int snapshot_read_dword(snapshot_stream_t *f, uint32_t *dw_return)
     }
 
     *dw_return = lo | (hi << 16);
+    return 0;
+}
+
+static int snapshot_read_qword(snapshot_stream_t *f, uint64_t *qw_return)
+{
+    uint32_t lo, hi;
+
+    if (snapshot_read_dword(f, &lo) < 0 || snapshot_read_dword(f, &hi) < 0) {
+        return -1;
+    }
+
+    *qw_return = lo | ((uint64_t)hi << 32);
     return 0;
 }
 
@@ -765,6 +795,16 @@ int snapshot_module_write_dword(snapshot_module_t *m, uint32_t dw)
     return 0;
 }
 
+int snapshot_module_write_qword(snapshot_module_t *m, uint64_t qw)
+{
+    if (snapshot_write_qword(m->file, qw) < 0) {
+        return -1;
+    }
+
+    m->size += 8;
+    return 0;
+}
+
 int snapshot_module_write_double(snapshot_module_t *m, double db)
 {
     if (snapshot_write_double(m->file, db) < 0) {
@@ -860,6 +900,16 @@ int snapshot_module_read_dword(snapshot_module_t *m, uint32_t *dw_return)
     return snapshot_read_dword(m->file, dw_return);
 }
 
+int snapshot_module_read_qword(snapshot_module_t *m, uint64_t *qw_return)
+{
+    if (snapshot_ftell(m->file) + sizeof(uint64_t) > m->offset + m->size) {
+        snapshot_error = SNAPSHOT_READ_OUT_OF_BOUNDS_ERROR;
+        return -1;
+    }
+
+    return snapshot_read_qword(m->file, qw_return);
+}
+
 int snapshot_module_read_double(snapshot_module_t *m, double *db_return)
 {
     if (snapshot_ftell(m->file) + sizeof(double) > m->offset + m->size) {
@@ -921,6 +971,17 @@ int snapshot_module_read_byte_into_int(snapshot_module_t *m, int *value_return)
     return 0;
 }
 
+int snapshot_module_read_byte_into_uint(snapshot_module_t *m, unsigned int *value_return)
+{
+    uint8_t b;
+
+    if (snapshot_module_read_byte(m, &b) < 0) {
+        return -1;
+    }
+    *value_return = (unsigned int)b;
+    return 0;
+}
+
 int snapshot_module_read_word_into_int(snapshot_module_t *m, int *value_return)
 {
     uint16_t b;
@@ -929,6 +990,17 @@ int snapshot_module_read_word_into_int(snapshot_module_t *m, int *value_return)
         return -1;
     }
     *value_return = (int)b;
+    return 0;
+}
+
+int snapshot_module_read_word_into_uint(snapshot_module_t *m, unsigned int *value_return)
+{
+    uint16_t b;
+
+    if (snapshot_module_read_word(m, &b) < 0) {
+        return -1;
+    }
+    *value_return = (unsigned int)b;
     return 0;
 }
 
@@ -962,6 +1034,17 @@ int snapshot_module_read_dword_into_uint(snapshot_module_t *m, unsigned int *val
         return -1;
     }
     *value_return = (unsigned int)b;
+    return 0;
+}
+
+int snapshot_module_read_qword_into_int64(snapshot_module_t *m, int64_t *value_return)
+{
+    uint64_t qw;
+
+    if (snapshot_module_read_qword(m, &qw) < 0) {
+        return -1;
+    }
+    *value_return = (int64_t)qw;
     return 0;
 }
 
@@ -1128,9 +1211,7 @@ snapshot_t *snapshot_create_from_stream(snapshot_stream_t *f, uint8_t major_vers
     return s;
 
 fail:
-#ifdef __LIBRETRO__
     snapshot_display_error();
-#endif
     return NULL;
 }
 
@@ -1222,9 +1303,7 @@ snapshot_t *snapshot_open_from_stream(snapshot_stream_t *f, uint8_t *major_versi
     return s;
 
 fail:
-#ifdef __LIBRETRO__
     snapshot_display_error();
-#endif
     return NULL;
 }
 
@@ -1337,6 +1416,20 @@ void snapshot_display_error(void)
                 ui_error("Out of bounds reading error in snapshot %s", current_filename);
             }
             break;
+        case SNAPSHOT_ATA_IMAGE_FILENAME_MISMATCH:
+            if (current_module) {
+                ui_error("Filename of ATA Image file does not match in module %s in snapshot %s", current_module, current_filename);
+            } else {
+                ui_error("Filename of ATA Image file does not match in snapshot %s", current_filename);
+            }
+            break;
+        case SNAPSHOT_VICII_MODEL_MISMATCH:
+            if (current_module) {
+                ui_error("VICII model mismatch in module %s in snapshot %s", current_module, current_filename);
+            } else {
+                ui_error("VICII model mismatch in snapshot %s", current_filename);
+            }
+            break;
         case SNAPSHOT_ILLEGAL_OFFSET_ERROR:
             ui_error("Illegal offset while attempting to create module %s in snapshot %s", current_module, current_filename);
             break;
@@ -1371,9 +1464,7 @@ void snapshot_display_error(void)
             ui_error("Cannot open snapshot %s for reading", current_filename);
             break;
         case SNAPSHOT_MAGIC_STRING_MISMATCH_ERROR:
-#if 0
             ui_error("Magic string mismatch in snapshot %s", current_filename);
-#endif
             break;
         case SNAPSHOT_CANNOT_READ_VERSION_ERROR:
             ui_error("Cannot read version from snapshot %s", current_filename);
@@ -1404,6 +1495,11 @@ void snapshot_display_error(void)
             ui_error("Cannot read snapshot %s", current_filename);
             break;
     }
+#if 0
+    if (snapshot_error != SNAPSHOT_NO_ERROR) {
+        log_error(LOG_DEFAULT, "snapshot error at module '%s' in file '%s'", current_module, current_filename);
+    }
+#endif
 }
 
 void snapshot_set_error(int error)
@@ -1489,6 +1585,7 @@ int c64_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int s
         || ciacore_snapshot_write_module(machine_context.cia2, s) < 0
         || sid_snapshot_write_module(s) < 0
         || drive_snapshot_write_module(s, save_disks, save_roms) < 0
+        || fsdrive_snapshot_write_module(s) < 0
         || vicii_snapshot_write_module(s) < 0
         || c64_glue_snapshot_write_module(s) < 0
         || event_snapshot_write_module(s, event_mode) < 0
@@ -1516,7 +1613,7 @@ int c64_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
         return -1;
     }
 
-    if (major != SNAP_MAJOR || minor != SNAP_MINOR) {
+    if (!snapshot_version_is_equal(major, minor, SNAP_MAJOR, SNAP_MINOR)) {
         log_error(LOG_DEFAULT, "Snapshot version (%d.%d) not valid: expecting %d.%d.", major, minor, SNAP_MAJOR, SNAP_MINOR);
         snapshot_set_error(SNAPSHOT_MODULE_INCOMPATIBLE);
         goto fail;
@@ -1532,6 +1629,7 @@ int c64_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
         || ciacore_snapshot_read_module(machine_context.cia2, s) < 0
         || sid_snapshot_read_module(s) < 0
         || drive_snapshot_read_module(s) < 0
+        || fsdrive_snapshot_read_module(s) < 0
         || vicii_snapshot_read_module(s) < 0
         || c64_glue_snapshot_read_module(s) < 0
         || event_snapshot_read_module(s, event_mode) < 0
@@ -1551,11 +1649,13 @@ int c64_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
     return 0;
 
 fail:
+    snapshot_display_error();
     if (s != NULL) {
         snapshot_free(s);
     }
 
     machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    emu_reset(0);
 
     return -1;
 }
@@ -1600,6 +1700,7 @@ int c64dtv_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, in
         || ciacore_snapshot_write_module(machine_context.cia2, s) < 0
         || sid_snapshot_write_module(s) < 0
         || drive_snapshot_write_module(s, save_disks, save_roms) < 0
+        || fsdrive_snapshot_write_module(s) < 0
         || vicii_snapshot_write_module(s) < 0
         || event_snapshot_write_module(s, event_mode) < 0
         || keyboard_snapshot_write_module(s) < 0
@@ -1624,7 +1725,7 @@ int c64dtv_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
         return -1;
     }
 
-    if (major != SNAP_MAJOR || minor != SNAP_MINOR) {
+    if (!snapshot_version_is_equal(major, minor, SNAP_MAJOR, SNAP_MINOR)) {
         log_error(LOG_DEFAULT, "Snapshot version (%d.%d) not valid: expecting %d.%d.", major, minor, SNAP_MAJOR, SNAP_MINOR);
         snapshot_set_error(SNAPSHOT_MODULE_INCOMPATIBLE);
         goto fail;
@@ -1643,6 +1744,7 @@ int c64dtv_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
         || ciacore_snapshot_read_module(machine_context.cia2, s) < 0
         || sid_snapshot_read_module(s) < 0
         || drive_snapshot_read_module(s) < 0
+        || fsdrive_snapshot_read_module(s) < 0
         || vicii_snapshot_read_module(s) < 0
         || event_snapshot_read_module(s, event_mode) < 0
         || keyboard_snapshot_read_module(s) < 0
@@ -1659,11 +1761,13 @@ int c64dtv_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
     return 0;
 
 fail:
+    snapshot_display_error();
     if (s != NULL) {
         snapshot_free(s);
     }
 
     machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    emu_reset(0);
 
     return -1;
 }
@@ -1700,6 +1804,7 @@ int c128_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int 
         || ciacore_snapshot_write_module(machine_context.cia2, s) < 0
         || sid_snapshot_write_module(s) < 0
         || drive_snapshot_write_module(s, save_disks, save_roms) < 0
+        || fsdrive_snapshot_write_module(s) < 0
         || vicii_snapshot_write_module(s) < 0
         || event_snapshot_write_module(s, event_mode) < 0
         || tapeport_snapshot_write_module(s, save_disks) < 0
@@ -1725,8 +1830,8 @@ int c128_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
         return -1;
     }
 
-    if (major != SNAP_MAJOR || minor != SNAP_MINOR) {
-        log_message(LOG_DEFAULT, "Snapshot version (%d.%d) not valid: expecting %d.%d.", major, minor, SNAP_MAJOR, SNAP_MINOR);
+    if (!snapshot_version_is_equal(major, minor, SNAP_MAJOR, SNAP_MINOR)) {
+        log_error(LOG_DEFAULT, "Snapshot version (%d.%d) not valid: expecting %d.%d.", major, minor, SNAP_MAJOR, SNAP_MINOR);
         snapshot_set_error(SNAPSHOT_MODULE_INCOMPATIBLE);
         goto fail;
     }
@@ -1741,6 +1846,7 @@ int c128_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
         || ciacore_snapshot_read_module(machine_context.cia2, s) < 0
         || sid_snapshot_read_module(s) < 0
         || drive_snapshot_read_module(s) < 0
+        || fsdrive_snapshot_read_module(s) < 0
         || vicii_snapshot_read_module(s) < 0
         || event_snapshot_read_module(s, event_mode) < 0
         || tapeport_snapshot_read_module(s) < 0
@@ -1758,11 +1864,13 @@ int c128_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
     return 0;
 
 fail:
+    snapshot_display_error();
     if (s != NULL) {
         snapshot_free(s);
     }
 
     machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    emu_reset(0);
 
     return -1;
 }
@@ -1804,6 +1912,7 @@ int cbm2_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int 
         || acia1_snapshot_write_module(s) < 0
         || sid_snapshot_write_module(s) < 0
         || drive_snapshot_write_module(s, save_disks, save_roms) < 0
+        || fsdrive_snapshot_write_module(s) < 0
         || event_snapshot_write_module(s, event_mode) < 0
         || tapeport_snapshot_write_module(s, save_disks) < 0
         || keyboard_snapshot_write_module(s) < 0
@@ -1827,21 +1936,22 @@ int cbm2_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
         return -1;
     }
 
-    if (major != SNAP_MAJOR || minor != SNAP_MINOR) {
+    if (!snapshot_version_is_equal(major, minor, SNAP_MAJOR, SNAP_MINOR)) {
         log_error(LOG_DEFAULT, "Snapshot version (%d.%d) not valid: expecting %d.%d.", major, minor, SNAP_MAJOR, SNAP_MINOR);
         snapshot_set_error(SNAPSHOT_MODULE_INCOMPATIBLE);
         goto fail;
     }
 
     if (maincpu_snapshot_read_module(s) < 0
-        || crtc_snapshot_read_module(s) < 0
         || cbm2_snapshot_read_module(s) < 0
+        || crtc_snapshot_read_module(s) < 0
         || ciacore_snapshot_read_module(machine_context.cia1, s) < 0
         || tpicore_snapshot_read_module(machine_context.tpi1, s) < 0
         || tpicore_snapshot_read_module(machine_context.tpi2, s) < 0
         || acia1_snapshot_read_module(s) < 0
         || sid_snapshot_read_module(s) < 0
         || drive_snapshot_read_module(s) < 0
+        || fsdrive_snapshot_read_module(s) < 0
         || event_snapshot_read_module(s, event_mode) < 0
         || tapeport_snapshot_read_module(s) < 0
         || keyboard_snapshot_read_module(s) < 0
@@ -1850,16 +1960,19 @@ int cbm2_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
     }
 
     snapshot_free(s);
+
     sound_snapshot_finish();
 
     return 0;
 
 fail:
+    snapshot_display_error();
     if (s != NULL) {
         snapshot_free(s);
     }
 
     machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    emu_reset(0);
 
     return -1;
 }
@@ -1900,6 +2013,7 @@ int cbm2_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int 
         || acia1_snapshot_write_module(s) < 0
         || sid_snapshot_write_module(s) < 0
         || drive_snapshot_write_module(s, save_disks, save_roms) < 0
+        || fsdrive_snapshot_write_module(s) < 0
         || vicii_snapshot_write_module(s) < 0
         || cbm2_c500_snapshot_write_module(s) < 0
         || event_snapshot_write_module(s, event_mode) < 0
@@ -1926,7 +2040,7 @@ int cbm2_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
         return -1;
     }
 
-    if (major != SNAP_MAJOR || minor != SNAP_MINOR) {
+    if (!snapshot_version_is_equal(major, minor, SNAP_MAJOR, SNAP_MINOR)) {
         log_error(LOG_DEFAULT, "Snapshot version (%d.%d) not valid: expecting %d.%d.", major, minor, SNAP_MAJOR, SNAP_MINOR);
         snapshot_set_error(SNAPSHOT_MODULE_INCOMPATIBLE);
         goto fail;
@@ -1937,8 +2051,6 @@ int cbm2_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
     joyport_clear_devices();
 
     if (maincpu_snapshot_read_module(s) < 0
-        || vicii_snapshot_read_module(s) < 0
-        || cbm2_c500_snapshot_read_module(s) < 0
         || cbm2_snapshot_read_module(s) < 0
         || ciacore_snapshot_read_module(machine_context.cia1, s) < 0
         || tpicore_snapshot_read_module(machine_context.tpi1, s) < 0
@@ -1946,6 +2058,9 @@ int cbm2_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
         || acia1_snapshot_read_module(s) < 0
         || sid_snapshot_read_module(s) < 0
         || drive_snapshot_read_module(s) < 0
+        || fsdrive_snapshot_read_module(s) < 0
+        || vicii_snapshot_read_module(s) < 0
+        || cbm2_c500_snapshot_read_module(s) < 0
         || event_snapshot_read_module(s, event_mode) < 0
         || tapeport_snapshot_read_module(s) < 0
         || keyboard_snapshot_read_module(s) < 0
@@ -1961,11 +2076,13 @@ int cbm2_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
     return 0;
 
 fail:
+    snapshot_display_error();
     if (s != NULL) {
         snapshot_free(s);
     }
 
     machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    emu_reset(0);
 
     return -1;
 }
@@ -2008,6 +2125,7 @@ int pet_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int s
         || petdww_snapshot_write_module(s) < 0
         || viacore_snapshot_write_module(machine_context.via, s) < 0
         || drive_snapshot_write_module(s, save_disks, save_roms) < 0
+        || fsdrive_snapshot_write_module(s) < 0
         || event_snapshot_write_module(s, event_mode) < 0
         || tapeport_snapshot_write_module(s, save_disks) < 0
         || keyboard_snapshot_write_module(s) < 0
@@ -2036,7 +2154,7 @@ int pet_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
         return -1;
     }
 
-    if (major != SNAP_MAJOR || minor != SNAP_MINOR) {
+    if (!snapshot_version_is_equal(major, minor, SNAP_MAJOR, SNAP_MINOR)) {
         log_error(LOG_DEFAULT, "Snapshot version (%d.%d) not valid: expecting %d.%d.", major, minor, SNAP_MAJOR, SNAP_MINOR);
         snapshot_set_error(SNAPSHOT_MODULE_INCOMPATIBLE);
         ef = -1;
@@ -2052,6 +2170,7 @@ int pet_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
         || petdww_snapshot_read_module(s) < 0
         || viacore_snapshot_read_module(machine_context.via, s) < 0
         || drive_snapshot_read_module(s) < 0
+        || fsdrive_snapshot_read_module(s) < 0
         || event_snapshot_read_module(s, event_mode) < 0
         || tapeport_snapshot_read_module(s) < 0
         || keyboard_snapshot_read_module(s) < 0
@@ -2067,6 +2186,7 @@ int pet_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
 
     if (ef) {
         machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+        emu_reset(0);
     }
 
     sound_snapshot_finish();
@@ -2108,6 +2228,7 @@ int plus4_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int
     if (maincpu_snapshot_write_module(s) < 0
         || plus4_snapshot_write_module(s, save_roms) < 0
         || drive_snapshot_write_module(s, save_disks, save_roms) < 0
+        || fsdrive_snapshot_write_module(s) < 0
         || ted_snapshot_write_module(s) < 0
         || event_snapshot_write_module(s, event_mode) < 0
         || tapeport_snapshot_write_module(s, save_disks) < 0
@@ -2116,10 +2237,8 @@ int plus4_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int
         || joyport_snapshot_write_module(s, JOYPORT_2) < 0
         || userport_snapshot_write_module(s) < 0) {
         snapshot_free(s);
-        DBG(("error writing snapshot modules.\n"));
         return -1;
     }
-    DBG(("all snapshots written.\n"));
 
     snapshot_free(s);
     return 0;
@@ -2136,7 +2255,7 @@ int plus4_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
         return -1;
     }
 
-    if (major != SNAP_MAJOR || minor != SNAP_MINOR) {
+    if (!snapshot_version_is_equal(major, minor, SNAP_MAJOR, SNAP_MINOR)) {
         log_error(LOG_DEFAULT, "Snapshot version (%d.%d) not valid: expecting %d.%d.", major, minor, SNAP_MAJOR, SNAP_MINOR);
         snapshot_set_error(SNAPSHOT_MODULE_INCOMPATIBLE);
         goto fail;
@@ -2149,6 +2268,7 @@ int plus4_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
     if (maincpu_snapshot_read_module(s) < 0
         || plus4_snapshot_read_module(s) < 0
         || drive_snapshot_read_module(s) < 0
+        || fsdrive_snapshot_read_module(s) < 0
         || ted_snapshot_read_module(s) < 0
         || event_snapshot_read_module(s, event_mode) < 0
         || tapeport_snapshot_read_module(s) < 0
@@ -2163,17 +2283,17 @@ int plus4_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
 
     sound_snapshot_finish();
 
-    DBG(("all snapshots loaded.\n"));
     return 0;
 
 fail:
+    snapshot_display_error();
     if (s != NULL) {
         snapshot_free(s);
     }
 
     machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    emu_reset(0);
 
-    DBG(("error loading snapshot modules.\n"));
     return -1;
 }
 
@@ -2212,6 +2332,7 @@ int scpu64_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, in
         || ciacore_snapshot_write_module(machine_context.cia2, s) < 0
         || sid_snapshot_write_module(s) < 0
         || drive_snapshot_write_module(s, save_disks, save_roms) < 0
+        || fsdrive_snapshot_write_module(s) < 0
         || vicii_snapshot_write_module(s) < 0
         || scpu64_glue_snapshot_write_module(s) < 0
         || event_snapshot_write_module(s, event_mode) < 0
@@ -2237,7 +2358,7 @@ int scpu64_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
         return -1;
     }
 
-    if (major != SNAP_MAJOR || minor != SNAP_MINOR) {
+    if (!snapshot_version_is_equal(major, minor, SNAP_MAJOR, SNAP_MINOR)) {
         log_error(LOG_DEFAULT, "Snapshot version (%d.%d) not valid: expecting %d.%d.", major, minor, SNAP_MAJOR, SNAP_MINOR);
         snapshot_set_error(SNAPSHOT_MODULE_INCOMPATIBLE);
         goto fail;
@@ -2253,6 +2374,7 @@ int scpu64_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
         || ciacore_snapshot_read_module(machine_context.cia2, s) < 0
         || sid_snapshot_read_module(s) < 0
         || drive_snapshot_read_module(s) < 0
+        || fsdrive_snapshot_read_module(s) < 0
         || vicii_snapshot_read_module(s) < 0
         || scpu64_glue_snapshot_read_module(s) < 0
         || event_snapshot_read_module(s, event_mode) < 0
@@ -2270,11 +2392,13 @@ int scpu64_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
     return 0;
 
 fail:
+    snapshot_display_error();
     if (s != NULL) {
         snapshot_free(s);
     }
 
     machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    emu_reset(0);
 
     return -1;
 }
@@ -2315,6 +2439,7 @@ int vic20_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int
         || viacore_snapshot_write_module(machine_context.via1, s) < 0
         || viacore_snapshot_write_module(machine_context.via2, s) < 0
         || drive_snapshot_write_module(s, save_disks, save_roms) < 0
+        || fsdrive_snapshot_write_module(s) < 0
         || event_snapshot_write_module(s, event_mode) < 0
         || tapeport_snapshot_write_module(s, save_disks) < 0
         || keyboard_snapshot_write_module(s) < 0
@@ -2347,7 +2472,7 @@ int vic20_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
         return -1;
     }
 
-    if (major != SNAP_MAJOR || minor != SNAP_MINOR) {
+    if (!snapshot_version_is_equal(major, minor, SNAP_MAJOR, SNAP_MINOR)) {
         log_error(LOG_DEFAULT, "Snapshot version (%d.%d) not valid: expecting %d.%d.", major, minor, SNAP_MAJOR, SNAP_MINOR);
         snapshot_set_error(SNAPSHOT_MODULE_INCOMPATIBLE);
         goto fail;
@@ -2362,6 +2487,7 @@ int vic20_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
         || viacore_snapshot_read_module(machine_context.via1, s) < 0
         || viacore_snapshot_read_module(machine_context.via2, s) < 0
         || drive_snapshot_read_module(s) < 0
+        || fsdrive_snapshot_read_module(s) < 0
         || event_snapshot_read_module(s, event_mode) < 0
         || tapeport_snapshot_read_module(s) < 0
         || keyboard_snapshot_read_module(s) < 0
@@ -2385,11 +2511,13 @@ int vic20_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
     return 0;
 
 fail:
+    snapshot_display_error();
     if (s != NULL) {
         snapshot_free(s);
     }
 
     machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    emu_reset(0);
 
     return -1;
 }

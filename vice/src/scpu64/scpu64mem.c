@@ -44,7 +44,6 @@
 #include "cartio.h"
 #include "cartridge.h"
 #include "cia.h"
-#include "clkguard.h"
 #include "machine.h"
 #include "main65816cpu.h"
 #include "mem.h"
@@ -214,7 +213,7 @@ void scpu64_mem_init(void)
 
 void mem_pla_config_changed(void)
 {
-    mem_config = ((mem_pport & 7) | (export.exrom << 3) | (export.game << 4) 
+    mem_config = ((mem_pport & 7) | (export.exrom << 3) | (export.game << 4)
                 | (mem_reg_hwenable << 5) | (mem_reg_dosext << 6) | (mem_reg_bootmap << 7));
 
     if (watchpoints_active) {
@@ -383,6 +382,21 @@ uint8_t scpu64rom_scpu64_read(uint16_t addr)
 
 /* ------------------------------------------------------------------------- */
 
+/* DMA memory access, on c64 this is the same as generic memory access.  */
+
+void mem_dma_store(uint16_t addr, uint8_t value)
+{
+    _mem_write_tab_ptr[addr >> 8](addr, value);
+}
+
+uint8_t mem_dma_read(uint16_t addr)
+{
+    return _mem_read_tab_ptr[addr >> 8](addr);
+}
+
+
+/* ------------------------------------------------------------------------- */
+
 /* Generic memory access.  */
 
 void mem_store(uint16_t addr, uint8_t value)
@@ -408,7 +422,7 @@ void mem_store2(uint32_t addr, uint8_t value)
                 mem_simm_ram[addr & 0x1ffff] = value;
             }
             scpu64_clock_write_stretch_simm(addr);
-        } 
+        }
         return;
     case 0xf80000:
     case 0xfa0000:
@@ -606,7 +620,7 @@ static void scpu64_hardware_store(uint16_t addr, uint8_t value)
         break;
     case 0xd073: /* System 1MHz disable */
         if (mem_reg_sys_1mhz) {
-            mem_reg_sys_1mhz = 0; 
+            mem_reg_sys_1mhz = 0;
             scpu64_set_fastmode(!(mem_reg_soft_1mhz || (mem_reg_sw_1mhz && !mem_reg_hwenable)));
         }
         break;
@@ -627,7 +641,7 @@ static void scpu64_hardware_store(uint16_t addr, uint8_t value)
         break;
     case 0xd07a: /* Software 1MHz enable */
         if (!mem_reg_soft_1mhz) {
-            mem_reg_soft_1mhz = 1; 
+            mem_reg_soft_1mhz = 1;
             scpu64_set_fastmode(0);
         }
         break;
@@ -1253,7 +1267,6 @@ void mem_powerup(void)
     ram_init(mem_ram, SCPU64_RAM_SIZE);
     ram_init(mem_sram, SCPU64_SRAM_SIZE);
     ram_init(mem_trap_ram, SCPU64_KERNAL_ROM_SIZE);
-    cartridge_ram_init();  /* Clean cartridge ram too */
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1309,10 +1322,10 @@ void scpu64_hardware_reset(void)
     mem_reg_soft_1mhz = 0;
     mem_reg_sys_1mhz = 0;
     mem_reg_hwenable = 0;
-    mem_reg_dosext = 0; 
-    mem_reg_ramlink = 0; 
+    mem_reg_dosext = 0;
+    mem_reg_ramlink = 0;
     mem_reg_bootmap = 1;
-    mem_reg_simm = 4; 
+    mem_reg_simm = 4;
     mem_pport = 7;
     mem_set_mirroring(mem_reg_optim);
     mem_set_simm(mem_reg_simm);
@@ -1347,7 +1360,7 @@ void mem_set_basic_text(uint16_t start, uint16_t end)
 }
 
 /* this function should always read from the screen currently used by the kernal
-   for output, normally this does just return system ram - except when the 
+   for output, normally this does just return system ram - except when the
    videoram is not memory mapped.
    used by autostart to "read" the kernal messages
 */
@@ -1589,7 +1602,7 @@ static const char *banknames[MAXBANKS + 1] = {
 
 static const int banknums[MAXBANKS + 1] =
 {
-    1,
+    0,
     0,
     1,
     2,
@@ -1908,7 +1921,7 @@ void mem_get_screen_parameter(uint16_t *base, uint8_t *rows, uint8_t *columns, i
 
 /* used by autostart to locate and "read" kernal output on the current screen
  * this function should return whatever the kernal currently uses, regardless
- * what is currently visible/active in the UI 
+ * what is currently visible/active in the UI
  */
 void mem_get_cursor_parameter(uint16_t *screen_addr, uint8_t *cursor_column, uint8_t *line_length, int *blinking)
 {

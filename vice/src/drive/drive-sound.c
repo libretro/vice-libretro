@@ -31,6 +31,10 @@
 #include "drive-sound.h"
 #include "sound.h"
 
+#ifdef __LIBRETRO__
+extern bool sound_drive_mute;
+#endif
+
 static const signed char hum[] = {
     0, -1, -2, -3, -2, 0, 3, 5, 6, 5, 3, 0, -3, -5, -6, -4, -2, 1, 2, 3, 3, 3,
     3, 2, 0, -3, -4, -4, -1, 2, 5, 5, 3, -1, -5, -6, -6, -4, -2, -1, 0, 0, 0,
@@ -1435,11 +1439,7 @@ static int sample_rate = 22050;
 extern int drive_sound_emulation;
 extern int drive_sound_emulation_volume;
 
-#ifdef __LIBRETRO__
-extern bool sound_drive_mute;
-#endif
-
-static int drive_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, int soc, int scc, int *delta_t)
+static int drive_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, int soc, int scc, CLOCK *delta_t)
 {
     int i, j, nos = 0;
     static int div = 0;
@@ -1531,7 +1531,7 @@ static int drive_sound_machine_channels(void)
 
 /* Drive sound 'chip', emulates the sound of a 1541 disk drive */
 static sound_chip_t drive_sound = {
-    NULL,                                  /* NO sound chip open function */ 
+    NULL,                                  /* NO sound chip open function */
     drive_sound_machine_init,              /* sound chip init function */
     NULL,                                  /* NO sound chip close function */
     drive_sound_machine_calculate_samples, /* sound chip calculate samples function */

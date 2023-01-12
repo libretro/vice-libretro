@@ -1320,6 +1320,13 @@ bool VteTerminalPrivate::set_encoding(char const* codeset)
     if (codeset == NULL) {
         codeset = "UTF-8";
     }
+    /* Hack to work around bug in Glib 2.74.2
+     * See https://gitlab.gnome.org/GNOME/glib/-/issues/2820
+     * Will be fixed in 2.74.3 according to the ticket.
+     */
+#if (GLIB_MAJOR_VERSION == 2) && (GLIB_MINOR_VERSION == 74) && (GLIB_MICRO_VERSION == 2)
+#undef g_str_equal
+#endif
     if ((m_encoding != nullptr) && g_str_equal(codeset, m_encoding)) {
         /* Nothing to do! */
         return true;
@@ -3923,7 +3930,7 @@ bool VteTerminalPrivate::maybe_send_mouse_button(vte::grid::coords const& unconf
                 return false;
             }
             break;
-        case GDK_BUTTON_RELEASE: 
+        case GDK_BUTTON_RELEASE:
         {
             if (m_mouse_tracking_mode < MOUSE_TRACKING_SEND_XY_ON_BUTTON) {
                 return false;
@@ -4669,7 +4676,7 @@ GString* VteTerminalPrivate::attributes_to_html(GString* text_string, GArray* at
 static GtkTargetEntry* targets_for_format(VteFormat format, int *n_targets)
 {
     switch (format) {
-        case VTE_FORMAT_TEXT: 
+        case VTE_FORMAT_TEXT:
         {
             static GtkTargetEntry *text_targets = nullptr;
             static int n_text_targets;
@@ -4686,7 +4693,7 @@ static GtkTargetEntry* targets_for_format(VteFormat format, int *n_targets)
             return text_targets;
         }
 
-        case VTE_FORMAT_HTML: 
+        case VTE_FORMAT_HTML:
         {
             static GtkTargetEntry *html_targets = nullptr;
             static int n_html_targets;
@@ -5891,7 +5898,7 @@ void VteTerminalPrivate::ensure_font()
             int char_ascent, char_descent;
             GtkBorder char_spacing;
             m_fontdirty = FALSE;
-            _vte_draw_set_text_font (m_draw, m_widget, m_fontdesc, 
+            _vte_draw_set_text_font (m_draw, m_widget, m_fontdesc,
                                      m_cell_width_scale, m_cell_height_scale);
             _vte_draw_get_text_metrics (m_draw,
                                         &cell_width, &cell_height,
@@ -6960,7 +6967,10 @@ void VteTerminalPrivate::widget_unmap()
 static inline void swap (guint *a, guint *b)
 {
     guint tmp;
-    tmp = *a, *a = *b, *b = tmp;
+
+    tmp = *a;
+    *a = *b;
+    *b = tmp;
 }
 
 /* FIXMEchpe probably @attr should be passed by ref */
@@ -7982,7 +7992,7 @@ void VteTerminalPrivate::paint_cursor()
 
     switch (decscusr_cursor_shape()) {
 
-        case VTE_CURSOR_SHAPE_IBEAM: 
+        case VTE_CURSOR_SHAPE_IBEAM:
         {
            /* Draw at the very left of the cell (before the spacing), even in case of CJK.
             * IMO (egmont) not overrunning the letter improves readability, vertical movement
@@ -8002,7 +8012,7 @@ void VteTerminalPrivate::paint_cursor()
             break;
         }
 
-        case VTE_CURSOR_SHAPE_UNDERLINE: 
+        case VTE_CURSOR_SHAPE_UNDERLINE:
         {
            /* The width is at least the overall width of the cell (or two cells) minus the two
             * half spacings on the two edges. That is, underlines under a CJK are more than twice

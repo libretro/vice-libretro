@@ -29,10 +29,9 @@
 
 #include <gtk/gtk.h>
 
-#include "debug_gtk3.h"
+#include "vice_gtk3.h"
 #include "machine.h"
 #include "resources.h"
-#include "widgethelpers.h"
 
 #include "machinemodelwidget.h"
 
@@ -152,13 +151,16 @@ GtkWidget *machine_model_widget_create(void)
     GSList *group;
     const char **list;
     int i;
+    GtkWidget *title;
 
-    grid = uihelpers_create_grid_with_label("Model", 1);
+    grid = vice_gtk3_grid_new_spaced_with_label(-1, 0, "Model", 1);
+    title = gtk_grid_get_child_at(GTK_GRID(grid), 0, 0);
+    gtk_widget_set_margin_bottom(title, 16);
 
     /* add 'unknown' model radio */
     group = NULL;
     radio = gtk_radio_button_new_with_label(group, "Unknown");
-    g_object_set(radio, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(radio, 16);
     gtk_widget_set_sensitive(radio, FALSE);
     gtk_grid_attach(GTK_GRID(grid), radio, 0, 1, 1, 1);
 
@@ -168,7 +170,7 @@ GtkWidget *machine_model_widget_create(void)
         for (i = 0; list[i] != NULL; i++) {
             radio = gtk_radio_button_new_with_label(group, list[i]);
             gtk_radio_button_join_group(GTK_RADIO_BUTTON(radio), last);
-            g_object_set(radio, "margin-left", 16, NULL);
+            gtk_widget_set_margin_start(radio, 16);
             gtk_grid_attach(GTK_GRID(grid), radio, 0, i + 2, 1, 1);
             last = GTK_RADIO_BUTTON(radio);
         }

@@ -41,7 +41,7 @@
 
 /* VSID SID sound chip */
 static sound_chip_t sid_sound_chip = {
-    sid_sound_machine_open,              /* sound chip open function */ 
+    sid_sound_machine_open,              /* sound chip open function */
     sid_sound_machine_init,              /* sound chip init function */
     sid_sound_machine_close,             /* sound chip close function */
     sid_sound_machine_calculate_samples, /* sound chip calculate samples function */
@@ -83,11 +83,6 @@ SIDx_CHECK_RANGE(8)
 
 void machine_sid2_enable(int val)
 {
-}
-
-void sound_machine_prevent_clk_overflow(sound_t *psid, CLOCK sub)
-{
-    sid_sound_machine_prevent_clk_overflow(psid, sub);
 }
 
 char *sound_machine_dump_state(sound_t *psid)

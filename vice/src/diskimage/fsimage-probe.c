@@ -29,6 +29,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "archdep.h"
+#include "crt.h"
 #include "diskconstants.h"
 #include "diskimage.h"
 #include "gcr.h"
@@ -85,13 +87,15 @@ static int disk_image_check_for_d64(disk_image_t *image)
          and compare this with the size of the given image. */
 
     int checkimage_tracks, checkimage_errorinfo;
-    size_t countbytes, checkimage_blocks, checkimage_realsize;
+    size_t countbytes, checkimage_blocks;
+    off_t checkimage_realsize;
     fsimage_t *fsimage;
 
     fsimage = image->media.fsimage;
 
     checkimage_errorinfo = 0;
-    checkimage_realsize = util_file_length(fsimage->fd);
+
+    checkimage_realsize = archdep_file_size(fsimage->fd);
     checkimage_tracks = NUM_TRACKS_1541; /* start at track 35 */
     checkimage_blocks = D64_FILE_SIZE_35 / 256;
 
@@ -155,7 +159,7 @@ static int disk_image_check_for_d67(disk_image_t *image)
 
     fsimage = image->media.fsimage;
 
-    if (!(IS_D67_LEN(util_file_length(fsimage->fd)))) {
+    if (!(IS_D67_LEN(archdep_file_size(fsimage->fd)))) {
         return 0;
     }
 
@@ -199,7 +203,7 @@ static int disk_image_check_for_d71(disk_image_t *image)
     int checkimage_errorinfo;
 
     fsimage = image->media.fsimage;
-    checkimage_realsize = util_file_length(fsimage->fd);
+    checkimage_realsize = archdep_file_size(fsimage->fd);
     checkimage_errorinfo = 0;
 
     if (!(IS_D71_LEN(checkimage_realsize))) {
@@ -248,7 +252,7 @@ static int disk_image_check_for_d81(disk_image_t *image)
 
     fsimage = image->media.fsimage;
 
-    if (!(IS_D81_LEN(util_file_length(fsimage->fd)))) {
+    if (!(IS_D81_LEN(archdep_file_size(fsimage->fd)))) {
         return 0;
     }
 
@@ -329,7 +333,7 @@ static int disk_image_check_for_d80(disk_image_t *image)
 
     fsimage = image->media.fsimage;
 
-    if (!(IS_D80_LEN(util_file_length(fsimage->fd)))) {
+    if (!(IS_D80_LEN(archdep_file_size(fsimage->fd)))) {
         return 0;
     }
 
@@ -371,7 +375,7 @@ static int disk_image_check_for_d82(disk_image_t *image)
 
     fsimage = image->media.fsimage;
 
-    if (!(IS_D82_LEN(util_file_length(fsimage->fd)))) {
+    if (!(IS_D82_LEN(archdep_file_size(fsimage->fd)))) {
         return 0;
     }
 
@@ -542,7 +546,7 @@ static int disk_image_check_for_d1m(disk_image_t *image)
     fsimage = image->media.fsimage;
 
     /* reject files with unknown size */
-    if (!(IS_D1M_LEN(util_file_length(fsimage->fd)))) {
+    if (!(IS_D1M_LEN(archdep_file_size(fsimage->fd)))) {
         return 0;
     }
 
@@ -592,7 +596,7 @@ static int disk_image_check_for_d2m(disk_image_t *image)
 
     fsimage = image->media.fsimage;
 
-    if (!(IS_D2M_LEN(util_file_length(fsimage->fd)))) {
+    if (!(IS_D2M_LEN(archdep_file_size(fsimage->fd)))) {
         return 0;
     }
 
@@ -636,7 +640,7 @@ static int disk_image_check_for_d4m(disk_image_t *image)
     fsimage = image->media.fsimage;
     image->tracks = NUM_TRACKS_2000;
 
-    if (!(IS_D4M_LEN(util_file_length(fsimage->fd)))) {
+    if (!(IS_D4M_LEN(archdep_file_size(fsimage->fd)))) {
         return 0;
     }
 
@@ -672,17 +676,17 @@ static int disk_image_check_for_d4m(disk_image_t *image)
 
 static int disk_image_check_for_dhd(disk_image_t *image)
 {
-    unsigned int blk = 0;
+    off_t blk = 0;
     uint8_t sector[512];
     fsimage_t *fsimage;
-    uint32_t pos;
+    off_t pos;
     unsigned char hdmagic[16] = {0x43, 0x4d, 0x44, 0x20, 0x48, 0x44, 0x20, 0x20,
         0x8d, 0x03, 0x88, 0x8e, 0x02, 0x88, 0xea, 0x60};
 
     fsimage = image->media.fsimage;
     image->tracks = 65535;
 
-    blk = (unsigned int)util_file_length(fsimage->fd);
+    blk = archdep_file_size(fsimage->fd);
 
     /* only allow blank images to be attached if the CMDHD rom is loaded */
     if (blk == 0) {
@@ -695,11 +699,23 @@ static int disk_image_check_for_dhd(disk_image_t *image)
         return 0;
     }
 
-    /* next make sure the file is a multiple of 512 bytes and greater than
+    /* next make sure the file is a multiple of 256 bytes and greater than
        equal 73728 bytes (which is the smallest possible running DHD image */
-    if ((blk % 512 != 0) || ( blk < 73728 )) {
+    /* we used to look for multiples of 512 bytes, but writes of 256 bytes
+       to expanding images in vdrive might make this fail. */
+    /* FIXME: perhaps this can be made more strict to prevent false positives? */
+    if ((blk % 256 != 0) || ( blk < 73728 )) {
         return 0;
     }
+
+    /* since the size check(s) are weak, check CRT header to prevent CRT files
+       being detected as DHD images (bug #1489). having a crt header at the start
+       of a DHD container seems unlikely enough for this to work fine. */
+    if (crt_getid(image->media.fsimage->name) >= 0) {
+        log_error(disk_image_probe_log, "trying to attach a CRT file as DHD image, aborting.");
+        return 0;
+    }
+    /* FIXME: perhaps other headers (g64, t64, p64...) need to be checked here */
 
     /* if the CMDHD rom is loaded, allow it regardless */
     if (!machine_drive_rom_check_loaded(DISK_IMAGE_TYPE_DHD)) {
@@ -714,7 +730,7 @@ static int disk_image_check_for_dhd(disk_image_t *image)
     pos = 1024;
 
     while ( pos < blk ) {
-        if (fseek(fsimage->fd, pos, SEEK_SET)) {
+        if (archdep_fseeko(fsimage->fd, pos, SEEK_SET)) {
             /* hit the end of file */
             break;
         }
@@ -745,13 +761,13 @@ good:
 
 static int disk_image_check_for_d90(disk_image_t *image)
 {
-    unsigned int blk = 0;
+    off_t blk = 0;
     fsimage_t *fsimage;
 
     fsimage = image->media.fsimage;
 
     /* get file size */
-    blk = (unsigned int)util_file_length(fsimage->fd);
+    blk = archdep_file_size(fsimage->fd);
 
     /* only allow true D9090/D9060 image sizes right now */
     if (blk == D9060_FILE_SIZE) {

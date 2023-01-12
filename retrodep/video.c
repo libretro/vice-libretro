@@ -45,8 +45,8 @@ void video_canvas_resize(struct video_canvas_s *canvas, char resize_canvas)
 video_canvas_t *video_canvas_create(video_canvas_t *canvas, 
       unsigned int *width, unsigned int *height, int mapped)
 {
-   canvas->videoconfig->rendermode = VIDEO_RENDER_RGB_1X1;
-   canvas->depth = 8*pix_bytes;
+   canvas->videoconfig->rendermode = VIDEO_RENDER_PAL_NTSC_1X1;
+   canvas->depth = 8 * pix_bytes;
    video_canvas_set_palette(canvas, canvas->palette);
    return canvas;
 }
@@ -68,6 +68,7 @@ int video_canvas_set_palette(struct video_canvas_s *canvas,
                              struct palette_s *palette)
 {
    unsigned int i, col = 0;
+   video_render_color_tables_t *color_tables = &canvas->videoconfig->color_tables;
 
    if (!canvas || !palette) {
       return 0; /* No palette, nothing to do */
@@ -86,9 +87,9 @@ int video_canvas_set_palette(struct video_canvas_s *canvas,
 
    for (i = 0; i < 256; i++) {
       if (pix_bytes == 2)
-         video_render_setrawrgb(i, RGB565(i, 0, 0), RGB565(0, i, 0), RGB565(0, 0, i));
+         video_render_setrawrgb(color_tables, i, RGB565(i, 0, 0), RGB565(0, i, 0), RGB565(0, 0, i));
       else
-         video_render_setrawrgb(i, i << 16, i << 8, i);
+         video_render_setrawrgb(color_tables, i, i << 16, i << 8, i);
    }
    video_render_initraw(canvas->videoconfig);
 
@@ -114,7 +115,7 @@ void video_canvas_refresh(struct video_canvas_s *canvas,
          retrow, retroh,
          retroXS, retroYS,
          0, 0, /*xi, yi,*/
-         retrow*pix_bytes, 8*pix_bytes
+         retrow * pix_bytes
    );
 
    if (!retroh || crop_id < CROP_AUTO)
@@ -301,3 +302,11 @@ void video_arch_resources_shutdown()
 void fullscreen_capability(struct cap_fullscreen_s *cap_fullscreen)
 {
 }
+
+#if defined(__X128__)
+extern int is_vdc(void);
+int video_arch_get_active_chip(void)
+{
+   return is_vdc() ? VIDEO_CHIP_VDC : VIDEO_CHIP_VICII;
+}
+#endif

@@ -23,6 +23,20 @@
  *  vice_gtk3_resource_check_button_factory(check);
  *
  * \endcode
+ *
+ * Extra GObject data used:
+ * (do not overwrite these unless you know what you're doing)
+ *
+ * Set via resourcehelpers.c:
+ *  - ResourceName:     resource name (string)
+ *  - ResourceOrig:     resource value on construction (int)
+ *  - MethodReset:      reset resource to original value (function)
+ *  - MethodFactory:    set resource to factory value (function)
+ *  - MethodSync:       update widget with current resource value (function)
+ *
+ * Set locally:
+ *
+ *  - ExtraCallback:    user-defined callback to call on state change
  */
 
 /*
@@ -63,8 +77,8 @@
  *
  * Frees the heap-allocated copy of the resource name.
  *
- * \param[in]   check       check button
- * \param[in]   user_data   extra event data (unused)
+ * \param[in,out]   check       check button
+ * \param[in]       user_data   extra event data (unused)
  */
 static void on_check_button_destroy(GtkWidget *check, gpointer user_data)
 {
@@ -72,7 +86,7 @@ static void on_check_button_destroy(GtkWidget *check, gpointer user_data)
 }
 
 
-/** \brief  Handler for the "toggled" event of the check button
+/** \brief  Handler for the 'toggled' event of the check button
  *
  * \param[in]   check       check button
  * \param[in]   user_data   resource name
@@ -84,9 +98,9 @@ static void on_check_button_toggled(GtkWidget *check, gpointer user_data)
     void (*callback)(GtkWidget *, int);
 
     resource = resource_widget_get_resource_name(check);
-    if (resources_get_int(resource, &state) > 0) {
+    if (resources_get_int(resource, &state) < 0) {
         /* warning */
-        log_error(LOG_ERR, "invalid resource name '%s'\n", resource);
+        log_error(LOG_ERR, "invalid resource name '%s'", resource);
         return;
     }
     /* Whatever value the check button is now, use as the new resource value */
@@ -107,7 +121,7 @@ static void on_check_button_toggled(GtkWidget *check, gpointer user_data)
  * resource_check_button_create_printf() to finish setting up the resource
  * check button \a check
  *
- * \param[in]   check   check button
+ * \param[in,out]   check   check button
  *
  * \return  new check button
  */
@@ -120,7 +134,7 @@ static GtkWidget *resource_check_button_new_helper(GtkWidget *check)
     resource = resource_widget_get_resource_name(check);
     if (resources_get_int(resource, &state) < 0) {
         /* invalid resource, set state to off */
-        log_error(LOG_ERR, "invalid resource name '%s'\n", resource);
+        log_error(LOG_ERR, "invalid resource name '%s'", resource);
         state = 0;
     }
     /* remember original state for the reset() method */
@@ -150,7 +164,6 @@ static GtkWidget *resource_check_button_new_helper(GtkWidget *check)
     gtk_widget_show(check);
     return check;
 }
-
 
 
 /** \brief  Create check button to toggle \a resource
@@ -194,7 +207,7 @@ GtkWidget *vice_gtk3_resource_check_button_new(const char *resource,
  * printf() format string.
  *
  * \param[in]   fmt         resource name format string
- * \param[in]   label       label of the check button
+ * \param[in]   label       label of the check button and optional printf args
  *
  * \note    The resource name is stored in the "ResourceName" property.
  *
@@ -223,6 +236,8 @@ GtkWidget *vice_gtk3_resource_check_button_new_sprintf(const char *fmt,
  *
  * \param[in,out]   widget  resource check button widget
  * \param[in]       value   new value
+ *
+ * \return  TRUE
  */
 gboolean vice_gtk3_resource_check_button_set(GtkWidget *widget, gboolean value)
 {
@@ -237,7 +252,7 @@ gboolean vice_gtk3_resource_check_button_set(GtkWidget *widget, gboolean value)
  * \param[in]   widget  resource check button widget
  * \param[out]  dest    object to store value
  *
- * \return  bool
+ * \return  TRUE if the resource value was retrieved
  */
 gboolean vice_gtk3_resource_check_button_get(GtkWidget *widget, gboolean *dest)
 {
@@ -257,6 +272,8 @@ gboolean vice_gtk3_resource_check_button_get(GtkWidget *widget, gboolean *dest)
 /** \brief  Reset check button to factory state
  *
  * \param[in,out]   widget  resource check button widget
+ *
+ * \return  TRUE if the resource was reset to its factory value
  */
 gboolean vice_gtk3_resource_check_button_factory(GtkWidget *widget)
 {
@@ -269,7 +286,6 @@ gboolean vice_gtk3_resource_check_button_factory(GtkWidget *widget)
     }
     return vice_gtk3_resource_check_button_set(widget, (gboolean)value);
 }
-
 
 
 /** \brief  Reset \a widget to the state it was when it was created
@@ -333,7 +349,7 @@ gboolean vice_gtk3_resource_check_button_apply(GtkWidget *widget)
     state = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
     if (resources_get_int(resource, &current) < 0) {
         /* invalid resource, exit */
-        log_error(LOG_ERR, "invalid resource name'%s'\n", resource);
+        log_error(LOG_ERR, "invalid resource name'%s'", resource);
         return FALSE;
     }
 
@@ -342,7 +358,7 @@ gboolean vice_gtk3_resource_check_button_apply(GtkWidget *widget)
     if (state != current) {
         if (resources_set_int(resource, state ? 1 : 0) < 0) {
             log_error(LOG_ERR,
-                    "setting %s to %s failed\n",
+                    "setting %s to %s failed",
                     resource, state ? "True": "False");
             /* get current resource value (validity of the name has been
              * checked already */

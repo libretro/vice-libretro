@@ -31,6 +31,9 @@
 #ifndef VICE_VIDEOARCH_H
 #define VICE_VIDEOARCH_H
 
+#include "archdep.h"
+#include "video.h"
+
 typedef struct video_canvas_s {
 
     /** \brief Nonzero if the structure has been fully realized. */
@@ -39,6 +42,9 @@ typedef struct video_canvas_s {
     /** \brief Rendering configuration as seen by the emulator
      *         core. */
     struct video_render_config_s *videoconfig;
+
+    /** \brief Tracks color encoding changes */
+    int crt_type;
 
     /** \brief Drawing buffer as seen by the emulator core. */
     struct draw_buffer_s *draw_buffer;
@@ -54,9 +60,8 @@ typedef struct video_canvas_s {
      *         window colors. */
     struct palette_s *palette;
 
-    /** \brief Methods for managing the draw buffer when the core
-     *         rasterizer handles it. */
-    struct video_draw_buffer_callback_s *video_draw_buffer_callback;
+    /** \brief Used to limit frame rate under warp. */
+    tick_t warp_next_render_tick;
 } video_canvas_t;
 
 typedef struct vice_renderer_backend_s {

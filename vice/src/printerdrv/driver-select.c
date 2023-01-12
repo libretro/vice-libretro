@@ -146,7 +146,6 @@ static const resource_string_t resources_string[] = {
     { "Printer6Driver", "1520", RES_EVENT_NO, NULL,
 #endif
       (char **)&driver_select[2].drv_name, set_printer_driver, (void *)2 },
-
     RESOURCE_STRING_LIST_END
 };
 

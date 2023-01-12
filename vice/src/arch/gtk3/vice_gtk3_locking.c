@@ -34,7 +34,7 @@
 /*
  * Obtains the vice lock before the signal handler is called.
  */
-void vice_gtk3_lock(gpointer data, GClosure *closure)
+static void vice_gtk3_lock(gpointer data, GClosure *closure)
 {
     /* printf("locking: %s\n", (const char *)data); fflush(stdout); */
     mainlock_obtain();
@@ -43,14 +43,14 @@ void vice_gtk3_lock(gpointer data, GClosure *closure)
 /*
  * Releases the vice lock after the signal handler is called.
  */
-void vice_gtk3_unlock(gpointer data, GClosure *closure)
+static void vice_gtk3_unlock(gpointer data, GClosure *closure)
 {
     /* printf("unlocking: %s\n", (const char *)data); */
     mainlock_release();
 }
 
 /*
- * A replacement for g_signal_connect that wraps the signal handling callback in vice lock/unlock. 
+ * A replacement for g_signal_connect that wraps the signal handling callback in vice lock/unlock.
  */
 gulong vice_locking_g_signal_connect(gpointer instance, const gchar *detailed_signal, GCallback signal_handler, gpointer data, const char *signal_handler_name)
 {
@@ -63,7 +63,7 @@ gulong vice_locking_g_signal_connect(gpointer instance, const gchar *detailed_si
 }
 
 /*
- * A replacement for gtk_accel_group_connect that wraps the hotkey callback in vice lock/unlock. 
+ * A replacement for gtk_accel_group_connect that wraps the hotkey callback in vice lock/unlock.
  */
 void vice_locking_gtk_accel_group_connect(
     GtkAccelGroup *accel_group,

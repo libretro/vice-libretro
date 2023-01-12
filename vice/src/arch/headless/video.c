@@ -52,6 +52,18 @@ static const resource_int_t resources_int[] =
     RESOURCE_INT_LIST_END
 };
 
+/** \brief  Arch-sepcific function to check which chip is
+ *          currently "active", or has the focus of the user.
+ *
+ * Note: this version always returns VIDEO_CHIP_VICII since the headless build
+ * has no concept of a canvas or even an active window, and this function only
+ * makes sense in a "headful" build.
+ */
+int video_arch_get_active_chip(void)
+{
+    return VIDEO_CHIP_VICII;
+}
+
 /** \brief  Arch-specific initialization for a video canvas
  *  \param[inout] canvas The canvas being initialized
  *  \sa video_canvas_create
@@ -139,7 +151,7 @@ void video_canvas_destroy(struct video_canvas_s *canvas)
 }
 
 /** \brief Update the display on a video canvas to reflect the machine
- *         state. 
+ *         state.
  * \param canvas The canvas to update.
  * \param xs     A parameter to forward to video_canvas_render()
  * \param ys     A parameter to forward to video_canvas_render()

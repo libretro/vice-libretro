@@ -46,12 +46,10 @@
 #include "charset.h"
 #include "fileio.h"
 #include "fsdevice-filename.h"
-#include "fsdevice-open.h"
 #include "fsdevice-read.h"
 #include "fsdevice-resources.h"
 #include "fsdevice-write.h"
 #include "fsdevicetypes.h"
-#include "ioutil.h"
 #include "lib.h"
 #include "log.h"
 #include "resources.h"
@@ -59,6 +57,8 @@
 #include "vdrive-command.h"
 #include "vdrive.h"
 #include "util.h"
+
+#include "fsdevice-open.h"
 
 #ifdef DEBUG_DRIVEOPEN
 #define DBG(x)  printf x
@@ -105,7 +105,7 @@ static int fsdevice_open_directory(vdrive_t *vdrive, unsigned int secondary,
                                    bufinfo_t *bufinfo,
                                    cbmdos_cmd_parse_t *cmd_parse, char *rname)
 {
-    struct ioutil_dir_s *ioutil_dir;
+    archdep_dir_t *host_dir;
     char *mask;
     uint8_t *p;
     int i;
@@ -138,15 +138,15 @@ static int fsdevice_open_directory(vdrive_t *vdrive, unsigned int secondary,
     }
 
     /* trying to open */
-    ioutil_dir = ioutil_opendir((char *)(cmd_parse->parsecmd), IOUTIL_OPENDIR_ALL_FILES);
-    if (ioutil_dir == NULL) {
+    host_dir = archdep_opendir((char *)(cmd_parse->parsecmd), ARCHDEP_OPENDIR_ALL_FILES);
+    if (host_dir == NULL) {
         for (p = (uint8_t *)(cmd_parse->parsecmd); *p; p++) {
             if (isupper((int)*p)) {
                 *p = tolower((int)*p);
             }
         }
-        ioutil_dir = ioutil_opendir((char *)(cmd_parse->parsecmd), IOUTIL_OPENDIR_ALL_FILES);
-        if (ioutil_dir == NULL) {
+        host_dir = archdep_opendir((char *)(cmd_parse->parsecmd), ARCHDEP_OPENDIR_ALL_FILES);
+        if (host_dir == NULL) {
             fsdevice_error(vdrive, CBMDOS_IPE_NOT_FOUND);
             return FLOPPY_ERROR;
         }
@@ -171,7 +171,7 @@ static int fsdevice_open_directory(vdrive_t *vdrive, unsigned int secondary,
 
     *p++ = '"';
     strcpy((char *)p, bufinfo[secondary].dir); /* Dir name */
-    charset_petconvstring((uint8_t *)p, 0);   /* ASCII name to PETSCII */
+    charset_petconvstring((uint8_t *)p, CONVERT_TO_PETSCII);   /* ASCII name to PETSCII */
     i = 0;
 
     makeshortheader(p);
@@ -188,7 +188,7 @@ static int fsdevice_open_directory(vdrive_t *vdrive, unsigned int secondary,
     /* put the drive-unit and drive number into the "format id" */
     *p++ = '"';
     *p++ = ' ';
-    if (vdrive->drive < 10) {
+    if (vdrive->unit < 10) {
         *p++ = ' ';
         *p++ = '#';
         *p++ = '0' + vdrive->unit;
@@ -198,13 +198,13 @@ static int fsdevice_open_directory(vdrive_t *vdrive, unsigned int secondary,
         *p++ = '0' + (vdrive->unit - 10);
     }
     *p++ = ':';
-    *p++ = '0' + vdrive->drive;
+    *p++ = '0';
     *p++ = 0;
 
     bufinfo[secondary].buflen = (int)(p - bufinfo[secondary].name);
     bufinfo[secondary].bufp = bufinfo[secondary].name;
     bufinfo[secondary].mode = Directory;
-    bufinfo[secondary].ioutil_dir = ioutil_dir;
+    bufinfo[secondary].host_dir = host_dir;
     bufinfo[secondary].eof = 0;
 
     return FLOPPY_COMMAND_OK;
@@ -309,10 +309,10 @@ static int fsdevice_open_file(vdrive_t *vdrive, unsigned int secondary,
     /* Open file for read or relative mode access.  */
     tape = bufinfo[secondary].tape;
     tape->name = util_concat(fsdevice_get_path(vdrive->unit),
-                             FSDEV_DIR_SEP_STR, rname, NULL);
+                             ARCHDEP_DIR_SEP_STR, rname, NULL);
     charset_petconvstring((uint8_t *)(tape->name) +
                           strlen(fsdevice_get_path(vdrive->unit)) +
-                          strlen(FSDEV_DIR_SEP_STR), 1);
+                          strlen(ARCHDEP_DIR_SEP_STR), CONVERT_TO_ASCII);
     tape->read_only = 1;
     /* Prepare for buffered reads */
     bufinfo[secondary].isbuffered = 0;
@@ -380,7 +380,7 @@ static int fsdevice_open_buffer(vdrive_t *vdrive, unsigned int secondary,
 int fsdevice_open(vdrive_t *vdrive, const uint8_t *name, unsigned int length,
                   unsigned int secondary, cbmdos_cmd_parse_t *cmd_parse_ext)
 {
-    char *rname;
+    char rname[ARCHDEP_PATH_MAX];
     int status = 0, rc;
     unsigned int i;
     cbmdos_cmd_parse_t cmd_parse;
@@ -426,13 +426,11 @@ int fsdevice_open(vdrive_t *vdrive, const uint8_t *name, unsigned int length,
     bufinfo[secondary].reclen = cmd_parse.recordlength;
     bufinfo[secondary].num_records = -1;
 
-    rname = lib_malloc(ioutil_maxpathlen());
-
     cmd_parse.parsecmd[cmd_parse.parselength] = 0;
     strncpy(rname, cmd_parse.parsecmd, cmd_parse.parselength + 1);
 
     /* CBM name to FSname */
-    charset_petconvstring((uint8_t *)(cmd_parse.parsecmd), 1);
+    charset_petconvstring((uint8_t *)(cmd_parse.parsecmd), CONVERT_TO_ASCII);
     DBG(("fsdevice_open rname: %s\n", rname));
 
     if (cmd_parse.filetype == CBMDOS_FT_REL) {
@@ -475,8 +473,6 @@ int fsdevice_open(vdrive_t *vdrive, const uint8_t *name, unsigned int length,
     } else {
         status = fsdevice_open_file(vdrive, secondary, bufinfo, &cmd_parse, rname);
     }
-
-    lib_free(rname);
 
     if (status != FLOPPY_COMMAND_OK) {
         goto out;

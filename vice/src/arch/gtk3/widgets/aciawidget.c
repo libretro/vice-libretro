@@ -39,6 +39,7 @@
 #include "basewidgets.h"
 #include "debug_gtk3.h"
 #include "lib.h"
+#include "log.h"
 #include "openfiledialog.h"
 #include "resources.h"
 #include "ui.h"
@@ -115,7 +116,7 @@ static void free_baud_rate_list(void)
 }
 
 
-/** \brief  Handler for the "destroy" event of the main widget
+/** \brief  Handler for the 'destroy' event of the main widget
  *
  * Frees memory used by the baud rate list
  *
@@ -128,7 +129,7 @@ static void on_destroy(GtkWidget *widget, gpointer user_data)
 }
 
 
-/** \brief  Handler for the "changed" event of a serial device text box
+/** \brief  Handler for the 'changed' event of a serial device text box
  *
  * \param[in]   widget      text box triggering the event
  * \param[in]   user_data   serial device number (`int`)
@@ -143,9 +144,9 @@ static void on_serial_device_changed(GtkWidget *widget, gpointer user_data)
 
 /** \brief  Callback for the SuperPET ACIA host serial device path browser
  *
- * \param[in]   dialog      open-file dialog
- * \param[in[   filename    path to host serial device
- * \param[in]   data        device number (1 or 2)
+ * \param[in,out]   dialog      open-file dialog
+ * \param[in]       filename    path to host serial device
+ * \param[in]       data        device number (1 or 2)
  */
 static void browse_filename_callback(GtkDialog *dialog,
                                      gchar *filename,
@@ -153,18 +154,23 @@ static void browse_filename_callback(GtkDialog *dialog,
 {
     if (filename != NULL) {
         int device = GPOINTER_TO_INT(data);
-        GtkWidget *entry = acia_entries[device - 1];
 
-        debug_gtk3("Device = %d, filename = '%s'\n", device, filename);
-        /* update text entry box, forces an update of the resource */
-        gtk_entry_set_text(GTK_ENTRY(entry), filename);
+        if (device != 1 && device != 2) {
+            log_error(LOG_ERR, "%s:%d:%s(): invalid CIA device number: %d",
+                    __FILE__, __LINE__, __func__, device);
+        } else {
+            GtkWidget *entry = acia_entries[device - 1];
+
+            /* update text entry box, forces an update of the resource */
+            gtk_entry_set_text(GTK_ENTRY(entry), filename);
+        }
         g_free(filename);
     }
     gtk_widget_destroy(GTK_WIDGET(dialog));
 }
 
 
-/** \brief  Handler for the "clicked" event of the "browse" buttons
+/** \brief  Handler for the 'clicked' event of the 'browse' buttons
  *
  * \param[in]   widget      button triggering the event
  * \param[in]   user_data   device number (`int`)
@@ -237,7 +243,7 @@ static GtkWidget *create_acia_serial_device_widget(int num)
 
     entry = gtk_entry_new();
     gtk_widget_set_hexpand(entry, TRUE);
-    g_object_set(entry, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(entry, 16);
     browse = gtk_button_new_with_label("Browse ...");
     g_signal_connect(browse, "clicked", G_CALLBACK(on_browse_clicked),
             GINT_TO_POINTER(num));
@@ -248,7 +254,7 @@ static GtkWidget *create_acia_serial_device_widget(int num)
     gtk_grid_attach(GTK_GRID(grid), browse, 1, 1, 1, 1);
 
     label = gtk_label_new("Baud rate");
-    g_object_set(label, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(label, 16);
     gtk_widget_set_halign(label, GTK_ALIGN_START);
 
     g_snprintf(buffer, 256, "RsDevice%dBaud", num);
@@ -276,7 +282,7 @@ static GtkWidget *create_acia_serial_device_widget(int num)
 
 /** \brief  Create ACIA settings widget
  *
- * XXX: currently designed for PET, might need updating when used in other UI's
+ * XXX: currently designed for PET, might need updating when used in other UIs
  *
  * \param[in]   baud    list of baud rates (list of `int`'s, terminated by -1)
  *
@@ -296,7 +302,7 @@ GtkWidget *acia_widget_create(int *baud)
             VICE_GTK3_DEFAULT, VICE_GTK3_DEFAULT, "ACIA settings", 3);
 
     device_widget = create_acia_device_widget();
-    g_object_set(device_widget, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(device_widget, 16);
     gtk_grid_attach(GTK_GRID(grid), device_widget, 0, 1, 1, 1);
 
     serial1_widget = create_acia_serial_device_widget(1);

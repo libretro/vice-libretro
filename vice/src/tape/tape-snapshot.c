@@ -41,6 +41,9 @@
 #include "tape.h"
 #include "types.h"
 
+#ifdef __LIBRETRO__
+#include "tapeport.h"
+#endif
 
 /* Logging.  */
 static log_t tape_snapshot_log = LOG_ERR;
@@ -70,7 +73,7 @@ static int tape_snapshot_read_t64image_module(snapshot_t *s)
 #define TAPIMAGE_SNAP_MAJOR 1
 #define TAPIMAGE_SNAP_MINOR 0
 
-static int tape_snapshot_write_tapimage_module(snapshot_t *s)
+static int tape_snapshot_write_tapimage_module(int port, snapshot_t *s)
 {
     snapshot_module_t *m;
     FILE *ftap;
@@ -85,7 +88,7 @@ static int tape_snapshot_write_tapimage_module(snapshot_t *s)
     }
 
     /* get the file descriptor */
-    ftap = ((tap_t*)tape_image_dev1->data)->fd;
+    ftap = ((tap_t*)tape_image_dev[port]->data)->fd;
     if (!ftap) {
         log_error(tape_snapshot_log, "Cannot open tapfile for reading");
         return -1;
@@ -134,13 +137,13 @@ static int tape_snapshot_write_tapimage_module(snapshot_t *s)
 }
 
 
-static int tape_snapshot_read_tapimage_module(snapshot_t *s)
+static int tape_snapshot_read_tapimage_module(int port, snapshot_t *s)
 {
 #ifdef __LIBRETRO__
     /* Enable Datasette and press play by force to solve https://sourceforge.net/p/vice-emu/bugs/860/
      * Also skip included tape image to prevent unwanted temp file writes */
-    resources_set_int("Datasette", 1);
-    datasette_control(DATASETTE_CONTROL_START);
+    resources_set_int("TapePort1Device", TAPEPORT_DEVICE_DATASETTE);
+    datasette_control(TAPEPORT_PORT_1, DATASETTE_CONTROL_START);
     return 0;
 #endif
 
@@ -190,7 +193,7 @@ static int tape_snapshot_read_tapimage_module(snapshot_t *s)
 
     lib_free(buffer);
     fclose(ftap);
-    tape_image_attach(1, filename);
+    tape_image_attach(port + 1, filename);
     lib_free(filename);
     snapshot_module_close(m);
     return 0;
@@ -206,24 +209,24 @@ fail:
 
 static const char snap_module_name[] = "TAPE";
 
-int tape_snapshot_write_module(snapshot_t *s, int save_image)
+int tape_snapshot_write_module(int port, snapshot_t *s, int save_image)
 {
     snapshot_module_t *m;
     tap_t *tap;
 
-    if (tape_image_dev1 == NULL || tape_image_dev1->name == NULL) {
+    if (tape_image_dev[port] == NULL || tape_image_dev[port]->name == NULL) {
         return 0;
     }
 
     if (save_image) {
-        switch (tape_image_dev1->type) {
+        switch (tape_image_dev[port]->type) {
             case TAPE_TYPE_T64:
                 if (tape_snapshot_write_t64image_module(s) < 0) {
                     return -1;
                 }
                 break;
             case TAPE_TYPE_TAP:
-                if (tape_snapshot_write_tapimage_module(s) < 0) {
+                if (tape_snapshot_write_tapimage_module(port, s) < 0) {
                     return -1;
                 }
                 break;
@@ -238,17 +241,17 @@ int tape_snapshot_write_module(snapshot_t *s, int save_image)
     }
 
     if (0
-        || SMW_B(m, (uint8_t)tape_image_dev1->read_only) < 0
-        || SMW_B(m, (uint8_t)tape_image_dev1->type) < 0) {
+        || SMW_B(m, (uint8_t)tape_image_dev[port]->read_only) < 0
+        || SMW_B(m, (uint8_t)tape_image_dev[port]->type) < 0) {
         snapshot_module_close(m);
         return -1;
     }
 
-    switch (tape_image_dev1->type) {
+    switch (tape_image_dev[port]->type) {
         case TAPE_TYPE_T64:
             break;
         case TAPE_TYPE_TAP:
-            tap = (tap_t*)tape_image_dev1->data;
+            tap = (tap_t*)tape_image_dev[port]->data;
             if (tap == NULL
                 || SMW_DW(m, tap->size) < 0
                 || SMW_B(m, tap->version) < 0
@@ -274,14 +277,14 @@ int tape_snapshot_write_module(snapshot_t *s, int save_image)
 }
 
 
-int tape_snapshot_read_module(snapshot_t *s)
+int tape_snapshot_read_module(int port, snapshot_t *s)
 {
     uint8_t major_version, minor_version;
     snapshot_module_t *m;
     unsigned int snap_type;
     tap_t *tap;
 
-    if (tape_snapshot_read_tapimage_module(s) < 0
+    if (tape_snapshot_read_tapimage_module(port, s) < 0
         || tape_snapshot_read_t64image_module(s) < 0) {
         return -1;
     }
@@ -292,18 +295,18 @@ int tape_snapshot_read_module(snapshot_t *s)
 
     if (m == NULL) {
         /* no tape attached */
-        tape_image_detach_internal(1);
+        tape_image_detach_internal(port + 1);
         return 0;
     }
 
     if (0
-        || SMR_B_INT(m, (int *)&tape_image_dev1->read_only) < 0
+        || SMR_B_INT(m, (int *)&tape_image_dev[port]->read_only) < 0
         || SMR_B_INT(m, (int *)&snap_type) < 0) {
         snapshot_module_close(m);
         return -1;
     }
 
-    if (snap_type != tape_image_dev1->type) {
+    if (snap_type != tape_image_dev[port]->type) {
         /* attached image type is not correct */
         log_error(tape_snapshot_log,
                   "No tape image attached or type not correct.");
@@ -311,11 +314,11 @@ int tape_snapshot_read_module(snapshot_t *s)
         return -1;
     }
 
-    switch (tape_image_dev1->type) {
+    switch (tape_image_dev[port]->type) {
         case TAPE_TYPE_T64:
             break;
         case TAPE_TYPE_TAP:
-            tap = (tap_t*)tape_image_dev1->data;
+            tap = (tap_t*)tape_image_dev[port]->data;
             if (tap == NULL
                 || SMR_DW(m, (uint32_t *)&tap->size) < 0
                 || SMR_B(m, &tap->version) < 0

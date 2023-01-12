@@ -53,6 +53,14 @@
     "  min-height: 10px;\n" \
     "  margin-top: 0px;\n" \
     "  margin-bottom: 2px;\n" \
+    "  margin-right: 8px;\n" \
+    "}"
+
+
+/** \brief  CSS for the timing widget */
+#define TIMING_CSS \
+    "label { \n" \
+    "  font-family: monospace;\n" \
     "}"
 
 
@@ -94,6 +102,11 @@ static const gchar *rec_types[] = {
 };
 
 
+/** \brief  GSource id of the timeout to hide the recording button
+ */
+static guint timeout_id = 0;
+
+
 /** \brief  Callback for the g_timeout
  *
  * \param[in,out]   data    statusbar recording widget
@@ -128,13 +141,13 @@ static gboolean update_timer(gpointer data)
  * Stops all recordings.
  *
  * \param[in,out]   button  button triggering the event
- * \param[im,out]   data    statusbar recording widget (GtkGrid)
+ * \param[in,out]   data    statusbar recording widget (GtkGrid)
  */
 static void on_stop_clicked(GtkWidget *button, gpointer data)
 {
     GtkWidget *label;
 
-    ui_media_stop_recording(button, NULL);
+    ui_media_stop_recording();
     if (event_record_active()) {
         event_record_stop();
     }
@@ -146,13 +159,18 @@ static void on_stop_clicked(GtkWidget *button, gpointer data)
 }
 
 
+/** \brief  Create "Stop" button
+ *
+ * Create a Stop button with an icon, reduced in size.
+ *
+ * \return  GtkButton
+ */
 static GtkWidget *create_stop_button(void)
 {
     GtkWidget *button;
 
     button = gtk_button_new_from_icon_name("media-playback-stop-symbolic",
                                            GTK_ICON_SIZE_SMALL_TOOLBAR);
-    g_object_set(button, "margin-top", 0, NULL);
     /* set up CSS to reduce button size */
     vice_gtk3_css_add(button, STOP_BUTTON_CSS);
     return button;
@@ -162,7 +180,7 @@ static GtkWidget *create_stop_button(void)
 
 /** \brief  Create recording status widget
  *
- * Generate a widget to show on the statusbar to display recording state
+ * Generate a widget to show on the statusbar to display recording state.
  *
  * \return  GtkGrid
  */
@@ -173,9 +191,8 @@ GtkWidget *statusbar_recording_widget_create(void)
     GtkWidget *button;
 
     grid = vice_gtk3_grid_new_spaced(8, 0);
-    gtk_widget_set_hexpand(grid, TRUE);
+    gtk_widget_set_hexpand(grid, FALSE);
     gtk_widget_set_vexpand(grid, FALSE);
-    g_object_set(grid, "margin-top", 0, "margin-bottom", 0, NULL);
 
     g_object_set_data(G_OBJECT(grid), "Seconds", GINT_TO_POINTER(0));
     g_object_set_data(G_OBJECT(grid), "Status", GINT_TO_POINTER(0));
@@ -188,8 +205,9 @@ GtkWidget *statusbar_recording_widget_create(void)
 
     /* recording timestamp label */
     label = gtk_label_new("");  /* initially empty */
-    gtk_widget_set_halign(label, GTK_ALIGN_FILL);
-    gtk_widget_set_hexpand(label, TRUE);
+    gtk_widget_set_halign(label, GTK_ALIGN_END);
+    gtk_widget_set_hexpand(label, FALSE);
+    vice_gtk3_css_add(label, TIMING_CSS);
     gtk_grid_attach(GTK_GRID(grid), label, RW_COL_TIME, RW_ROW_TIME, 1, 1);
 
     button = create_stop_button();
@@ -197,7 +215,7 @@ GtkWidget *statusbar_recording_widget_create(void)
     gtk_grid_attach(GTK_GRID(grid), button, RW_COL_BUTTON, RW_ROW_BUTTON, 1, 2);
     gtk_widget_set_halign(button, GTK_ALIGN_END);
     gtk_widget_set_valign(button, GTK_ALIGN_START);
-    gtk_widget_set_hexpand(button, FALSE);
+    gtk_widget_set_hexpand(button, TRUE);
     gtk_widget_set_vexpand(button, FALSE);
     gtk_widget_set_sensitive(button, FALSE);
     gtk_widget_set_no_show_all(button, TRUE);
@@ -227,6 +245,11 @@ void statusbar_recording_widget_set_recording_status(GtkWidget *widget,
     GtkWidget *button;
     int type = 0;   /* set recording type to 'inactive' */
 
+    if (timeout_id > 0) {
+        g_source_remove(timeout_id);
+        timeout_id = 0;
+    }
+
     g_object_set_data(G_OBJECT(widget), "Status", GINT_TO_POINTER(status));
     if (status == 0) {
         g_object_set_data(G_OBJECT(widget), "Seconds", GINT_TO_POINTER(0));
@@ -236,6 +259,14 @@ void statusbar_recording_widget_set_recording_status(GtkWidget *widget,
     if (event_record_active()) {
         type = RW_TYPE_EVENTS;
     } else if (sound_is_recording() && !screenshot_is_recording()) {
+        /* FIXME: sound_is_recording() returns false when using the UI, it uses
+         *        a variable that only gets set when using command-line options.
+         *        Triggering the recording from the UI doesn't set the variable
+         *        but does set the related resource, which I use in the function
+         *        used to update the UI display.
+         *
+         *        So this needs some serious refactoring.
+         */
         type = RW_TYPE_AUDIO;
     } else {
         type = RW_TYPE_VIDEO;
@@ -248,7 +279,7 @@ void statusbar_recording_widget_set_recording_status(GtkWidget *widget,
     /* update recording status text */
     label = gtk_grid_get_child_at(GTK_GRID(widget), RW_COL_TEXT, RW_ROW_TEXT);
 
-    g_snprintf(buffer, 256, "Recording %s ...", rec_types[type]);
+    g_snprintf(buffer, sizeof(buffer), "Recording %s ...", rec_types[type]);
     gtk_label_set_text(GTK_LABEL(label), buffer);
 
     /* enable/disable STOP button based on the \a status variable */
@@ -262,9 +293,9 @@ void statusbar_recording_widget_set_recording_status(GtkWidget *widget,
 
 /** \brief  Update recording/playback time display
  *
- * \param[in,out]   statusbar   recording widget
- * \param[in]       current     current time in seconds
- * \param[in]       total       total time in seconds
+ * \param[in,out]   widget  recording widget
+ * \param[in]       current current time in seconds
+ * \param[in]       total   total time in seconds
  *
  * \note    \a total only makes sense when replaying events.
  *          I could make the time display '--:--' when \a total is 0, but it
@@ -275,18 +306,41 @@ void statusbar_recording_widget_set_time(GtkWidget *widget,
                                          unsigned int current,
                                          unsigned int total)
 {
-    GtkWidget *label;
+    GtkWidget *status;
+    GtkWidget *time;
+    int type;
     gchar buffer[256];
+    const char *dev = NULL;
 
-    label = gtk_grid_get_child_at(GTK_GRID(widget), RW_COL_TIME, RW_ROW_TIME);
-
+    resources_get_string("SoundRecordDeviceName", &dev);
+    time = gtk_grid_get_child_at(GTK_GRID(widget), RW_COL_TIME, RW_ROW_TIME);
     if (total > 0) {
-        g_snprintf(buffer, 256, "Time: %02u:%02u / %02u:%02u",
+        g_snprintf(buffer, sizeof(buffer), "%02u:%02u/%02u:%02u",
                 current / 60, current % 60, total / 60, total % 60);
     } else {
-        g_snprintf(buffer, 256, "Time: %02u:%02u", current / 60, current % 60);
+        g_snprintf(buffer, sizeof(buffer), "%02u:%02u",
+                current / 60, current % 60);
     }
-    gtk_label_set_text(GTK_LABEL(label), buffer);
+    gtk_label_set_text(GTK_LABEL(time), buffer);
+
+
+    /* FIXME: Determining the recording status/type is currently very flaky.
+     *        When triggering a recording from the UI the variables that should
+     *        indicate the recording type aren't set yet. So for now we have to
+     *        check them in this timer callback. Also the sound recording status
+     *        function is broken in src/sound.c.
+     */
+    status = gtk_grid_get_child_at(GTK_GRID(widget), RW_COL_TEXT, RW_ROW_TEXT);
+    /* determine recording type */
+    if (event_record_active()) {
+        type = RW_TYPE_EVENTS;
+    } else if ((dev != NULL && *dev != '\0') && !screenshot_is_recording()) {
+        type = RW_TYPE_AUDIO;
+    } else {
+        type = RW_TYPE_VIDEO;
+    }
+    g_snprintf(buffer, sizeof(buffer), "Recording %s ...", rec_types[type]);
+    gtk_label_set_text(GTK_LABEL(status), buffer);
 }
 
 
@@ -353,14 +407,11 @@ static gboolean hide_all_timer_callback(gpointer data)
  */
 void statusbar_recording_widget_hide_all(GtkWidget *widget, guint timeout)
 {
-    /* setup a one-shot timer to hide the labels and button */
-    if (timeout == 0) {
-        /* don't bother setting up timer, trigger directly */
-        hide_all_timer_callback((gpointer)widget);
-    } else {
-        g_timeout_add_seconds(
-                timeout,
-                hide_all_timer_callback,
-                (gpointer)widget);
+    /* remove previous timeout */
+    if (timeout_id > 0) {
+        g_source_remove(timeout_id);
     }
+    timeout_id = g_timeout_add_seconds(timeout,
+                                       hide_all_timer_callback,
+                                       (gpointer)widget);
 }

@@ -29,10 +29,25 @@
 
 #include "types.h"
 
+typedef struct _RAMINITPARAM {
+    int start_value;/* first value of the base pattern (byte value) */
+    int value_invert; /* number of bytes until start value is inverted */
+    int value_offset; /* offset of first pattern in bytes */
+
+    int pattern_invert; /* invert base pattern after this many bytes */
+    int pattern_invert_value; /* invert base pattern with this byte */
+
+    int random_start; /* length of random pattern in bytes */ /* FIXME: bad name */
+    int random_repeat; /* repeat random pattern after this many bytes */
+
+    int random_chance; /* global random chance */
+} RAMINITPARAM;
+
 extern int ram_resources_init(void);
 extern int ram_cmdline_options_init(void);
 
 extern void ram_init(uint8_t *memram, unsigned int ramsize);
+extern void ram_init_with_pattern(uint8_t *memram, unsigned int ramsize, RAMINITPARAM *ramparam);
 extern void ram_init_print_pattern(char *s, int len, char *eol);
 
 #endif

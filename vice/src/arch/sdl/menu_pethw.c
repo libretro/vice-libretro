@@ -38,6 +38,7 @@
 #include "menu_ram.h"
 #include "menu_rom.h"
 #include "menu_settings.h"
+#include "menu_userport.h"
 #include "pet.h"
 #include "petmodel.h"
 #include "pet-resources.h"
@@ -200,6 +201,27 @@ static const ui_menu_entry_t petcolour_menu[] = {
     SDL_MENU_LIST_END
 };
 
+/* SUPERPET CPU */
+
+UI_MENU_DEFINE_RADIO(CPUswitch)
+
+static const ui_menu_entry_t superpet_cpu_menu[] = {
+    SDL_MENU_ITEM_TITLE("SuperPET CPU switch"),
+    { "MOS 6502",
+      MENU_ENTRY_RESOURCE_RADIO,
+      radio_CPUswitch_callback,
+      (ui_callback_data_t)SUPERPET_CPU_6502 },
+    { "Motorola 6809",
+      MENU_ENTRY_RESOURCE_RADIO,
+      radio_CPUswitch_callback,
+      (ui_callback_data_t)SUPERPET_CPU_6809 },
+    { "Programmable",
+      MENU_ENTRY_RESOURCE_RADIO,
+      radio_CPUswitch_callback,
+      (ui_callback_data_t)SUPERPET_CPU_PROG },
+    SDL_MENU_LIST_END
+};
+
 /* PET MODEL SELECTION */
 
 static UI_MENU_CALLBACK(custom_PETModel_callback)
@@ -246,7 +268,7 @@ void uikeyboard_update_pet_type_menu(void)
     resources_get_int("KeymapIndex", &idx);
     resources_get_int("KeyboardMapping", &mapping);
 }
-#endif    
+#endif
 
 static UI_MENU_CALLBACK(radio_KeyboardType_callback)
 {
@@ -283,37 +305,6 @@ static const ui_menu_entry_t pet_keyboard_menu[] = {
     SDL_MENU_LIST_END
 };
 
-UI_MENU_DEFINE_TOGGLE(UserportDAC)
-UI_MENU_DEFINE_TOGGLE(UserportRTCDS1307)
-UI_MENU_DEFINE_TOGGLE(UserportRTCDS1307Save)
-UI_MENU_DEFINE_TOGGLE(UserportRTC58321a)
-UI_MENU_DEFINE_TOGGLE(UserportRTC58321aSave)
-
-static const ui_menu_entry_t userport_menu[] = {
-    SDL_MENU_ITEM_TITLE("Userport devices"),
-    { "8 bit DAC enable",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_UserportDAC_callback,
-      NULL },
-    { "RTC (58321a) enable",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_UserportRTC58321a_callback,
-      NULL },
-    { "Save RTC (58321a) data when changed",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_UserportRTC58321aSave_callback,
-      NULL },
-    { "RTC (DS1307) enable",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_UserportRTCDS1307_callback,
-      NULL },
-    { "Save RTC (DS1307) data when changed",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_UserportRTCDS1307Save_callback,
-      NULL },
-    SDL_MENU_LIST_END
-};
-
 UI_MENU_DEFINE_TOGGLE(Crtc)
 UI_MENU_DEFINE_TOGGLE(PETHRE)
 
@@ -326,6 +317,10 @@ const ui_menu_entry_t pet_hardware_menu[] = {
       MENU_ENTRY_SUBMENU,
       submenu_radio_callback,
       (ui_callback_data_t)pet_keyboard_menu },
+    { "SuperPET CPU switch",
+      MENU_ENTRY_SUBMENU,
+      submenu_radio_callback,
+      (ui_callback_data_t)superpet_cpu_menu },
     SDL_MENU_ITEM_SEPARATOR,
     { "Joyport settings",
       MENU_ENTRY_SUBMENU,
@@ -369,14 +364,14 @@ const ui_menu_entry_t pet_hardware_menu[] = {
       MENU_ENTRY_RESOURCE_TOGGLE,
       toggle_PETHRE_callback,
       NULL },
-    { "Userport devices",
+    { "Userport settings",
       MENU_ENTRY_SUBMENU,
       submenu_callback,
       (ui_callback_data_t)userport_menu },
     { "Tape port devices",
       MENU_ENTRY_SUBMENU,
       submenu_callback,
-      (ui_callback_data_t)tapeport_devices_menu },
+      (ui_callback_data_t)tapeport_pet_devices_menu },
     { "Memory and I/O settings",
       MENU_ENTRY_SUBMENU,
       submenu_callback,

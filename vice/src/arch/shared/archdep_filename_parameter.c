@@ -1,5 +1,5 @@
 /** \file   archdep_filename_parameter.c
- * \brief   Quote filename parameters on systems the need it
+ * \brief   Quote filename parameters on systems that need it
  * \author  Bas Wassink <b.wassink@ziggo.nl>
  */
 
@@ -41,16 +41,13 @@
 
 /** \brief  Quote \a name with double quotes
  *
- * Taken from win32/archdep.c, seems Windows needs this, but it makes unzip etc
- * fail on proper systems.
- *
  * \param[in]   name    string to quote
  *
  * \return  quoted (win32) and heap-allocated copy of \a name
  */
 char *archdep_filename_parameter(const char *name)
 {
-#if defined(ARCHDEP_OS_WINDOWS)
+#if defined(WINDOWS_COMPILE)
     char *path;
     char *result;
 

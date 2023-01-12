@@ -83,7 +83,7 @@ typedef struct {
 } videosound_t;
 static videosound_t chip[2];
 
-static int video_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, int soc, int scc, int *delta_t)
+static int video_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, int soc, int scc, CLOCK *delta_t)
 {
     int i, num;
     int smpval1, smpval2;
@@ -145,7 +145,7 @@ static int video_sound_machine_channels(void)
 
 /* Video sound interference 'device' */
 static sound_chip_t video_sound = {
-    NULL,                                  /* NO sound chip open function */ 
+    NULL,                                  /* NO sound chip open function */
     video_sound_machine_init,              /* sound chip init function */
     NULL,                                  /* NO sound chip close function */
     video_sound_machine_calculate_samples, /* sound chip calculate samples function */

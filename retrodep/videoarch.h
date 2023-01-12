@@ -1,10 +1,22 @@
-#ifndef _VIDEOARCH_H
-#define _VIDEOARCH_H
+#ifndef VICE_VIDEOARCH_H
+#define VICE_VIDEOARCH_H
+
+#include "archdep.h"
+#include "video.h"
 
 typedef struct video_canvas_s {
+    /** \brief Nonzero if it is safe to access other members of the
+     *         structure. */
+    unsigned int initialized;
 
     /** \brief Nonzero if the structure has been fully realized. */
     unsigned int created;
+
+    /** \brief Index of the canvas, needed for x128 and xcbm2 */
+    int index;
+
+    /** \brief Depth of the canvas in bpp */
+    unsigned int depth;
 
     /** \brief Rendering configuration as seen by the emulator
      *         core. */
@@ -27,8 +39,11 @@ typedef struct video_canvas_s {
     /** \brief Methods for managing the draw buffer when the core
      *         rasterizer handles it. */
     struct video_draw_buffer_callback_s *video_draw_buffer_callback;
+
+    /** \brief Used to limit frame rate under warp. */
+    tick_t warp_next_render_tick;
     
-    unsigned int depth;
+    int crt_type;
 } video_canvas_t;
 
 typedef struct vice_renderer_backend_s {

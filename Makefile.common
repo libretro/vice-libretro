@@ -8,6 +8,9 @@ INCFLAGS += \
 	-I$(CORE_DIR)/libretro \
 	-I$(CORE_DIR)/include \
 	-I$(CORE_DIR)/include/embedded \
+	-I$(EMU)/core/rtc \
+	-I$(EMU)/lib \
+	-I$(EMU)/printerdrv \
 	-I$(RETRODEP) \
 	-I$(LIBRETRO_COMM_DIR)/include \
 	-I$(LIBRETRO_COMM_DIR)/include/compat/zlib
@@ -24,6 +27,51 @@ SOURCES_C := \
 	$(CORE_DIR)/libretro/libretro-graph.c \
 	$(DEPS_DIR)/libz/unzip.c \
 	$(DEPS_DIR)/libz/ioapi.c
+
+SOURCES_C_JOYPORT := \
+    $(EMU)/joyport/bbrtc.c \
+    $(EMU)/joyport/cardkey.c \
+    $(EMU)/joyport/coplin_keypad.c \
+    $(EMU)/joyport/cx21.c \
+    $(EMU)/joyport/cx85.c \
+    $(EMU)/joyport/inception.c \
+    $(EMU)/joyport/joyport.c \
+    $(EMU)/joyport/joyport_io_sim.c \
+    $(EMU)/joyport/joystick.c \
+    $(EMU)/joyport/lightpen.c \
+    $(EMU)/joyport/mouse.c \
+    $(EMU)/joyport/mouse_1351.c \
+    $(EMU)/joyport/mouse_neos.c \
+    $(EMU)/joyport/mouse_paddle.c \
+    $(EMU)/joyport/mouse_quadrature.c \
+    $(EMU)/joyport/multijoy.c \
+    $(EMU)/joyport/ninja_snespad.c \
+    $(EMU)/joyport/paperclip64.c \
+    $(EMU)/joyport/protopad.c \
+    $(EMU)/joyport/rushware_keypad.c \
+    $(EMU)/joyport/sampler2bit.c \
+    $(EMU)/joyport/sampler4bit.c \
+    $(EMU)/joyport/script64_dongle.c \
+    $(EMU)/joyport/spaceballs.c \
+    $(EMU)/joyport/trapthem_snespad.c \
+    $(EMU)/joyport/vizawrite64_dongle.c \
+    $(EMU)/joyport/waasoft_dongle.c
+
+SOURCES_C_USERPORT := \
+    $(EMU)/userport/userport.c \
+    $(EMU)/userport/userport_4bit_sampler.c \
+    $(EMU)/userport/userport_8bss.c \
+    $(EMU)/userport/userport_dac.c \
+    $(EMU)/userport/userport_diag_586220_harness.c \
+    $(EMU)/userport/userport_digimax.c \
+    $(EMU)/userport/userport_io_sim.c \
+    $(EMU)/userport/userport_joystick.c \
+    $(EMU)/userport/userport_petscii_snespad.c \
+    $(EMU)/userport/userport_rtc_58321a.c \
+    $(EMU)/userport/userport_rtc_ds1307.c \
+    $(EMU)/userport/userport_spt_joystick.c \
+    $(EMU)/userport/userport_superpad64.c \
+    $(EMU)/userport/userport_wic64.c
 
 SOURCES_C_C64_CART := \
 	$(EMU)/c64/cart/actionreplay.c \
@@ -48,7 +96,6 @@ SOURCES_C_C64_CART := \
 	$(EMU)/c64/cart/clockport-rrnet.c \
 	$(EMU)/c64/cart/clockport.c \
 	$(EMU)/c64/cart/comal80.c \
-	$(EMU)/c64/cart/crt.c \
 	$(EMU)/c64/cart/cs8900io.c \
 	$(EMU)/c64/cart/daa.c \
 	$(EMU)/c64/cart/debugcart.c \
@@ -58,6 +105,7 @@ SOURCES_C_C64_CART := \
 	$(EMU)/c64/cart/diashowmaker.c \
 	$(EMU)/c64/cart/digimax.c \
 	$(EMU)/c64/cart/dinamic.c \
+	$(EMU)/c64/cart/drean.c \
 	$(EMU)/c64/cart/dqbb.c \
 	$(EMU)/c64/cart/ds12c887rtc.c \
 	$(EMU)/c64/cart/easycalc.c \
@@ -71,6 +119,7 @@ SOURCES_C_C64_CART := \
 	$(EMU)/c64/cart/finalplus.c \
 	$(EMU)/c64/cart/formel64.c \
 	$(EMU)/c64/cart/freezeframe.c \
+	$(EMU)/c64/cart/freezeframe2.c \
 	$(EMU)/c64/cart/freezemachine.c \
 	$(EMU)/c64/cart/funplay.c \
 	$(EMU)/c64/cart/gamekiller.c \
@@ -78,8 +127,8 @@ SOURCES_C_C64_CART := \
 	$(EMU)/c64/cart/gmod2.c \
 	$(EMU)/c64/cart/gmod3.c \
 	$(EMU)/c64/cart/gs.c \
-	$(EMU)/c64/cart/hero.c \
 	$(EMU)/c64/cart/ide64.c \
+	$(EMU)/c64/cart/ieeeflash64.c \
 	$(EMU)/c64/cart/isepic.c \
 	$(EMU)/c64/cart/kcs.c \
 	$(EMU)/c64/cart/kingsoft.c \
@@ -95,6 +144,7 @@ SOURCES_C_C64_CART := \
 	$(EMU)/c64/cart/mmcreplay.c \
 	$(EMU)/c64/cart/ocean.c \
 	$(EMU)/c64/cart/pagefox.c \
+	$(EMU)/c64/cart/partner64.c \
 	$(EMU)/c64/cart/prophet64.c \
 	$(EMU)/c64/cart/ramcart.c \
 	$(EMU)/c64/cart/ramlink.c \
@@ -120,6 +170,7 @@ SOURCES_C_C64_CART := \
 	$(EMU)/c64/cart/supergames.c \
 	$(EMU)/c64/cart/supersnapshot.c \
 	$(EMU)/c64/cart/supersnapshot4.c \
+	$(EMU)/c64/cart/turtlegraphics.c \
 	$(EMU)/c64/cart/rexramfloppy.c \
 	$(EMU)/c64/cart/warpspeed.c \
 	$(EMU)/c64/cart/westermann.c \
@@ -152,7 +203,6 @@ SOURCES_CXX += $(LOCAL_SRC_CC_FILES)
 SOURCES_C += \
 	$(LOCAL_SRC_FILES) \
 	$(RETRODEP)/archdep.c \
-	$(RETRODEP)/c64ui.c \
 	$(RETRODEP)/console.c \
 	$(RETRODEP)/joy.c \
 	$(RETRODEP)/lightpendrv.c \
@@ -162,11 +212,9 @@ SOURCES_C += \
 	$(RETRODEP)/signals.c \
 	$(RETRODEP)/soundretro.c \
 	$(RETRODEP)/ui.c \
-	$(RETRODEP)/uicmdline.c \
 	$(RETRODEP)/uimon.c \
 	$(RETRODEP)/uistatusbar.c \
 	$(RETRODEP)/video.c \
-	$(RETRODEP)/vsidui.c \
 	$(RETRODEP)/vsyncarch.c
 
 ifneq ($(STATIC_LINKING), 1)

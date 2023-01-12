@@ -33,11 +33,9 @@
 
 #include <gtk/gtk.h>
 
-#include "basewidgets.h"
+#include "vice_gtk3.h"
 #include "c128.h"
-#include "debug_gtk3.h"
 #include "resources.h"
-#include "widgethelpers.h"
 
 #include "c128machinetypewidget.h"
 
@@ -67,10 +65,12 @@ GtkWidget * c128_machine_type_widget_create(void)
     GtkWidget *grid;
     GtkWidget *radio_group;
 
-    grid = uihelpers_create_grid_with_label("Machine type", 1);
+    grid = vice_gtk3_grid_new_spaced_with_label(-1, -1, "Machine type", 1);
+    /* replace with CSS at some point? */
+    gtk_widget_set_margin_start(grid, 8);
     radio_group = vice_gtk3_resource_radiogroup_new(
             "MachineType", machine_types, GTK_ORIENTATION_VERTICAL);
-    g_object_set(radio_group, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(radio_group, 16);
     gtk_grid_attach(GTK_GRID(grid), radio_group, 0, 1, 1, 1);
     gtk_widget_show_all(grid);
     return grid;

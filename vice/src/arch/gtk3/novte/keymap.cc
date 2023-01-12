@@ -2,6 +2,8 @@
 /*
  * Copyright (C) 2002,2003 Red Hat, Inc.
  *
+ * Various fixes by VICE team.
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
@@ -718,7 +720,7 @@ void _vte_keymap_map(guint keyval,
     g_return_if_fail(normal != NULL);
     g_return_if_fail(normal_length != NULL);
 
-    _VTE_DEBUG_IF(VTE_DEBUG_KEYBOARD) 
+    _VTE_DEBUG_IF(VTE_DEBUG_KEYBOARD)
         _vte_keysym_print(keyval, modifiers);
 
     /* Start from scratch. */
@@ -751,8 +753,14 @@ void _vte_keymap_map(guint keyval,
             if ((modifiers & entries[i].mod_mask) == entries[i].mod_mask) {
                 if (entries[i].normal_length != -1) {
                     *normal_length = entries[i].normal_length;
+/* g_memdup2() is only available in GLib 2.67.3 and later */
+#if GLIB_CHECK_VERSION(2,67,3)
+                    *normal = (char*)g_memdup2(entries[i].normal,
+                                            entries[i].normal_length);
+#else
                     *normal = (char*)g_memdup(entries[i].normal,
                                             entries[i].normal_length);
+#endif
                 } else {
                     *normal_length = strlen(entries[i].normal);
                     *normal = g_strdup(entries[i].normal);

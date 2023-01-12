@@ -198,18 +198,6 @@ static ui_menu_entry_t georam_menu[] = {
       NULL },
     SDL_MENU_ITEM_SEPARATOR,
     SDL_MENU_ITEM_TITLE("Memory size"),
-    { "64KiB",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_GEORAMsize_callback,
-      (ui_callback_data_t)64 },
-    { "128KiB",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_GEORAMsize_callback,
-      (ui_callback_data_t)128 },
-    { "256KiB",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_GEORAMsize_callback,
-      (ui_callback_data_t)256 },
     { "512KiB",
       MENU_ENTRY_RESOURCE_RADIO,
       radio_GEORAMsize_callback,
@@ -447,12 +435,12 @@ static UI_MENU_CALLBACK(iocollision_show_type_callback)
 
 static void cartmenu_update_flush(void)
 {
-    georam_menu[15].status = cartridge_can_flush_image(CARTRIDGE_VIC20_GEORAM) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
+    georam_menu[12].status = cartridge_can_flush_image(CARTRIDGE_VIC20_GEORAM) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
 }
 
 static void cartmenu_update_save(void)
 {
-    georam_menu[16].status = cartridge_can_save_image(CARTRIDGE_VIC20_GEORAM) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
+    georam_menu[13].status = cartridge_can_save_image(CARTRIDGE_VIC20_GEORAM) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
 }
 
 /* Cartridge menu */

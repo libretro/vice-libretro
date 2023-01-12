@@ -49,7 +49,6 @@
 #include "cartio.h"
 #include "cartridge.h"
 #include "cia.h"
-#include "clkguard.h"
 #include "cpmcart.h"
 #include "machine.h"
 #include "mainc64cpu.h"
@@ -126,7 +125,7 @@ static int tape_sense = 0;
 static int tape_write_in = 0;
 static int tape_motor_in = 0;
 
-/* Current watchpoint state. 
+/* Current watchpoint state.
           0 = no watchpoints
     bit0; 1 = watchpoints active
     bit1; 2 = watchpoints trigger on dummy accesses
@@ -209,28 +208,8 @@ void mem_toggle_watchpoints(int flag, void *context)
     see testprogs/CPU/cpuport for details and tests
 */
 
-static void clk_overflow_callback(CLOCK sub, void *unused_data)
-{
-    if (pport.data_set_clk_bit6 > (CLOCK)0) {
-        pport.data_set_clk_bit6 -= sub;
-    }
-    if (pport.data_falloff_bit6 && (pport.data_set_clk_bit6 < maincpu_clk)) {
-        pport.data_falloff_bit6 = 0;
-        pport.data_set_bit6 = 0;
-    }
-    if (pport.data_set_clk_bit7 > (CLOCK)0) {
-        pport.data_set_clk_bit7 -= sub;
-    }
-    if (pport.data_falloff_bit7 && (pport.data_set_clk_bit7 < maincpu_clk)) {
-        pport.data_falloff_bit7 = 0;
-        pport.data_set_bit7 = 0;
-    }
-}
-
 void c64_mem_init(void)
 {
-    clk_guard_add_callback(maincpu_clk_guard, clk_overflow_callback, NULL);
-
     /* Initialize REU BA low interface (FIXME find a better place for this) */
     reu_ba_register(vicii_cycle_reu, vicii_steal_cycles, &maincpu_ba_low_flags, MAINCPU_BA_LOW_REU);
 
@@ -433,10 +412,6 @@ void ram_store(uint16_t addr, uint8_t value)
 void ram_hi_store(uint16_t addr, uint8_t value)
 {
     mem_ram[addr] = value;
-
-    if (addr == 0xff00) {
-        reu_dma(-1);
-    }
 }
 
 /* unconnected memory space */
@@ -449,6 +424,21 @@ static void void_store(uint16_t addr, uint8_t value)
 {
     return;
 }
+
+/* ------------------------------------------------------------------------- */
+
+/* DMA memory access, on c64 this is the same as generic memory access.  */
+
+void mem_dma_store(uint16_t addr, uint8_t value)
+{
+    _mem_write_tab_ptr[addr >> 8](addr, value);
+}
+
+uint8_t mem_dma_read(uint16_t addr)
+{
+    return _mem_read_tab_ptr[addr >> 8](addr);
+}
+
 
 /* ------------------------------------------------------------------------- */
 
@@ -775,7 +765,6 @@ void mem_mmu_translate(unsigned int addr, uint8_t **base, int *start, int *limit
 void mem_powerup(void)
 {
     ram_init(mem_ram, 0x10000);
-    cartridge_ram_init();  /* Clean cartridge ram too */
 }
 
 /* ------------------------------------------------------------------------- */
@@ -832,7 +821,7 @@ void mem_set_basic_text(uint16_t start, uint16_t end)
 }
 
 /* this function should always read from the screen currently used by the kernal
-   for output, normally this does just return system ram - except when the 
+   for output, normally this does just return system ram - except when the
    videoram is not memory mapped.
    used by autostart to "read" the kernal messages
 */
@@ -940,7 +929,7 @@ void store_bank_io(uint16_t addr, uint8_t byte)
     return;
 }
 
-void poke_bank_io(uint16_t addr, uint8_t byte)
+static void poke_bank_io(uint16_t addr, uint8_t byte)
 {
     /* FIXME: open ends */
     switch (addr & 0xff00) {
@@ -1043,16 +1032,16 @@ static uint8_t peek_bank_io(uint16_t addr)
 
 static const char *banknames[] = {
     "default",
-    "cpu",
-    "ram",
-    "rom",
-    "io",
-    "cart",
+    "cpu",   /* #0 */
+    "ram",   /* #1 */
+    "rom",   /* #2 */
+    "io",    /* #3 */
+    "cart",  /* #4 */
     /* by convention, a "bank array" has a 2-hex-digit bank index appended */
     NULL
 };
 
-static const int banknums[] = { 1, 0, 1, 2, 3, 4, -1 };
+static const int banknums[] = { 0, 0, 1, 2, 3, 4, -1 };
 static const int bankindex[] = { -1, -1, -1, -1, -1, -1, -1 };
 static const int bankflags[] = { 0, 0, 0, 0, 0, 0, -1 };
 
@@ -1143,9 +1132,14 @@ uint8_t mem_bank_read(int bank, uint16_t addr, void *context)
 uint8_t mem_bank_peek(int bank, uint16_t addr, void *context)
 {
     switch (bank) {
-        case 0:                   /* current */
+        case 0: /* CPU */
+            /* special case to read the CPU port of the 6510 */
+            if (addr < 2) {
+                return mem_read(addr);
+            }
             /* we must check for which bank is currently active */
-            if (c64meminit_io_config[mem_config]) {
+            /* don't include ultimax here, check later */
+            if (c64meminit_io_config[mem_config] == 1) {
                 if ((addr >= 0xd000) && (addr < 0xe000)) {
                     return peek_bank_io(addr);
                 }
@@ -1163,7 +1157,7 @@ uint8_t mem_bank_peek(int bank, uint16_t addr, void *context)
             }
             if (c64meminit_io_config[mem_config] == 2) {
                 /* ultimax mode */
-                if (addr >= 0x0000 && addr <= 0x0fff) {
+                if (/*addr >= 0x0000 &&*/ addr <= 0x0fff) {
                     return mem_ram[addr];
                 }
                 return cartridge_peek_mem(addr);
@@ -1185,14 +1179,14 @@ uint8_t mem_bank_peek(int bank, uint16_t addr, void *context)
                 }
             }
             break;
-        case 3:                   /* io */
+        case 3: /* io */
             if (addr >= 0xd000 && addr < 0xe000) {
                 return peek_bank_io(addr);
             }
             /* FALL THROUGH */
-        case 4:                   /* cart */
+        case 4: /* cart */
             return cartridge_peek_mem(addr);
-        case 2:                   /* rom */
+        case 2: /* rom */
             if (addr >= 0xa000 && addr <= 0xbfff) {
                 return c64memrom_basic64_rom[addr & 0x1fff];
             }
@@ -1203,7 +1197,7 @@ uint8_t mem_bank_peek(int bank, uint16_t addr, void *context)
                 return c64memrom_kernal64_rom[addr & 0x1fff];
             }
             /* FALL THROUGH */
-        case 1:                   /* ram */
+        case 1: /* ram */
             break;
     }
     return mem_ram[addr];
@@ -1260,7 +1254,7 @@ void mem_bank_poke(int bank, uint16_t addr, uint8_t byte, void *context)
             }
             break;
     }
-    
+
     mem_bank_write(bank, addr, byte, context);
 }
 
@@ -1296,15 +1290,29 @@ void mem_get_screen_parameter(uint16_t *base, uint8_t *rows, uint8_t *columns, i
 
 /* used by autostart to locate and "read" kernal output on the current screen
  * this function should return whatever the kernal currently uses, regardless
- * what is currently visible/active in the UI 
+ * what is currently visible/active in the UI
  */
 void mem_get_cursor_parameter(uint16_t *screen_addr, uint8_t *cursor_column, uint8_t *line_length, int *blinking)
 {
-    /* Cursor Blink enable: 1 = Flash Cursor, 0 = Cursor disabled, -1 = n/a */
+    /* CAUTION: this function can be called at any time when the emulation (KERNAL)
+                is in the middle of a screen update. we must make sure that all
+                values are being looked up in an "atomic" way so we dont use a low-
+                and high- byte from before and after an update, leading to invalid
+                values */
+    int screen_base = (mem_ram[0xd1] + (mem_ram[0xd2] * 256)) & ~0x3ff; /* the upper bits will not change */
+
+    /* Cursor Blink enable: 1 = Cursor in Blink Phase (visible), 0 = Cursor disabled, -1 = n/a */
     *blinking = mem_ram[0xcc] ? 0 : 1;
-    *screen_addr = mem_ram[0xd1] + mem_ram[0xd2] * 256; /* Current Screen Line Address */
-    *cursor_column = mem_ram[0xd3];    /* Cursor Column on Current Line */
-    *line_length = mem_ram[0xd5] + 1;  /* Physical Screen Line Length */
+    /* Current Screen Line Address */
+    *screen_addr = screen_base + (mem_ram[0xd6] * 40);
+    /* Cursor Column on Current Line */
+    *cursor_column = mem_ram[0xd3];
+    while (*cursor_column >= 40) {
+        *cursor_column -= 40;
+        *screen_addr += 40;
+    }
+    /* Physical Screen Line Length */
+    *line_length = 40;
 }
 
 /* ------------------------------------------------------------------------- */

@@ -53,6 +53,7 @@
 #include "petmem.h"
 #include "petmodel.h"
 #include "petpia.h"
+#include "petrom.h"
 #include "pets.h"
 #include "petvia.h"
 #include "ram.h"
@@ -141,7 +142,7 @@ static log_t pet_mem_log = LOG_ERR;
 
 static uint8_t last_access = 0;
 
-/* Current watchpoint state. 
+/* Current watchpoint state.
           0 = no watchpoints
     bit0; 1 = watchpoints active
     bit1; 2 = watchpoints trigger on dummy accesses
@@ -215,6 +216,22 @@ static uint8_t read_vmirror(uint16_t addr)
 static void store_vmirror(uint16_t addr, uint8_t value)
 {
     mem_ram[0x8000 + (addr & 0xbff)] = value;
+    last_access = value;
+}
+
+/*
+ * On the 2001, the very first model, the 1K of screen was mirrored
+ * through the whole $8xxx block.
+ */
+static uint8_t read_vmirror_2001(uint16_t addr)
+{
+    last_access = mem_ram[0x8000 + (addr & 0x03ff)];
+    return last_access;
+}
+
+static void store_vmirror_2001(uint16_t addr, uint8_t value)
+{
+    mem_ram[0x8000 + (addr & 0x3ff)] = value;
     last_access = value;
 }
 
@@ -404,6 +421,51 @@ static inline uint8_t read6702(void)
 /*
  * Only the first odd value which is written after
  * an even value has an effect.
+ *
+ * The actual odd value is also not important, but how it differs from
+ * the previous odd value is what counts.
+ *
+ * There are 8 circular shift registers in the 6702. They have different
+ * lengths.  Each time that the odd value is written, they shift one position
+ * to the right.
+ *
+ * There is also a register with 8 output bits, one belonging to each
+ * shift register.  Each time a 1 "shifts out of" a shift register, it
+ * toggles its output register bit. The shift register is circular, so
+ * the register's bit gets fed back to the left.
+ *
+ * For each input bit (from the odd value) which differs from the
+ * previous odd value, the bit at the far end of its shift register is
+ * toggled.  You will see the effect on the output only some even/odd
+ * rounds in the future.
+ *
+ * The odd value is remembered to be compared with the next odd value.
+ *
+ * The output register is the value that is read from the 6702.
+ *
+ * William Levak had a slightly different model in mind but it works
+ * out the same. He wrote the following Basic program to mimic it:
+ *
+100 dims(7,7)
+110 l(0)=6:l(1)=3:l(2)=7:l(3)=8:l(4)=1:l(5)=3:l(6)=5:l(7)=2
+120 b(0)=1:b(1)=2:b(2)=4:b(3)=8:b(4)=16:b(5)=32:b(6)=64:b(7)=128
+130 t=214:ln=214
+140 t2=peek(61408):ift<>t2thene=e+1
+150 printn,t,t2,e
+160 rem n2=int(256*rnd(ti)):print"next number?"n2:goto180
+170 input"next number";n2
+180 poke61408,n2
+190 if(n2andeo)=0theneo=1-(n2and1):goto160
+200 mk=(lnorn2)-(lnandn2)
+210 fori=0to7:ifmkandb(i)thens(i,c(i))=1-s(i,c(i))
+220 next
+230 fori=0to7:c(i)=c(i)+1:ifc(i)=l(i)thenc(i)=0
+240 next:ln=n2:eo=1-(n2and1)
+250 fori=0to7:ifs(i,c(i))=0goto280
+260 ifb(i)andtthent=int(t-b(i)):goto280
+270 t=b(i)ort
+280 next
+290 n=n+1:goto140
  *
  * Thanks to Ruud Baltissen, William Levak, Rob Clarke,
  * Kajtar Zsolt and Segher Boessenkool, Dave E Roberts,
@@ -1311,7 +1373,19 @@ void petmem_set_vidmem(void)
         mem_read_limit_tab[i] = 0;
     }
 
-    if (pet_colour_type == PET_COLOUR_TYPE_OFF) {
+    /*
+     * Model 2001 has its 1K screen memory mirrored all over $8xxx,
+     * unlike later models.
+     */
+    if (petres.screenmirrors2001) {
+        /* Setup screen mirror 3 and 4 from $8800 to $8FFF */
+        for (; i < 0x90; i++) {
+            _mem_read_tab[i] = read_vmirror_2001;
+            _mem_write_tab[i] = store_vmirror_2001;
+            _mem_read_base_tab[i] = NULL;
+            mem_read_limit_tab[i] = 0;
+        }
+    } else if (pet_colour_type == PET_COLOUR_TYPE_OFF) {
         /* Setup unused from $8800 to $8FFF */
         /* falls through if videoSize >= 0x1000 */
         for (; i < 0x90; i++) {
@@ -1420,22 +1494,28 @@ void mem_initialize_memory_6809(void)
     }
 }
 
+/*
+ * The memory mapping is probably reset even if FIRQ is disabled
+ * (see http://mikenaberezny.com/wp-content/uploads/2009/11/superos9-mmu-schematic-r2.jpg )
+ * but since a missing FIRQ basically halts the 6809, there is little
+ * difference in practice.
+ */
 int superpet_sync(void)
 {
+    spet_flat_mode = 0;
+    mem_initialize_memory_6809_banked();
+    /* mon_bank(e_default_space, "6809");
+       extern WORD PC;
+       printf("next opcode: %04X: banked %02X, flat %02X\n",
+               PC,
+               mem_ram[EXT_RAM + spet_bank_4k + (PC & 0x0FFF)],
+               mem_ram[EXT_RAM + PC]
+          ); */
+
     if (spet_firq_disabled) {
         log_error(pet_mem_log, "SuperPET: SYNC encountered, but no FIRQ possible!");
         return 1;
     } else {
-        spet_flat_mode = 0;
-        mem_initialize_memory_6809_banked();
-        /* mon_bank(e_default_space, "6809");
-           extern WORD PC;
-           printf("next opcode: %04X: banked %02X, flat %02X\n",
-                   PC,
-                   mem_ram[EXT_RAM + spet_bank_4k + (PC & 0x0FFF)],
-                   mem_ram[EXT_RAM + PC]
-              ); */
-
         return 0;
     }
 }
@@ -1601,7 +1681,7 @@ void mem_set_basic_text(uint16_t start, uint16_t end)
 }
 
 /* this function should always read from the screen currently used by the kernal
-   for output, normally this does just return system ram - except when the 
+   for output, normally this does just return system ram - except when the
    videoram is not memory mapped.
    used by autostart to "read" the kernal messages
 */
@@ -1700,12 +1780,21 @@ static const char *banknames[MAXBANKS + 1] = {
 };
 
 enum {
-    bank_default, bank_cpu = 0, bank_ram, bank_rom, bank_io, bank_extram,
+    bank_cpu = 0,
+    bank_ram,
+    bank_rom,
+    bank_io,
+    bank_extram,
     bank_cpu6809
 };
 
 static const int banknums[MAXBANKS + 1] = {
-    bank_default, bank_cpu, bank_ram, bank_rom, bank_io, bank_extram,
+    bank_cpu, /* default */
+    bank_cpu,
+    bank_ram,
+    bank_rom,
+    bank_io,
+    bank_extram,
     bank_cpu6809, -1
 };
 
@@ -1765,7 +1854,7 @@ int mem_bank_flags_from_bank(int bank)
 uint8_t mem_bank_read(int bank, uint16_t addr, void *context)
 {
     switch (bank) {
-        case bank_default:      /* current */
+        case bank_cpu:      /* current */
             return mem_read(addr);
             break;
         case bank_extram:       /* extended RAM area (8x96, SuperPET) */
@@ -1799,7 +1888,7 @@ uint8_t mem_bank_read(int bank, uint16_t addr, void *context)
 uint8_t mem_bank_peek(int bank, uint16_t addr, void *context)
 {
     switch (bank) {
-        case bank_default:      /* current */
+        case bank_cpu:      /* current */
             return mem_read(addr); /* FIXME */
             break;
         case bank_io:           /* io */
@@ -1823,7 +1912,7 @@ uint8_t mem_bank_peek(int bank, uint16_t addr, void *context)
 void mem_bank_write(int bank, uint16_t addr, uint8_t byte, void *context)
 {
     switch (bank) {
-        case bank_default:      /* current */
+        case bank_cpu:      /* current */
             mem_store(addr, byte);
             return;
         case bank_extram:       /* extended RAM area (8x96, SuperPET) */
@@ -1851,7 +1940,7 @@ void mem_bank_write(int bank, uint16_t addr, uint8_t byte, void *context)
         case bank_cpu6809:      /* rom */
             mem6809_store(addr, byte);
             return;
-        case 1:                 /* ram */
+        case bank_ram:                 /* ram */
             break;
     }
     mem_ram[addr] = byte;
@@ -1892,7 +1981,7 @@ static int mem_dump_io(void *context, uint16_t addr)
             return efe0_dump();
         } else if (addr >= 0xeff0 && addr <= 0xeff3) {
             /* ACIA */
-            /* return aciacore_dump(); */
+            return acia1_dump();
         } else if (addr == 0xeff8) {
             /* Control switch */
             mon_out("CPU: %s\n",
@@ -1977,19 +2066,19 @@ void mem_get_screen_parameter(uint16_t *base, uint8_t *rows, uint8_t *columns, i
 
 /* used by autostart to locate and "read" kernal output on the current screen
  * this function should return whatever the kernal currently uses, regardless
- * what is currently visible/active in the UI. 
+ * what is currently visible/active in the UI.
  */
 void mem_get_cursor_parameter(uint16_t *screen_addr, uint8_t *cursor_column, uint8_t *line_length, int *blinking)
 {
     /* Cursor Blink enable: 1 = Flash Cursor, 0 = Cursor disabled, -1 = n/a */
     if (petres.kernal_checksum == PET_KERNAL1_CHECKSUM) {
         *blinking = mem_ram[0x224] ? 0 : 1;
-	*screen_addr = mem_ram[0xe0] + mem_ram[0xe1] * 256; /* Current Screen Line Address */
-	*cursor_column = mem_ram[0xe2];    /* Cursor Column on Current Line */
+        *screen_addr = mem_ram[0xe0] + mem_ram[0xe1] * 256; /* Current Screen Line Address */
+        *cursor_column = mem_ram[0xe2];    /* Cursor Column on Current Line */
     } else {
         *blinking = mem_ram[0xa7] ? 0 : 1;
-	*screen_addr = mem_ram[0xc4] + mem_ram[0xc5] * 256; /* Current Screen Line Address */
-	*cursor_column = mem_ram[0xc6];    /* Cursor Column on Current Line */
+        *screen_addr = mem_ram[0xc4] + mem_ram[0xc5] * 256; /* Current Screen Line Address */
+        *cursor_column = mem_ram[0xc6];    /* Cursor Column on Current Line */
     }
     *line_length = petres.rom_video;   /* Physical Screen Line Length */
 }
@@ -2013,18 +2102,3 @@ void petmem_check_info(petres_t *pi)
         pi->videoSize = 0x1000;
     }
 }
-
-/* dummy function to satisfy the global cartridge system */
-int cartridge_attach_image(int type, const char *name)
-{
-    return -1;
-}
-
-void cartridge_detach_image(int type)
-{
-}
-
-void cartridge_unset_default(void)
-{
-}
-

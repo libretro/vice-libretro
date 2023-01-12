@@ -2,8 +2,7 @@
  * \file    src/arch/gtk3/widgets/contentpreviewwidget.c
  * \brief   GTK3 disk/tape/archive preview widget
  *
- * Written by
- *  Bas Wassink <b.wassink@ziggo.nl>
+ * \author  Bas Wassink <b.wassink@ziggo.nl>
  *
  * This file is part of VICE, the Versatile Commodore Emulator.
  * See README for copyright notice.
@@ -32,10 +31,13 @@
 #include <string.h>
 
 #include "basedialogs.h"
+#include "charset.h"
 #include "debug_gtk3.h"
 #include "imagecontents.h"
 #include "lib.h"
+#include "log.h"
 #include "resources.h"
+#include "util.h"
 #include "widgethelpers.h"
 
 #include "contentpreviewwidget.h"
@@ -49,6 +51,11 @@ static read_contents_func_type content_func = NULL;
 /** \brief  Callback to trigger on the "response" event of the widget
  */
 static void (*response_func)(GtkWidget *, gint, gpointer);
+
+
+/** \brief  Unit number to use in the callback
+ */
+static int unit_number = 0;
 
 
 /** \brief  reference to the content view widget
@@ -81,13 +88,9 @@ static void on_row_activated(
     GtkTreeModel *model;
     GtkTreeSelection *selection;
     GtkTreeIter iter;
-#ifdef COMPYX_LAMER
     int autostart = 0;
 
     resources_get_int("AutostartOnDoubleclick", &autostart);
-    debug_gtk3("CALLED, AutostartOnDoubleclick = %s\n",
-            autostart ? "True" : "False");
-#endif
 
     model = gtk_tree_view_get_model(view);
     selection = gtk_tree_view_get_selection(view);
@@ -97,17 +100,17 @@ static void on_row_activated(
 
         gtk_tree_model_get(model, &iter, 1, &row, -1);
         if (row < 0) {
-            debug_gtk3("index -1, nope.");
             return;
         }
         /* dirty trick: call the "response" event handler with the
-         * RESPONSE_AUTOSTART response ID and the file index passed in as the
-         * user_data argument */
+         * RESPONSE_AUTOSTART response ID and the unit number passed in as the
+         * user_data argument.
+         * The index must be retrieved via content_preview_widget_get_index().
+         */
         if (parent_dialog != NULL) {
             response_func(parent_dialog,
-                    VICE_RESPONSE_AUTOSTART,
-                    GINT_TO_POINTER(row + 1));  /* for some reason the first
-                                                   file has index 1 */
+                          autostart ? VICE_RESPONSE_AUTOSTART_INDEX : VICE_RESPONSE_AUTOLOAD_INDEX,
+                          GINT_TO_POINTER(unit_number));
         }
     }
 }
@@ -116,7 +119,7 @@ static void on_row_activated(
 /** \brief  Create the model for the view
  *
  * The model created has two columns, a string representing a file:
- * '<blocks> "<filename>" <filetype-and-flags>' and an integer which indicates
+ * '\<blocks\> "\<filename\>" \<filetype-and-flags\>' and an integer which indicates
  * the file's index in the image's "directory".
  *
  * \param[in]   path    path to image file
@@ -130,6 +133,7 @@ static GtkListStore *create_model(const char *path)
     image_contents_t *contents;
     image_contents_file_list_t *entry;
     char *tmp;
+    char *sep;
     char *utf8;
     int row;
     int blocks;
@@ -138,9 +142,14 @@ static GtkListStore *create_model(const char *path)
     if (path == NULL) {
         return model;
     }
+    /* don't try to read from a directory: avoid error messages from
+     * vdrive/fsimage */
+    if (g_file_test(path, G_FILE_TEST_IS_DIR)) {
+        return model;
+    }
 
     if (content_func == NULL) {
-        debug_gtk3("no content-get function specified, bailing!");
+        log_error(LOG_ERR, "no content-get function specified, bailing!");
         return model;
     }
 
@@ -157,8 +166,24 @@ static GtkListStore *create_model(const char *path)
     row = -1;   /* -1 means invalid file when double-clicking */
 
     /* disk name & ID */
-    tmp = image_contents_to_string(contents, 0);
-    utf8 = (char *)vice_gtk3_petscii_to_utf8((unsigned char *)tmp, true, false);
+    tmp = image_contents_to_string(contents, IMAGE_CONTENTS_STRING_PETSCII);
+    /* only the disk name and id itself should be reverse, not the line number and space before that */
+    sep = strstr(tmp, "\""); /* find start of disk name */
+    if (sep) {
+        /* if we found the disk name, produce seperate strings for line number and name/id,
+            reverse only name/od and then concat them */
+        char *utf8a, *utf8b;
+        *sep = 0;
+        utf8a = (char *)vice_gtk3_petscii_to_utf8((unsigned char *)tmp, 0, false);
+        *sep = '"';
+        utf8b = (char *)vice_gtk3_petscii_to_utf8((unsigned char *)sep, 1, false);
+        utf8 = util_concat(utf8a, utf8b, NULL);
+        lib_free(utf8a);
+        lib_free(utf8b);
+    } else {
+        /* if start of disk name was not found use the entire string */
+        utf8 = (char *)vice_gtk3_petscii_to_utf8((unsigned char *)tmp, 1, false);
+    }
     gtk_list_store_append(model, &iter);
     gtk_list_store_set(model, &iter, 0, utf8, 1, row, -1);
     row++;
@@ -167,7 +192,7 @@ static GtkListStore *create_model(const char *path)
 
     /* files, if any */
     for (entry = contents->file_list; entry != NULL; entry = entry->next) {
-        tmp = image_contents_file_to_string(entry, 0);
+        tmp = image_contents_file_to_string(entry, IMAGE_CONTENTS_STRING_PETSCII);
         utf8 = (char *)vice_gtk3_petscii_to_utf8((unsigned char *)tmp, false, false);
         gtk_list_store_append(model, &iter);
         gtk_list_store_set(model, &iter,
@@ -217,9 +242,33 @@ static GtkWidget *create_view(const char *path)
     view = GTK_TREE_VIEW(gtk_tree_view_new_with_model(GTK_TREE_MODEL(model)));
     g_object_unref(model);
     renderer = gtk_cell_renderer_text_new();
-    g_object_set(renderer, "font", "C64 Pro Mono 10", NULL);
-    column = gtk_tree_view_column_new_with_attributes("Contents", renderer,
-            "text", 0, NULL);
+
+    /* try to remove all padding between cell rows, this still does not work 100%.
+       careful with removing any of the following, some things may have no effect
+       in one theme, but on another it does. */
+    g_object_set(renderer,
+                 /* GtkCellRendererText */
+                 "font", "C64 Pro Mono 10",
+                 "scale-set", TRUE,
+                 "scale", 1.0,
+                 /*"attributes", attrlist,*/ /* how does this work? we want to change ypad of the font */
+                 /* GtkCellRenderer */
+                 "height", 10,
+                 "ypad", 0,
+                 "yalign", 0.0,
+                 NULL);
+    /* this takes the size from ypad of the font */
+    /* gtk_cell_renderer_text_set_fixed_height_from_font(GTK_CELL_RENDERER_TEXT(renderer), numrows); */
+    gtk_cell_renderer_set_padding (renderer, 0, 0);
+    gtk_cell_renderer_set_fixed_size(renderer, -1, 10);
+
+    column = gtk_tree_view_column_new_with_attributes(
+            /* GtkTreeViewColumn */
+            "Contents", renderer,
+            "text", 0,
+            NULL);
+    gtk_tree_view_column_set_spacing (column, 0);
+
     gtk_tree_view_append_column(view, column);
 
     gtk_tree_view_set_headers_clickable(view, FALSE);
@@ -247,15 +296,18 @@ static GtkWidget *create_view(const char *path)
  * If this argument is `NULL`, no image contents will be displayed in the
  * widget.
  *
- * \param[in]   func        function to use to retrieve image contents
- * \param[in]   selected    callback used when the user double-clicked a file
+ * \param[in,out]   dialog      parent dialog
+ * \param[in]       func        function to use to retrieve image contents
+ * \param[in]       response    dialog response callback
+ * \param[in]       unit        unit number (1-2 for tape, 8-11 for drive)
  *
  * \return  GtkGrid
  */
 GtkWidget *content_preview_widget_create(
         GtkWidget *dialog,
         read_contents_func_type func,
-        void (*response)(GtkWidget *, gint, gpointer))
+        void (*response)(GtkWidget *, gint, gpointer),
+        int unit)
 {
     GtkWidget *grid;
     GtkWidget *label;
@@ -264,6 +316,7 @@ GtkWidget *content_preview_widget_create(
     parent_dialog = dialog;
     content_func = func;
     response_func = response;
+    unit_number = unit;
 
     grid = gtk_grid_new();
     gtk_widget_set_hexpand(grid, TRUE);
@@ -325,7 +378,6 @@ gboolean content_preview_widget_set_index(GtkWidget *widget, int index)
     gint row_count;
 
     /* get model and check index */
-    debug_gtk3("Index = %d", index);
     model = gtk_tree_view_get_model(GTK_TREE_VIEW(content_view));
     row_count = gtk_tree_model_iter_n_children(model, NULL);
     /* check for valid index (-1 for "BLOCKS FREE") */
@@ -340,4 +392,34 @@ gboolean content_preview_widget_set_index(GtkWidget *widget, int index)
     return TRUE;
 }
 
+/** \brief  Get index in directory
+ *
+ * \param[in]   widget      widget (unused)
+ *
+ * \return  index in directory
+ */
+int content_preview_widget_get_index(GtkWidget *widget)
+{
+    GtkTreeModel *model;
+    GtkTreeSelection *selection;
+    GtkTreeIter iter;
+    gint row_count;
 
+    /* get model and check index */
+    model = gtk_tree_view_get_model(GTK_TREE_VIEW(content_view));
+    row_count = gtk_tree_model_iter_n_children(model, NULL);
+
+    selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(content_view));
+    if (gtk_tree_selection_get_selected(selection, &model, &iter)) {
+        int row;
+
+        gtk_tree_model_get(model, &iter, 1, &row, -1);
+#if 0
+        debug_gtk3("index = %d/%d\n", row, row_count);
+#endif
+        if ((row >= 0) && (row <= row_count)) {
+            return row;
+        }
+    }
+    return -1;
+}

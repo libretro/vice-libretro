@@ -979,7 +979,7 @@ inline static void d030_store(uint8_t value)
     }
 }
 
-void viciidtv_update_colorram()
+void viciidtv_update_colorram(void)
 {
     vicii.color_ram_ptr = mem_ram
                           + (vicii.regs[0x36] << 10)
@@ -2049,6 +2049,12 @@ uint8_t vicii_peek(uint16_t addr)
         case 0x2f:            /* Extended keyboard row select */
             if (vicii.viciie) {
                 return vicii.regs[addr] | 0xf8;
+            } else {
+                return /* vicii.regs[addr] | */ 0xff;
+            }
+        case 0x30:            /* VIC-IIe extension */
+            if (vicii.viciie) {
+                return vicii.regs[addr] | 0xfc;
             } else {
                 return /* vicii.regs[addr] | */ 0xff;
             }

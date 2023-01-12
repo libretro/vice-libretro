@@ -58,7 +58,6 @@
 #include "diskcontents.h"
 #include "initcmdline.h"
 #include "interrupt.h"
-#include "ioutil.h"
 #include "kbdbuf.h"
 #include "lib.h"
 #include "log.h"
@@ -69,6 +68,7 @@
 #include "mem.h"
 #include "monitor.h"
 #include "mon_breakpoint.h"
+;
 #include "network.h"
 #include "resources.h"
 #include "snapshot.h"
@@ -502,7 +502,7 @@ static CHECKYESNO check2(const char *s, unsigned int blink_mode, int lineoffset,
 
     mem_get_cursor_parameter(&screen_addr, &cursor_column, &line_length, &blinking);
 
-    if (!kbdbuf_is_empty()/* || !kbdbuf_queue_is_empty()*/) {
+    if (!kbdbuf_is_empty() || !kbdbuf_queue_is_empty()) {
         DBGWAIT(("check2(%s) [kbd buffer not empty] screen addr:%04x column:%d, linelen:%d lineoffset: %d blinking:%d (check:%s)",
             s, screen_addr, cursor_column, line_length, lineoffset, blinking, (blink_mode == AUTOSTART_WAIT_BLINK) ? "yes" : "no"));
         return NOT_YET;
@@ -567,14 +567,14 @@ static CHECKYESNO check(const char *s, unsigned int blink_mode)
 static void set_true_drive_emulation_mode(int on, int unit)
 {
     log_message(autostart_log, "Turning TDE %s for unit %d.", on ? "on" : "off", unit);
-    resources_set_int_sprintf("DriveTrueEmulation", on);
+    resources_set_int_sprintf("Drive%dTrueEmulation", on, unit);
 }
 
 static int get_true_drive_emulation_state(int unit)
 {
     int value;
 
-    if (resources_get_int_sprintf("DriveTrueEmulation", &value, unit) < 0) {
+    if (resources_get_int_sprintf("Drive%dTrueEmulation", &value, unit) < 0) {
         return 0;
     }
 
@@ -610,16 +610,14 @@ static int get_iec_device_state(int unit)
 static void set_warp_mode(int on)
 {
     log_message(autostart_log, "Turning Warp mode %s.", on ? "on" : "off");
-#if 0
     vsync_set_warp_mode(on);
-#endif
 }
 
 static int get_device_traps_state(int unit)
 {
     int value;
 
-    if (resources_get_int_sprintf("VirtualDevices", &value, unit) < 0) {
+    if (resources_get_int_sprintf("VirtualDevice%d", &value, unit) < 0) {
         return 0;
     }
 
@@ -629,7 +627,7 @@ static int get_device_traps_state(int unit)
 static void set_device_traps_state(int unit, int on)
 {
     log_message(autostart_log, "Turning virtual device traps %s.", on ? "on" : "off");
-    resources_set_int_sprintf("VirtualDevices", on, unit);
+    resources_set_int_sprintf("VirtualDevice%d", on, unit);
 }
 
 static void enable_warp_if_requested(void)
@@ -801,7 +799,7 @@ static void load_snapshot_trap(uint16_t unused_addr, void *unused_data)
 
     /* Make sure breakpoints are still working after loading the snapshot */
     mon_update_all_checkpoint_state();
-    
+
     /* Enter monitor after done */
     if (trigger_monitor) {
         trigger_monitor = 0;
@@ -814,7 +812,7 @@ static void load_snapshot_trap(uint16_t unused_addr, void *unused_data)
 
 /* Reset autostart.  */
 /* FIXME: cbm2 and pet pass 0,0 into this function before loading
-            kernal ... why is this? 
+            kernal ... why is this?
 
     default_seconds : initial delay before checking for READY
     handle_tde : if zero, "handle tde at autostart" will never be done
@@ -841,7 +839,7 @@ static void autostart_reinit(int default_seconds, int handle_tde)
 
 /* Initialize autostart.  */
 /* FIXME: cbm2 and pet pass 0,0 into this function before loading
-            kernal ... why is this? 
+            kernal ... why is this?
 
     default_seconds : initial delay before checking for READY
     handle_tde : if zero, "handle tde at autostart" will never be done
@@ -1024,10 +1022,11 @@ static void advance_hastape(void)
 
 static void advance_pressplayontape(void)
 {
+    int port = (autostart_tape_unit == 2) ? TAPEPORT_PORT_2 : TAPEPORT_PORT_1;
     switch (check2("PRESS PLAY ON TAPE", AUTOSTART_NOWAIT_BLINK, 0, AUTOSTART_CHECK_ANY_COLUMN)) {
         case YES:
             autostartmode = AUTOSTART_LOADINGTAPE;
-            datasette_control(DATASETTE_CONTROL_START);
+            datasette_control(port, DATASETTE_CONTROL_START);
             break;
         case NO:
             disable_warp_if_was_requested();
@@ -1506,10 +1505,11 @@ int autostart_snapshot(const char *file_name, const char *program_name)
 
 /* Autostart tape image `file_name'.  */
 int autostart_tape(const char *file_name, const char *program_name,
-                   unsigned int program_number, unsigned int runmode)
+                   unsigned int program_number, unsigned int runmode,
+                   unsigned int tapeport)
 {
     uint8_t do_seek = 1;
-    unsigned int tapeunit = 1;
+    unsigned int tapeunit = (tapeport == TAPEPORT_PORT_2) ? 2 : 1;
 
     if (network_connected() || event_record_active() || event_playback_active()
         || !file_name || !autostart_enabled) {
@@ -1521,19 +1521,18 @@ int autostart_tape(const char *file_name, const char *program_name,
     init_drive_emulation_state(DRIVE_UNIT_MIN, 0);
 
     /* reset datasette emulation and remove the tape image. */
-    datasette_control(DATASETTE_CONTROL_RESET);
+    datasette_control(tapeport, DATASETTE_CONTROL_RESET);
     tape_image_detach(tapeunit);
 
     if (!(tape_image_attach(tapeunit, file_name) < 0)) {
         log_message(autostart_log,
                     "Attached file `%s' as a tape image on unit #%u.", file_name, tapeunit);
-        if (!tape_tap_attached()) {
+        if (!tape_tap_attached(tapeport)) {
             if (program_number == 0 || program_number == 1) {
                 do_seek = 0;
             }
             program_number -= 1;
         }
-#if 0
         if (tap_initial_raw_offset > 0) {
             tape_seek_to_offset(tape_image_dev[tapeport], tap_initial_raw_offset);
             tap_initial_raw_offset = 0;
@@ -1545,8 +1544,7 @@ int autostart_tape(const char *file_name, const char *program_name,
                 tape_seek_start(tape_image_dev[tapeport]);
             }
         }
-#endif
-        if (!tape_tap_attached()) {
+        if (!tape_tap_attached(tapeport)) {
             /* Kludge: for t64 images we need devtraps ON */
             if (!get_device_traps_state(1)) {
                 set_device_traps_state(1, 1);
@@ -1715,14 +1713,11 @@ int autostart_disk(int unit, int drive, const char *file_name, const char *progr
 
     if (name) {
         autostart_disk_cook_name(&name);
-
 #ifdef __LIBRETRO__
         file_system_detach_disk(unit, drive);
 #endif
-
         if (!(file_system_attach_disk(unit, drive, file_name) < 0)) {
 #if 1
-            vdrive_t *vdrive;
             struct disk_image_s *diskimg;
 #endif
 
@@ -1737,40 +1732,36 @@ int autostart_disk(int unit, int drive, const char *file_name, const char *progr
             /* shitty code, we really need to extend the drive API to
              * get at these sorts for things without breaking into core code
              */
-            vdrive = file_system_get_vdrive(unit, drive);
-            if (vdrive == NULL) {
-                log_error(LOG_ERR, "Failed to get vdrive reference for unit %d.", unit);
+            diskimg = file_system_get_image(unit, drive);
+
+            if (diskimg == NULL) {
+                log_error(LOG_ERR, "Failed to get disk image for unit %d.", unit);
             } else {
-                diskimg = vdrive->image;
-                if (diskimg == NULL) {
-                    log_error(LOG_ERR, "Failed to get disk image for unit %d.", unit);
-                } else {
-                    int chk = drive_check_image_format(diskimg->type, 0);
-                    log_message(autostart_log, "mounted image is type: %u, %schanging drive.",
-                                diskimg->type, (chk < 0) ? "" : "not ");
-                    /* change drive type only when image does not work in current drive */
-                    if (chk < 0) {
-                        if (resources_set_int_sprintf("Drive%dType", diskimg->type, unit) < 0) {
-                            log_error(LOG_ERR, "Failed to set drive type.");
-                        }
+                int chk = drive_check_image_format(diskimg->type, 0);
+                log_message(autostart_log, "mounted image is type: %u, %schanging drive.",
+                            diskimg->type, (chk < 0) ? "" : "not ");
+                /* change drive type only when image does not work in current drive */
+                if (chk < 0) {
+                    if (resources_set_int_sprintf("Drive%dType", drive_image_type_to_drive_type(diskimg->type), unit) < 0) {
+                        log_error(LOG_ERR, "Failed to set drive type.");
                     }
+                }
 
-                    /* detach disk before reattaching */
-                    file_system_detach_disk(unit, drive);
+                /* detach disk before reattaching */
+                file_system_detach_disk(unit, drive);
 
-                    if (file_system_attach_disk(unit, drive, file_name) < 0) {
-                        goto exiterror;
-                    }
-                    /* if TDE was enabled before autostarting but is disabled now, enable it again */
-                    if (orig_drive_true_emulation_state && !get_true_drive_emulation_state(unit)) {
-                        log_message(autostart_log, "Turning TDE on to allow drive reset");
-                        set_true_drive_emulation_mode(1, unit);
-                    }
-                    /* if TDE is now enabled, trigger a drive reset */
-                    if (get_true_drive_emulation_state(unit)) {
-                        log_message(autostart_log, "Resetting drive %d", unit);
-                        drive_cpu_trigger_reset(unit - DRIVE_UNIT_MIN);
-                    }
+                if (file_system_attach_disk(unit, drive, file_name) < 0) {
+                    goto exiterror;
+                }
+                /* if TDE was enabled before autostarting but is disabled now, enable it again */
+                if (orig_drive_true_emulation_state && !get_true_drive_emulation_state(unit)) {
+                    log_message(autostart_log, "Turning TDE on to allow drive reset");
+                    set_true_drive_emulation_mode(1, unit);
+                }
+                /* if TDE is now enabled, trigger a drive reset */
+                if (get_true_drive_emulation_state(unit)) {
+                    log_message(autostart_log, "Resetting drive %d", unit);
+                    drive_cpu_trigger_reset(unit - DRIVE_UNIT_MIN);
                 }
             }
 #endif
@@ -1881,7 +1872,7 @@ int autostart_prg(const char *file_name, unsigned int runmode)
             mode = AUTOSTART_HASDISK;
             boot_file_name = (const char *)finfo->name;
             /* shorten the filename to 16 chars (if enabled) */
-            vdrive = file_system_get_vdrive(unit, drive);
+            vdrive = file_system_get_vdrive(unit);
             if (vdrive == NULL) {
                 log_error(LOG_ERR, "Failed to get vdrive reference for unit #%d:%d.", unit, drive);
                 return -1;
@@ -1904,7 +1895,7 @@ int autostart_prg(const char *file_name, unsigned int runmode)
             /* create the directory where the image should be written first */
             util_fname_split(AutostartPrgDiskImage, &savedir, NULL);
             if ((savedir != NULL) && (*savedir != 0) && (strcmp(savedir, "."))) {
-                ioutil_mkdir(savedir, IOUTIL_MKDIR_RWXU);
+                archdep_mkdir(savedir, ARCHDEP_MKDIR_RWXU);
             }
             lib_free(savedir);
             result = autostart_prg_with_disk_image(unit, drive, file_name, finfo,
@@ -1918,7 +1909,7 @@ int autostart_prg(const char *file_name, unsigned int runmode)
                     n = 1;
                     break;
                 }
-                if ((n < 17) && (!strcasecmp((const char*)&finfo->name[n], ".prg"))) {
+                if ((n < 17) && (!util_strcasecmp((const char*)&finfo->name[n], ".prg"))) {
                     break;
                 }
                 tempname[n] = finfo->name[n];
@@ -1972,7 +1963,7 @@ int autostart_prg(const char *file_name, unsigned int runmode)
           function (perhaps we need to handle all drives?) */
 int autostart_tapecart(const char *file_name, void *unused)
 {
-    /* check if \a file_name is actuallt a TCRT image */
+    /* check if a file_name is actually a TCRT image */
     if (!tapecart_is_valid(file_name)) {
         return -1;
     }
@@ -2030,10 +2021,9 @@ int autostart_autodetect_opt_prgname(const char *file_prog_name,
 
 static void set_tapeport_device(int datasette, int tapecart)
 {
-#if 0
     /* first disable all devices, so we dont get any conflicts */
     if (resources_set_int("TapePort1Device", TAPEPORT_DEVICE_NONE) < 0) {
-        log_error(LOG_ERR, "Failed to disable the Tapecart.");
+        log_error(LOG_ERR, "Failed to disable the tape port device.");
     }
     /* now enable the one we want to enable */
     if (datasette) {
@@ -2046,26 +2036,6 @@ static void set_tapeport_device(int datasette, int tapecart)
             log_error(LOG_ERR, "Failed to enable the Tapecart.");
         }
     }
-#else
-    /* first disable all devices, so we dont get any conflicts */
-    if (resources_set_int("Datasette", 0) < 0) {
-        log_error(LOG_ERR, "Failed to disable the Datasette.");
-    }
-    if (resources_set_int("TapecartEnabled", 0) < 0) {
-        log_error(LOG_ERR, "Failed to disable the Tapecart.");
-    }
-    /* now enable the one we want to enable */
-    if (datasette) {
-        if (resources_set_int("Datasette", 1) < 0) {
-            log_error(LOG_ERR, "Failed to enable the Datasette.");
-        }
-    }
-    if (tapecart) {
-        if (resources_set_int("TapecartEnabled", 1) < 0) {
-            log_error(LOG_ERR, "Failed to enable the Tapecart.");
-        }
-    }
-#endif
 }
 
 /* Autostart `file_name', trying to auto-detect its type.
@@ -2104,7 +2074,6 @@ int autostart_autodetect(const char *file_name, const char *program_name,
     /* DTV has no tape port, SCPU makes tape non operational */
     if ((machine_class != VICE_MACHINE_C64DTV) &&
         (machine_class != VICE_MACHINE_SCPU64)) {
-#if 0
         int tapedevice_temp;
 
         if (resources_get_int("TapePort1Device", &tapedevice_temp) < 0) {
@@ -2113,13 +2082,14 @@ int autostart_autodetect(const char *file_name, const char *program_name,
 
         set_tapeport_device(1, 0);  /* select datasette on, tapecart off */
 
-        if (autostart_tape(file_name, program_name, program_number, runmode) == 0) {
+        if (autostart_tape(file_name, program_name, program_number, runmode, TAPEPORT_PORT_1) == 0) {
             log_message(autostart_log, "`%s' recognized as tape image.", file_name);
             return 0;
         }
 
         /* tapecart can only be used with C64 (or C64 mode of C128) */
-        if ((machine_class == VICE_MACHINE_C64) &&
+        if ((machine_class == VICE_MACHINE_C64) ||
+            (machine_class == VICE_MACHINE_C64SC) ||
             (machine_class == VICE_MACHINE_C128)) {
             set_tapeport_device(0, 1); /* select datasette off, tapecart on */
             if (autostart_tapecart(file_name, NULL) == 0) {
@@ -2129,41 +2099,20 @@ int autostart_autodetect(const char *file_name, const char *program_name,
         }
 
         resources_set_int("TapePort1Device", tapedevice_temp);
-#else
-        int datasette_temp, tapecart_temp;
-
-        if (resources_get_int("Datasette", &datasette_temp) < 0) {
-            log_error(LOG_ERR, "Failed to get Datasette status.");
-        }
-        if (resources_get_int("TapecartEnabled", &tapecart_temp) < 0) {
-            log_error(LOG_ERR, "Failed to get Tapecart status.");
-        }
-
-        set_tapeport_device(1, 0);
-
-        if (autostart_tape(file_name, program_name, program_number, runmode) == 0) {
-            log_message(autostart_log, "`%s' recognized as tape image.", file_name);
-            return 0;
-        }
-
-        set_tapeport_device(0, 1);
-
-        if (autostart_tapecart(file_name, NULL) == 0) {
-            log_message(autostart_log, "`%s' recognized as tapecart image.", file_name);
-            return 0;
-        }
-
-        set_tapeport_device(datasette_temp, tapecart_temp);
-#endif
     }
 
+#ifdef __LIBRETRO__
+    /* Don't try to detect snapshots from files that for sure aren't.
+     * This should be the last resort anyway. */
+    if (strstr(file_name, ".vsf"))
+#endif
     if (autostart_snapshot(file_name, program_name) == 0) {
         log_message(autostart_log, "`%s' recognized as snapshot image.",
                     file_name);
         return 0;
     }
 
-    if ((machine_class == VICE_MACHINE_C64) || 
+    if ((machine_class == VICE_MACHINE_C64) ||
         (machine_class == VICE_MACHINE_C64SC) ||
         (machine_class == VICE_MACHINE_SCPU64) ||
         (machine_class == VICE_MACHINE_VIC20) ||
@@ -2226,6 +2175,8 @@ void autostart_reset(void)
 {
     int oldmode;
 
+    DBG(("autostart_reset (autostart_enabled:%d)", autostart_enabled));
+
     if (!autostart_enabled) {
         return;
     }
@@ -2236,6 +2187,7 @@ void autostart_reset(void)
         oldmode = autostartmode;
         autostartmode = AUTOSTART_NONE;
         if (oldmode != AUTOSTART_DONE) {
+            DBG(("autostart_reset oldmode != AUTOSTART_DONE"));
             disk_eof_callback();
         }
         autostartmode = AUTOSTART_NONE;
@@ -2252,10 +2204,3 @@ void autostart_shutdown(void)
 
     autostart_prg_shutdown();
 }
-
-#ifdef ANDROID_COMPILE
-void loader_set_warpmode(int on)
-{
-    set_warp_mode(on);
-}
-#endif

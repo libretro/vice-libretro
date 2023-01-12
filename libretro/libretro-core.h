@@ -291,6 +291,7 @@ struct vice_core_options
 #endif
 #if defined(__X128__)
    int VDC64KB;
+   int VDCFilter;
    int C128ColumnKey;
    int Go64Mode;
 #elif defined(__XSCPU64__)

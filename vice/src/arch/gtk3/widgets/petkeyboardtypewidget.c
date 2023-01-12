@@ -33,8 +33,7 @@
 
 #include <gtk/gtk.h>
 
-#include "widgethelpers.h"
-#include "debug_gtk3.h"
+#include "vice_gtk3.h"
 #include "resources.h"
 #include "machine.h"
 #include "pet.h"
@@ -42,13 +41,23 @@
 #include "petkeyboardtypewidget.h"
 
 
+/** \brief  Function to get the number of keyboard types
+ *
+ * Required thanks to the way VSID is linked.
+ */
 static int (*get_keyboard_num)(void) = NULL;
+
+/** \brief  Function to get a list of keyboard types
+ *
+ * Required thanks to the way VSID is linked.
+ */
 static kbdtype_info_t *(*get_keyboard_list)(void) = NULL;
 
+/** \brief  Function triggered on selecting a keyboard */
 static void (*user_callback)(int) = NULL;
 
 
-/** \brief  Handler for the "toggled" event of the radio buttons
+/** \brief  Handler for the 'toggled' event of the radio buttons
  *
  * \param[in]   widget      radio button triggering the event
  * \param[in]   user_data   keyboard ID (`int`)
@@ -63,11 +72,8 @@ static void on_keyboard_type_toggled(GtkWidget *widget, gpointer user_data)
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))
             && old_type != new_type) {
         /* update resource */
-        debug_gtk3("setting KeyboardType to %d.", new_type);
         resources_set_int("KeyboardType", new_type);
-
         if (user_callback != NULL) {
-            debug_gtk3("calling user callback with %d.", new_type);
             user_callback(new_type);
         }
     }
@@ -76,24 +82,24 @@ static void on_keyboard_type_toggled(GtkWidget *widget, gpointer user_data)
 
 /** \brief  Set the getter function for the number of keyboard types
  *
- * This doesn't seem strictly required for PET, since the keyboard info lisr
+ * This doesn't seem strictly required for PET, since the keyboard info list
  * has a terminator
  *
- * \param[in]   f   function pointer
+ * \param[in]   func    function pointer
  */
-void pet_keyboard_type_widget_set_keyboard_num_get(int (*f)(void))
+void pet_keyboard_type_widget_set_keyboard_num_get(int (*func)(void))
 {
-    get_keyboard_num = f;
+    get_keyboard_num = func;
 }
 
 
 /** \brief  Set the getter function for the keyboard types list
  *
- * \param[in]   f   function pointer
+ * \param[in]   func    function pointer
  */
-void pet_keyboard_type_widget_set_keyboard_list_get(kbdtype_info_t *(*f)(void))
+void pet_keyboard_type_widget_set_keyboard_list_get(kbdtype_info_t *(*func)(void))
 {
-    get_keyboard_list = f;
+    get_keyboard_list = func;
 }
 
 
@@ -111,20 +117,20 @@ GtkWidget * pet_keyboard_type_widget_create(void)
 
     user_callback = NULL;
 
-    grid = uihelpers_create_grid_with_label("Keyboard type", 1);
+    grid = vice_gtk3_grid_new_spaced_with_label(-1, -1, "Keyboard type", 1);
 
     num = get_keyboard_num();
-    debug_gtk3("number of keyboards = %d.", num);
     if (num > 0) {
         GtkWidget *radio;
-        int active, i;
+        int active;
+        int i;
 
         list = get_keyboard_list();
         resources_get_int("KeyboardType", &active);
 
         for (i = 0; i < num; i++) {
             radio = gtk_radio_button_new_with_label(group, list[i].name);
-            g_object_set(radio, "margin-left", 16, NULL);
+            gtk_widget_set_margin_start(radio, 16);
             gtk_radio_button_join_group(GTK_RADIO_BUTTON(radio), last);
             if (active == i) {
                 gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(radio), TRUE);

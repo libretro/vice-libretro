@@ -52,7 +52,7 @@ static char *argv0 = NULL;
 
 /** \brief  Signal handler that initialises a clean shutdown.
  */
-void sigint_exit(int _)
+static void sigint_exit(int _)
 {
     archdep_vice_exit(0);
 }
@@ -112,7 +112,7 @@ void archdep_shutdown(void)
         argv0 = NULL;
     }
 
-#ifndef ARCHDEP_OS_WINDOWS
+#ifndef WINDOWS_COMPILE
     archdep_network_shutdown();
 #endif
 }

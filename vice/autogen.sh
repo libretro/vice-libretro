@@ -27,12 +27,6 @@
 #  02111-1307  USA.
 #
 
-# VICE version, used generate configure.ac from configure.proto
-VICE_VERSION_MAJOR=3
-VICE_VERSION_MINOR=4
-VICE_VERSION_REV=0
-
-
 # minimum autoconf version required
 ACONF_VERSION_REQ_MAJ=2
 ACONF_VERSION_REQ_MIN=60
@@ -206,9 +200,10 @@ IFS="."
 generate_configure_in $automake_version
 IFS=$old_IFS
 
-SUBDIRECTORIES=`sed -ne "s/.*AC_CONFIG_SUBDIRS(\(.*\)).*/\1/p" configure.ac`
+SUBDIRECTORIES=$(sed -ne "s/.*AC_CONFIG_SUBDIRS(\(.*\)).*/\1/p" configure.ac)
+SUBDIRECTORIES2=$(sed -ne "s/.*AX_SUBDIRS_CONFIGURE(\[\(.*\)],.*).*/\1/p" configure.ac)
 
-for A in $SUBDIRECTORIES; do
+for A in $SUBDIRECTORIES $SUBDIRECTORIES2; do
     (
     cd $A
     buildfiles

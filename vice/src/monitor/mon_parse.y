@@ -30,43 +30,27 @@
 
 #include "vice.h"
 
-#if !defined(MACOS_COMPILE) && !(defined(__OS2__) && defined(IDE_COMPILE))
 #ifdef __GNUC__
 #undef alloca
-#ifndef ANDROID_COMPILE
 #define        alloca(n)       __builtin_alloca (n)
-#endif
-#else
+#else /* not __GNUC__ */
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
-#else  /* Not HAVE_ALLOCA_H.  */
-#if !defined(_AIX) && !defined(WINCE)
-#ifndef _MSC_VER
+#else  /* Not HAVE_ALLOCA_H  */
 extern char *alloca();
-#else
-#define alloca(n)   _alloca(n)
-#endif  /* MSVC */
-#endif /* Not AIX and not WINCE.  */
 #endif /* HAVE_ALLOCA_H.  */
-#endif /* GCC.  */
-#endif /* MACOS OS2 */
-
-/* SunOS 4.x specific stuff */
-#if defined(sun) || defined(__sun)
-#  if !defined(__SVR4) && !defined(__svr4__)
-#    ifdef __sparc__
-#      define YYFREE
-#    endif
-#  endif
-#endif
+#endif /* __GNUC__ */
 
 #include <assert.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
 #include "asm.h"
 #include "console.h"
+#include "drive.h"
+#include "interrupt.h"
 #include "lib.h"
 #include "machine.h"
 #include "mon_breakpoint.h"
@@ -79,13 +63,11 @@ extern char *alloca();
 #include "mon_register.h"
 #include "mon_util.h"
 #include "montypes.h"
+#include "tapeport.h"
 #include "resources.h"
 #include "types.h"
 #include "uimon.h"
-
-#ifdef AMIGA_MORPHOS
-#undef REG_PC
-#endif
+#include "vsync.h"
 
 #define join_ints(x,y) (LO16_TO_HI16(x)|y)
 #define separate_int1(x) (HI16_TO_LO16(x))
@@ -96,10 +78,6 @@ static int temp;
 static int resolve_datatype(unsigned guess_type, const char *num);
 static int resolve_range(enum t_memspace memspace, MON_ADDR range[2],
                          const char *num);
-
-#ifdef __IBMC__
-static void __yy_memcpy (char *to, char *from, int count);
-#endif
 
 /* Defined in the lexer */
 extern int new_cmd, opt_asm;
@@ -162,10 +140,11 @@ extern int cur_len, last_len;
 %token CMD_BLOAD CMD_BSAVE CMD_SCREEN CMD_UNTIL CMD_CPU CMD_YYDEBUG
 %token CMD_BACKTRACE CMD_SCREENSHOT CMD_PWD CMD_DIR CMD_MKDIR CMD_RMDIR
 %token CMD_RESOURCE_GET CMD_RESOURCE_SET CMD_LOAD_RESOURCES CMD_SAVE_RESOURCES
-%token CMD_ATTACH CMD_DETACH CMD_MON_RESET CMD_TAPECTRL CMD_CARTFREEZE
+%token CMD_ATTACH CMD_DETACH CMD_MON_RESET CMD_TAPECTRL CMD_CARTFREEZE CMD_UPDB CMD_JPDB
 %token CMD_CPUHISTORY CMD_MEMMAPZAP CMD_MEMMAPSHOW CMD_MEMMAPSAVE
 %token CMD_COMMENT CMD_LIST CMD_STOPWATCH RESET
 %token CMD_EXPORT CMD_AUTOSTART CMD_AUTOLOAD CMD_MAINCPU_TRACE
+%token CMD_WARP
 %token<str> CMD_LABEL_ASGN
 %token<i> L_PAREN R_PAREN ARG_IMMEDIATE REG_A REG_X REG_Y COMMA INST_SEP
 %token<i> L_BRACKET R_BRACKET LESS_THAN REG_U REG_S REG_PC REG_PCR
@@ -246,9 +225,29 @@ machine_state_rules: CMD_BANK end_cmd
                    | CMD_CPU CPUTYPE end_cmd
                      { monitor_cpu_type_set($2); }
                    | CMD_CPUHISTORY end_cmd
-                     { mon_cpuhistory(-1); }
-                   | CMD_CPUHISTORY opt_sep expression end_cmd
-                     { mon_cpuhistory($3); }
+                     { mon_cpuhistory(-1,  0,  0,  0,   0,   0); }
+                   | CMD_CPUHISTORY opt_sep memspace end_cmd
+                     { mon_cpuhistory(-1, $3,  0,  0,   0,   0); }
+                   | CMD_CPUHISTORY opt_sep memspace opt_sep memspace end_cmd
+                     { mon_cpuhistory(-1, $3, $5,  0,   0,   0); }
+                   | CMD_CPUHISTORY opt_sep memspace opt_sep memspace opt_sep memspace end_cmd
+                     { mon_cpuhistory(-1, $3, $5, $7,   0,   0); }
+                   | CMD_CPUHISTORY opt_sep memspace opt_sep memspace opt_sep memspace opt_sep memspace end_cmd
+                     { mon_cpuhistory(-1, $3, $5, $7,  $9,   0); }
+                   | CMD_CPUHISTORY opt_sep memspace opt_sep memspace opt_sep memspace opt_sep memspace opt_sep memspace end_cmd
+                     { mon_cpuhistory(-1, $3, $5, $7,  $9, $11); }
+                   | CMD_CPUHISTORY opt_sep d_number end_cmd
+                     { mon_cpuhistory($3,  0,  0,  0,   0,   0); }
+                   | CMD_CPUHISTORY opt_sep d_number opt_sep memspace end_cmd
+                     { mon_cpuhistory($3, $5,  0,  0,   0,   0); }
+                   | CMD_CPUHISTORY opt_sep d_number opt_sep memspace opt_sep memspace end_cmd
+                     { mon_cpuhistory($3, $5, $7,  0,   0,   0); }
+                   | CMD_CPUHISTORY opt_sep d_number opt_sep memspace opt_sep memspace opt_sep memspace end_cmd
+                     { mon_cpuhistory($3, $5, $7, $9,   0,   0); }
+                   | CMD_CPUHISTORY opt_sep d_number opt_sep memspace opt_sep memspace opt_sep memspace opt_sep memspace end_cmd
+                     { mon_cpuhistory($3, $5, $7, $9, $11,   0); }
+                   | CMD_CPUHISTORY opt_sep d_number opt_sep memspace opt_sep memspace opt_sep memspace opt_sep memspace opt_sep memspace end_cmd
+                     { mon_cpuhistory($3, $5, $7, $9, $11, $13); }
                    | CMD_RETURN end_cmd
                      { mon_instruction_return(); }
                    | CMD_DUMP filename end_cmd
@@ -275,6 +274,15 @@ machine_state_rules: CMD_BANK end_cmd
                      { mon_display_screen(-1); }
                    | CMD_SCREEN address end_cmd
                      { mon_display_screen($2); }
+                   | CMD_WARP end_cmd
+                     {
+                        mon_out("Warp mode is %s.\n",
+                                vsync_get_warp_mode() ? "on" : "off");
+                     }
+                   | CMD_WARP TOGGLE end_cmd
+                     {
+                        vsync_set_warp_mode(!vsync_get_warp_mode());
+                     }
                    | register_mod
                    ;
 
@@ -288,12 +296,12 @@ register_mod: CMD_REGISTERS end_cmd
 symbol_table_rules: CMD_LOAD_LABELS memspace opt_sep filename end_cmd
                     {
                         /* What about the memspace? */
-                        mon_playback_commands($4);
+                        mon_playback_commands($4,true);
                     }
                   | CMD_LOAD_LABELS filename end_cmd
                     {
                         /* What about the memspace? */
-                        mon_playback_commands($2);
+                        mon_playback_commands($2,true);
                     }
                   | CMD_SAVE_LABELS memspace opt_sep filename end_cmd
                     { mon_save_symbols($2, $4); }
@@ -510,6 +518,8 @@ monitor_state_rules: CMD_SIDEFX TOGGLE end_cmd
                          mon_out("Default radix is %s\n", p);
                      }
 
+                   | CMD_DEVICE end_cmd
+                     { monitor_change_device(e_default_space); }
                    | CMD_DEVICE memspace end_cmd
                      { monitor_change_device($2); }
                    | CMD_EXPORT end_cmd
@@ -563,9 +573,13 @@ monitor_misc_rules: CMD_DISK rest_of_line end_cmd
                   | CMD_MON_RESET opt_sep expression end_cmd
                     { mon_reset_machine($3); }
                   | CMD_TAPECTRL opt_sep expression end_cmd
-                    { mon_tape_ctrl($3); }
+                    { mon_tape_ctrl(TAPEPORT_PORT_1, $3); }  /* FIXME: hardcoded to port 1 for now */
                   | CMD_CARTFREEZE end_cmd
                     { mon_cart_freeze(); }
+                  | CMD_UPDB number end_cmd
+                    { mon_userport_set_output($2); }
+                  | CMD_JPDB number number end_cmd
+                    { mon_joyport_set_output($2, $3); }
                   | CMD_COMMENT opt_rest_of_line end_cmd
                      { }
                   | CMD_STOPWATCH RESET end_cmd
@@ -623,7 +637,7 @@ cmd_file_rules: CMD_RECORD filename end_cmd
               | CMD_MON_STOP end_cmd
                 { mon_end_recording(); }
               | CMD_PLAYBACK filename end_cmd
-                { mon_playback_commands($2); }
+                { mon_playback_commands($2,true); }
               ;
 
 data_entry_rules: CMD_ENTER_DATA address data_list end_cmd
@@ -812,19 +826,19 @@ value: number { $$ = $1; }
 
 d_number: D_NUMBER { $$ = $1; }
         | B_NUMBER_GUESS { $$ = (int)strtol($1, NULL, 10); }
-        | O_NUMBER_GUESS { $$ = (int)strtol($1, NULL, 10); }
         | D_NUMBER_GUESS { $$ = (int)strtol($1, NULL, 10); }
+        | O_NUMBER_GUESS { $$ = (int)strtol($1, NULL, 10); }
         ;
 
 guess_default: B_NUMBER_GUESS { $$ = resolve_datatype(B_NUMBER,$1); }
-             | O_NUMBER_GUESS { $$ = resolve_datatype(O_NUMBER,$1); }
              | D_NUMBER_GUESS { $$ = resolve_datatype(D_NUMBER,$1); }
+             | O_NUMBER_GUESS { $$ = resolve_datatype(O_NUMBER,$1); }
              ;
 
 number: H_NUMBER { $$ = $1; }
+      | B_NUMBER { $$ = $1; }
       | D_NUMBER { $$ = $1; }
       | O_NUMBER { $$ = $1; }
-      | B_NUMBER { $$ = $1; }
       | guess_default { $$ = $1; }
       ;
 
@@ -1113,6 +1127,14 @@ int parse_and_execute_line(char *input)
    char *temp_buf;
    int i, rc;
 
+   if (default_memspace == e_comp_space) {
+       /*
+        * If the command is to be executed when the default address space is the main cpu,
+        * Ensure drive CPU emulation is up to date with main cpu CLOCK.
+        */
+       drive_cpu_execute_all(maincpu_clk);
+   }
+
    temp_buf = lib_malloc(strlen(input) + 3);
    strcpy(temp_buf,input);
    i = (int)strlen(input);
@@ -1195,22 +1217,95 @@ static int yyerror(char *s)
    return 0;
 }
 
+/* convert the string in "num" to a numeric value, depending on radix. this 
+   function does some magic conversion on addresses when radix is not hex.
+*/
 static int resolve_datatype(unsigned guess_type, const char *num)
 {
-   /* FIXME: Handle cases when default type is non-numerical */
-   if (default_radix == e_hexadecimal) {
-       return (int)strtol(num, NULL, 16);
-   }
+    int binary = 1, hex = 0, octal = 0, decimal = 1;
+    const char *c;
 
-   if ((guess_type == D_NUMBER) || (default_radix == e_decimal)) {
-       return (int)strtol(num, NULL, 10);
-   }
+    /* FIXME: Handle cases when default type is non-numerical */
+    if (default_radix == e_hexadecimal) {
+        return (int)strtol(num, NULL, 16);
+    }
 
-   if ((guess_type == O_NUMBER) || (default_radix == e_octal)) {
-       return (int)strtol(num, NULL, 8);
-   }
+    /* we do some educated guessing on what type of number we have here */
+    if (num[0] == '0') {
+        /* might be octal with leading zero */
+        octal = 1;
+    }
+    /* a string containing any digits not 0 or 1 can't be a binary number */
+    c = num;
+    while (*c) {
+        if ((*c != '0') && (*c != '1')) {
+            binary = 0;
+            break;
+        }
+        c++;
+    }
+    /* a string containing 8 or 9 can't be an octal number */
+    c = num;
+    while (*c) {
+        if ((*c == '8') && (*c == '9')) {
+            octal = 0;
+            break;
+        }
+        c++;
+    }
+    /* a string containing any of A-F can only be a hex number */
+    c = num;
+    while (*c) {
+        if ((tolower(*c) >= 'a') && (tolower(*c) <= 'f')) {
+            hex = 1;
+            octal = 0;
+            binary = 0;
+            decimal = 0;
+            break;
+        }
+        c++;
+    }
 
-   return (int)strtol(num, NULL, 2);
+    /* a hex number can only be hex no matter what */
+    if (hex) {
+        return (int)strtol(num, NULL, 16);
+    }
+
+    /* first, if default radix and detected number matches, just do it */
+    if (binary && (default_radix == e_binary)) {
+        return (int)strtol(num, NULL, 2);
+    }
+    if (decimal && (default_radix == e_decimal)) {
+        return (int)strtol(num, NULL, 10);
+    }
+    if (octal && (default_radix == e_octal)) {
+        return (int)strtol(num, NULL, 8);
+    }
+
+    /* second, if detected number matches guess type, do it */
+    if (binary && (guess_type == B_NUMBER)) {
+        return (int)strtol(num, NULL, 2);
+    }
+    if (decimal && (guess_type == D_NUMBER)) {
+        return (int)strtol(num, NULL, 10);
+    }
+    if (octal && (guess_type == O_NUMBER)) {
+        return (int)strtol(num, NULL, 8);
+    }
+
+    /* third only use the detected type */
+    if (binary) {
+        return (int)strtol(num, NULL, 2);
+    }
+    if (decimal) {
+        return (int)strtol(num, NULL, 10);
+    }
+    if (octal) {
+        return (int)strtol(num, NULL, 8);
+    }
+
+    /* use hex as default, should we ever come here */
+    return (int)strtol(num, NULL, 16);
 }
 
 /*

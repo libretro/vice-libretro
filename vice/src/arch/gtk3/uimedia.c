@@ -14,6 +14,9 @@
  * $VICERES KoalaOversizeHandling       -vsid
  * $VICERES KoalaUndersizeHandling      -vsid
  * $VICERES KoalaTEDLumHandling         -vsid
+ * $VICERES MinipaintOversizeHandling   -vsid
+ * $VICERES MinipaintUndersizeHandling  -vsid
+ * $VICERES MinipaintTEDLumHandling     -vsid
  */
 
 /*
@@ -43,20 +46,23 @@
 #include <stdint.h>
 
 #include "gfxoutput.h"
+#include "lastdir.h"
 #include "lib.h"
+#include "log.h"
 #include "machine.h"
 #include "mainlock.h"
-#include "openfiledialog.h"
+#include "monitor.h"
 #include "resources.h"
-#include "savefiledialog.h"
 #include "screenshot.h"
-#include "selectdirectorydialog.h"
 #include "sound.h"
 #include "statusbarrecordingwidget.h"
 #include "ui.h"
+#include "uiactions.h"
 #include "uiapi.h"
 #include "uistatusbar.h"
 #include "vice_gtk3.h"
+#include "videoarch.h"
+#include "vsync.h"
 
 #ifdef HAVE_FFMPEG
 #include "ffmpegwidget.h"
@@ -137,6 +143,17 @@ static int video_driver_index = 0;
 static int audio_driver_index = -1;
 
 
+/** \brief  Last used directory of the file chooser dialogs
+ *
+ * We only remember the directory, not the last filename, since we propose a
+ * filename with a timestamp in it to quickly save new media files without having
+ * to type a new name. Using last_file would mean the generated filename gets
+ * overwritten with the old one, so the convenience of the generated filenames
+ * would be lost.
+ */
+static gchar *media_last_dir = NULL;
+
+
 /** \brief  List of available audio recording drivers
  *
  * This list is dependent on compile-time options
@@ -213,6 +230,31 @@ static void save_audio_recording_handler(GtkWidget *parent);
 static void save_video_recording_handler(GtkWidget *parent);
 
 
+/** \brief  Screenshot filename for save_screenshot_vsync_callback()
+ *
+ * This gets allocated by the UI thread and freed by the VICE thread.
+ *
+ * If non-NULL the UI thread will not free and reallocate, it simply refuses
+ * to queue another screenshot. Queuing a second screenshot while the vsync
+ * handler hasn't processed the current one is an unlikely scenario, but could
+ * happen with a very low custom emulation speed and a quick user. Once the
+ * vsync handler has used the filename, it is deallocated and set to NULL to
+ * indicate to the UI another screenshot can be queued.
+ */
+static char *screenshot_filename = NULL;
+
+
+/** \brief  Screenshot driver name for save_screenshot_vsync_callback()
+ *
+ * When the dialog is closed the video drive list is also destroyed, so we
+ * cannot access the list in the vsync callback.
+ * The UI thread created a copy of the requested driver and the VICE thread
+ * then frees it in the vsync callback function.
+ */
+static char *screenshot_driver = NULL;
+
+
+
 /** \brief  Reference to the GtkStack containing the media types
  *
  * Used in the dialog response callback to determine recording mode and params
@@ -262,6 +304,7 @@ static void on_dialog_destroy(GtkWidget *widget, gpointer data)
     if (!old_pause_state) {
         ui_pause_disable();
     }
+    ui_action_finish(ACTION_MEDIA_RECORD);
 }
 
 
@@ -384,7 +427,7 @@ static gchar *create_datetime_string(void)
     m = g_date_time_get_microsecond(d);
     s = g_date_time_format(d, "%Y%m%d%H%M%S");
     g_date_time_unref(d);
-    t = g_strdup_printf("%s%06d", s, m);
+    t = g_strdup_printf("%s%02d", s, m / 10000);
     g_free(s);
     return t;
 }
@@ -446,6 +489,52 @@ static char *create_proposed_audio_recording_name(const char *ext)
 }
 
 
+/** \brief  UI error message handler for saving screenshots
+ *
+ * \param[in]   data    filename of screenshot
+ *
+ * \return  G_SOURCE_REMOVE to make this a one-shot timer event
+ */
+static gboolean save_screenshot_error_impl(gpointer data)
+{
+    char *filename = data;
+
+    vice_gtk3_message_error("Screenshot error",
+                            "Failed to write screenshot file '%s.'",
+                            filename);
+    lib_free(filename);
+    return G_SOURCE_REMOVE;
+}
+
+
+/** \brief  Callback to make a screenshot on vsync to avoid tearing
+ *
+ * The `screenshot_filename` variable is allocated by the UI thread and freed
+ * and set to `NULL` by this function, thus indicating to the UI it is allowed
+ * to queue another screenshot on vsync.
+ *
+ * \param[in]   param   video canvas to take screenshot of
+ */
+static void save_screenshot_vsync_callback(void *param)
+{
+    video_canvas_t *canvas = param;
+
+    if (screenshot_save(screenshot_driver, screenshot_filename, canvas) < 0) {
+        char *filename_copy;
+
+        log_error(LOG_ERR, "Failed to write screenshot file '%s'.",
+                  screenshot_filename);
+        /* push error message handler onto the UI thread */
+        filename_copy = lib_strdup(screenshot_filename);
+        g_timeout_add(0, save_screenshot_error_impl, (gpointer)filename_copy);
+    }
+    lib_free(screenshot_filename);
+    lib_free(screenshot_driver);
+    screenshot_filename = NULL; /* signal UI it can queue another screenshot */
+    screenshot_driver = NULL;
+}
+
+
 /** \brief  Callback for the save-screenshot dialog
  *
  * \param[in,out]   dialog      dialog
@@ -456,18 +545,27 @@ static void on_save_screenshot_filename(GtkDialog *dialog,
                                         gchar *filename,
                                         gpointer data)
 {
-    const char *name;
-
-    name = video_driver_list[screenshot_driver_index].name;
-
     if (filename != NULL) {
 
         gchar *filename_locale = file_chooser_convert_to_locale(filename);
 
         /* TODO: add extension if not present? */
-        if (screenshot_save(name, filename_locale, ui_get_active_canvas()) < 0) {
-            vice_gtk3_message_error("VICE Error",
-                    "Failed to write screenshot file '%s'", filename);
+
+        /* check if a screenshot is pending */
+        if (screenshot_filename == NULL) {
+            /* update last dir/file */
+            lastdir_update(GTK_WIDGET(dialog), &media_last_dir, NULL);
+            /* no, queue screenshot on vsync */
+            screenshot_filename = lib_strdup(filename_locale);
+            screenshot_driver = lib_strdup(video_driver_list[screenshot_driver_index].name);
+
+            if (monitor_is_inside_monitor()) {
+                /* screenshot immediately if monitor is open */
+                save_screenshot_vsync_callback((void*)ui_get_active_canvas());
+            } else {
+                /* queue screenshot grab on vsync to avoid tearing */
+                vsync_on_vsync_do(save_screenshot_vsync_callback, (void *)ui_get_active_canvas());
+            }
         }
         g_free(filename);
         g_free(filename_locale);
@@ -476,7 +574,6 @@ static void on_save_screenshot_filename(GtkDialog *dialog,
     gtk_widget_destroy(GTK_WIDGET(dialog));
     mainlock_obtain();
 }
-
 
 
 /** \brief  Save a screenshot
@@ -505,6 +602,8 @@ static void save_screenshot_handler(GtkWidget *parent)
             title, proposed, TRUE, NULL,
             on_save_screenshot_filename,
             NULL);
+    lastdir_set(dialog, &media_last_dir, NULL);
+
     /* destroy parent dialog when the dialog is destroyed */
     g_signal_connect_swapped(
             dialog,
@@ -530,6 +629,8 @@ static void on_save_audio_filename(GtkDialog *dialog,
     gchar *filename_locale;
 
     if (filename != NULL) {
+        lastdir_update(GTK_WIDGET(dialog), &media_last_dir, NULL);
+
         filename_locale = file_chooser_convert_to_locale(filename);
         const char *name = audio_driver_list[audio_driver_index].name;
         /* XXX: setting resources doesn't exactly help with catching errors */
@@ -571,7 +672,7 @@ static void save_audio_recording_handler(GtkWidget *parent)
             title, proposed, TRUE, NULL,
             on_save_audio_filename,
             NULL);
-
+    lastdir_set(dialog, &media_last_dir, NULL);
     /* destroy parent dialog when the dialog is destroyed */
     g_signal_connect_swapped(
             dialog,
@@ -604,17 +705,13 @@ static void on_save_video_filename(GtkDialog *dialog,
         int vb;
         gchar *filename_locale;
 
+        lastdir_update(GTK_WIDGET(dialog), &media_last_dir, NULL);
+
         resources_get_string("FFMPEGFormat", &driver);
         resources_get_int("FFMPEGVideoCodec", &vc);
         resources_get_int("FFMPEGVideoBitrate", &vb);
         resources_get_int("FFMPEGAudioCodec", &ac);
         resources_get_int("FFMPEGAudioBitrate", &ab);
-
-        debug_gtk3("Format = '%s'.", driver);
-        debug_gtk3("Video = %d, bitrate %d.", vc, vb);
-        debug_gtk3("Audio = %d, bitrate %d.", ac, ab);
-
-        ui_pause_disable();
 
         filename_locale = file_chooser_convert_to_locale(filename);
 
@@ -662,6 +759,7 @@ static void save_video_recording_handler(GtkWidget *parent)
     dialog = vice_gtk3_save_file_dialog(
             title, proposed, TRUE, NULL,
             on_save_video_filename, NULL);
+    lastdir_set(dialog, &media_last_dir, NULL);
 
     /* destroy parent dialog when the dialog is destroyed */
     g_signal_connect_swapped(
@@ -741,15 +839,13 @@ static GtkWidget *create_screenshot_param_widget(const char *prefix)
     int row;
     int artstudio = 0;
     int koala = 0;
+    int minipaint = 0;
 
-    grid = gtk_grid_new();
-    gtk_grid_set_column_spacing(GTK_GRID(grid), 16);
-    gtk_grid_set_row_spacing(GTK_GRID(grid), 8);
+    grid = vice_gtk3_grid_new_spaced(VICE_GTK3_DEFAULT, VICE_GTK3_DEFAULT);
 
     /* according to the standard, doing a strcmp() with one or more `NULL`
      * arguments is implementation-defined, so better safe than sorry */
     if (prefix == NULL) {
-        debug_gtk3("some idiot passed NULL.");
         return grid;
     }
 
@@ -761,11 +857,14 @@ static GtkWidget *create_screenshot_param_widget(const char *prefix)
     } else if (strcmp(prefix, "KOALA") == 0) {
         prefix = "Koala";
         koala = 1;
+    } else if (strcmp(prefix, "MINIPAINT") == 0) {
+        prefix = "Minipaint";
+        minipaint = 1;
     }
 
-    if (!koala && !artstudio) {
+    if (!koala && !artstudio && !minipaint) {
         label = gtk_label_new("No parameters required");
-        g_object_set(label, "margin-left", 16, NULL);
+        gtk_widget_set_margin_start(label, 16);
         gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 1, 1);
         gtk_widget_show_all(grid);
         return grid;
@@ -773,7 +872,7 @@ static GtkWidget *create_screenshot_param_widget(const char *prefix)
 
     /* ${FORMAT}OversizeHandling */
     label = gtk_label_new("Oversize handling");
-    g_object_set(label, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(label, 16);
     gtk_widget_set_halign(label, GTK_ALIGN_START);
     oversize_widget = vice_gtk3_resource_combo_box_int_new_sprintf(
             "%sOversizeHandling", oversize_modes, prefix);
@@ -782,7 +881,7 @@ static GtkWidget *create_screenshot_param_widget(const char *prefix)
 
     /* ${FORMAT}UndersizeHandling */
     label = gtk_label_new("Undersize handling");
-    g_object_set(label, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(label, 16);
     gtk_widget_set_halign(label, GTK_ALIGN_START);
     undersize_widget = vice_gtk3_resource_combo_box_int_new_sprintf(
             "%sUndersizeHandling", undersize_modes, prefix);
@@ -796,7 +895,7 @@ static GtkWidget *create_screenshot_param_widget(const char *prefix)
     /* OCPMultiColorHandling */
     if (artstudio) {
         label = gtk_label_new("Multi color handling");
-        g_object_set(label, "margin-left", 16, NULL);
+        gtk_widget_set_margin_start(label, 16);
         gtk_widget_set_halign(label, GTK_ALIGN_START);
         multicolor_widget = vice_gtk3_resource_combo_box_int_new_sprintf(
                 "%sMultiColorHandling", multicolor_modes, prefix);
@@ -808,7 +907,7 @@ static GtkWidget *create_screenshot_param_widget(const char *prefix)
     /* ${FORMAT}TEDLumaHandling */
     if (machine_class == VICE_MACHINE_PLUS4) {
         label = gtk_label_new("TED luma handling");
-        g_object_set(label, "margin-left", 16, NULL);
+        gtk_widget_set_margin_start(label, 16);
         gtk_widget_set_halign(label, GTK_ALIGN_START);
         ted_luma_widget = vice_gtk3_resource_combo_box_int_new_sprintf(
                 "%sTEDLumHandling", ted_luma_modes, prefix);
@@ -845,10 +944,11 @@ static GtkWidget *create_screenshot_widget(void)
 
     /* grid without extra row spacing */
     drv_grid = vice_gtk3_grid_new_spaced_with_label(-1, 0, "Driver", 1);
-    g_object_set(drv_grid, "margin-top", 8, "margin-left", 16, NULL);
+    gtk_widget_set_margin_top(drv_grid, 8);
+    gtk_widget_set_margin_start(drv_grid, 16);
     /* add some padding to the label */
     label = gtk_grid_get_child_at(GTK_GRID(drv_grid), 0, 0);
-    g_object_set(label, "margin-bottom", 8, NULL);
+    gtk_widget_set_margin_bottom(label, 8);
 
     /* add drivers */
     grid_index = 1;
@@ -859,7 +959,7 @@ static GtkWidget *create_screenshot_widget(void)
 
         if (!driver_is_video(name)) {
             radio = gtk_radio_button_new_with_label(group, display);
-            g_object_set(radio, "margin-left", 8, NULL);
+            gtk_widget_set_margin_start(radio, 8);
             gtk_radio_button_join_group(GTK_RADIO_BUTTON(radio),
                     GTK_RADIO_BUTTON(last));
             gtk_grid_attach(GTK_GRID(drv_grid), radio, 0, grid_index, 1, 1);
@@ -900,8 +1000,8 @@ static GtkWidget *create_screenshot_widget(void)
      * Koala or Artstudio) */
     screenshot_options_grid = vice_gtk3_grid_new_spaced_with_label(
             -1, -1, "Driver options", 1);
-    g_object_set(screenshot_options_grid,
-                 "margin-top", 8, "margin-left", 16, NULL);
+    gtk_widget_set_margin_top(screenshot_options_grid, 8);
+    gtk_widget_set_margin_start(screenshot_options_grid, 16);
     gtk_grid_attach(GTK_GRID(grid), drv_grid, 0, 0, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), screenshot_options_grid, 1, 0, 1, 1);
 
@@ -931,18 +1031,19 @@ static GtkWidget *create_sound_widget(void)
     gtk_grid_set_row_spacing(GTK_GRID(grid), 8);
 
     drv_grid = vice_gtk3_grid_new_spaced_with_label(-1, 0, "Driver", 1);
+    gtk_widget_set_margin_start(drv_grid, 16);
+    gtk_widget_set_margin_top(drv_grid, 8);
     label = gtk_grid_get_child_at(GTK_GRID(drv_grid), 0, 0);
-    g_object_set(label, "margin-bottom", 8, NULL);
-    g_object_set(drv_grid, "margin-top", 8, "margin-left", 16, NULL);
+    gtk_widget_set_margin_bottom(label, 8);
 
     last = NULL;
     for (index = 0; audio_driver_list[index].name != NULL; index++) {
         const char *display = audio_driver_list[index].display;
 
         radio = gtk_radio_button_new_with_label(group, display);
-        g_object_set(radio, "margin-left", 8, NULL);
+        gtk_widget_set_margin_start(radio, 8);
         gtk_radio_button_join_group(GTK_RADIO_BUTTON(radio),
-                GTK_RADIO_BUTTON(last));
+                                    GTK_RADIO_BUTTON(last));
         gtk_grid_attach(GTK_GRID(drv_grid), radio, 0, index + 1, 1, 1);
 
         /*
@@ -993,7 +1094,7 @@ static GtkWidget *create_video_widget(void)
 
 #ifdef HAVE_FFMPEG
     label = gtk_label_new("Video driver");
-    g_object_set(label, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(label, 16);
 
     combo = gtk_combo_box_text_new();
     for (index = 0; video_driver_list[index].name != NULL; index++) {
@@ -1017,9 +1118,10 @@ static GtkWidget *create_video_widget(void)
     gtk_widget_set_hexpand(combo, TRUE);
     gtk_combo_box_set_active(GTK_COMBO_BOX(combo), 0);
 
-    selection_grid = vice_gtk3_grid_new_spaced_with_label
-        (-1, -1, "Driver selection", 2);
-    g_object_set(selection_grid, "margin-top", 8, "margin-left", 16, NULL);
+    selection_grid = vice_gtk3_grid_new_spaced_with_label(
+            -1, -1, "Driver selection", 2);
+    gtk_widget_set_margin_top(selection_grid, 8);
+    gtk_widget_set_margin_start(selection_grid, 16);
     gtk_grid_set_column_spacing(GTK_GRID(selection_grid), 16);
     gtk_grid_set_row_spacing(GTK_GRID(selection_grid), 8);
     gtk_grid_attach(GTK_GRID(selection_grid), label, 0, 1, 1, 1);
@@ -1031,7 +1133,8 @@ static GtkWidget *create_video_widget(void)
     /* grid around ffmpeg */
     options_grid = vice_gtk3_grid_new_spaced_with_label(
             -1, -1, "Driver options", 1);
-    g_object_set(options_grid, "margin-top", 8, "margin-left", 16, NULL);
+    gtk_widget_set_margin_top(options_grid, 8);
+    gtk_widget_set_margin_start(options_grid, 16);
     gtk_grid_set_column_spacing(GTK_GRID(options_grid), 16);
     gtk_grid_set_row_spacing(GTK_GRID(options_grid), 8);
 
@@ -1042,15 +1145,14 @@ static GtkWidget *create_video_widget(void)
 #else
     label = gtk_label_new(NULL);
     gtk_label_set_line_wrap_mode(GTK_LABEL(label), PANGO_WRAP_WORD);
-    g_object_set(G_OBJECT(label),
-            "margin-left", 16,
-            "margin-right", 16,
-            "margin-top", 16, NULL);
+    gtk_widget_set_margin_start(label, 16);
+    gtk_widget_set_margin_end(label, 16);
+    gtk_widget_set_margin_top(label, 16);
+    gtk_widget_set_margin_bottom(label, 16);
     gtk_label_set_markup(GTK_LABEL(label),
             "Video recording is unavailable due to VICE having being compiled"
-            " without FFMPEG support.\nPlease recompile with either"
-            " <tt>--enable-static-ffmpeg</tt> or"
-            " <tt>--enable-external-ffmpeg</tt>.\n\n"
+            " without FFMPEG support.\nPlease recompile with"
+            " <tt>--enable-ffmpeg</tt>.\n\n"
             "If you didn't compile VICE yourself, ask your provider.");
     gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 1, 1);
 
@@ -1109,13 +1211,8 @@ static GtkWidget *create_content_widget(void)
 
 
 /** \brief  Show dialog to save screenshot, record sound and/or video
- *
- * \param[in]   parent  parent widget (unused)
- * \param[in]   data    extra data (unused)
- *
- * \return  TRUE
  */
-gboolean ui_media_dialog_show(GtkWidget *parent, gpointer data)
+void ui_media_dialog_show(void)
 {
     GtkWidget *dialog;
     GtkWidget *content;
@@ -1156,18 +1253,12 @@ gboolean ui_media_dialog_show(GtkWidget *parent, gpointer data)
     g_signal_connect_unlocked(dialog, "destroy", G_CALLBACK(on_dialog_destroy), NULL);
 
     gtk_widget_show_all(dialog);
-    return TRUE;
 }
 
 
 /** \brief  Stop audio or video recording, if active
- *
- * \param[in]   parent      parent widget (unused)
- * \param[in]   data        extra event data (unused)
- *
- * \return  TRUE, so the emulated machine doesn't get the shortcut key
  */
-gboolean ui_media_stop_recording(GtkWidget *parent, gpointer data)
+void ui_media_stop_recording(void)
 {
     /* stop sound recording, if active */
     if (sound_is_recording()) {
@@ -1180,8 +1271,28 @@ gboolean ui_media_stop_recording(GtkWidget *parent, gpointer data)
 
     ui_display_recording(0);
     statusbar_recording_widget_hide_all(ui_statusbar_get_recording_widget(), 10);
+}
 
-    return TRUE;
+
+/** \brief  Callback for vsync_on_vsync_do()
+ *
+ * Create a screenshot on vsync to avoid tearing.
+ *
+ * This function is called on the VICE thread, so the canvas is retrieved in
+ * ui_media_auto_screenshot() on the UI thread and passed via \a param.
+ *
+ * \param[in]   param   video canvas
+ */
+static void auto_screenshot_vsync_callback(void *param)
+{
+    char *filename;
+    video_canvas_t *canvas = param;
+
+    /* no need for locale bullshit */
+    filename = create_proposed_screenshot_name("png");
+    if (screenshot_save("PNG", filename, canvas) < 0) {
+        log_error(LOG_ERR, "Failed to autosave screenshot.");
+    }
 }
 
 
@@ -1193,21 +1304,21 @@ gboolean ui_media_stop_recording(GtkWidget *parent, gpointer data)
  */
 void ui_media_auto_screenshot(void)
 {
-    char *filename;
-
-    /* remember pause state before entering the widget */
-    old_pause_state = ui_pause_active();
-
-    /* pause emulation */
-    ui_pause_enable();
-
-    /* no need for locale bullshit */
-    filename = create_proposed_screenshot_name("png");
-    if (screenshot_save("PNG", filename, ui_get_active_canvas()) < 0) {
-        debug_gtk3("OOPS");
+    if (monitor_is_inside_monitor()) {
+        /* screenshot immediately if monitor is open */
+        auto_screenshot_vsync_callback((void *)ui_get_active_canvas());
+    } else {
+        /* queue screenshot grab on vsync to avoid tearing */
+        vsync_on_vsync_do(auto_screenshot_vsync_callback, (void *)ui_get_active_canvas());
     }
+}
 
-    if (!old_pause_state) {
-        ui_pause_disable();
-    }
+
+/** \brief  Clean up resources used
+ *
+ * Frees the last dir/file strings
+ */
+void ui_media_shutdown(void)
+{
+    lastdir_shutdown(&media_last_dir, NULL);
 }

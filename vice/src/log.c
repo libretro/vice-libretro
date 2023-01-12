@@ -72,12 +72,11 @@ static void log_file_open(void)
     if (log_file_name == NULL || *log_file_name == 0) {
         log_file = archdep_open_default_log_file();
     } else {
-#ifndef __OS2__
         if (strcmp(log_file_name, "-") == 0) {
             log_file = stdout;
-        } else
-#endif
-        log_file = fopen(log_file_name, MODE_WRITE_TEXT);
+        } else {
+            log_file = fopen(log_file_name, MODE_WRITE_TEXT);
+        }
     }
     /* flush all data direct to the output stream. */
     if (log_file) {
@@ -242,7 +241,6 @@ log_t log_open(const char *id)
             break;
         }
     }
-
     if (i == num_logs) {
         new_log = num_logs++;
         logs = lib_realloc(logs, sizeof(*logs) * num_logs);
@@ -522,6 +520,17 @@ int log_verbose(const char *format, ...)
     return rc;
 }
 
+int log_init(void)
+{
+    return (log_cb == NULL) ? -1 : 0;
+}
+
+int log_set_silent(int n)
+{
+    log_enabled = !n;
+    return 0;
+}
+
 /* stubs */
 int log_resources_init(void) {return 0;}
 void log_resources_shutdown(void) {}
@@ -530,11 +539,6 @@ int log_init_with_fd(FILE *f) {return 0;}
 int log_set_verbose(int n) {verbose=n?1:0;return 0;}
 int log_verbose_init(int argc, char **argv) {return 0;}
 #endif /* __LIBRETRO__ */
-
-int log_init(void)
-{
-    return (log_cb == NULL) ? -1 : 0;
-}
 
 void log_enable(int on)
 {

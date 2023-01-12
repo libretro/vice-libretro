@@ -33,28 +33,28 @@
 
 #include "basewidget_types.h"
 
-#ifdef MACOSX_SUPPORT
+#ifdef MACOS_COMPILE
 
-/** \brief  Unicode text for the VICE_MOD_MASK (Command/⌘) modifier
+/** \brief  Unicode text for the VICE_MOD_MASK (Command) modifier
  */
-# define VICE_MOD_MASK_TEXT "⌘"
+# define VICE_MOD_MASK_TEXT "\u2318"
 
-/** \brief  HTML text for the VICE_MOD_MASK (Command/⌘) modifier
+/** \brief  HTML text for the VICE_MOD_MASK (Command) modifier
  */
 # define VICE_MOD_MASK_HTML "&#8984;"
 
 #else
 
+/** \brief  Unicode text for the VICE_MOD_MASK (Alt) modifier
+ */
 # define VICE_MOD_MASK_TEXT "Alt"
 
-/** \brief  HTML text for the VICE_MOD_MASK (Alt/Command) modifier
+/** \brief  HTML text for the VICE_MOD_MASK (Alt) modifier
  */
 # define VICE_MOD_MASK_HTML "Alt"
 
 #endif
 
-
-GtkWidget *uihelpers_create_grid_with_label(const gchar *text, gint columns);
 
 /* only useful for custom built radio groups, don't use on resourceradiogroup.c
  * generated stuff */
@@ -77,6 +77,12 @@ GtkWidget *vice_gtk3_grid_new_spaced_with_label(int column_spacing,
                                                 int row_spacing,
                                                 const char *label,
                                                 int span);
+
+void vice_gtk3_grid_set_margins(GtkWidget *grid,
+                                gint top,
+                                gint bottom,
+                                gint left,
+                                gint right);
 
 unsigned char *vice_gtk3_petscii_to_utf8(unsigned char *s,
                                          bool inverted,

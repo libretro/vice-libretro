@@ -52,7 +52,7 @@
 #include "types.h"
 #include "util.h"
 
-/* #define COPROC_SUPPORT */
+#define COPROC_SUPPORT
 
 #define DEBUGRS232
 
@@ -66,6 +66,7 @@
 
 /* resource handling */
 
+/* baudrate of physical RS232 device (unused with pipes and sockets) */
 static int devbaud[RS232_NUM_DEVICES];
 
 static int is_baud_valid(int baud)
@@ -244,11 +245,14 @@ int rs232dev_open(int device)
 
 #ifdef COPROC_SUPPORT
     if (rs232_devfile[device][0] == '|') {
+        int fd_r, fd_w;
         log_message(rs232dev_log, "rs232dev_open(): forking '%s'", rs232_devfile[device] + 1);
-        if (fork_coproc(&fds[i].fd_w, &fds[i].fd_r, rs232_devfile[device] + 1) < 0) {
-            log_error(rs232dev_log, "rs232dev_open(): Cannot fork process.");
+        if (fork_coproc(&fd_w, &fd_r, rs232_devfile[device] + 1) < 0) {
+            log_error(rs232dev_log, "Cannot fork process '%s'.", rs232_devfile[device] + 1);
             return -1;
         }
+        fds[i].fd_w = (HANDLE)_get_osfhandle(fd_w);
+        fds[i].fd_r = (HANDLE)_get_osfhandle(fd_r);
         fds[i].type = T_PROC;
         fds[i].inuse = 1;
         /* fds[i].file = rs232_devfile[device]; */
@@ -349,7 +353,7 @@ int rs232dev_open(int device)
             break;
         }
 
-        if(!strncasecmp(rs232_devfile[device], "com", 3)) {
+        if(!util_strncasecmp(rs232_devfile[device], "com", 3)) {
             fds[i].type = T_TTY;
         } else {
             fds[i].type = T_FILE;
@@ -443,7 +447,7 @@ int rs232dev_set_status(int fd, enum rs232handshake_out status)
         log_error(rs232dev_log, "rs232dev_set_status(): Attempted to set status of invalid fd %d.", fd);
         return -1;
     }
-    
+
     if (fds[fd].type == T_TTY) {
         /* signal the RS232 device the current status, too */
         if (new_rts != fds[fd].rts) {
@@ -510,5 +514,5 @@ void rs232dev_set_bps(int fd, unsigned int bps)
     DEBUG_LOG_MESSAGE((rs232dev_log, "rs232dev_set_bps(): BPS: %u", bps));
     if ((fd < 0) || (fd >= RS232_NUM_DEVICES)) {
         log_error(rs232dev_log, "rs232dev_set_bps(): Attempted to set BPS of invalid fd %d.", fd);
-    }    
+    }
 }

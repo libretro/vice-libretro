@@ -28,11 +28,11 @@
 
 #include "vic20mem.h"
 #include "vic20memrom.h"
+#include "vic20rom.h"
 #include "types.h"
 
 #ifdef USE_EMBEDDED
-#include "vic20basic.h"
-#include "vic20kernal.h"
+uint8_t vic20memrom_kernal_rom[VIC20_KERNAL_ROM_SIZE];
 #else
 uint8_t vic20memrom_basic_rom[VIC20_BASIC_ROM_SIZE];
 uint8_t vic20memrom_kernal_rom[VIC20_KERNAL_ROM_SIZE];

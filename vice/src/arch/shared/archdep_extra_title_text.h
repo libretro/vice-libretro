@@ -28,7 +28,7 @@
 #ifndef VICE_ARCHDEP_EXTRA_TITLE_TEXT_H
 #define VICE_ARCHDEP_EXTRA_TITLE_TEXT_H
 
-char *  archdep_extra_title_text(void);
-void    archdep_extra_title_text_free(void);
+const char *archdep_extra_title_text(void);
+void        archdep_extra_title_text_free(void);
 
 #endif

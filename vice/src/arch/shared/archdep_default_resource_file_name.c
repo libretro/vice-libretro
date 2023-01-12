@@ -39,10 +39,10 @@
 #include "vice.h"
 #include "archdep_defs.h"
 
-#include <stdlib.h>
+#include <stddef.h>
 
-#include "archdep_join_paths.h"
 #include "archdep_user_config_path.h"
+#include "util.h"
 
 #include "archdep_default_resource_file_name.h"
 
@@ -53,8 +53,7 @@
  */
 char *archdep_default_resource_file_name(void)
 {
-    char *cfg;
-
-    cfg = archdep_user_config_path();
-    return archdep_join_paths(cfg, ARCHDEP_VICERC_NAME, NULL);
+    return util_join_paths(archdep_user_config_path(),
+                           ARCHDEP_VICERC_NAME,
+                           NULL);
 }

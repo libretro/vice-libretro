@@ -4,6 +4,7 @@
 AM_CPPFLAGS = \
 	@VICE_CPPFLAGS@ \
 	@ARCH_INCLUDES@ \
+	-I$(top_srcdir)/src/arch/shared \
 	-I$(top_builddir)/src \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/src/drive \
@@ -42,17 +43,20 @@ libbasewidgets_a_SOURCES = \
 	filechooserhelpers.c \
 	lastdir.c \
 	openfiledialog.c \
+	popupmenu.c \
 	resourcebrowser.c \
 	resourcecheckbutton.c \
 	resourcecombobox.c \
 	resourceentry.c \
 	resourcehelpers.c \
+	resourcenumericstring.c \
 	resourceradiogroup.c \
 	resourcescale.c \
 	resourcespinbutton.c \
 	resourceswitch.c \
 	savefiledialog.c \
 	selectdirectorydialog.c \
+	uiactionbutton.c \
 	widgethelpers.c
 
 EXTRA_DIST = \
@@ -66,17 +70,20 @@ EXTRA_DIST = \
 	filechooserhelpers.h \
 	lastdir.h \
 	openfiledialog.h \
+	popupmenu.h \
 	resourcebrowser.h \
 	resourcecheckbutton.h \
 	resourcecombobox.h \
 	resourceentry.h \
 	resourcehelpers.h \
+	resourcenumericstring.h \
 	resourceradiogroup.h \
 	resourcescale.h \
 	resourcespinbutton.h \
 	resourceswitch.h \
 	savefiledialog.h \
 	selectdirectorydialog.h \
+	uiactionbutton.h \
 	vice_gtk3.h \
 	vice_gtk3_settings.h \
 	widgethelpers.h

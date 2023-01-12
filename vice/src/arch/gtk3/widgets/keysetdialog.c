@@ -59,8 +59,17 @@
 #include "log.h"
 #include "resources.h"
 #include "widgethelpers.h"
+#include "ui.h"
 
 #include "keysetdialog.h"
+
+
+/** \brief  Number of rows in the grid */
+#define ROWS    6
+
+/** \brief  Number of columns in the grid */
+#define COLS    3
+
 
 /*
  * Forward declarations
@@ -79,7 +88,7 @@ static int keyset_index = 0;
 
 /** \brief  GDK key codes for the current keyset
  */
-static guint keyset_codes[4][3];
+static guint keyset_codes[6][3];
 
 
 /** \brief  Names of the directions of the keyset keys
@@ -88,11 +97,13 @@ static guint keyset_codes[4][3];
  * Capitalization can be changed if required, since resources are not
  * case-sensitive.
  */
-static const char *keyset_labels[4][3] = {
-    { "NorthWest", "North", "NorthEast" },
-    { "West",      "Fire",       "East" },
-    { "SouthWest", "South", "SouthEast" },
-    { NULL,        "Fire2",     "Fire3" }
+static const char *keyset_labels[ROWS][COLS] = {
+    { "NorthWest",  "North",    "NorthEast" },
+    { "West",       NULL,       "East"      },
+    { "SouthWest",  "South",    "SouthEast" },
+    { "Fire",       "Fire2",    "Fire3"     },
+    { "Fire4",      "Fire5",    "Fire6"     },
+    { "Fire7",      "Fire8",    NULL        }
 };
 
 
@@ -100,7 +111,7 @@ static const char *keyset_labels[4][3] = {
  *
  * There can be only one (active)
  */
-static GtkWidget *keyset_buttons[3][3];
+static GtkWidget *keyset_buttons[ROWS][COLS];
 
 
 /** \brief  Handler for the 'response' event of the dialog
@@ -144,8 +155,8 @@ static void on_button_toggled(GtkWidget *button, gpointer data)
          * inactive (untoggled) */
         int row;
         int col;
-        for (row = 0; row < 4; row++) {
-            for (col = 0; col < 3; col++) {
+        for (row = 0; row < ROWS; row++) {
+            for (col = 0; col < COLS; col++) {
                 if (keyset_labels[row][col]) {
                     if (keyset_buttons[row][col] != button) {
                         gtk_toggle_button_set_active(
@@ -185,8 +196,8 @@ static gboolean on_key_pressed(GtkWidget *widget, GdkEventKey *event,
         key = 0;
     }
 
-    for (row = 0; row < 4; row++) {
-        for (col = 0; col < 3; col++) {
+    for (row = 0; row < ROWS; row++) {
+        for (col = 0; col < COLS; col++) {
             if (keyset_labels[row][col]) {
                 GtkWidget *button = keyset_buttons[row][col];
                 if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button))) {
@@ -212,8 +223,8 @@ static gboolean get_keyset_resources(void)
     int row;
     int col;
 
-    for (row = 0; row < 4; row++) {
-        for (col = 0; col < 3; col++) {
+    for (row = 0; row < ROWS; row++) {
+        for (col = 0; col < COLS; col++) {
             int value = -1;
             if (keyset_labels[row][col]) {
                 if (resources_get_int_sprintf("KeySet%d%s", &value, keyset_index,
@@ -240,8 +251,8 @@ static gboolean set_keyset_resources(void)
     int row;
     int col;
 
-    for (row = 0; row < 4; row++) {
-        for (col = 0; col < 3; col++) {
+    for (row = 0; row < ROWS; row++) {
+        for (col = 0; col < COLS; col++) {
             int value = (int)keyset_codes[row][col];
             if (keyset_labels[row][col]) {
                 if (resources_set_int_sprintf("KeySet%d%s", value, keyset_index,
@@ -283,7 +294,7 @@ static void set_button_text(GtkWidget *button, int row, int col)
 /** \brief  Create a toggle button with two rows of text
  *
  * Create a toggle button with to rows of text, a direction, and the key used
- * for that direction in bold. For example: "NorthWest\n<b>KP_9".
+ * for that direction in bold.
  *
  * \param[in]   row row in the keys matrix
  * \param[in]   col column in the keys matrix
@@ -311,24 +322,21 @@ static GtkWidget *create_button(int row, int col)
 static GtkWidget *create_content_widget(void)
 {
     GtkWidget *grid;
-#if 0
-    GtkWidget *label;
-#endif
     int row;
     int col;
 
     /* setup grid with all buttons the same size */
     grid = vice_gtk3_grid_new_spaced(16, 16);
-    g_object_set(G_OBJECT(grid),
-            "margin-left", 16, "margin-right", 16,
-            "margin-top", 16, "margin-bottom", 16,
-            NULL);
+    gtk_widget_set_margin_top(grid, 16);
+    gtk_widget_set_margin_start(grid, 16);
+    gtk_widget_set_margin_end(grid, 16);
+    gtk_widget_set_margin_bottom(grid, 16);
     gtk_grid_set_column_homogeneous(GTK_GRID(grid), TRUE);
     gtk_grid_set_row_homogeneous(GTK_GRID(grid), TRUE);
 
     /* add buttons for each direction */
-    for (row = 0; row < 4; row++) {
-        for (col = 0; col < 3; col++) {
+    for (row = 0; row < ROWS; row++) {
+        for (col = 0; col < COLS; col++) {
             if (keyset_labels[row][col]) {
                 GtkWidget *button = create_button(row, col);
                 keyset_buttons[row][col] = button;
@@ -337,18 +345,6 @@ static GtkWidget *create_content_widget(void)
         }
     }
 
-    /* this doesn't wrap but makes the dialog super wide */
-#if 0
-    /* add some help text */
-    label = gtk_label_new(NULL);
-    gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
-    gtk_label_set_markup(GTK_LABEL(label),
-            "Click a direction button and press a key to use that key for that"
-            " direction. Use <b>Escape</b> to remove a key from a direction."
-            " To cancel inputting a key, simple press the same direction button"
-            " again without pressing a key.");
-    gtk_grid_attach(GTK_GRID(grid), label, 0, 3, 3, 1);
-#endif
     gtk_widget_show_all(grid);
     return grid;
 }
@@ -356,10 +352,9 @@ static GtkWidget *create_content_widget(void)
 
 /** \brief  Show dialog to configure keysets
  *
- * \param[in]   parent  parent window (the settings UI dialog)
  * \param[in]   keyset  keyset number (1 or 2)
  */
-void keyset_dialog_show(GtkWindow *parent, int keyset)
+void keyset_dialog_show(int keyset)
 {
     GtkWidget *dialog;
     GtkWidget *content;
@@ -377,7 +372,8 @@ void keyset_dialog_show(GtkWindow *parent, int keyset)
 
     /* create title (the joystick/userport joystick widgets in
      * settings_joystick.c use 'keyset A/B', so let's be consistent) */
-    g_snprintf(title, 256, "Configure keyset %c", keyset == 1 ? 'A' : 'B');
+    g_snprintf(title, sizeof(title),
+            "Configure keyset %c", keyset == 1 ? 'A' : 'B');
 
     /*
      * don't use ui_get_active_window() for the parent, that will break
@@ -385,15 +381,14 @@ void keyset_dialog_show(GtkWindow *parent, int keyset)
      * dialog to move in front of this one (which should not happen)
      */
     dialog = gtk_dialog_new_with_buttons(
-            title, parent, GTK_DIALOG_MODAL,
+            title, ui_get_active_window(), GTK_DIALOG_MODAL,
             "OK", GTK_RESPONSE_ACCEPT,
             "Cancel", GTK_RESPONSE_REJECT,
             NULL);
 
     /* add the keyset buttons */
     content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-    gtk_box_pack_start(GTK_BOX(content), create_content_widget(), TRUE, TRUE,
-            16);
+    gtk_box_pack_start(GTK_BOX(content), create_content_widget(), TRUE, TRUE, 16);
 
     /* connect key events handler */
     g_signal_connect(dialog, "key-press-event", G_CALLBACK(on_key_pressed), NULL);

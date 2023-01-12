@@ -42,6 +42,7 @@
 #include "menu_help.h"
 #include "menu_jam.h"
 #include "menu_joyport.h"
+#include "menu_joystick.h"
 #include "menu_media.h"
 #include "menu_midi.h"
 #include "menu_monitor.h"
@@ -56,6 +57,7 @@
 #include "menu_sound.h"
 #include "menu_speed.h"
 #include "menu_tape.h"
+#include "menu_userport.h"
 #include "menu_vic20cart.h"
 #include "menu_vic20hw.h"
 #include "menu_video.h"
@@ -65,6 +67,7 @@
 #include "uimenu.h"
 #include "vic.h"
 #include "victypes.h"
+#include "vic20rom.h"
 #include "vic20ui.h"
 #include "vic20memrom.h"
 #include "videoarch.h"
@@ -171,7 +174,7 @@ static ui_menu_entry_t xvic_main_menu[] = {
       MENU_ENTRY_SUBMENU,
       submenu_callback,
       (ui_callback_data_t)settings_manager_menu },
-#ifdef USE_SDLUI2
+#ifdef USE_SDL2UI
     { "Edit",
       MENU_ENTRY_SUBMENU,
       submenu_callback,
@@ -193,7 +196,7 @@ static ui_menu_entry_t xvic_main_menu[] = {
 #endif
 static UI_MENU_CALLBACK(pause_callback_wrapper)
 {
-    xvic_main_menu[MENU_ADVANCE_FRAME_IDX].status = 
+    xvic_main_menu[MENU_ADVANCE_FRAME_IDX].status =
         sdl_pause_state || !sdl_menu_state ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
     xvic_main_menu[MENU_VIRTUAL_KEYBOARD_IDX].status =
         sdl_pause_state ? MENU_STATUS_INACTIVE : MENU_STATUS_ACTIVE;
@@ -222,7 +225,7 @@ static void vic20ui_set_menu_params(int index, menu_draw_t *menu_draw)
     menu_draw->extra_x += (videostandard == MACHINE_SYNC_PAL) ? 36 : 8;
 #endif
     menu_draw->extra_y += (videostandard == MACHINE_SYNC_PAL) ? 40 : 24;
-    
+
     menu_draw->color_front = menu_draw->color_default_front = 1;
     menu_draw->color_back = menu_draw->color_default_back = 0;
     menu_draw->color_cursor_back = 6;
@@ -253,7 +256,9 @@ int vic20ui_init(void)
 #endif
 
     sdl_ui_set_menu_params = vic20ui_set_menu_params;
-    uijoyport_menu_create(1, 0, 1, 1, 0);
+    uijoyport_menu_create(1, 0, 1, 1, 1);
+    uijoystick_menu_create(1, 0, 1, 1, 1);
+    uiuserport_menu_create(1);
     uisampler_menu_create();
     uidrive_menu_create();
     uikeyboard_menu_create();
@@ -262,7 +267,7 @@ int vic20ui_init(void)
     uimedia_menu_create();
 
     sdl_ui_set_main_menu(xvic_main_menu);
-    sdl_ui_vic_font_init();
+    sdl_ui_font_init(VIC20_CHARGEN_NAME, 0, 0x800, 0);
     sdl_vkbd_set_vkbd(&vkbd_vic20);
 
 #ifdef HAVE_FFMPEG
@@ -278,6 +283,9 @@ void vic20ui_shutdown(void)
     uikeyboard_menu_shutdown();
     uipalette_menu_shutdown();
     uijoyport_menu_shutdown();
+    uijoystick_menu_shutdown();
+    uiuserport_menu_shutdown();
+    uitapeport_menu_shutdown();
     uimedia_menu_shutdown();
 #ifdef HAVE_MIDI
     sdl_menu_midi_in_free();
@@ -292,5 +300,5 @@ void vic20ui_shutdown(void)
     sdl_menu_ffmpeg_shutdown();
 #endif
 
-    sdl_ui_vic_font_shutdown();
+    sdl_ui_font_shutdown();
 }

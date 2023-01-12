@@ -1,8 +1,9 @@
 AM_CPPFLAGS = \
 	@VICE_CPPFLAGS@ \
 	@ARCH_INCLUDES@ \
-	-I$(top_srcdir)/src/arch/shared \
 	-I$(top_srcdir)/src/rs232drv \
+	-I$(top_srcdir)/src/userport \
+	-I$(top_srcdir)/src/joyport \
 	-I$(top_builddir)/src \
 	-I$(top_srcdir)/src
 

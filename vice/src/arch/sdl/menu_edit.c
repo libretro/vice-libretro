@@ -25,7 +25,7 @@
  */
 
 #include "vice.h"
-
+#include "vice_sdl.h"
 #include "machine.h"
 #include "menu_common.h"
 #include "menu_edit.h"
@@ -34,7 +34,7 @@
 #include "lib.h"
 #include "kbdbuf.h"
 
-#ifdef USE_SDLUI2
+#ifdef USE_SDL2UI
 /** \brief  Callback for the edit->paste menu item
  *
  * Copies the host clipboard into the emulated machine's screen
@@ -53,7 +53,7 @@ UI_MENU_CALLBACK(edit_menu_paste_callback)
         }
         text_in_petscii = lib_strdup(text);
 
-        charset_petconvstring((unsigned char*)text_in_petscii, 0);
+        charset_petconvstring((unsigned char*)text_in_petscii, CONVERT_TO_PETSCII);
         kbdbuf_feed(text_in_petscii);
         lib_free(text_in_petscii);
         SDL_free(text);

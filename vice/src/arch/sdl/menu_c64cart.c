@@ -41,6 +41,7 @@
 #include "menu_common.h"
 #include "menu_c64_common_expansions.h"
 #include "menu_c64cart.h"
+#include "menu_ethernetcart.h"
 #include "resources.h"
 #include "ui.h"
 #include "uifilereq.h"
@@ -174,6 +175,7 @@ static c64_cart_flush_t carts[] = {
     { CARTRIDGE_MMC_REPLAY, NULL, "MMCREEPROMImage" },
     { CARTRIDGE_GMOD2, NULL, "GMod2EEPROMImage" },
     { CARTRIDGE_RAMLINK, "RAMLINK", "RAMLINKfilename" },
+    { CARTRIDGE_REX_RAMFLOPPY, NULL, "RRFfilename" },
     { CARTRIDGE_RETRO_REPLAY, NULL, NULL },
     { 0, NULL, NULL }
 };
@@ -249,6 +251,32 @@ static UI_MENU_CALLBACK(c64_cart_save_callback)
     }
     return NULL;
 }
+
+/* REX Ram-Floppy */
+
+UI_MENU_DEFINE_FILE_STRING(RRFfilename)
+UI_MENU_DEFINE_TOGGLE(RRFImageWrite)
+
+static ui_menu_entry_t rexramfloppy_menu[] = {
+    SDL_MENU_ITEM_TITLE("RAM image"),
+    { "Image file",
+      MENU_ENTRY_DIALOG,
+      file_string_RRFfilename_callback,
+      (ui_callback_data_t)"Select " CARTRIDGE_NAME_REX_RAMFLOPPY " image" },
+    { "Save image on detach",
+      MENU_ENTRY_RESOURCE_TOGGLE,
+      toggle_RRFImageWrite_callback,
+      NULL },
+    { "Save image now",
+      MENU_ENTRY_OTHER,
+      c64_cart_flush_callback,
+      (ui_callback_data_t)CARTRIDGE_REX_RAMFLOPPY },
+    { "Save image as",
+      MENU_ENTRY_OTHER,
+      c64_cart_save_callback,
+      (ui_callback_data_t)CARTRIDGE_REX_RAMFLOPPY },
+    SDL_MENU_LIST_END
+};
 
 /* RAMCART */
 
@@ -531,18 +559,6 @@ static ui_menu_entry_t georam_menu[] = {
       NULL },
     SDL_MENU_ITEM_SEPARATOR,
     SDL_MENU_ITEM_TITLE("Memory size"),
-    { "64KiB",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_GEORAMsize_callback,
-      (ui_callback_data_t)64 },
-    { "128KiB",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_GEORAMsize_callback,
-      (ui_callback_data_t)128 },
-    { "256KiB",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_GEORAMsize_callback,
-      (ui_callback_data_t)256 },
     { "512KiB",
       MENU_ENTRY_RESOURCE_RADIO,
       radio_GEORAMsize_callback,
@@ -855,6 +871,39 @@ static ui_menu_entry_t gmod2_cart_menu[] = {
     SDL_MENU_LIST_END
 };
 
+/* GMod2-C128 */
+
+UI_MENU_DEFINE_FILE_STRING(GMod128EEPROMImage)
+UI_MENU_DEFINE_TOGGLE(GMOD128EEPROMRW)
+UI_MENU_DEFINE_TOGGLE(GMod128FlashWrite)
+
+static ui_menu_entry_t gmod2c128_cart_menu[] = {
+    SDL_MENU_ITEM_TITLE("EEPROM image"),
+    { "EEPROM image file",
+      MENU_ENTRY_DIALOG,
+      file_string_GMod128EEPROMImage_callback,
+      (ui_callback_data_t)"Select " CARTRIDGE_C128_NAME_GMOD2C128 " EEPROM image" },
+    { "Enable writes to EEPROM image",
+      MENU_ENTRY_RESOURCE_TOGGLE,
+      toggle_GMOD128EEPROMRW_callback,
+      NULL },
+    SDL_MENU_ITEM_SEPARATOR,
+    SDL_MENU_ITEM_TITLE("Flash image"),
+    { "Enable writes to flash image",
+      MENU_ENTRY_RESOURCE_TOGGLE,
+      toggle_GMod128FlashWrite_callback,
+      NULL },
+    { "Save image now",
+      MENU_ENTRY_OTHER,
+      c64_cart_flush_callback,
+      (ui_callback_data_t)CARTRIDGE_C128_GMOD2C128 },
+    { "Save image as",
+      MENU_ENTRY_OTHER,
+      c64_cart_save_callback,
+      (ui_callback_data_t)CARTRIDGE_C128_GMOD2C128 },
+    SDL_MENU_LIST_END
+};
+
 /* GMod3 */
 
 UI_MENU_DEFINE_TOGGLE(GMod3FlashWrite)
@@ -1010,6 +1059,7 @@ UI_MENU_DEFINE_RADIO(RAMLINKmode)
 UI_MENU_DEFINE_TOGGLE(RAMLINKrtcsave)
 UI_MENU_DEFINE_RADIO(RAMLINKsize)
 UI_MENU_DEFINE_FILE_STRING(RAMLINKfilename)
+UI_MENU_DEFINE_FILE_STRING(RAMLINKBIOSfilename)
 UI_MENU_DEFINE_TOGGLE(RAMLINKImageWrite)
 
 static ui_menu_entry_t ramlink_menu[] = {
@@ -1101,6 +1151,12 @@ static ui_menu_entry_t ramlink_menu[] = {
       radio_RAMLINKsize_callback,
       (ui_callback_data_t)16 },
     SDL_MENU_ITEM_SEPARATOR,
+    SDL_MENU_ITEM_TITLE("ROM image"),
+    { "ROM image file",
+      MENU_ENTRY_DIALOG,
+      file_string_RAMLINKBIOSfilename_callback,
+      (ui_callback_data_t)"Select " CARTRIDGE_NAME_RAMLINK " ROM image" },
+    SDL_MENU_ITEM_SEPARATOR,
     SDL_MENU_ITEM_TITLE("RAM image"),
     { "Specify Image file and load",
       MENU_ENTRY_DIALOG,
@@ -1188,6 +1244,37 @@ static const ui_menu_entry_t soundexpander_menu[] = {
     SDL_MENU_LIST_END
 };
 
+UI_MENU_DEFINE_TOGGLE(IEEEFlash64)
+UI_MENU_DEFINE_FILE_STRING(IEEEFlash64Image)
+UI_MENU_DEFINE_TOGGLE(IEEEFlash64Dev8)
+UI_MENU_DEFINE_TOGGLE(IEEEFlash64Dev910)
+UI_MENU_DEFINE_TOGGLE(IEEEFlash64Dev4)
+
+static const ui_menu_entry_t ieeeflash64_menu[] = {
+    SDL_MENU_ITEM_TITLE("IEEE Flash! 64 settings"),
+    { "Enable " CARTRIDGE_NAME_IEEEFLASH64,
+      MENU_ENTRY_RESOURCE_TOGGLE,
+      toggle_IEEEFlash64_callback,
+      NULL },
+    { "Route device 8 to IEEE",
+      MENU_ENTRY_RESOURCE_TOGGLE,
+      toggle_IEEEFlash64Dev8_callback,
+      NULL },
+    { "Route devices 9/10 to IEEE",
+      MENU_ENTRY_RESOURCE_TOGGLE,
+      toggle_IEEEFlash64Dev910_callback,
+      NULL },
+    { "Route device 4 to IEEE",
+      MENU_ENTRY_RESOURCE_TOGGLE,
+      toggle_IEEEFlash64Dev4_callback,
+      NULL },
+    { "ROM image file",
+      MENU_ENTRY_DIALOG,
+      file_string_IEEEFlash64Image_callback,
+      (ui_callback_data_t)"Select " CARTRIDGE_NAME_IEEEFLASH64 " ROM image" },
+    SDL_MENU_LIST_END
+};
+
 UI_MENU_DEFINE_RADIO(IOCollisionHandling)
 
 static const ui_menu_entry_t iocollision_menu[] = {
@@ -1233,14 +1320,16 @@ static void cartmenu_update_flush(void)
     dqbb_cart_menu[5].status = cartridge_can_flush_image(CARTRIDGE_DQBB) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
     isepic_cart_menu[6].status = cartridge_can_flush_image(CARTRIDGE_ISEPIC) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
     easyflash_cart_menu[3].status = cartridge_can_flush_image(CARTRIDGE_EASYFLASH) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
-    georam_menu[14].status = cartridge_can_flush_image(CARTRIDGE_GEORAM) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
+    georam_menu[11].status = cartridge_can_flush_image(CARTRIDGE_GEORAM) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
     mmc64_cart_menu[11].status = cartridge_can_flush_image(CARTRIDGE_MMC64) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
     mmcreplay_cart_menu[4].status = cartridge_can_flush_image(CARTRIDGE_MMC_REPLAY) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
     ramlink_menu[28].status = cartridge_can_flush_image(CARTRIDGE_RAMLINK) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
     retroreplay_cart_menu[4].status = cartridge_can_flush_image(CARTRIDGE_RETRO_REPLAY) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
     gmod2_cart_menu[6].status = cartridge_can_flush_image(CARTRIDGE_GMOD2) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
+    gmod2c128_cart_menu[6].status = cartridge_can_flush_image(CARTRIDGE_C128_MAKEID(CARTRIDGE_C128_GMOD2C128)) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
     gmod3_cart_menu[1].status = cartridge_can_flush_image(CARTRIDGE_GMOD3) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
     rrnet_mk3_cart_menu[2].status = cartridge_can_flush_image(CARTRIDGE_RRNETMK3) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
+    rexramfloppy_menu[3].status = cartridge_can_flush_image(CARTRIDGE_REX_RAMFLOPPY) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
 }
 
 static void cartmenu_update_save(void)
@@ -1251,14 +1340,16 @@ static void cartmenu_update_save(void)
     dqbb_cart_menu[6].status = cartridge_can_save_image(CARTRIDGE_DQBB) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
     isepic_cart_menu[7].status = cartridge_can_save_image(CARTRIDGE_ISEPIC) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
     easyflash_cart_menu[4].status = cartridge_can_save_image(CARTRIDGE_EASYFLASH) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
-    georam_menu[15].status = cartridge_can_save_image(CARTRIDGE_GEORAM) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
+    georam_menu[12].status = cartridge_can_save_image(CARTRIDGE_GEORAM) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
     mmc64_cart_menu[12].status = cartridge_can_save_image(CARTRIDGE_MMC64) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
     mmcreplay_cart_menu[5].status = cartridge_can_save_image(CARTRIDGE_MMC_REPLAY) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
     ramlink_menu[29].status = cartridge_can_save_image(CARTRIDGE_RAMLINK) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
     retroreplay_cart_menu[5].status = cartridge_can_save_image(CARTRIDGE_RETRO_REPLAY) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
     gmod2_cart_menu[7].status = cartridge_can_save_image(CARTRIDGE_GMOD2) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
+    gmod2c128_cart_menu[7].status = cartridge_can_save_image(CARTRIDGE_C128_MAKEID(CARTRIDGE_C128_GMOD2C128)) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
     gmod3_cart_menu[2].status = cartridge_can_save_image(CARTRIDGE_GMOD3) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
     rrnet_mk3_cart_menu[3].status = cartridge_can_save_image(CARTRIDGE_RRNETMK3) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
+    rexramfloppy_menu[4].status = cartridge_can_save_image(CARTRIDGE_REX_RAMFLOPPY) ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
 }
 
 /* Cartridge menu */
@@ -1305,6 +1396,12 @@ ui_menu_entry_t c64cart_menu[] = {
       NULL },
     SDL_MENU_ITEM_SEPARATOR,
     SDL_MENU_ITEM_TITLE("Cartridge specific settings"),
+#ifdef HAVE_RAWNET
+    { "Ethernet Cartridge",
+      MENU_ENTRY_SUBMENU,
+      submenu_callback,
+      (ui_callback_data_t)ethernetcart_menu },
+#endif
     { CARTRIDGE_NAME_RAMCART,
       MENU_ENTRY_SUBMENU,
       submenu_callback,
@@ -1365,6 +1462,10 @@ ui_menu_entry_t c64cart_menu[] = {
       MENU_ENTRY_SUBMENU,
       submenu_callback,
       (ui_callback_data_t)ramlink_menu },
+    { CARTRIDGE_NAME_REX_RAMFLOPPY,
+      MENU_ENTRY_SUBMENU,
+      submenu_callback,
+      (ui_callback_data_t)rexramfloppy_menu },
     { CARTRIDGE_NAME_RRNETMK3,
       MENU_ENTRY_SUBMENU,
       submenu_callback,
@@ -1389,6 +1490,10 @@ ui_menu_entry_t c64cart_menu[] = {
       MENU_ENTRY_RESOURCE_TOGGLE,
       toggle_SSRamExpansion_callback,
       NULL },
+    { CARTRIDGE_NAME_IEEEFLASH64 " settings",
+      MENU_ENTRY_SUBMENU,
+      submenu_callback,
+      (ui_callback_data_t)ieeeflash64_menu },
     SDL_MENU_LIST_END
 };
 
@@ -1425,6 +1530,12 @@ ui_menu_entry_t c128cart_menu[] = {
       NULL },
     SDL_MENU_ITEM_SEPARATOR,
     SDL_MENU_ITEM_TITLE("Cartridge specific settings"),
+#ifdef HAVE_RAWNET
+    { "Ethernet Cartridge",
+      MENU_ENTRY_SUBMENU,
+      submenu_callback,
+      (ui_callback_data_t)ethernetcart_menu },
+#endif
     { CARTRIDGE_NAME_RAMCART,
       MENU_ENTRY_SUBMENU,
       submenu_callback,
@@ -1473,6 +1584,10 @@ ui_menu_entry_t c128cart_menu[] = {
       MENU_ENTRY_SUBMENU,
       submenu_callback,
       (ui_callback_data_t)gmod2_cart_menu },
+    { CARTRIDGE_C128_NAME_GMOD2C128,
+      MENU_ENTRY_SUBMENU,
+      submenu_callback,
+      (ui_callback_data_t)gmod2c128_cart_menu },
     { CARTRIDGE_NAME_GMOD3,
       MENU_ENTRY_SUBMENU,
       submenu_callback,
@@ -1493,6 +1608,10 @@ ui_menu_entry_t c128cart_menu[] = {
       MENU_ENTRY_RESOURCE_TOGGLE,
       toggle_SFXSoundSampler_callback,
       NULL },
+    { CARTRIDGE_NAME_IEEEFLASH64 " settings",
+      MENU_ENTRY_SUBMENU,
+      submenu_callback,
+      (ui_callback_data_t)ieeeflash64_menu },
     SDL_MENU_LIST_END
 };
 
@@ -1525,6 +1644,12 @@ ui_menu_entry_t scpu64cart_menu[] = {
       NULL },
     SDL_MENU_ITEM_SEPARATOR,
     SDL_MENU_ITEM_TITLE("Cartridge specific settings"),
+#ifdef HAVE_RAWNET
+    { "Ethernet Cartridge",
+      MENU_ENTRY_SUBMENU,
+      submenu_callback,
+      (ui_callback_data_t)ethernetcart_menu },
+#endif
     { CARTRIDGE_NAME_RAMCART,
       MENU_ENTRY_SUBMENU,
       submenu_callback,

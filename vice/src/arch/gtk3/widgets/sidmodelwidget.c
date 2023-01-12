@@ -35,10 +35,8 @@
 #include <gtk/gtk.h>
 #include <glib/gstdio.h>
 
-#include "basewidgets.h"
+#include "vice_gtk3.h"
 #include "lib.h"
-#include "widgethelpers.h"
-#include "debug_gtk3.h"
 #include "resources.h"
 #include "machine.h"
 #include "machinemodelwidget.h"
@@ -54,26 +52,13 @@ static const vice_gtk3_radiogroup_entry_t sid_models_none[] = {
 };
 
 
-#if 0
-/** \brief  All SID models
- */
-static const vice_gtk3_radiogroup_entry_t sid_models_all[] = {
-    { "6581", 0 },
-    { "8580", 1 },
-    { "8580D", 2 },
-    { "6581R4", 3 },
-    { "DTVSID", 4 },
-    { NULL, -1 }
-};
-#endif
-
 /** \brief  SID models used in the C64/C64SCPU, C128 and expanders for PET,
  *          VIC-20 and Plus/4
  */
 static const vice_gtk3_radiogroup_entry_t sid_models_c64[] = {
     { "6581", 0 },
     { "8580", 1 },
-    { "8580D", 2 },
+    { "8580 + digi boost", 2 },
     { NULL, -1 }
 };
 
@@ -84,7 +69,7 @@ static const vice_gtk3_radiogroup_entry_t sid_models_c64dtv[] = {
     { "DTVSID (ReSID-DTV)", 3 },
     { "6581", 0 },
     { "8580", 1 },
-    { "8580D", 2 },
+    { "8580 + digi boost", 2 },
     { NULL, -1 }
 };
 
@@ -94,9 +79,19 @@ static const vice_gtk3_radiogroup_entry_t sid_models_c64dtv[] = {
 static const vice_gtk3_radiogroup_entry_t sid_models_cbm5x0[] = {
     { "6581", 0 },
     { "8580", 1 },
-    { "8580D", 2 },
+    { "8580 + digi boost", 2 },
     { NULL, -1 }
 };
+
+
+
+/** \brief  Reference to the machine model widget
+ *
+ * Used to update the widget when the SID model changes
+ */
+static GtkWidget *machine_widget = NULL;
+
+
 
 /** \brief  Handler for the "toggled" event of the SID type radio buttons
  *
@@ -119,18 +114,9 @@ static void on_sid_model_toggled(GtkWidget *widget, int user_data)
     parent = gtk_widget_get_parent(widget);
     callback = g_object_get_data(G_OBJECT(parent), "ExtraCallback");
     if (callback != NULL) {
-        debug_gtk3("calling extra callback");
         callback(user_data);
-    } else {
-        debug_gtk3("No ExtraCallback!");
     }
 }
-
-/** \brief  Reference to the machine model widget
- *
- * Used to update the widget when the SID model changes
- */
-static GtkWidget *machine_widget = NULL;
 
 
 /** \brief  Create SID model widget
@@ -184,7 +170,7 @@ GtkWidget *sid_model_widget_create(GtkWidget *machine_model_widget)
             VICE_GTK3_DEFAULT, "SID model", 1);
     group = vice_gtk3_resource_radiogroup_new(
             "SidModel", models, GTK_ORIENTATION_VERTICAL);
-    g_object_set(group, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(group, 16);
     gtk_grid_attach(GTK_GRID(grid), group, 0, 1, 1, 1);
     vice_gtk3_resource_radiogroup_add_callback(group, on_sid_model_toggled);
 
@@ -208,14 +194,11 @@ GtkWidget *sid_model_widget_create(GtkWidget *machine_model_widget)
 
     /*
      * Fix layout issues
-     *
-     * Not the proper place: since uihelpers_create_grid_with_label() should
-     * be deprecated and replaced with something more robust, this is a
-     * temporary fix.
-     *
-     * -- compyx, 2018-03-07
      */
-    g_object_set(G_OBJECT(grid), "margin", 8, NULL);
+    gtk_widget_set_margin_top(grid, 8);
+    gtk_widget_set_margin_start(grid, 8);
+    gtk_widget_set_margin_end(grid, 8);
+    gtk_widget_set_margin_bottom(grid, 8);
 
     return grid;
 }
@@ -234,6 +217,10 @@ void sid_model_widget_update(GtkWidget *widget, int model)
 
 
 
+/** \brief  Synchronize the widget with its resource
+ *
+ * \param[in,out]   widget  SID model widget
+ */
 void sid_model_widget_sync(GtkWidget *widget)
 {
     int model;

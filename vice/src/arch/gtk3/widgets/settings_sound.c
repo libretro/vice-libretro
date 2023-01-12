@@ -49,29 +49,13 @@
 #include "soundsampleratewidget.h"
 #include "soundbuffersizewidget.h"
 #include "soundfragmentsizewidget.h"
-#include "soundsuspendtimewidget.h"
 
 #include "settings_sound.h"
 
 
-/** \brief  Event handler for the 'toggled' event of the Sound checkbox
- *
- * Extra event handler to toggle sensitivity of the other sound widgets.
- *
- * \param[in]       widget  toggle button
- * \param[in,out]   data    grid containing the sound widgets
- */
-static void on_sound_toggled(GtkWidget *widget, gpointer data)
-{
-    /* kort door de bocht, maar het werkt */
-    gtk_widget_set_sensitive(GTK_WIDGET(data),
-            gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget)));
-}
-
-
 /** \brief  Create the 'inner' grid, the one containing all the widgets
  *
- * \return  grid
+ * \return  GtkGrid
  */
 static GtkWidget *create_inner_grid(void)
 {
@@ -99,14 +83,11 @@ static GtkWidget *create_inner_grid(void)
    gtk_grid_attach(GTK_GRID(wrapper),
             sound_buffer_size_widget_create(),
             0, 0, 1, 1);
-    gtk_grid_attach(GTK_GRID(wrapper),
-            sound_suspend_time_widget_create(),
-            0, 1, 1, 1);
     /* row 1, columm 2 */
     gtk_grid_attach(GTK_GRID(grid),
             wrapper,
             2, 1, 1, 1);
- 
+
     /* row 1, columm 3 */
     gtk_grid_attach(GTK_GRID(grid),
             sound_fragment_size_widget_create(),
@@ -125,11 +106,9 @@ static GtkWidget *create_inner_grid(void)
  */
 GtkWidget *settings_sound_create(GtkWidget *widget)
 {
-    GtkWidget * outer;
-    GtkWidget * inner;
-    GtkWidget * enabled_check;
-    int         enabled_state;
-
+    GtkWidget *outer;
+    GtkWidget *inner;
+    GtkWidget *enabled_check;
 
     /* outer grid: contains the checkbox and an 'inner' grid for the widgets */
     outer = vice_gtk3_grid_new_spaced(VICE_GTK3_DEFAULT, VICE_GTK3_DEFAULT);
@@ -143,15 +122,12 @@ GtkWidget *settings_sound_create(GtkWidget *widget)
      * the state of the 'sound enabled' checkbox */
     inner = create_inner_grid();
     gtk_grid_set_column_spacing(GTK_GRID(inner), 8);
-    g_object_set(inner, "margin", 8, NULL);
-
-    resources_get_int("Sound", &enabled_state);
-    gtk_widget_set_sensitive(inner, enabled_state); /* set enabled state */
+    gtk_widget_set_margin_top(inner, 8);
+    gtk_widget_set_margin_start(inner, 8);
+    gtk_widget_set_margin_end(inner, 8);
+    gtk_widget_set_margin_bottom(inner, 8);
 
     gtk_grid_attach(GTK_GRID(outer), inner, 0, 1, 1, 1);
-
-    g_signal_connect(enabled_check, "toggled", G_CALLBACK(on_sound_toggled),
-            (gpointer)inner);
 
     gtk_widget_show_all(outer);
     return outer;

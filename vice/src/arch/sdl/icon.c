@@ -1,9 +1,13 @@
+/** \file   icon.c
+ * \brief   SDL Window icon(s) support
+ *
+ * Sets application icon on Unix for SDL1.2 and SDL2 and on Windows for SDL1.2.
+ *
+ * \author  groepaz <groepaz@gmx.net>
+ * \author  Bas Wassink <b.wassink@ziggo.nl>
+ */
+
 /*
- * icon.c - window icon(s) support
- *
- * Written by
- *  groepaz <groepaz@gmx.net>
- *
  * This file is part of VICE, the Versatile Commodore Emulator.
  * See README for copyright notice.
  *
@@ -27,6 +31,7 @@
 #include "vice.h"
 
 #include "archdep.h"
+#include "archdep_defs.h"
 #include "vice_sdl.h"
 #include <SDL_image.h>
 #include <stdio.h>
@@ -35,59 +40,26 @@
 #include "lib.h"
 #include "machine.h"
 
-
 #include "icon.h"
 
-#ifdef USE_SDLUI2
 
+#ifdef USE_SDL2UI
+
+/** \brief  Set window icon
+ *
+ * \param[in]   window  window instance
+ *
+ * \note    requires libsdl2-image-dev on Linux, SDL2_image on msys2
+ */
 void sdl_ui_set_window_icon(SDL_Window *window)
 {
     SDL_Surface *surface;
     char *path;
-#if 0
-    const char *icon;
-
-    switch (machine_class) {
-        case VICE_MACHINE_C64:      /* fall through */
-        case VICE_MACHINE_C64SC:
-            icon = "C64_256.png";
-            break;
-        case VICE_MACHINE_C64DTV:
-            icon = "DTV_256.png";
-            break;
-        case VICE_MACHINE_SCPU64:
-            icon = "SCPU_256.png";
-            break;
-        case VICE_MACHINE_C128:
-            icon = "C128_256.png";
-            break;
-        case VICE_MACHINE_PET:
-            icon = "PET_256.png";
-            break;
-        case VICE_MACHINE_VIC20:
-            icon = "VIC_256.png";
-            break;
-        case VICE_MACHINE_CBM5x0:   /* fall through */
-        case VICE_MACHINE_CBM6x0:
-            icon = "CBM2_256.png";
-            break;
-        case VICE_MACHINE_PLUS4:
-            icon = "Plus4_256.png";
-            break;
-        case VICE_MACHINE_VSID:
-            icon = "VSID_256.png";
-            break;
-        default:
-            icon = NULL;
-    }
-
-    datadir = archdep_get_vice_datadir();
-    path = archdep_join_paths(datadir, "common", icon, NULL);
-    printf("path = %s\n", path);
-    lib_free(datadir);
-#endif
 
     path = archdep_app_icon_path_png(256);
+    if (!path) {
+        return;
+    }
 
     IMG_Init(IMG_INIT_PNG);
     surface = IMG_Load(path);
@@ -101,7 +73,38 @@ void sdl_ui_set_window_icon(SDL_Window *window)
 }
 
 #else
+
+
+/** \brief  Set window icon
+ *
+ * \param[in]   window  window instance (unused)
+ *
+ * \note    requires libsdl-image1.2-dev on Linux, SDL_image on msys2
+ * \note    needs to be called before the first call to SDL_SetVideoMode()
+ */
 void sdl_ui_set_window_icon(void *window)
 {
+    SDL_Surface *surface;
+    char *path;
+
+    /* SDL1.2 docs say Win32 icons need to be 32x32. On Win7 using 256x256
+     * also works fine, but let's do what the docs say anyway.
+     */
+#ifdef WINDOWS_COMPILE
+    path = archdep_app_icon_path_png(32);
+#else
+    path = archdep_app_icon_path_png(256);
+#endif
+    if (!path) {
+        return;
+    }
+
+    IMG_Init(IMG_INIT_PNG);
+    surface = IMG_Load(path);
+    lib_free(path);
+
+    SDL_WM_SetIcon(surface, NULL);
+    SDL_FreeSurface(surface);
 }
+
 #endif

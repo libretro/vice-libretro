@@ -70,7 +70,7 @@
  * The value written there ($02) is calculated such that after
  * shuffling it as above, the first byte of screen memory is at $A000.
  *
- * For ROM support code, you want -rom9 324992-02.bin -romA 324993-02.bin 
+ * For ROM support code, you want -rom9 324992-02.bin -romA 324993-02.bin
  */
 
 #define HRE_DEBUG_GFX       0
@@ -188,13 +188,13 @@ void pethre_shutdown(void)
 int e888_dump(void)
 {
     if (pethre_enabled) {
-	char *s = "";
-	if (reg_E888 != 0x0F && reg_E888 != 0x83) {
-	    s = "(unusual value) ";
-	}
-	mon_out("e888 = %02x %sramON = %d\n", reg_E888, s, petmem_ramON);
+        char *s = "";
+        if (reg_E888 != 0x0F && reg_E888 != 0x83) {
+            s = "(unusual value) ";
+        }
+        mon_out("e888 = %02x %sramON = %d\n", reg_E888, s, petmem_ramON);
 
-	return 0;
+        return 0;
     }
     return -1;
 }

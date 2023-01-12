@@ -117,14 +117,14 @@ static const export_resource_t export_res = {
 
 void p64_config_init(void)
 {
-    cart_config_changed_slotmain(0, 0, CMODE_READ);
+    cart_config_changed_slotmain(CMODE_8KGAME, CMODE_8KGAME, CMODE_READ);
     cart_romlbank_set_slotmain(0);
 }
 
 void p64_config_setup(uint8_t *rawcart)
 {
     memcpy(roml_banks, rawcart, PROPHET64_CART_SIZE);
-    cart_config_changed_slotmain(0, 0, CMODE_READ);
+    cart_config_changed_slotmain(CMODE_8KGAME, CMODE_8KGAME, CMODE_READ);
     cart_romlbank_set_slotmain(0);
 }
 
@@ -153,7 +153,7 @@ int p64_bin_attach(const char *filename, uint8_t *rawcart)
 int p64_crt_attach(FILE *fd, uint8_t *rawcart)
 {
     crt_chip_header_t chip;
-    int i, cnt = 0;
+    int i;
 
     for (i = 0; i <= 0x1f; i++) {
         if (crt_read_chip_header(&chip, fd)) {
@@ -167,7 +167,6 @@ int p64_crt_attach(FILE *fd, uint8_t *rawcart)
         if (crt_read_chip(rawcart, chip.bank << 13, &chip, fd)) {
             return -1;
         }
-        cnt++;
     }
 
     return p64_common_attach();

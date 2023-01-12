@@ -32,19 +32,29 @@
 
 #include "archdep.h"
 
-#ifdef ARCHDEP_OS_WINDOWS
+#ifdef WINDOWS_COMPILE
 # include <windows.h>
 #endif
-#if defined(ARCHDEP_OS_UNIX)
+#if defined(UNIX_COMPILE)
 # include <locale.h>
 # include <string.h>
 #endif
 
 #include "keyboard.h"
+#include "keymap.h"
 
 #include "archdep_kbd_get_host_mapping.h"
 
-#ifdef ARCHDEP_OS_WINDOWS
+
+/** \fn     archdep_kbd_get_host_mapping
+ * \brief   Get host keyboard mapping
+ *
+ * \return  Host keyboard mapping
+ *
+ * \see     keyboard.h
+ */
+
+#ifdef WINDOWS_COMPILE
 
 /* returns host keyboard mapping. used to initialize the keyboard map when
    starting with a blank (default) config, so an educated guess works good
@@ -53,19 +63,24 @@
    FIXME: add more languages, constants are defined in winnt.h
 
    https://msdn.microsoft.com/en-us/library/windows/desktop/dd318693%28v=vs.85%29.aspx
+
+   https://github.com/Alexpux/mingw-w64/blob/master/mingw-w64-headers/include/winnt.h
 */
 int archdep_kbd_get_host_mapping(void)
 {
     uintptr_t lang;
     int n;
+    /* we search for a full match including sublanguage first, then try again
+       with only the primary language. that means the preferred layout/language
+       must come first in this list */
     static const int maps[KBD_MAPPING_NUM] = {
         KBD_MAPPING_US, KBD_MAPPING_UK, KBD_MAPPING_DE, KBD_MAPPING_DA,
         KBD_MAPPING_NO, KBD_MAPPING_FI, KBD_MAPPING_IT, KBD_MAPPING_NL,
-        KBD_MAPPING_SE, KBD_MAPPING_CH
+        KBD_MAPPING_SE, KBD_MAPPING_CH, KBD_MAPPING_BE, KBD_MAPPING_TR,
     };
     static const int langids[KBD_MAPPING_NUM] = {
-        MAKELANGID(LANG_ENGLISH,    SUBLANG_ENGLISH_US),
-        MAKELANGID(LANG_ENGLISH,    SUBLANG_ENGLISH_UK),
+        MAKELANGID(LANG_ENGLISH,    SUBLANG_ENGLISH_US),        /* must be always first */
+        MAKELANGID(LANG_ENGLISH,    SUBLANG_ENGLISH_UK),        /* must come after US */
         MAKELANGID(LANG_GERMAN,     SUBLANG_GERMAN),
         MAKELANGID(LANG_DANISH,     SUBLANG_DANISH_DENMARK),
         MAKELANGID(LANG_NORWEGIAN,  SUBLANG_NORWEGIAN_BOKMAL),
@@ -74,6 +89,8 @@ int archdep_kbd_get_host_mapping(void)
         MAKELANGID(LANG_DUTCH,      SUBLANG_DUTCH),
         MAKELANGID(LANG_SWEDISH,    SUBLANG_SWEDISH),
         MAKELANGID(LANG_GERMAN,     SUBLANG_GERMAN_SWISS),
+        MAKELANGID(LANG_DUTCH,      SUBLANG_DUTCH_BELGIAN),    /* must come after regular dutch */
+        MAKELANGID(LANG_TURKISH,    SUBLANG_TURKISH_TURKEY),
     };
 
     /* GetKeyboardLayout returns a pointer, but the first 16 bits of it return
@@ -96,10 +113,50 @@ int archdep_kbd_get_host_mapping(void)
     }
     return KBD_MAPPING_US;
 }
+
+#elif defined(UNIX_COMPILE)
+
+/* returns host keyboard mapping. used to initialize the keyboard map when
+   starting with a blank (default) config, so an educated guess works good
+   enough most of the time :)
+
+   https://docs.oracle.com/cd/E23824_01/html/E26033/glset.html
+   https://docs.moodle.org/dev/Table_of_locales
+
+   FIXME: add more languages
+
+   CAUTION: keep in sync with keyboard.c/.h
+*/
+
+int archdep_kbd_get_host_mapping(void)
+{
+    int n;
+    char *l;
+    static const int maps[KBD_MAPPING_NUM] = {
+        KBD_MAPPING_US, KBD_MAPPING_BE, KBD_MAPPING_UK, KBD_MAPPING_DE, KBD_MAPPING_DA,
+        KBD_MAPPING_NO, KBD_MAPPING_FI, KBD_MAPPING_FR, KBD_MAPPING_IT,
+        KBD_MAPPING_NL, KBD_MAPPING_ES, KBD_MAPPING_SE, KBD_MAPPING_CH, KBD_MAPPING_TR
+    };
+    static const char * const langids[KBD_MAPPING_NUM] = {
+        "en_US", "nl_BE", "en_UK", "de", "da", "no", "fi", "fr", "it", "nl", "es", "se", "ch", "tr" };
+    /* setup the locale */
+    setlocale(LC_ALL, "");
+    l = setlocale(LC_ALL, NULL);
+    if (l && (strlen(l) > 1)) {
+        /* compare beginning of the locale string with the chars in our array, that means
+           more "specific" matches must come first in the array */
+        for (n = 1; n < KBD_MAPPING_NUM; n++) {
+            if (langids[n] && strncmp(l, langids[n], strlen(langids[n])) == 0) {
+                return maps[n];
+            }
+        }
+    }
+    return KBD_MAPPING_US;
+}
+
 #else
 
-/* Amiga, Beos */
-#if defined(ARCHDEP_OS_BEOS)
+/* Amiga, Beos, etc... */
 
 /* returns host keyboard mapping. used to initialize the keyboard map when
    starting with a blank (default) config, so an educated guess works good
@@ -112,37 +169,4 @@ int archdep_kbd_get_host_mapping(void)
     return KBD_MAPPING_US;
 }
 
-#else
-
-/* returns host keyboard mapping. used to initialize the keyboard map when
-   starting with a blank (default) config, so an educated guess works good
-   enough most of the time :)
-
-   FIXME: add more languages
-*/
-
-int archdep_kbd_get_host_mapping(void)
-{
-    int n;
-    char *l;
-    static const int maps[KBD_MAPPING_NUM] = {
-        KBD_MAPPING_US, KBD_MAPPING_UK, KBD_MAPPING_DE, KBD_MAPPING_DA,
-        KBD_MAPPING_NO, KBD_MAPPING_FI, KBD_MAPPING_IT, KBD_MAPPING_NL,
-        KBD_MAPPING_SE, KBD_MAPPING_CH
-    };
-    static const char * const s[KBD_MAPPING_NUM] = {
-        "en_US", "en_UK", "de", "da", "no", "fi", "it", "nl", "se", "ch" };
-    /* setup the locale */
-    setlocale(LC_ALL, "");
-    l = setlocale(LC_ALL, NULL);
-    if (l && (strlen(l) > 1)) {
-        for (n = 1; n < KBD_MAPPING_NUM; n++) {
-            if (strncmp(l, s[n], strlen(s[n])) == 0) {
-                return maps[n];
-            }
-        }
-    }
-    return KBD_MAPPING_US;
-}
-#endif
 #endif

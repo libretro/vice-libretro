@@ -31,6 +31,7 @@
 
 #include "diskconstants.h"
 #include "diskimage.h"
+#include "drive.h"
 #include "cbmdos.h"
 #include "fsimage-dxx.h"
 #include "fsimage.h"
@@ -152,14 +153,15 @@ int fsimage_read_dxx_image(const disk_image_t *image)
     unsigned int track, sector, track_size;
     gcr_header_t header;
     fdc_err_t rf;
-    int double_sided = 0;
+    int image_has_two_single_sides = 0;
+    int double_sided_drive = 0;
     fsimage_t *fsimage = image->media.fsimage;
     unsigned int max_sector;
     uint8_t *ptr;
     int half_track;
     int sectors;
     long offset;
-    /* unsigned long trackoffset = 0; */
+    unsigned long trackoffset = 0;
     uint8_t *tempgcr;
 
     if (image->type == DISK_IMAGE_TYPE_D80
@@ -181,7 +183,40 @@ int fsimage_read_dxx_image(const disk_image_t *image)
     header.id2 = bam_id[1];
 
     /* check double sided images */
-    double_sided = (image->type == DISK_IMAGE_TYPE_D71) && !(buffer[0x03] & 0x80);
+    image_has_two_single_sides = (image->type == DISK_IMAGE_TYPE_D71) && !(buffer[0x03] & 0x80);
+    double_sided_drive = drive_get_disk_drive_type(image->device) == DRIVE_TYPE_1571;
+
+    /* special case for 1571: if we are inserting a d64 image into a 1571, fill
+       the second side with "unformatted" data */
+    if (double_sided_drive && (image->type != DISK_IMAGE_TYPE_D71)) {
+        for (header.track = track = 1; track <= image->max_half_tracks / 2; track++, header.track++) {
+            half_track = (36 + track) * 2 - 2;
+
+            track_size = disk_image_raw_track_size(image->type, track);
+            if (image->gcr->tracks[half_track].data == NULL) {
+                image->gcr->tracks[half_track].data = lib_malloc(track_size);
+            } else if (image->gcr->tracks[half_track].size != (int)track_size) {
+                image->gcr->tracks[half_track].data = lib_realloc(image->gcr->tracks[half_track].data, track_size);
+            }
+            ptr = image->gcr->tracks[half_track].data;
+            image->gcr->tracks[half_track].size = track_size;
+            /* regular track */
+            memset(ptr, 0, track_size);
+
+            /* Clear odd track */
+            half_track++;
+
+            /* create an (empty) half track */
+            if (image->gcr->tracks[half_track].data == NULL) {
+                image->gcr->tracks[half_track].data = lib_malloc(track_size);
+            } else if (image->gcr->tracks[half_track].size != (int)track_size) {
+                image->gcr->tracks[half_track].data = lib_realloc(image->gcr->tracks[half_track].data, track_size);
+            }
+            image->gcr->tracks[half_track].size = track_size;
+            ptr = image->gcr->tracks[half_track].data;
+            memset(ptr, 0, track_size);
+        }
+    }
 
     for (header.track = track = 1; track <= image->max_half_tracks / 2; track++, header.track++) {
         half_track = track * 2 - 2;
@@ -199,7 +234,10 @@ int fsimage_read_dxx_image(const disk_image_t *image)
             /* get temp buffer */
             ptr = tempgcr = lib_malloc(track_size);
 
-            if (double_sided && track == 36) {
+            /* special case for second side of the 1571. If each side was formatted
+               separately in one-sided mode, we must start from track 1 again and use
+               the ID from the BAM on the second side. */
+            if (image_has_two_single_sides && track == 36) {
                 sectors = disk_image_check_sector(image, BAM_TRACK_1571 + 35, BAM_SECTOR_1571);
 
                 buffer[BAM_ID_1571] = buffer[BAM_ID_1571 + 1] = 0xa0;
@@ -243,16 +281,26 @@ int fsimage_read_dxx_image(const disk_image_t *image)
                 ptr += SECTOR_GCR_SIZE_WITH_HEADER + headergap + gap + (synclen * 2);
             }
 
+#if 0
+            /* copy gcr data to buffer (this creates perfectly aligned tracks) */
             ptr = image->gcr->tracks[half_track].data;
-#if 1
             memcpy(ptr, tempgcr, track_size);
 #else
-            /* FIXME: copy gcr data to final buffer with offset+wraparound */
-            memset(ptr, 0x55, track_size);
+            /* copy gcr data to final buffer with offset + wraparound */
+            /* On real disks, the track skew depends on many factors of which
+               none is exactly defined: the mechanical properties of the drive,
+               and last not least the code used for formatting the disk. Thus
+               the offset we use here is somewhat arbitrary, the choosen values
+               are tweaked to be somewhat close to what the skew1.prg program
+               shows for the first few tracks. */
+            trackoffset += (ptr - tempgcr) - gap; /* bytes we have written */
+            trackoffset += (track_size * 100) / 270; /* time it takes to step */
             trackoffset %= track_size;
+            /*printf("track: %2u sectors: %2u size: %5u offset: %5lu\n", track, max_sector, track_size, trackoffset);*/
+            ptr = image->gcr->tracks[half_track].data;
+            memset(ptr, 0x55, track_size);
             memcpy(ptr + trackoffset, tempgcr, track_size - trackoffset);
             memcpy(ptr, tempgcr + (track_size - trackoffset), track_size - (track_size - trackoffset));
-            trackoffset += 200; /* FIXME */
 #endif
             lib_free(tempgcr);
         } else {
@@ -277,9 +325,9 @@ int fsimage_read_dxx_image(const disk_image_t *image)
         }
         image->gcr->tracks[half_track].size = track_size;
         ptr = image->gcr->tracks[half_track].data;
-        memset(ptr, 0, track_size);        
+        memset(ptr, 0, track_size);
 #endif
-        
+
     }
     return 0;
 }
@@ -290,8 +338,11 @@ int fsimage_dxx_read_sector(const disk_image_t *image, uint8_t *buf, const disk_
     long offset;
     fsimage_t *fsimage = image->media.fsimage;
     fdc_err_t rf;
+    int harderror;
 
     sectors = disk_image_check_sector(image, dadr->track, dadr->sector);
+
+    /* printf("%d:%d = %d sectors image->gcr:%p\n", dadr->track, dadr->sector, sectors, image->gcr); */
 
     if (sectors < 0) {
         log_error(fsimage_dxx_log, "Track %u, Sector %u out of bounds.",
@@ -306,25 +357,43 @@ int fsimage_dxx_read_sector(const disk_image_t *image, uint8_t *buf, const disk_
         offset += X64_HEADER_LENGTH;
     }
 #endif
-    if (image->gcr == NULL) {
-        if (util_fpread(fsimage->fd, buf, 256, offset) < 0) {
-            log_error(fsimage_dxx_log,
-                      "Error reading T:%u S:%u from disk image.",
-                      dadr->track, dadr->sector);
-            return -1;
-        } else {
-            rf = fsimage->error_info.map ? fsimage->error_info.map[sectors] : CBMDOS_FDC_ERR_OK;
+
+    /* first check hard errors, if there is such hard error, then skip the
+       reading and do not update the buffer */
+    harderror = 0;
+    if (fsimage->error_info.map) {
+        harderror = 1;
+        rf = fsimage->error_info.map[sectors];
+        /* these are soft errors, let rf=0 pass for a read */
+        if ((rf == 0) || (rf == 1) || (rf == 5) || (rf == 7) || (rf == 8)) {
+            harderror = 0;
         }
-    } else {
-        rf = gcr_read_sector(&image->gcr->tracks[(dadr->track * 2) - 2], buf, (uint8_t)dadr->sector);
-        /* HACK: if the image has an error map, and the "FDC" did not detect an 
-           error in the GCR stream, use the error from the error map instead.
-           FIXME: what should really be done is encoding the errors from the
-           error map into the GCR stream. this is a lot more effort and will
-           give the exact same results, so i will leave it to someone else :)
-        */
-        if (fsimage->error_info.map && (rf == CBMDOS_FDC_ERR_OK)) {
-            rf = fsimage->error_info.map[sectors];
+    }
+
+    if (harderror == 0) {
+        if (image->gcr == NULL) {
+            if (util_fpread(fsimage->fd, buf, 256, offset) < 0) {
+                log_error(fsimage_dxx_log,
+                        "Error reading T:%u S:%u from disk image.",
+                        dadr->track, dadr->sector);
+                return -1;
+            } else {
+                rf = fsimage->error_info.map ? fsimage->error_info.map[sectors] : CBMDOS_FDC_ERR_OK;
+            }
+        } else {
+            rf = gcr_read_sector(&image->gcr->tracks[(dadr->track * 2) - 2], buf, (uint8_t)dadr->sector);
+            /* HACK: if the image has an error map, and the "FDC" did not detect an
+            error in the GCR stream, use the error from the error map instead.
+            FIXME: what should really be done is encoding the errors from the
+            error map into the GCR stream. this is a lot more effort and will
+            give the exact same results, so i will leave it to someone else :)
+            */
+            /* printf("read sector %d:%d returned: %d", dadr->track, dadr->sector, rf); */
+            if (fsimage->error_info.map && (rf == CBMDOS_FDC_ERR_OK)) {
+                rf = fsimage->error_info.map[sectors];
+                /* printf(" error map: %d", rf); */
+            }
+            /* printf("\n"); */
         }
     }
 

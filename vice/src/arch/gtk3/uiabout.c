@@ -25,24 +25,23 @@
  *  02111-1307  USA.
  */
 
-
 #include "vice.h"
 
 #include <gtk/gtk.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
+#include "archdep.h"
 #include "debug_gtk3.h"
 #include "info.h"
 #include "lib.h"
-#include "ui.h"
-#include "version.h"
 #ifdef USE_SVN_REVISION
-#include "svnversion.h"
+# include "svnversion.h"
 #endif
+#include "ui.h"
+#include "uiactions.h"
 #include "uidata.h"
-#include "archdep_get_runtime_info.h"
+#include "version.h"
+#include "vicedate.h"
 
 #include "uiabout.h"
 
@@ -50,14 +49,6 @@
 /** \brief  Maximum length of generated version string
  */
 #define VERSION_STRING_MAX 8192
-
-/** \brief  Custom response ID's for the dialog
- */
-enum {
-    RESPONSE_RUNTIME = 1,   /**< response ID for 'Runtime' button */
-    RESPONSE_COMPILE_TIME   /**< response ID for 'Compile time' button */
-};
-
 
 
 /** \brief  List of current team members
@@ -111,6 +102,7 @@ static GdkPixbuf *get_vice_logo(void)
     return uidata_get_pixbuf("vice-logo-black.svg");
 }
 
+
 /** \brief  Handler for the "destroy" event
  *
  * \param[in,out]   widget      widget triggering the event (unused)
@@ -119,6 +111,7 @@ static GdkPixbuf *get_vice_logo(void)
 static void about_destroy_callback(GtkWidget *widget, gpointer user_data)
 {
     destroy_current_team_list(authors);
+    ui_action_finish(ACTION_HELP_ABOUT);
 }
 
 
@@ -142,14 +135,6 @@ static void about_response_callback(GtkWidget *widget, gint response_id,
         case GTK_RESPONSE_DELETE_EVENT:
             gtk_widget_destroy(widget);
             break;
-        case RESPONSE_RUNTIME:
-            debug_gtk3("Got RUNTIME! (TODO)");
-            break;
-#if 0
-        case RESPONSE_COMPILE_TIME:
-            debug_gtk3("Got COMPILE TIME! (TODO)");
-            break;
-#endif
         default:
             debug_gtk3("Warning: Unsupported response ID %d", response_id);
             break;
@@ -157,20 +142,16 @@ static void about_response_callback(GtkWidget *widget, gint response_id,
 }
 
 
-/** \brief  Callback to show the 'About' dialog
- *
- * \param[in,out]   widget      widget triggering the event
- * \param[in]       user_data   data for the event (unused)
- *
- * \return  TRUE
+/** \brief  Show the about dialog
  */
-gboolean ui_about_dialog_callback(GtkWidget *widget, gpointer user_data)
+void ui_about_dialog_show(void)
 {
+    archdep_runtime_info_t runtime_info;
     char version[VERSION_STRING_MAX];
+    const char *model;
+    char buffer[256];
     GtkWidget *about = gtk_about_dialog_new();
     GdkPixbuf *logo = get_vice_logo();
-
-    archdep_runtime_info_t runtime_info;
 
 
     /* set toplevel window, Gtk doesn't like dialogs without parents */
@@ -184,19 +165,23 @@ gboolean ui_about_dialog_callback(GtkWidget *widget, gpointer user_data)
 
     /* set version string */
 #ifdef USE_SVN_REVISION
-    g_snprintf(version, VERSION_STRING_MAX,
-            "%s r%s (GTK3 %d.%d.%d, GLib %d.%d.%d)",
+    g_snprintf(version, sizeof(version),
+            "%s r%s\n(GTK3 %d.%d.%d, GLib %d.%d.%d, Cairo %s, Pango %s)",
             VERSION, VICE_SVN_REV_STRING,
             GTK_MAJOR_VERSION, GTK_MINOR_VERSION, GTK_MICRO_VERSION,
-            GLIB_MAJOR_VERSION, GLIB_MINOR_VERSION, GLIB_MICRO_VERSION);
+            GLIB_MAJOR_VERSION, GLIB_MINOR_VERSION, GLIB_MICRO_VERSION,
+            cairo_version_string(),
+            pango_version_string());
 #else
-    g_snprintf(version, VERSION_STRING_MAX,
-            "%s (GTK3 %d.%d.%d, GLib %d.%d.%d)",
+    g_snprintf(version, sizeof(version),
+            "%s\n(GTK3 %d.%d.%d, GLib %d.%d.%d, Cairo %s, Pango %s)",
             VERSION,
             GTK_MAJOR_VERSION, GTK_MINOR_VERSION, GTK_MICRO_VERSION,
-            GLIB_MAJOR_VERSION, GLIB_MINOR_VERSION, GLIB_MICRO_VERSION);
+            GLIB_MAJOR_VERSION, GLIB_MINOR_VERSION, GLIB_MICRO_VERSION,
+            cairo_version_string(),
+            pango_version_string());
 #endif
-
+#undef VICE_VERSION_STRING
     if (archdep_get_runtime_info(&runtime_info)) {
         size_t v = strlen(version);
         g_snprintf(version + v, VERSION_STRING_MAX - v - 1UL,
@@ -208,64 +193,84 @@ gboolean ui_about_dialog_callback(GtkWidget *widget, gpointer user_data)
                 runtime_info.os_version,
                 runtime_info.machine);
     }
-
-#ifdef FREE_MR_AMMO
-    gtk_about_dialog_set_program_name(GTK_ABOUT_DIALOG(about), "FREE MR AMMO");
-#endif
-
-
     gtk_about_dialog_set_version(GTK_ABOUT_DIALOG(about), version);
 
     /* Describe the program */
-    gtk_about_dialog_set_comments(GTK_ABOUT_DIALOG(about),
-#ifndef FREE_MR_AMMO
-            "Emulates an 8-bit Commodore computer.");
-#else
-            "Free's Mr. Ammo");
-#endif
+    switch (machine_class) {
+        default:                    /* fall through */ /* fix warning */
+        case VICE_MACHINE_C64:      /* fall through */
+        case VICE_MACHINE_C64SC:    /* fall through */
+        case VICE_MACHINE_VSID:
+            model = "Commodore 64";
+            break;
+        case VICE_MACHINE_C64DTV:
+            model = "C64 DTV";
+            break;
+        case VICE_MACHINE_C128:
+            model = "Commodore 128";
+            break;
+        case VICE_MACHINE_SCPU64:
+            model = "Commodore 64 with SuperCPU";
+            break;
+        case VICE_MACHINE_VIC20:
+            model = "Commodore VIC-20";
+            break;
+        case VICE_MACHINE_PLUS4:
+            model = "Commodore 16/116 and Plus/4";
+            break;
+        case VICE_MACHINE_PET:
+            model = "Commodore PET and SuperPET";
+            break;
+        case VICE_MACHINE_CBM5x0:
+            model = "Commodore CBM-II 510 (P500)";
+            break;
+        case VICE_MACHINE_CBM6x0:
+            model = "Commodore CBM-II 6x0 and 7x0";
+            break;
+    }
+    g_snprintf(buffer, sizeof(buffer), "The %s Emulator", model);
+    gtk_about_dialog_set_comments(GTK_ABOUT_DIALOG(about), buffer);
+
     /* set license */
     gtk_about_dialog_set_license_type(GTK_ABOUT_DIALOG(about), GTK_LICENSE_GPL_2_0);
     /* set website link and title */
     gtk_about_dialog_set_website(GTK_ABOUT_DIALOG(about),
-            "http://vice-emu.sourceforge.net/");
+                                 "http://vice-emu.sourceforge.net/");
     gtk_about_dialog_set_website_label(GTK_ABOUT_DIALOG(about),
-            "http://vice-emu.sourceforge.net/");
+                                       "http://vice-emu.sourceforge.net/");
     /* set list of current team members */
     gtk_about_dialog_set_authors(GTK_ABOUT_DIALOG(about), (const gchar **)authors);
     /* set copyright string */
-    /*
-     * TODO:    Get the current year from [svn]version.h or something similar,
-     *          so altering this file by hand won't be required anymore.
-     */
     gtk_about_dialog_set_copyright(GTK_ABOUT_DIALOG(about),
-            "Copyright 1996-2020, VICE team");
+            "Copyright 1996-" VICEDATE_YEAR_STR ", VICE team");
 
     /* set logo */
     if (logo != NULL) {
         gtk_about_dialog_set_logo(GTK_ABOUT_DIALOG(about), logo);
         g_object_unref(logo);
     }
-#if 0
-    gtk_dialog_add_button(GTK_DIALOG(about), "Runtime info", RESPONSE_RUNTIME);
-#endif
+
     /*
      * hook up event handlers
      */
 
     /* destroy callback, called when the dialog is closed through the 'X',
      * but NOT when clicking 'Close' */
-    g_signal_connect_unlocked(about, "destroy", G_CALLBACK(about_destroy_callback),
-            NULL);
+    g_signal_connect_unlocked(about,
+                              "destroy",
+                              G_CALLBACK(about_destroy_callback),
+                              NULL);
 
     /* set up a generic handler for various buttons, this makes sure the
      * 'Close' button is handled properly */
-    g_signal_connect_unlocked(about, "response", G_CALLBACK(about_response_callback),
-            NULL);
+    g_signal_connect_unlocked(about,
+                              "response",
+                              G_CALLBACK(about_response_callback),
+                              NULL);
 
     /* make the about dialog modal */
     gtk_window_set_modal(GTK_WINDOW(about), TRUE);
 
     /* ... and show the dialog finally */
     gtk_widget_show(about);
-    return TRUE;
 }

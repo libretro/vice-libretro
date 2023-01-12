@@ -32,10 +32,9 @@
 #include <gtk/gtk.h>
 
 GtkWidget * pet_misc_widget_create(void);
-void        pet_misc_widget_set_crtc_callback(GtkWidget *widget,
-                                              void (*func)(int));
-void        pet_misc_widget_set_blank_callback(GtkWidget *widget,
-                                               void (*func)(int));
-
+void        pet_misc_widget_set_crtc_callback(void (*func)(int));
+void        pet_misc_widget_set_blank_callback(void (*func)(int));
+void        pet_misc_widget_set_screen2001_callback(void (*func)(int));
 void        pet_misc_widget_sync(GtkWidget *widget);
+
 #endif

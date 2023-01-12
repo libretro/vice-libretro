@@ -56,17 +56,16 @@ static const vice_gtk3_radiogroup_entry_t video_sizes[] = {
 static void (*user_callback)(int) = NULL;
 
 
-/** \brief  Handler for the "toggled" event of the radio buttons
+/** \brief  Handler for the 'toggled' event of the radio buttons
  *
  * Sets the VideoSize resource when it has been changed.
  *
- * \param[in]   widget      radio button triggering the event
+ * \param[in]   widget      radio button triggering the event (unused)
  * \param[in]   new_val     value for the resource (`int`)
  */
 static void on_video_size_toggled(GtkWidget *widget, int new_val)
 {
     if (user_callback != NULL) {
-        debug_gtk3("call user_callback with %d.", new_val);
         user_callback(new_val);
     }
 }
@@ -85,7 +84,7 @@ GtkWidget *pet_video_size_widget_create(void)
     GtkWidget *label;
 
     grid = vice_gtk3_grid_new_spaced(VICE_GTK3_DEFAULT, VICE_GTK3_DEFAULT);
-    g_object_set(G_OBJECT(grid), "margin-left", 8, NULL);
+    gtk_widget_set_margin_start(grid, 8);
     label = gtk_label_new(NULL);
     gtk_label_set_markup(GTK_LABEL(label), "<b>Display width</b>");
     gtk_widget_set_halign(label, GTK_ALIGN_START);
@@ -101,9 +100,8 @@ GtkWidget *pet_video_size_widget_create(void)
      *       be required)
      */
     vice_gtk3_resource_radiogroup_add_callback(group, on_video_size_toggled);
-    g_object_set(G_OBJECT(group), "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(group, 16);
     gtk_grid_attach(GTK_GRID(grid), group, 0, 1, 1, 1);
-
 
     gtk_widget_show_all(grid);
     return grid;
@@ -112,11 +110,9 @@ GtkWidget *pet_video_size_widget_create(void)
 
 /** \brief  Set user-defined callback to be triggered when the widget changes
  *
- * \param[in]   widget  PET video size widget
  * \param[in]   func    user-defined callback
  */
-void pet_video_size_widget_set_callback(GtkWidget *widget,
-                                        void (*func)(int))
+void pet_video_size_widget_set_callback(void (*func)(int))
 {
     user_callback = func;
 }

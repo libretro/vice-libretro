@@ -40,10 +40,6 @@
 #include "asm.h"
 #include "montypes.h"
 
-#ifdef AMIGA_MORPHOS
-#undef REG_PC
-#endif
-
 #include "mon_parse.h"
 #include "mon_util.h"
 #include "uimon.h"
@@ -51,8 +47,8 @@
 
 /* FIXME:
  * Removing `const` from `str` and `abbrev` fixes this warning:
-../../../../vice/src/arch/gtk3/uimon.c: In function ‘console_init’:
-../../../../vice/src/arch/gtk3/uimon.c:710:17: warning: to be safe all intermediate pointers in cast from ‘char **’ to ‘const char **’ must be ‘const’ qualified [-Wcast-qual
+../../../../vice/src/arch/gtk3/uimon.c: In function 'console_init':
+../../../../vice/src/arch/gtk3/uimon.c:710:17: warning: to be safe all intermediate pointers in cast from 'char **' to 'const char **' must be 'const' qualified [-Wcast-qual
 (const char **)&full_name,
 
   Also had to do some additional hacking, would be nice to see a better solution.
@@ -105,8 +101,12 @@ static const mon_cmds_t mon_cmd_array[] = {
     },
 
     { "cpuhistory", "chis",
-      "[<count>]",
-      "Show <count> last executed commands.",
+      "[<count>] [c:] [8:] [9:] [10:] [11:]",
+      "Show <count> last executed commands on up to five devices.\n"
+      "If no devices are specified, then the default device is shown.\n"
+      "VICE emulation runs each CPU for a variable number of cycles before\n"
+      "switching between them. They will be synchronized when communication\n"
+      "between them occurs.\n",
       NO_FILENAME_ARG
     },
 
@@ -137,9 +137,10 @@ static const mon_cmds_t mon_cmd_array[] = {
     },
 
     { "next", "n",
-      NULL,
-      "Advance to the next instruction.  Subroutines are treated as\n"
-      "a single instruction.",
+      "[<count>]",
+      "Advance to the next instruction(s).  COUNT allows stepping\n"
+      "more than a single instruction at a time. Subroutines are\n"
+      "treated as a single instruction (\"step over\").",
       NO_FILENAME_ARG
     },
 
@@ -159,7 +160,7 @@ static const mon_cmds_t mon_cmd_array[] = {
     { "return", "ret",
       NULL,
       "Continues execution and returns to the monitor just after the next\n"
-      "RTS or RTI is executed.",
+      "RTS or RTI is executed (\"step out\").",
       NO_FILENAME_ARG
     },
 
@@ -172,7 +173,7 @@ static const mon_cmds_t mon_cmd_array[] = {
     { "step", "z",
       "[<count>]",
       "Single-step through instructions.  COUNT allows stepping\n"
-      "more than a single instruction at a time.",
+      "more than a single instruction at a time (\"step into\").",
       NO_FILENAME_ARG
     },
 
@@ -489,7 +490,8 @@ static const mon_cmds_t mon_cmd_array[] = {
     { "device", "dev",
       "[c:|8:|9:|10:|11:]",
       "Set the default memory device to either the computer `c:' or the\n"
-      "specified disk drive (`8:', `9:').",
+      "specified disk drive (`8:', `9:', `10:', `11:').\n"
+      "Switches to computer when not given a device.\n",
       NO_FILENAME_ARG
     },
 
@@ -541,13 +543,13 @@ static const mon_cmds_t mon_cmd_array[] = {
       "current state.",
       NO_FILENAME_ARG
     },
-    
+
     { "logname", "",
       "\"<filename>\"",
       "Sets the filename of the logfile.",
       FILENAME_ARG
     },
-    
+
     { "", "",
       "",
       "Disk commands:",
@@ -556,8 +558,8 @@ static const mon_cmds_t mon_cmd_array[] = {
 
     { "@", "",
       "<disk command>",
-      "Perform a disk command on the currently attached disk image on drive 8.\n"
-      "The specified disk command is sent to the drive's channel #15.",
+      "Perform a disk command on the currently attached disk image on virtual\n"
+      "drive 8.",
       NO_FILENAME_ARG
     },
 
@@ -700,6 +702,18 @@ static const mon_cmds_t mon_cmd_array[] = {
       NO_FILENAME_ARG
     },
 
+    { "updb", "",
+      "<value>",
+      "Update the simulated userport output value.",
+      NO_FILENAME_ARG
+    },
+
+    { "jpdb", "",
+      "<port> <value>",
+      "Update the simulated joyport output value.",
+      NO_FILENAME_ARG
+    },
+
     { "help", "?",
       "[<Command>]",
       "If no argument is given, prints out a list of all available commands\n"
@@ -786,6 +800,13 @@ static const mon_cmds_t mon_cmd_array[] = {
       NO_FILENAME_ARG
     },
 
+    { "warp", "",
+      "[on|off|toggle]",
+      "Turn warp mode on or off. If the argument is 'toggle' then the current mode\n"
+      "is toggled. When no argument is given the current mode is displayed.",
+      NO_FILENAME_ARG
+    },
+
     { NULL, NULL, NULL, NULL, 0 }
 };
 
@@ -810,8 +831,8 @@ static int mon_command_lookup_index(const char *str)
     }
 
     do {
-        if ((strcasecmp(str, mon_cmd_array[num].str) == 0) ||
-            (strcasecmp(str, mon_cmd_array[num].abbrev) == 0)) {
+        if ((util_strcasecmp(str, mon_cmd_array[num].str) == 0) ||
+            (util_strcasecmp(str, mon_cmd_array[num].abbrev) == 0)) {
             return num;
         }
         num++;

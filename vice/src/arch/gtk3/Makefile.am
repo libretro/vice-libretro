@@ -1,12 +1,6 @@
 ## Makefile.am for the native GTK3 version of `libarch.a'.
 
-if WIN32_COMPILE
-extra_includes = -I$(top_srcdir)/src/arch/mingw32-pcap/wpcap
-else
-extra_includes =
-endif
-
-SUBDIRS = data novte widgets
+SUBDIRS = data joystickdrv novte widgets
 
 AM_CPPFLAGS = \
 	@VICE_CPPFLAGS@ \
@@ -27,6 +21,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src/arch/gtk3/widgets \
 	-I$(top_srcdir)/src/arch/gtk3/widgets/base \
 	-I$(top_srcdir)/src/arch/gtk3/novte \
+	-I$(top_srcdir)/src/arch/gtk3/joystickdrv \
 	-I$(top_builddir)/src/arch/gtk3/novte \
 	-I$(top_srcdir)/src/c64 \
 	-I$(top_srcdir)/src/c64dtv \
@@ -41,6 +36,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src/imagecontents \
 	-I$(top_srcdir)/src/monitor \
 	-I$(top_srcdir)/src/tapeport \
+	-I$(top_srcdir)/src/core/rtc \
 	-I$(top_srcdir)/src/hvsc
 
 AM_CFLAGS = @VICE_CFLAGS@
@@ -55,6 +51,21 @@ AM_LDFLAGS = @VICE_LDFLAGS@
 noinst_LIBRARIES = libarch.a libtoolarch.a
 
 libarch_a_SOURCES = \
+	actions-cartridge.c \
+	actions-clipboard.c \
+	actions-datasette.c \
+	actions-debug.c \
+	actions-display.c \
+	actions-drive.c \
+	actions-help.c \
+	actions-hotkeys.c \
+	actions-joystick.c \
+	actions-machine.c \
+	actions-media.c \
+	actions-settings.c \
+	actions-snapshot.c \
+	actions-speed.c \
+	actions-vsid.c \
 	archdep.c \
 	c128ui.c \
 	c64dtvui.c \
@@ -62,15 +73,10 @@ libarch_a_SOURCES = \
 	c64ui.c \
 	cbm2ui.c \
 	cbm5x0ui.c \
+	debug_gtk3.c \
 	gtk3main.c \
-	joy-osx-hid.c \
-	joy-osx-hidmgr.c \
-	joy-osx-hidutil.c \
-	joy-osx.c \
-	joy-unix-usb.c \
-	joy-unix.c \
-	joy-win32-dinput-handle.c \
-	joy-win32.c \
+	hotkeymap.c \
+	hotkeys.c \
 	kbd.c \
 	linenoise.c \
 	mousedrv.c \
@@ -83,16 +89,15 @@ libarch_a_SOURCES = \
 	uiabout.c \
 	uicart.c \
 	uicmdline.c \
-	uicommands.c \
 	uicompiletimefeatures.c \
 	uidata.c \
 	uidatasette.c \
 	uidebug.c \
 	uidiskattach.c \
 	uidiskcreate.c \
-	uiedit.c \
 	uifliplist.c \
-	uihotkeys.c \
+	uihotkeysload.c \
+	uihotkeyssave.c \
 	uimachinemenu.c \
 	uimachinewindow.c \
 	uimedia.c \
@@ -110,16 +115,20 @@ libarch_a_SOURCES = \
 	uivsidmenu.c \
 	uivsidwindow.c \
 	vic20ui.c \
-	vice_gtk3_locking.c \
 	video.c \
+	vsidstate.c \
 	vsidui.c \
 	vsyncarch.c
 
-if WIN32_COMPILE
+if USE_GTK3UI
+libarch_a_SOURCES += vice_gtk3_locking.c
+endif
+
+if WINDOWS_COMPILE
 libarch_a_SOURCES += directx_renderer.c directx_renderer_impl.cc
 else
 libarch_a_SOURCES += opengl_renderer.c
-if UNIX_MACOSX_COMPILE
+if MACOS_COMPILE
 libarch_a_SOURCES += opengl_renderer_macos.m
 else
 libarch_a_SOURCES += opengl_renderer_unix.c
@@ -131,18 +140,27 @@ libtoolarch_a_SOURCES = \
 
 EXTRA_DIST = \
 	Resources/VICE.icns \
+	actions-cartridge.h \
+	actions-clipboard.h \
+	actions-datasette.h \
+	actions-debug.h \
+	actions-display.h \
+	actions-drive.h \
+	actions-help.h \
+	actions-hotkeys.h \
+	actions-joystick.h \
+	actions-machine.h \
+	actions-media.h \
+	actions-settings.h \
+	actions-snapshot.h \
+	actions-speed.h \
+	actions-vsid.h \
 	archdep.h \
-	unused_cairo_renderer.h \
 	debug_gtk3.h \
 	directx_renderer.h \
 	directx_renderer_impl.h \
-	joy-osx-hid.h \
-	joy-osx-hidlib.h \
-	joy-osx.h \
-	joy-unix.h \
-	joy-win32-dinput-handle.h \
-	joy-win32.h \
-	joy.h \
+	hotkeymap.h \
+	hotkeys.h \
 	kbd.h \
 	linenoise.h \
 	macOS-ui-runtime.sh \
@@ -156,22 +174,20 @@ EXTRA_DIST = \
 	uiabout.h \
 	uicart.h \
 	uicmdline.h \
-	uicommands.h \
 	uicompiletimefeatures.h \
 	uidata.h \
 	uidatasette.h \
 	uidebug.h \
 	uidiskattach.h \
 	uidiskcreate.h \
-	uiedit.h \
 	uifliplist.h \
-	uihotkeys.h \
+	uihotkeysload.h \
+	uihotkeyssave.h \
 	uimachinemenu.h \
 	uimachinewindow.h \
 	uimedia.h \
 	uimenu.h \
 	uimon-fallback.h \
-	uimonarch.h \
 	uisettings.h \
 	uisidattach.h \
 	uismartattach.h \
@@ -179,11 +195,13 @@ EXTRA_DIST = \
 	uistatusbar.h \
 	uitapeattach.h \
 	uitapecreate.h \
+	uitypes.h \
 	uivideo.h \
 	uivsidmenu.h \
 	uivsidwindow.h \
 	vice_gtk3_locking.h \
 	vice-launcher.sh \
 	videoarch.h \
+	vsidstate.h \
 	winjoy.h \
 	x11-launcher.sh

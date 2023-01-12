@@ -52,12 +52,12 @@
 #endif
 
 #include "archdep.h"
-#include "ioutil.h"
 #include "lib.h"
 #include "log.h"
 #include "util.h"
-#include "zfile.h"
 #include "zipcode.h"
+
+#include "zfile.h"
 
 
 /* ------------------------------------------------------------------------- */
@@ -118,8 +118,8 @@ static int file_is_gzip(const char *name)
 {
     size_t l = strlen(name);
 
-    if ((l < 4 || strcasecmp(name + l - 3, ".gz"))
-        && (l < 3 || strcasecmp(name + l - 2, ".z"))
+    if ((l < 4 || util_strcasecmp(name + l - 3, ".gz"))
+        && (l < 3 || util_strcasecmp(name + l - 2, ".z"))
         && (l < 4 || toupper(name[l - 1]) != 'Z' || name[l - 4] != '.')) {
           return 0;
     }
@@ -218,7 +218,7 @@ static char *try_uncompress_with_gzip(const char *name)
     fdsrc = gzopen(name, MODE_READ);
     if (fdsrc == NULL) {
         fclose(fddest);
-        ioutil_remove(tmp_name);
+        archdep_remove(tmp_name);
         lib_free(tmp_name);
         return NULL;
     }
@@ -231,7 +231,7 @@ static char *try_uncompress_with_gzip(const char *name)
             if (fwrite((void *)buf, 1, (size_t)len, fddest) < len) {
                 gzclose(fdsrc);
                 fclose(fddest);
-                ioutil_remove(tmp_name);
+                archdep_remove(tmp_name);
                 lib_free(tmp_name);
                 return NULL;
             }
@@ -269,7 +269,7 @@ static char *try_uncompress_with_gzip(const char *name)
         return tmp_name;
     } else {
         ZDEBUG(("try_uncompress_with_gzip: failed"));
-        ioutil_remove(tmp_name);
+        archdep_remove(tmp_name);
         lib_free(tmp_name);
         return NULL;
     }
@@ -289,7 +289,7 @@ static char *try_uncompress_with_bzip(const char *name)
     /* Check whether the name sounds like a bzipped file by checking the
        extension.  UNIX variants of bzip v2 use the extension
        '.bz2'.  bzip v1 is obsolete.  */
-    if (l < 5 || strcasecmp(name + l - 4, ".bz2") != 0) {
+    if (l < 5 || util_strcasecmp(name + l - 4, ".bz2") != 0) {
         return NULL;
     }
 
@@ -311,7 +311,7 @@ static char *try_uncompress_with_bzip(const char *name)
         return tmp_name;
     } else {
         ZDEBUG(("try_uncompress_with_bzip: failed"));
-        ioutil_remove(tmp_name);
+        archdep_remove(tmp_name);
         lib_free(tmp_name);
         return NULL;
     }
@@ -325,7 +325,7 @@ static char *try_uncompress_with_tzx(const char *name)
     char *argv[4];
 
     /* Check whether the name sounds like a tzx file. */
-    if (l < 4 || strcasecmp(name + l - 4, ".tzx") != 0) {
+    if (l < 4 || util_strcasecmp(name + l - 4, ".tzx") != 0) {
         return NULL;
     }
 
@@ -345,7 +345,7 @@ static char *try_uncompress_with_tzx(const char *name)
         return tmp_name;
     } else {
         ZDEBUG(("try_uncompress_with_tzx: failed"));
-        ioutil_remove(tmp_name);
+        archdep_remove(tmp_name);
         lib_free(tmp_name);
         return NULL;
     }
@@ -362,25 +362,25 @@ static int is_zipcode_name(char *name)
 
 /* Extensions we know about */
 static const char * const extensions[] = {
-    FSDEV_EXT_SEP_STR "d64",
-    FSDEV_EXT_SEP_STR "d67",
-    FSDEV_EXT_SEP_STR "d71",
-    FSDEV_EXT_SEP_STR "d80",
-    FSDEV_EXT_SEP_STR "d81",
-    FSDEV_EXT_SEP_STR "d82",
-    FSDEV_EXT_SEP_STR "d1m",
-    FSDEV_EXT_SEP_STR "d2m",
-    FSDEV_EXT_SEP_STR "d4m",
-    FSDEV_EXT_SEP_STR "g64",
-    FSDEV_EXT_SEP_STR "p64",
-    FSDEV_EXT_SEP_STR "g41",
-    FSDEV_EXT_SEP_STR "x64",
-    FSDEV_EXT_SEP_STR "dsk",
-    FSDEV_EXT_SEP_STR "t64",
-    FSDEV_EXT_SEP_STR "p00",
-    FSDEV_EXT_SEP_STR "prg",
-    FSDEV_EXT_SEP_STR "lnx",
-    FSDEV_EXT_SEP_STR "tap",
+    ".d64",
+    ".d67",
+    ".d71",
+    ".d80",
+    ".d81",
+    ".d82",
+    ".d1m",
+    ".d2m",
+    ".d4m",
+    ".g64",
+    ".p64",
+    ".g41",
+    ".x64",
+    ".dsk",
+    ".t64",
+    ".p00",
+    ".prg",
+    ".lnx",
+    ".tap",
     NULL
 };
 
@@ -399,7 +399,7 @@ static int is_valid_extension(char *end, size_t l, int nameoffset)
         if (l < nameoffset + len) {
             continue;
         }
-        if (!strcasecmp(extensions[i], end + l - len)) {
+        if (!util_strcasecmp(extensions[i], end + l - len)) {
             return 1;
         }
     }
@@ -431,7 +431,7 @@ static char *try_uncompress_archive(const char *name, int write_mode,
 
     /* Do we have correct extension?  */
     len = strlen(extension);
-    if (l <= len || strcasecmp(name + l - len, extension) != 0) {
+    if (l <= len || util_strcasecmp(name + l - len, extension) != 0) {
         return NULL;
     }
 
@@ -452,7 +452,7 @@ static char *try_uncompress_archive(const char *name, int write_mode,
     /* No luck?  */
     if (exit_status != 0) {
         ZDEBUG(("try_uncompress_archive: `%s %s' failed.", program, listopts));
-        ioutil_remove(tmp_name);
+        archdep_remove(tmp_name);
         lib_free(tmp_name);
         return NULL;
     }
@@ -463,7 +463,7 @@ static char *try_uncompress_archive(const char *name, int write_mode,
     if (!fd) {
         ZDEBUG(("try_uncompress_archive: cannot read `%s %s' output.",
                 program, tmp_name));
-        ioutil_remove(tmp_name);
+        archdep_remove(tmp_name);
         lib_free(tmp_name);
         return NULL;
     }
@@ -482,7 +482,7 @@ static char *try_uncompress_archive(const char *name, int write_mode,
         while (l > 0) {
             tmp[--l] = 0;
             if (((nameoffset == SIZE_MAX) || (nameoffset > 1024)) && l >= len
-                    && strcasecmp(tmp + l - len, search) == 0) {
+                    && util_strcasecmp(tmp + l - len, search) == 0) {
                 nameoffset = l - 4;
             }
             if (nameoffset <= 1024
@@ -496,7 +496,7 @@ static char *try_uncompress_archive(const char *name, int write_mode,
     }
 
     fclose(fd);
-    ioutil_remove(tmp_name);
+    archdep_remove(tmp_name);
     if (!found) {
         ZDEBUG(("try_uncompress_archive: no valid file found."));
         lib_free(tmp_name);
@@ -557,7 +557,7 @@ static char *try_uncompress_archive(const char *name, int write_mode,
     if (exit_status != 0) {
         ZDEBUG(("try_uncompress_archive: `%s %s' failed.",
                 program, extractopts));
-        ioutil_remove(tmp_name);
+        archdep_remove(tmp_name);
         lib_free(tmp_name);
         return NULL;
     }
@@ -575,39 +575,44 @@ static char *try_uncompress_zipcode(const char *name, int write_mode)
     char *tmp_name = NULL;
     char *argv[5];
     int exit_status;
+    FILE *fd;
 
     /* The 2nd char has to be '!'?  */
     util_fname_split(name, NULL, &tmp_name);
     if (tmp_name == NULL) {
         return NULL;
     }
-    if (strlen(tmp_name) < 3 || tmp_name[1] != '!') {
+    if (strlen(tmp_name) < 3 || tmp_name[1] != '!'
+            || !(tmp_name[0] >= '1' && tmp_name[0] <= '5')) {
         lib_free(tmp_name);
         return NULL;
     }
     lib_free(tmp_name);
 
-
-    /* don't ask for permission. just do it, if it fails, it fails. This relies
-     * on zipcode.c doing the right thing, which I doubt */
-#if 0
     /* Can we read this file?  */
     fd = fopen(name, MODE_READ);
     if (fd == NULL) {
         return NULL;
-    }
-    /* Read first track to see if this is zipcode.  */
-    fseek(fd, 4, SEEK_SET);
-    for (count = 1; count < 21; count++) {
-        i = zipcode_read_sector(fd, 1, &sector, tmp);
-        if (i || sector < 0 || sector > 20 || (sectors & (1 << sector))) {
-            fclose(fd);
-            return NULL;
+    } else {
+        int sector;
+        int count;
+        int i;
+        int sectors = 0;
+        char tmp[256];
+
+        /* Read first track to see if this is zipcode.  */
+        fseek(fd, 4, SEEK_SET);
+        for (count = 1; count < 21; count++) {
+            i = zipcode_read_sector(fd, 1, &sector, tmp);
+            if (i || sector < 0 || sector > 20 || (sectors & (1 << sector))) {
+                fclose(fd);
+                return NULL;
+            }
+            sectors |= 1 << sector;
         }
-        sectors |= 1 << sector;
+        fclose(fd);
     }
-    fclose(fd);
-#endif
+
     /* it is a zipcode. We cannot support write_mode */
     if (write_mode) {
         return "";
@@ -618,7 +623,7 @@ static char *try_uncompress_zipcode(const char *name, int write_mode)
 
     /* ok, now extract the zipcode */
     argv[0] = lib_strdup(C1541_NAME);
-    argv[1] = lib_strdup("-zcreate");
+    argv[1] = lib_strdup("-unzip");
     argv[2] = lib_strdup(tmp_name);
     argv[3] = archdep_filename_parameter(name);
     argv[4] = NULL;
@@ -631,7 +636,7 @@ static char *try_uncompress_zipcode(const char *name, int write_mode)
     lib_free(argv[3]);
 
     if (exit_status) {
-        ioutil_remove(tmp_name);
+        archdep_remove(tmp_name);
         lib_free(tmp_name);
         return NULL;
     }
@@ -731,7 +736,7 @@ static char *try_uncompress_lynx(const char *name, int write_mode)
     lib_free(argv[6]);
 
     if (exit_status) {
-        ioutil_remove(tmp_name);
+        archdep_remove(tmp_name);
         lib_free(tmp_name);
         return NULL;
     }
@@ -952,13 +957,13 @@ static int zfile_compress(const char *src, const char *dest,
     }
 
     /* If we have no write permissions for `dest', give up.  */
-    if (ioutil_access(dest, IOUTIL_ACCESS_W_OK) < 0) {
+    if (archdep_access(dest, ARCHDEP_ACCESS_W_OK) < 0) {
         ZDEBUG(("compress: no write permissions for `%s'",
                 dest));
         return -1;
     }
 
-    if (ioutil_access(dest, IOUTIL_ACCESS_R_OK) < 0) {
+    if (archdep_access(dest, ARCHDEP_ACCESS_R_OK) < 0) {
         ZDEBUG(("compress: no read permissions for `%s'", dest));
         dest_backup_name = NULL;
     } else {
@@ -968,7 +973,7 @@ static int zfile_compress(const char *src, const char *dest,
             ZDEBUG(("compress: making backup %s... ", dest_backup_name));
         }
         if (dest_backup_name != NULL
-            && ioutil_rename(dest, dest_backup_name) < 0) {
+            && archdep_rename(dest, dest_backup_name) < 0) {
             ZDEBUG(("failed."));
             log_error(zlog, "Could not make pre-compression backup.");
             return -1;
@@ -991,14 +996,14 @@ static int zfile_compress(const char *src, const char *dest,
     if (retval == -1) {
         /* Compression failed: restore original file.  */
         if (dest_backup_name != NULL
-            && ioutil_rename(dest_backup_name, dest) < 0) {
+            && archdep_rename(dest_backup_name, dest) < 0) {
             log_error(zlog,
                       "Could not restore backup file after failed compression.");
         }
     } else {
         /* Compression succeeded: remove backup file.  */
         if (dest_backup_name != NULL
-            && ioutil_remove(dest_backup_name) < 0) {
+            && archdep_remove(dest_backup_name) < 0) {
             log_error(zlog, "Warning: could not remove backup file.");
             /* Do not return an error anyway (no data is lost).  */
         }
@@ -1043,7 +1048,7 @@ FILE *zfile_fopen(const char *name, const char *mode)
     }
 
     /* Check for write permissions.  */
-    if (write_mode && ioutil_access(name, IOUTIL_ACCESS_W_OK) < 0) {
+    if (write_mode && archdep_access(name, ARCHDEP_ACCESS_W_OK) < 0) {
         return NULL;
     }
 
@@ -1090,7 +1095,7 @@ static int handle_close_action(zfile_t *ptr)
           break;
         */
         case ZFILE_DEL:
-            if (ioutil_remove(ptr->orig_name) < 0) {
+            if (archdep_remove(ptr->orig_name) < 0) {
                 log_error(zlog, "Cannot unlink `%s': %s",
                           ptr->orig_name, strerror(errno));
             }
@@ -1116,7 +1121,7 @@ static int handle_close(zfile_t *ptr)
         }
 #endif
         /* Remove temporary file.  */
-        if (ioutil_remove(ptr->tmp_name) < 0) {
+        if (archdep_remove(ptr->tmp_name) < 0) {
             log_error(zlog, "Cannot unlink `%s': %s", ptr->tmp_name, strerror(errno));
         }
     }

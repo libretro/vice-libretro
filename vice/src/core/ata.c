@@ -31,11 +31,6 @@
 #include <sys/types.h>
 #endif
 
-/* VAC++ has off_t in sys/stat.h */
-#ifdef __IBMC__
-#include <sys/stat.h>
-#endif
-
 #include <stdio.h>
 #include <string.h>
 
@@ -49,11 +44,6 @@
 #include "alarm.h"
 #include "maincpu.h"
 #include "monitor.h"
-
-#ifndef HAVE_FSEEKO
-#define fseeko(a, b, c) fseek(a, b, c)
-#define ftello(a) ftell(a)
-#endif
 
 #define ATA_UNC  0x40
 #define ATA_IDNF 0x10
@@ -252,7 +242,7 @@ static int seek_sector(ata_drive_t *drv)
     drv->busy |= 2;
     alarm_set(drv->head_alarm, maincpu_clk + (CLOCK)(abs(drv->pos - lba) * drv->seek_time / drv->geometry.size));
     ata_change_power_mode(drv, 0xff);
-    if (fseeko(drv->file, (off_t)lba * drv->sector_size, SEEK_SET)) {
+    if (archdep_fseeko(drv->file, (off_t)lba * drv->sector_size, SEEK_SET)) {
         drv->error = drv->atapi ? 0x54 : ATA_IDNF;
     }
     drv->pos = lba;
@@ -1375,9 +1365,9 @@ int ata_register_dump(ata_drive_t *drv)
 int ata_snapshot_write_module(ata_drive_t *drv, snapshot_t *s)
 {
     snapshot_module_t *m;
-    uint32_t spindle_clk = CLOCK_MAX;
-    uint32_t head_clk = CLOCK_MAX;
-    uint32_t standby_clk = CLOCK_MAX;
+    CLOCK spindle_clk = CLOCK_MAX;
+    CLOCK head_clk = CLOCK_MAX;
+    CLOCK standby_clk = CLOCK_MAX;
     off_t pos = 0;
 
     m = snapshot_module_create(s, drv->myname,
@@ -1396,7 +1386,7 @@ int ata_snapshot_write_module(ata_drive_t *drv, snapshot_t *s)
         standby_clk = drv->standby_alarm->context->pending_alarms[drv->standby_alarm->pending_idx].clk;
     }
     if (drv->file) {
-        pos = ftello(drv->file);
+        pos = archdep_ftello(drv->file);
         if (pos < 0) {
             pos = 0;
         }
@@ -1429,9 +1419,9 @@ int ata_snapshot_write_module(ata_drive_t *drv, snapshot_t *s)
     SMW_B(m, (uint8_t)drv->wcache);
     SMW_B(m, (uint8_t)drv->lookahead);
     SMW_B(m, (uint8_t)drv->busy);
-    SMW_DW(m, spindle_clk);
-    SMW_DW(m, head_clk);
-    SMW_DW(m, standby_clk);
+    SMW_CLOCK(m, spindle_clk);
+    SMW_CLOCK(m, head_clk);
+    SMW_CLOCK(m, standby_clk);
     SMW_DW(m, drv->standby);
     SMW_DW(m, drv->standby_max);
 
@@ -1443,9 +1433,9 @@ int ata_snapshot_read_module(ata_drive_t *drv, snapshot_t *s)
     uint8_t vmajor, vminor;
     snapshot_module_t *m;
     char *filename = NULL;
-    uint32_t spindle_clk;
-    uint32_t head_clk;
-    uint32_t standby_clk;
+    CLOCK spindle_clk;
+    CLOCK head_clk;
+    CLOCK standby_clk;
     int pos, type;
 
     m = snapshot_module_open(s, drv->myname, &vmajor, &vminor);
@@ -1453,16 +1443,24 @@ int ata_snapshot_read_module(ata_drive_t *drv, snapshot_t *s)
         return -1;
     }
 
-    if ((vmajor != CART_DUMP_VER_MAJOR) || (vminor != CART_DUMP_VER_MINOR)) {
+    if (!snapshot_version_is_equal(vmajor, vminor, CART_DUMP_VER_MAJOR, CART_DUMP_VER_MINOR)) {
+        snapshot_set_error(SNAPSHOT_MODULE_INCOMPATIBLE);
         snapshot_module_close(m);
         return -1;
     }
 
     SMR_STR(m, &filename);
     if (!drv->filename || strcmp(filename, drv->filename)) {
+        log_warning(drv->log, "IDE image filename mismatch. expected: %s got: %s\n",
+                    filename, drv->filename);
+    /* FIXME: this is really retarded - we should instead identify the image by
+              making a checksum instead of using the filename */
+#if 1
+        snapshot_set_error(SNAPSHOT_ATA_IMAGE_FILENAME_MISMATCH);
         lib_free(filename);
         snapshot_module_close(m);
         return -1;
+#endif
     }
     lib_free(filename);
     SMR_DW_INT(m, &type);
@@ -1536,9 +1534,9 @@ int ata_snapshot_read_module(ata_drive_t *drv, snapshot_t *s)
         drv->lookahead = 1;
     }
     SMR_B_INT(m, &drv->busy);
-    SMR_DW(m, &spindle_clk);
-    SMR_DW(m, &head_clk);
-    SMR_DW(m, &standby_clk);
+    SMR_CLOCK(m, &spindle_clk);
+    SMR_CLOCK(m, &head_clk);
+    SMR_CLOCK(m, &standby_clk);
     SMR_DW_INT(m, &drv->standby);
     SMR_DW_INT(m, &drv->standby_max);
     drv->busy &= 0x03;
@@ -1559,7 +1557,7 @@ int ata_snapshot_read_module(ata_drive_t *drv, snapshot_t *s)
     }
 
     if (drv->file) {
-        fseeko(drv->file, (off_t)pos * drv->sector_size, SEEK_SET);
+        archdep_fseeko(drv->file, (off_t)pos * drv->sector_size, SEEK_SET);
     }
     if (!drv->atapi) { /* atapi supports disc change events */
         drv->readonly = 1; /* make sure for ata that there's no filesystem corruption */

@@ -34,7 +34,7 @@
 #include <gtk/gtk.h>
 #include <math.h>
 
-#ifdef MACOSX_SUPPORT
+#ifdef MACOS_COMPILE
 #include <CoreGraphics/CGDirectDisplay.h>
 #endif
 
@@ -46,12 +46,14 @@
 #include "palette.h"
 #include "render_queue.h"
 #include "resources.h"
-#include "tick.h"
+#include "sysfile.h"
 #include "ui.h"
+#include "uistatusbar.h"
+#include "util.h"
 #include "vsync.h"
 #include "vsyncapi.h"
 
-#ifdef MACOSX_SUPPORT
+#ifdef MACOS_COMPILE
 #include "macOS-util.h"
 #endif
 
@@ -69,7 +71,7 @@ static void on_widget_monitors_changed(GdkScreen *screen, gpointer data);
 static void render(void *job_data, void *pool_data);
 
 static GLuint create_shader(GLenum shader_type, const char *text);
-static void create_shader_program(context_t *context);
+static GLuint create_shader_program(char *vertex_shader_filename, char *fragment_shader_filename);
 
 /** \brief Raw geometry for the machine screen.
  *
@@ -88,72 +90,47 @@ static float vertexData[] = {
          1.0f,     0.0f
 };
 
-/** \brief Our renderer's vertex shader.
- *
- * This simply scales the geometry it is provided and provides
- * smoothly interpolated texture coordinates between each vertex. The
- * world coordinates remain [-1, 1] in all dimensions. */
-static const char *vertexShader =
-    "#version 150\n"
-    "uniform vec4 scale;\n"
-    "uniform vec2 validTex;\n"
-    "uniform vec2 texSize;\n"
-    "in vec4 position;\n"
-    "in vec2 tex;\n"
-    "smooth out vec2 texCoord;\n"
-    "void main() {\n"
-    "  gl_Position = position * scale;\n"
-    "  texCoord = (tex * (validTex - 1.0) + 0.5) / texSize;\n"
-    "}\n";
-
-/** \brief Our renderer's fragment shader.
- *
- * This does nothing but texture lookups based on the values fed to it
- * by the vertex shader. */
-static const char *fragmentShader =
-    "#version 150\n"
-    "uniform sampler2D sampler;\n"
-    "smooth in vec2 texCoord;\n"
-    "out vec4 outputColor;\n"
-    "void main() { outputColor = texture(sampler, texCoord); }\n";
-
 /**/
 
 static void vice_opengl_initialise_canvas(video_canvas_t *canvas)
 {
     context_t *context;
 
+    CANVAS_LOCK();
+
     /* First initialise the context_t that we'll need everywhere */
     context = lib_calloc(1, sizeof(context_t));
     context->cached_vsync_resource = -1;
-    
-    context->canvas_lock = canvas->lock;
+
+    context->canvas_lock_ptr = &canvas->lock;
     pthread_mutex_init(&context->render_lock, NULL);
     context->render_queue = render_queue_create();
-    
+
     canvas->renderer_context = context;
 
     g_signal_connect(canvas->event_box, "realize", G_CALLBACK (on_widget_realized), canvas);
     g_signal_connect(canvas->event_box, "unrealize", G_CALLBACK (on_widget_unrealized), canvas);
     g_signal_connect_unlocked(canvas->event_box, "size-allocate", G_CALLBACK(on_widget_resized), canvas);
+
+    CANVAS_UNLOCK();
 }
 
 static void vice_opengl_destroy_context(video_canvas_t *canvas)
 {
     context_t *context;
-    
+
     CANVAS_LOCK();
-    
+
     context = canvas->renderer_context;
-    
+
     /* Release all backbuffers on the render queue and delloc it */
     render_queue_destroy(context->render_queue);
     context->render_queue = NULL;
 
     pthread_mutex_destroy(&context->render_lock);
-    
+
     lib_free(context);
-    
+
     canvas->renderer_context = NULL;
 
     CANVAS_UNLOCK();
@@ -168,15 +145,15 @@ static void on_widget_realized(GtkWidget *widget, gpointer data)
 
     CANVAS_LOCK();
 
-#ifdef MACOSX_SUPPORT
+#ifdef MACOS_COMPILE
     /* The content area coordinates include the menu on macOS */
     gtk_widget_translate_coordinates(widget, gtk_widget_get_toplevel(widget), 0, 0, &context->native_view_x, &context->native_view_y);
 #endif
-    
+
     gtk_widget_get_allocation(widget, &allocation);
     context->native_view_width  = allocation.width;
     context->native_view_height = allocation.height;
-    
+
     gtk_scale = gtk_widget_get_scale_factor(widget);
     context->gl_backing_layer_width     = context->native_view_width  * gtk_scale;
     context->gl_backing_layer_height    = context->native_view_height * gtk_scale;
@@ -188,7 +165,11 @@ static void on_widget_realized(GtkWidget *widget, gpointer data)
     vice_opengl_renderer_make_current(context);
 
     if (!context->gl_context_is_legacy) {
-        create_shader_program(context);
+        context->shader_builtin             = create_shader_program("viewport.vert", "builtin.frag");
+        context->shader_builtin_interlaced  = create_shader_program("viewport.vert", "builtin-interlaced.frag");
+        context->shader_bicubic             = create_shader_program("viewport.vert", "bicubic.frag");
+        context->shader_bicubic_interlaced  = create_shader_program("viewport.vert", "bicubic-interlaced.frag");
+
         glGenBuffers(1, &context->vbo);
         glBindBuffer(GL_ARRAY_BUFFER, context->vbo);
         glBufferData(GL_ARRAY_BUFFER, sizeof(vertexData), vertexData, GL_STATIC_DRAW);
@@ -196,16 +177,17 @@ static void on_widget_realized(GtkWidget *widget, gpointer data)
         glGenVertexArrays(1, &context->vao);
     }
 
-    glGenTextures(1, &context->texture);
-    
+    glGenTextures(1, &context->current_frame_texture);
+    glGenTextures(1, &context->previous_frame_texture);
+
     vice_opengl_renderer_clear_current(context);
-    
+
     /* Create an exclusive single thread 'pool' for executing render jobs */
     context->render_thread = render_thread_create(render, canvas);
 
     /* Monitor display DPI changes */
     g_signal_connect_unlocked(gtk_widget_get_screen(widget), "monitors_changed", G_CALLBACK(on_widget_monitors_changed), canvas);
-    
+
     CANVAS_UNLOCK();
 }
 
@@ -217,10 +199,10 @@ static void on_widget_unrealized(GtkWidget *widget, gpointer data)
     g_signal_handlers_disconnect_by_func(gtk_widget_get_screen(widget), G_CALLBACK(on_widget_monitors_changed), canvas);
 
     CANVAS_LOCK();
-    
+
     /* Remove and dealloc the child view */
     vice_opengl_renderer_destroy_child_view(context);
-        
+
     CANVAS_UNLOCK();
 }
 
@@ -230,7 +212,7 @@ static void on_widget_resized(GtkWidget *widget, GtkAllocation *allocation, gpoi
     video_canvas_t *canvas = data;
     context_t *context;
     gint gtk_scale;
-    
+
     CANVAS_LOCK();
 
     context = canvas->renderer_context;
@@ -239,20 +221,20 @@ static void on_widget_resized(GtkWidget *widget, GtkAllocation *allocation, gpoi
         return;
     }
 
-#ifdef MACOSX_SUPPORT
+#ifdef MACOS_COMPILE
     /* The content area coordinates include the menu on macOS */
     gtk_widget_translate_coordinates(widget, gtk_widget_get_toplevel(widget), 0, 0, &context->native_view_x, &context->native_view_y);
 #endif
-    
+
     context->native_view_width = allocation->width;
     context->native_view_height = allocation->height;
 
     gtk_scale = gtk_widget_get_scale_factor(widget);
     context->gl_backing_layer_width     = context->native_view_width    * gtk_scale;
     context->gl_backing_layer_height    = context->native_view_height   * gtk_scale;
-    
+
     /* Set the background colour */
-    if (ui_is_fullscreen()) {
+    if (ui_is_fullscreen_from_canvas(canvas)) {
         context->native_view_bg_r = 0.0f;
         context->native_view_bg_g = 0.0f;
         context->native_view_bg_b = 0.0f;
@@ -262,10 +244,10 @@ static void on_widget_resized(GtkWidget *widget, GtkAllocation *allocation, gpoi
         context->native_view_bg_b = 0.5f;
     }
 
+    CANVAS_UNLOCK();
+
     /* Update the size of the native child window to match the gtk drawing area */
     vice_opengl_renderer_resize_child_view(context);
-
-    CANVAS_UNLOCK();
 }
 
 static void on_widget_monitors_changed(GdkScreen *screen, gpointer data)
@@ -306,7 +288,7 @@ static void vice_opengl_update_context(video_canvas_t *canvas, unsigned int widt
     context->emulated_width_next = width;
     context->emulated_height_next = height;
     context->pixel_aspect_ratio_next = canvas->geometry->pixel_aspect_ratio;
-    
+
     CANVAS_UNLOCK();
 }
 
@@ -319,9 +301,9 @@ static void vice_opengl_refresh_rect(video_canvas_t *canvas,
     context_t *context;
     backbuffer_t *backbuffer;
     int pixel_data_size_bytes;
-    
+
     CANVAS_LOCK();
-    
+
     context = canvas->renderer_context;
     if (!context || !context->render_queue) {
         CANVAS_UNLOCK();
@@ -340,10 +322,12 @@ static void vice_opengl_refresh_rect(video_canvas_t *canvas,
     backbuffer->width = context->emulated_width_next;
     backbuffer->height = context->emulated_height_next;
     backbuffer->pixel_aspect_ratio = context->pixel_aspect_ratio_next;
+    backbuffer->interlaced = canvas->videoconfig->interlaced;
+    backbuffer->interlace_field = canvas->videoconfig->interlace_field;
 
     CANVAS_UNLOCK();
 
-    video_canvas_render(canvas, backbuffer->pixel_data, w, h, xs, ys, xi, yi, backbuffer->width * 4, 32);
+    video_canvas_render(canvas, backbuffer->pixel_data, w, h, xs, ys, xi, yi, backbuffer->width * 4);
 
     CANVAS_LOCK();
     if (context->render_thread) {
@@ -357,7 +341,7 @@ static void vice_opengl_refresh_rect(video_canvas_t *canvas,
 }
 
 
-#ifdef MACOSX_SUPPORT
+#ifdef MACOS_COMPILE
 static void macos_set_host_mouse_visibility(GtkWindow *gtk_window)
 {
     /*
@@ -371,37 +355,37 @@ static void macos_set_host_mouse_visibility(GtkWindow *gtk_window)
      *
      * TODO: find a way to make this event driven on gdk window focus changes.
      */
-    
+
     static bool hiding_mouse = false;
-    
+
     bool should_hide_mouse = false;
     gboolean is_window_active;
     int mouse_grab;
     GList *list;
     GdkWindow *gdk_window;
     int i;
-    
+
     is_window_active = gtk_window_is_active(gtk_window);
     resources_get_int("Mouse", &mouse_grab);
-    
+
     if (mouse_grab && is_window_active) {
-        
+
         should_hide_mouse = true;
-        
+
         /*
          * Only hide the mouse if no secondary top levels are visible. For example it is
          * possible to make the emu window active when the settings dialog or monitor
          * are open, and hiding the mouse in these cases would be confusing.
          */
-        
+
         for (list = gtk_window_list_toplevels(); list != NULL && should_hide_mouse; list = list->next) {
-            
+
             gdk_window = gtk_widget_get_window(list->data);
-            
+
             if (!gdk_window || !gdk_window_is_visible(gdk_window)) {
                 continue;
             }
-            
+
             /* There's a visible window, only allow the hide if the window is a primary ui window */
             should_hide_mouse = false;
             for (i = 0; i < NUM_WINDOWS; i++) {
@@ -412,7 +396,7 @@ static void macos_set_host_mouse_visibility(GtkWindow *gtk_window)
             }
         }
     }
-    
+
     if (should_hide_mouse) {
         if (!hiding_mouse) {
             CGDisplayHideCursor(kCGNullDirectDisplay);
@@ -431,7 +415,7 @@ static void macos_set_host_mouse_visibility(GtkWindow *gtk_window)
 static void vice_opengl_on_ui_frame_clock(GdkFrameClock *clock, video_canvas_t *canvas)
 {
     context_t *context = canvas->renderer_context;
-    
+
     ui_update_statusbars();
 
     CANVAS_LOCK();
@@ -445,10 +429,10 @@ static void vice_opengl_on_ui_frame_clock(GdkFrameClock *clock, video_canvas_t *
      * a redraw on that sort of event. It's not as simple as catching the GTK draw
      * signal, because we have our own native Xlib window/NSView added over the top
      * of the GTK/GDK window.
-     * 
+     *
      * So, each GdkFrameClock event, check if we are currently paused, and if we
      * are, queue up a refresh of the existing emu frame.
-     * 
+     *
      * This ensures that resizing while paused doesn't glitch like busy win95,
      * and also fixes various issues on some crappy X11 setups :)
      */
@@ -457,178 +441,75 @@ static void vice_opengl_on_ui_frame_clock(GdkFrameClock *clock, video_canvas_t *
         render_thread_push_job(context->render_thread, render_thread_render);
     }
 
-#ifdef MACOSX_SUPPORT
+#ifdef MACOS_COMPILE
     GtkWindow *window = GTK_WINDOW(gtk_widget_get_toplevel(canvas->event_box));
-    
+
     CANVAS_UNLOCK();
-    
+
     macos_set_host_mouse_visibility(window);
 #else
     CANVAS_UNLOCK();
 #endif
 }
 
-static void render(void *job_data, void *pool_data)
+static void update_frame_textures(context_t *context, backbuffer_t *backbuffer)
 {
-    render_job_t job = (render_job_t)(int)(long long int)job_data;
-    video_canvas_t *canvas = pool_data;
-    vice_opengl_renderer_context_t *context = (vice_opengl_renderer_context_t *)canvas->renderer_context;
-    backbuffer_t *backbuffer;
-    unsigned int backbuffer_width;
-    unsigned int backbuffer_height;
-    float backbuffer_pixel_aspect_ratio;
-    int filter = 1;
-    int vsync = 1;
-    int keepaspect = 1;
-    int trueaspect = 0;
-    float scale_x;
-    float scale_y;
+    /*
+     * Update the OpenGL texture with the new backbuffer bitmap
+     */
 
-    if (job == render_thread_init) {
-        archdep_thread_init();
-
-#if defined(MACOSX_SUPPORT)
-        vice_macos_set_render_thread_priority();
-#elif defined(__linux__)
-        /* TODO: Linux thread prio stuff, need root or some 'capability' though */
-#else
-        /* TODO: BSD thread prio stuff */
-#endif
-
-        log_message(LOG_DEFAULT, "Render thread initialised");
-        return;
+    if (backbuffer->interlace_field != context->current_interlace_field) {
+        /* Retain the previous texture to use in interlaced mode */
+        GLuint swap_texture                 = context->previous_frame_texture;
+        context->previous_frame_texture     = context->current_frame_texture;
+        context->previous_frame_width       = context->current_frame_width;
+        context->previous_frame_height      = context->current_frame_height;
+        context->current_frame_texture      = swap_texture;
+        context->current_interlace_field    = backbuffer->interlace_field;
     }
-    
-    if (job == render_thread_shutdown) {
-        archdep_thread_shutdown();
-        log_message(LOG_DEFAULT, "Render thread shutdown");
-        return;
-    }
+
+    context->current_frame_width    = backbuffer->width;
+    context->current_frame_height   = backbuffer->height;
+    context->interlaced             = backbuffer->interlaced;
+    context->pixel_aspect_ratio     = backbuffer->pixel_aspect_ratio;
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, context->current_frame_texture);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, backbuffer->width);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, backbuffer->width, backbuffer->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, backbuffer->pixel_data);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+static void legacy_render(context_t *context, float scale_x, float scale_y)
+{
+    /* Used when OpenGL 3.2+ is NOT available */
+
+    int filter;
+    GLuint gl_filter;
+
+    float u1 = 0.0f;
+    float v1 = 0.0f;
+    float u2 = 1.0f;
+    float v2 = 1.0f;
 
     resources_get_int("GTKFilter", &filter);
-    resources_get_int("VSync", &vsync);
-    resources_get_int("KeepAspectRatio", &keepaspect);
-    resources_get_int("TrueAspectRatio", &trueaspect);
 
-    backbuffer = render_queue_dequeue_for_display(context->render_queue);
-    
-    CANVAS_LOCK();
+    /* We only support builtin linear and nearest on legacy OpenGL contexts */
+    gl_filter = filter ? GL_LINEAR : GL_NEAREST;
 
-    if (backbuffer) {
-        backbuffer_width                = backbuffer->width;
-        backbuffer_height               = backbuffer->height;
-        backbuffer_pixel_aspect_ratio   = backbuffer->pixel_aspect_ratio;
+    glDisable(GL_LIGHTING);
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_TEXTURE_2D);
+    glActiveTexture(GL_TEXTURE0);
 
-        /* cache this backbuffer size for use during resize */
-        context->emulated_width_last_rendered       = backbuffer_width;
-        context->emulated_height_last_rendered      = backbuffer_height;
-        context->pixel_aspect_ratio_last_rendered   = backbuffer_pixel_aspect_ratio;
-        context->last_render_time                   = tick_now();
-    } else {
-        /* Use the last rendered frame size and ratio for layout */
-        backbuffer_width                = context->emulated_width_last_rendered;
-        backbuffer_height               = context->emulated_height_last_rendered;
-        backbuffer_pixel_aspect_ratio   = context->pixel_aspect_ratio_last_rendered;
-    }
-
-    /* This happens during startup, before an initial frame is rendered */
-    if (!backbuffer_width || !backbuffer_height) {
-        CANVAS_UNLOCK();
-
-        if (backbuffer) {
-            render_queue_return_to_pool(context->render_queue, backbuffer);
-        }
-
-        return;
-    }
-    
-    /* Recalculate layout */
-
-    if (keepaspect) {
-        float viewport_aspect;
-        float emulated_aspect;       
-
-        viewport_aspect = (float)context->native_view_width / (float)context->native_view_height;
-        emulated_aspect = (float)backbuffer_width / (float)backbuffer_height;
-
-        if (trueaspect) {
-            emulated_aspect *= backbuffer_pixel_aspect_ratio;
-        }
-
-        if (emulated_aspect < viewport_aspect) {
-            scale_x = emulated_aspect / viewport_aspect;
-            scale_y = 1.0f;
-        } else {
-            scale_x = 1.0f;
-            scale_y = viewport_aspect / emulated_aspect;
-        }
-    } else {
-        scale_x = 1.0f;
-        scale_y = 1.0f;
-    }
-
-    canvas->screen_display_w = (float)context->native_view_width  * scale_x;
-    canvas->screen_display_h = (float)context->native_view_height * scale_y;
-    canvas->screen_origin_x = ((float)context->native_view_width  - canvas->screen_display_w) / 2.0;
-    canvas->screen_origin_y = ((float)context->native_view_height - canvas->screen_display_h) / 2.0;
-
-    /* Calculate the minimum drawing area size to be enforced by gtk */
-    if (keepaspect && trueaspect) {
-        context->native_view_min_width = ceil((float)backbuffer_width * backbuffer_pixel_aspect_ratio);
-        context->native_view_min_height = backbuffer_height;
-    } else {
-        context->native_view_min_width = backbuffer_width;
-        context->native_view_min_height = backbuffer_height;
-    }
-
-    RENDER_LOCK();
-    
-    CANVAS_UNLOCK();
-
-    vice_opengl_renderer_make_current(context);
-    vice_opengl_renderer_set_viewport(context);
-
-    if (vsync != context->cached_vsync_resource) {
-        vice_opengl_renderer_set_vsync(context, vsync ? true : false);
-        context->cached_vsync_resource = vsync;
-    }
-
-    glClearColor(context->native_view_bg_r, context->native_view_bg_g, context->native_view_bg_b, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    /* Update the OpenGL texture with the new backbuffer bitmap */
-    if (backbuffer) {
-        glBindTexture(GL_TEXTURE_2D, context->texture);
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        glPixelStorei(GL_UNPACK_ROW_LENGTH, backbuffer_width);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, backbuffer_width, backbuffer_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, backbuffer->pixel_data);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter ? GL_LINEAR : GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter ? GL_LINEAR : GL_NEAREST);
-        glBindTexture(GL_TEXTURE_2D, 0);
-    }
-
-    if (context->gl_context_is_legacy) {
-        /* Legacy renderer */
-        float u1;
-        float v1;
-        float u2;
-        float v2;
-        
-        glDisable(GL_LIGHTING);
-        glDisable(GL_DEPTH_TEST);
-        glEnable(GL_TEXTURE_2D);
-        glBindTexture(GL_TEXTURE_2D, context->texture);
-        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-        
-        /* TODO: Figure out if half-pixel correction in unused_opengl_renderer.c still needed */
-        u1 = 0.0f;
-        u2 = 1.0f;
-        v1 = 0.0f;
-        v2 = 1.0f;
+    if (context->interlaced) {
+        glBindTexture(GL_TEXTURE_2D, context->previous_frame_texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter);
 
         glBegin(GL_TRIANGLE_STRIP);
         glTexCoord2f(u1, v2);
@@ -641,80 +522,283 @@ static void render(void *job_data, void *pool_data)
         glVertex2f(scale_x, scale_y);
         glEnd();
 
-        glBindTexture(GL_TEXTURE_2D, 0);
-        glDisable(GL_TEXTURE_2D);
-    } else {
-        /* Modern renderer */
-        GLuint scale_uniform, valid_tex_uniform, tex_size_uniform;
-        GLuint sampler_uniform;
-        
-        glUseProgram(context->program);
-        
-        glBindVertexArray(context->vao);
-        glBindBuffer(GL_ARRAY_BUFFER, context->vbo);
-        glEnableVertexAttribArray(0);
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(context->position_index, 4, GL_FLOAT, GL_FALSE, 0, 0);
-        glVertexAttribPointer(context->tex_coord_index, 2, GL_FLOAT, GL_FALSE, 0, (void*)64);
-        
-        /** \todo cache the uniform locations along with the vertex attributes */
-        scale_uniform = glGetUniformLocation(context->program, "scale");
-        valid_tex_uniform = glGetUniformLocation(context->program, "validTex");
-        tex_size_uniform = glGetUniformLocation(context->program, "texSize");
-        sampler_uniform = glGetUniformLocation(context->program, "sampler");
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    }
 
-        glUniform4f(scale_uniform, scale_x, scale_y, 1.0f, 1.0f);
-        glUniform2f(valid_tex_uniform, context->native_view_width, context->native_view_height);
-        glUniform2f(tex_size_uniform, context->native_view_width, context->native_view_height);
-        glUniform1i(sampler_uniform, 0);
-        
-        glBindTexture(GL_TEXTURE_2D, context->texture);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindTexture(GL_TEXTURE_2D, context->current_frame_texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter);
+
+    glBegin(GL_TRIANGLE_STRIP);
+    glTexCoord2f(u1, v2);
+    glVertex2f(-scale_x, -scale_y);
+    glTexCoord2f(u2, v2);
+    glVertex2f(scale_x, -scale_y);
+    glTexCoord2f(u1, v1);
+    glVertex2f(-scale_x, scale_y);
+    glTexCoord2f(u2, v1);
+    glVertex2f(scale_x, scale_y);
+    glEnd();
+
+    if(context->interlaced) {
+        glDisable(GL_BLEND);
+    }
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glDisable(GL_TEXTURE_2D);
+}
+
+static void modern_render(context_t *context, float scale_x, float scale_y)
+{
+    /* Used when OpenGL 3.2+ is available */
+
+    int filter;
+    GLint gl_filter;
+
+    GLuint program;
+    GLuint position_attribute;
+    GLuint tex_coord_attribute;
+    GLuint scale_uniform;
+    GLuint view_size_uniform;
+    GLuint source_size_uniform;
+    GLuint this_frame_uniform;
+    GLuint last_frame_uniform;
+
+    resources_get_int("GTKFilter", &filter);
+
+    /* For shader filters, we start with nearest neighbor. So only use linear if directly requested. */
+    gl_filter = filter == 1 ?  GL_LINEAR : GL_NEAREST;
+
+    /* Choose the appropriate shader */
+    if (context->interlaced) {
+        if (filter == 2) {
+            program = context->shader_bicubic_interlaced;
+        } else {
+            program = context->shader_builtin_interlaced;
+        }
+    } else {
+        if (filter == 2) {
+            program = context->shader_bicubic;
+        } else {
+            program = context->shader_builtin;
+        }
+    }
+
+    glUseProgram(program);
+
+    position_attribute  = glGetAttribLocation(program, "position");
+    tex_coord_attribute = glGetAttribLocation(program, "tex");
+    scale_uniform       = glGetUniformLocation(program, "scale");
+    view_size_uniform   = glGetUniformLocation(program, "view_size");
+    source_size_uniform = glGetUniformLocation(program, "source_size");
+    this_frame_uniform  = glGetUniformLocation(program, "this_frame");
+
+    if (context->interlaced) {
+        last_frame_uniform  = glGetUniformLocation(program, "last_frame");
+    }
+
+    glDisable(GL_BLEND);
+    glBindVertexArray(context->vao);
+    glBindBuffer(GL_ARRAY_BUFFER, context->vbo);
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(position_attribute,  4, GL_FLOAT, GL_FALSE, 0, 0);
+    glVertexAttribPointer(tex_coord_attribute, 2, GL_FLOAT, GL_FALSE, 0, (void*)64);
+
+    glUniform4f(scale_uniform, scale_x, scale_y, 1.0f, 1.0f);
+    glUniform2f(view_size_uniform, context->native_view_width, context->native_view_height);
+    glUniform2f(source_size_uniform, context->current_frame_width, context->current_frame_height);
+
+    if (context->interlaced) {
+        glUniform1i(last_frame_uniform, 0);
+        glUniform1i(this_frame_uniform, 1);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, context->previous_frame_texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter);
+
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, context->current_frame_texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter);
+    } else {
+        glUniform1i(this_frame_uniform, 0);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, context->current_frame_texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter);
+    }
+
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    if (context->interlaced) {
         glBindTexture(GL_TEXTURE_2D, 0);
-        
-        glDisableVertexAttribArray(context->position_index);
-        glDisableVertexAttribArray(context->tex_coord_index);
-        glUseProgram(0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, 0);
+    } else {
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+
+    glDisableVertexAttribArray(position_attribute);
+    glDisableVertexAttribArray(tex_coord_attribute);
+
+    glUseProgram(0);
+}
+
+static void render(void *job_data, void *pool_data)
+{
+    render_job_t job = (render_job_t)vice_ptr_to_int(job_data);
+    video_canvas_t *canvas = pool_data;
+    vice_opengl_renderer_context_t *context = (vice_opengl_renderer_context_t *)canvas->renderer_context;
+    backbuffer_t *backbuffer;
+    int vsync = 1;
+    int keepaspect = 1;
+    int trueaspect = 0;
+    float scale_x = 1.0f;
+    float scale_y = 1.0f;
+
+    if (job == render_thread_init) {
+        archdep_thread_init();
+
+#if defined(MACOS_COMPILE)
+        vice_macos_set_render_thread_priority();
+#elif defined(LINUX_COMPILE)
+        /* TODO: Linux thread prio stuff, need root or some 'capability' though */
+#else
+        /* TODO: BSD thread prio stuff */
+#endif
+
+        log_message(LOG_DEFAULT, "Render thread initialised");
+        return;
+    }
+
+    if (job == render_thread_shutdown) {
+        archdep_thread_shutdown();
+        log_message(LOG_DEFAULT, "Render thread shutdown");
+        return;
+    }
+
+    CANVAS_LOCK();
+    backbuffer = render_queue_dequeue_for_display(context->render_queue);
+
+    if (context->render_skip) {
+        if (backbuffer) {
+            render_queue_return_to_pool(context->render_queue, backbuffer);
+        }
+        CANVAS_UNLOCK();
+        return;
+    }
+
+    RENDER_LOCK();
+
+    vice_opengl_renderer_make_current(context);
+
+    if (backbuffer) {
+        /* Upload the frame(s) to the GPU and then return it */
+        update_frame_textures(context, backbuffer);
+        render_queue_return_to_pool(context->render_queue, backbuffer);
     }
 
     /*
-     * A glFlush() alone seems to work, however after the app has been in the background for a while,
-     * you see a bunch of old frames very quickly rendered in a 'catch up'. This seems to prevent that.
-     * 
-     * Also, using glFlush() results in incorrect transition to fullscreen when paused (X11).
+     * Recalculate layout
      */
-    
-    glFinish();
-    
+
+    resources_get_int("KeepAspectRatio", &keepaspect);
+    resources_get_int("TrueAspectRatio", &trueaspect);
+
+    if (keepaspect) {
+        float viewport_aspect;
+        float emulated_aspect;
+
+        viewport_aspect = (float)context->native_view_width / (float)context->native_view_height;
+        emulated_aspect = (float)context->current_frame_width / (float)context->current_frame_height;
+
+        if (trueaspect) {
+            emulated_aspect *= context->pixel_aspect_ratio;
+        }
+
+        if (emulated_aspect < viewport_aspect) {
+            scale_x = emulated_aspect / viewport_aspect;
+            scale_y = 1.0f;
+        } else {
+            scale_x = 1.0f;
+            scale_y = viewport_aspect / emulated_aspect;
+        }
+    }
+
+    canvas->screen_display_w = (float)context->native_view_width  * scale_x;
+    canvas->screen_display_h = (float)context->native_view_height * scale_y;
+    canvas->screen_origin_x = ((float)context->native_view_width  - canvas->screen_display_w) / 2.0;
+    canvas->screen_origin_y = ((float)context->native_view_height - canvas->screen_display_h) / 2.0;
+
+    /* Calculate the minimum drawing area size to be enforced by gtk */
+    if (keepaspect && trueaspect) {
+        context->native_view_min_width  = ceil((float)context->current_frame_width * context->pixel_aspect_ratio);
+        context->native_view_min_height = context->current_frame_height;
+    } else {
+        context->native_view_min_width  = context->current_frame_width;
+        context->native_view_min_height = context->current_frame_height;
+    }
+
+    context->last_render_time = tick_now();
+
+    CANVAS_UNLOCK();
+
+    vice_opengl_renderer_set_viewport(context);
+
+    /* Enable or disable vsync as needed */
+    resources_get_int("VSync", &vsync);
+
+    if (vsync != context->cached_vsync_resource) {
+        vice_opengl_renderer_set_vsync(context, vsync ? true : false);
+        context->cached_vsync_resource = vsync;
+    }
+
+    /* Begin with a cleared framebuffer */
+    glClearColor(context->native_view_bg_r, context->native_view_bg_g, context->native_view_bg_b, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    /* Invoke the appropriate renderer */
+    if (context->gl_context_is_legacy) {
+        legacy_render(context, scale_x, scale_y);
+    } else {
+        modern_render(context, scale_x, scale_y);
+    }
+
     vice_opengl_renderer_present_backbuffer(context);
+    glFinish();
 
     vice_opengl_renderer_clear_current(context);
-    
-    RENDER_UNLOCK();
 
-    if (backbuffer) {
-        render_queue_return_to_pool(context->render_queue, backbuffer);
-    }
+    RENDER_UNLOCK();
 }
 
 static void vice_opengl_set_palette(video_canvas_t *canvas)
 {
     int i;
+    video_render_color_tables_t *color_tables = &canvas->videoconfig->color_tables;
     struct palette_s *palette = canvas ? canvas->palette : NULL;
+
     if (!palette) {
         return;
     }
-    
+
     for (i = 0; i < palette->num_entries; i++) {
         palette_entry_t color = palette->entries[i];
         uint32_t color_code = color.red | (color.green << 8) | (color.blue << 16) | (0xffU << 24);
         video_render_setphysicalcolor(canvas->videoconfig, i, color_code, 32);
     }
 
+#ifdef WORDS_BIGENDIAN
     for (i = 0; i < 256; i++) {
-        video_render_setrawrgb(i, i, i << 8, i << 16);
+        video_render_setrawrgb(color_tables, i, i << 24, i << 16, i << 8);
     }
-    video_render_setrawalpha(0xffU << 24);
+    video_render_setrawalpha(color_tables, 0xffU);
+#else
+    for (i = 0; i < 256; i++) {
+        video_render_setrawrgb(color_tables, i, i, i << 8, i << 16);
+    }
+    video_render_setrawalpha(color_tables, 0xffU << 24);
+#endif
     video_render_initraw(canvas->videoconfig);
 }
 
@@ -754,27 +838,69 @@ static GLuint create_shader(GLenum shader_type, const char *text)
 
         log_error(LOG_DEFAULT, "Compile failure in %s shader:\n%s\n", shader_type_name, info_log);
         lib_free(info_log);
+
+        archdep_vice_exit(1);
     }
 
     return shader;
 }
 
-/** \brief Compile and link the renderer's shaders.
- *
- *  If successful, the vice_opengl_renderer_context_s::program,
- *  vice_opengl_renderer_context_s::position_index, and
- *  vice_opengl_renderer_context_s::tex_coord_index fields will be
- *  filled in with values for future use.
- *
- *  \param ctx The renderer context that will receive the results.
+/** \brief Compile and return a gl program for the given vertext and fragment shader files.
  */
-static void create_shader_program(context_t *context)
+static GLuint create_shader_program(char *vertex_shader_filename, char *fragment_shader_filename)
 {
-    GLuint program = glCreateProgram();
-    GLuint vert = create_shader(GL_VERTEX_SHADER, vertexShader);
-    GLuint frag = create_shader(GL_FRAGMENT_SHADER, fragmentShader);
+    char *vertex_shader;
+    char *fragment_shader;
+    GLuint program;
+    GLuint vert;
+    GLuint frag;
     GLint status;
+    FILE *fd;
+    char *path;
 
+    /* Load the vertex shader */
+
+    fd = sysfile_open(vertex_shader_filename, "GLSL", &path, "rb");
+    if (fd == NULL) {
+        log_error(LOG_DEFAULT, "Could not open vertex shader: %s", vertex_shader_filename);
+        archdep_vice_exit(1);
+    }
+
+    log_message(LOG_DEFAULT, "Loading vertex shader: %s", path);
+
+    if (util_file_load_string(fd, &vertex_shader)) {
+        log_error(LOG_DEFAULT, "Could not read vertex shader: %s", path);
+        fclose(fd);
+        lib_free(path);
+        archdep_vice_exit(1);
+    }
+    fclose(fd);
+    lib_free(path);
+
+    /* Load the fragment shader */
+
+    fd = sysfile_open(fragment_shader_filename, "GLSL", &path, "rb");
+    if (fd == NULL) {
+        log_error(LOG_DEFAULT, "Could not open fragment shader: %s", fragment_shader_filename);
+        archdep_vice_exit(1);
+    }
+
+    log_message(LOG_DEFAULT, "Loading fragment shader: %s", path);
+
+    if (util_file_load_string(fd, &fragment_shader)) {
+        log_error(LOG_DEFAULT, "Could not read fragment shader: %s", path);
+        fclose(fd);
+        lib_free(path);
+        lib_free(vertex_shader);
+        archdep_vice_exit(1);
+    }
+    fclose(fd);
+    lib_free(path);
+
+    vert = create_shader(GL_VERTEX_SHADER, vertex_shader);
+    frag = create_shader(GL_FRAGMENT_SHADER, fragment_shader);
+
+    program = glCreateProgram();
     glAttachShader(program, vert);
     glAttachShader(program, frag);
     glLinkProgram(program);
@@ -789,13 +915,17 @@ static void create_shader_program(context_t *context)
         glGetProgramInfoLog(program, info_log_length, NULL, info_log);
         log_error(LOG_DEFAULT, "Linker failure: %s\n", info_log);
         lib_free(info_log);
+        lib_free(fragment_shader);
+        lib_free(vertex_shader);
+        archdep_vice_exit(1);
     }
 
-    glDeleteShader(vert);
     glDeleteShader(frag);
-    context->position_index = glGetAttribLocation(program, "position");
-    context->tex_coord_index = glGetAttribLocation(program, "tex");
-    context->program = program;
+    glDeleteShader(vert);
+    lib_free(fragment_shader);
+    lib_free(vertex_shader);
+
+    return program;
 }
 
 /******/

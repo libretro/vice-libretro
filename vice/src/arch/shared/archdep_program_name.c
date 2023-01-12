@@ -47,12 +47,12 @@
 # include <unistd.h>
 #endif
 
-#ifdef MACOSX_SUPPORT
+#ifdef MACOS_COMPILE
 # include <libproc.h>
 #endif
 
 /* for GetModuleFileName() */
-#ifdef WIN32_COMPILE
+#ifdef WINDOWS_COMPILE
 # include "windows.h"
 #endif
 
@@ -64,20 +64,20 @@
 
 /** \brief  Program name
  *
- * Heap allocated on the first call, must be free when exiting the program
- * with lib_free().
+ * Heap allocated on the first call to #archdep_program_name(), must be freed
+ * with #archdep_program_name_free() on emulator shutdown.
  */
 static char *program_name = NULL;
 
 
-#ifdef ARCHDEP_OS_WINDOWS
+#ifdef WINDOWS_COMPILE
 /** \brief  Helper function for Windows
  *
  * \param[in]   buf string to parse binary name from
  *
- * \return  heap-allocated binary name, free with lib_free()
+ * \return  binary name
  *
- * \todo    Rename!
+ * \note    free after use with lib_free().
  */
 static char *prg_name_win32(const char *buf)
 {
@@ -111,7 +111,9 @@ static char *prg_name_win32(const char *buf)
  *
  * \param[in]   buf string to parse binary name from
  *
- * \return  heap-allocated binary name, free with lib_free()
+ * \return  binary name
+ *
+ * \note    free after use with lib_free().
  */
 static char *prg_name_unix(const char *buf)
 {
@@ -130,10 +132,11 @@ static char *prg_name_unix(const char *buf)
 
 /** \brief  Get name of the currently running binary
  *
- * Allocates the name on the first call, this must be free with lib_free()
- * when exiting the program.
+ * Get the name of the running binary, striped from path and extension.
  *
  * \return  program name
+ *
+ * \note    Use #archdep_program_name_free on emulator shutdown to free memory.
  */
 const char *archdep_program_name(void)
 {
@@ -144,43 +147,24 @@ const char *archdep_program_name(void)
         return program_name;
     }
 
-
     execpath = archdep_program_path();
-    if (execpath == NULL) {
-        log_error(LOG_ERR, "bollocks");
-        archdep_vice_exit(1);
-    }
 
-#ifdef UNIX_COMPILE
-    /* XXX: Only works on Linux, support for *BSD, Solaris and MacOS to be
-     *      added later:
-     *
-     *      MacOS:      _NSGetExecutablePath()
-     *      Solaris:    getexecname()
-     *      FreeBSD:    sysctl CTL_KERN_PROC KERN_PROC_PATHNAME - 1 (???)
-     *      NetBSD:     readlink /proc/curproc/exe
-     *      DFlyBSD:    readlink /proc/curproc/file
-     *      OpenBSD:    ???
-     */
-
+#if defined(UNIX_COMPILE) || defined(BEOS_COMPILE)
     program_name = prg_name_unix(execpath);
 #endif
 
-#ifdef ARCHDEP_OS_WINDOWS
+#ifdef WINDOWS_COMPILE
     program_name = prg_name_win32(execpath);
 #endif
 
-#ifdef BEOS_COMPILE
-    program_name = prg_name_unix(execpath);
-#endif
-#if 0
-    printf("%s: got program name '%s'\n", __func__, program_name);
-#endif
+    /* returns NULL on systems other than Windows/Unix */
     return program_name;
 }
 
 
 /** \brief  Free program name
+ *
+ * This function must be called on emulator shutdown to free the program name.
  */
 void archdep_program_name_free(void)
 {

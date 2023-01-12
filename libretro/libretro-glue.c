@@ -46,7 +46,7 @@ void remove_recurse(const char *path)
       if (dirp->d_name[0] == '.')
          continue;
 
-      sprintf(filename, "%s%s%s", path, FSDEV_DIR_SEP_STR, dirp->d_name);
+      sprintf(filename, "%s%s%s", path, ARCHDEP_DIR_SEP_STR, dirp->d_name);
       log_cb(RETRO_LOG_INFO, "Clean: %s\n", filename);
 
       if (path_is_directory(filename))
@@ -110,7 +110,7 @@ void m3u_scan_recurse(const char *path, zip_m3u_t *list)
 
 void path_join(char* out, const char* basedir, const char* filename)
 {
-   snprintf(out, RETRO_PATH_MAX, "%s%s%s", basedir, FSDEV_DIR_SEP_STR, filename);
+   snprintf(out, RETRO_PATH_MAX, "%s%s%s", basedir, ARCHDEP_DIR_SEP_STR, filename);
 }
 
 /* Note: This function returns a pointer to a substring_left of the original string.
@@ -247,7 +247,7 @@ void zip_uncompress(char *in, char *out, char *lastfile)
       }
 
       err = unzGetCurrentFileInfo(uf, &file_info, filename_inzip, sizeof(filename_inzip), NULL, 0, NULL, 0);
-      snprintf(filename_withpath, sizeof(filename_withpath), "%s%s%s", out, FSDEV_DIR_SEP_STR, filename_inzip);
+      snprintf(filename_withpath, sizeof(filename_withpath), "%s%s%s", out, ARCHDEP_DIR_SEP_STR, filename_inzip);
       if ((dc_get_image_type(filename_inzip) == DC_IMAGE_TYPE_FLOPPY ||
            dc_get_image_type(filename_inzip) == DC_IMAGE_TYPE_TAPE) && lastfile != NULL)
             snprintf(lastfile, RETRO_PATH_MAX, "%s", filename_inzip);
@@ -503,7 +503,7 @@ void sevenzip_uncompress(char *in, char *out, char *lastfile)
          outsize = (int64_t)outSizeProcessed;
 
          char output_path[RETRO_PATH_MAX] = {0};
-         snprintf(output_path, RETRO_PATH_MAX, "%s%s%s", out, FSDEV_DIR_SEP_STR, infile);
+         snprintf(output_path, RETRO_PATH_MAX, "%s%s%s", out, ARCHDEP_DIR_SEP_STR, infile);
          if (dc_get_image_type(output_path) == DC_IMAGE_TYPE_FLOPPY && lastfile != NULL)
             snprintf(lastfile, RETRO_PATH_MAX, "%s", path_basename(output_path));
 
@@ -519,7 +519,7 @@ void sevenzip_uncompress(char *in, char *out, char *lastfile)
             {
                output_path[j] = 0;
                path_mkdir((const char *)output_path);
-               output_path[j] = FSDEV_DIR_SEP_CHR;
+               output_path[j] = ARCHDEP_DIR_SEP_CHR;
             }
          }
 

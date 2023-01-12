@@ -34,6 +34,7 @@
 #include "joy.h"
 #include "kbd.h"
 #include "keyboard.h"
+#include "keymap.h"
 #include "menu_common.h"
 #include "types.h"
 #include "ui.h"
@@ -308,9 +309,9 @@ void sdl_vkbd_draw(void)
     }
 
     sdl_ui_invert_char(vkbd_pos_x + vkbd_x, vkbd_pos_y + vkbd_y);
-    
+
     sdl_ui_set_active_font(MENU_FONT_ASCII);
-    
+
 }
 
 int sdl_vkbd_process(ui_menu_action_t input)

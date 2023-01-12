@@ -51,7 +51,6 @@
 #include "romset.h"
 #include "screenshot.h"
 #include "signals.h"
-#include "sound.h"
 #include "sysfile.h"
 #include "uiapi.h"
 #include "vdrive.h"
@@ -59,6 +58,10 @@
 #include "vsync.h"
 
 #include "init.h"
+
+#ifdef __LIBRETRO__
+#include "sound.h"
+#endif
 
 /* #define DBGINIT */
 
@@ -226,11 +229,7 @@ int init_cmdline_options(void)
 
 int init_main(void)
 {
-#ifdef __IBMC__
-       signals_init(0);
-#else
-       signals_init(debug.do_core_dumps);
-#endif
+    signals_init(debug.do_core_dumps);
 
     romset_init();
 

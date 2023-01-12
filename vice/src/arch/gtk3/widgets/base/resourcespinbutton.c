@@ -62,20 +62,20 @@
 #include "resourcespinbutton.h"
 
 
-/** \brief  Handler for the "destroy" event of \a widget
+/** \brief  Handler for the 'destroy' event of \a widget
  *
  * Frees memory used by the copy of the resource name.
  *
- * \param[in]   widget      integer spin button
- * \param[in]   user_data   extra event data (unused)
+ * \param[in,out]   widget      integer spin button
+ * \param[in]       user_data   extra event data (unused)
  */
-static void on_spin_button_destroy(GtkWidget *spin, gpointer user_data)
+static void on_spin_button_destroy(GtkWidget *widget, gpointer user_data)
 {
-    resource_widget_free_resource_name(spin);
+    resource_widget_free_resource_name(widget);
 }
 
 
-/** \brief  Handler for the "input" event of the \a spin button
+/** \brief  Handler for the 'input' event of the \a spin button
  *
  * Checks and converts input of the \a spin button.
  *
@@ -109,7 +109,7 @@ static gint on_spin_button_input(GtkWidget *spin,
 }
 
 
-/** \brief  Handler for the "output" event of the \a spin button
+/** \brief  Handler for the 'output' event of the \a spin button
  *
  * This outputs the spin button value as a floating point value, with digits
  * depending on the "fake digits" setting.
@@ -144,8 +144,7 @@ static gboolean on_spin_button_output(GtkWidget *spin, gpointer user_data)
 }
 
 
-
-/** \brief  Handler for the "value-changed" event of \a widget
+/** \brief  Handler for the 'value-changed' event of \a widget
  *
  * Updates the resource with the current value of the spin buttton
  *
@@ -159,9 +158,6 @@ static void on_spin_button_value_changed(GtkWidget *spin, gpointer user_data)
 
     res = resource_widget_get_resource_name(spin);
     value = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spin));
-#if 0
-    debug_gtk3("setting %s to %d.", res, value);
-#endif
     if (resources_set_int(res, value) < 0) {
         log_error(LOG_ERR, "failed to set resource '%s' to %d\n", res, value);
     }
@@ -170,7 +166,7 @@ static void on_spin_button_value_changed(GtkWidget *spin, gpointer user_data)
 
 /** \brief  Create integer spin button to control a resource - helper
  *
- * \param[in]   spin    spin button
+ * \param[in,out]   spin    spin button
  *
  * \return  GtkSpinButton
  */
@@ -212,7 +208,6 @@ static GtkWidget *resource_spin_int_new_helper(GtkWidget *spin)
 }
 
 
-
 /** \brief  Create integer spin button to control \a resource
  *
  * \param[in]   resource    resource name
@@ -237,8 +232,10 @@ GtkWidget *vice_gtk3_resource_spin_int_new(
 
     /* store current resource value for use in reset() */
     if (resources_get_int(resource, &current) < 0) {
-        debug_gtk3("failed to get current value for resource '%s', defaulting"
-                " to 0.", resource);
+        log_error(LOG_ERR,
+                "failed to get current value for resource '%s', defaulting"
+                " to 0.",
+                resource);
         current = 0;
     }
     resource_widget_set_int(spin, "ResourceOrig", current);
@@ -303,6 +300,8 @@ void vice_gtk3_resource_spin_int_set_fake_digits(
  *
  * \param[in,out]   widget  integer spin button
  * \param[in]       value   new value for the spin button
+ *
+ * \return  TRUE
  */
 gboolean vice_gtk3_resource_spin_int_set(GtkWidget *widget, int value)
 {
@@ -316,16 +315,13 @@ gboolean vice_gtk3_resource_spin_int_set(GtkWidget *widget, int value)
  * \param[in]   widget  integer spin button
  * \param[out]  value   object to store value
  *
- * \return  bool
- *
- * \note    If this function returns false, \a *value is set to 0.
+ * \return  TRUE if \a value was set
  */
 gboolean vice_gtk3_resource_spin_int_get(GtkWidget *widget, int *value)
 {
     const char *resource = resource_widget_get_resource_name(widget);
     if (resources_get_int(resource, value) < 0) {
-        debug_gtk3("failed to get value for resource '%s'.", resource);
-        *value = 0;
+        log_error(LOG_ERR, "failed to get value for resource '%s'.", resource);
         return FALSE;
     }
     return TRUE;
@@ -336,7 +332,7 @@ gboolean vice_gtk3_resource_spin_int_get(GtkWidget *widget, int *value)
  *
  * \param[in,out]   widget  integer spin button
  *
- * \return  bool
+ * \return  TRUE if the widget was reset to its original value
  */
 gboolean vice_gtk3_resource_spin_int_reset(GtkWidget *widget)
 {
@@ -349,7 +345,7 @@ gboolean vice_gtk3_resource_spin_int_reset(GtkWidget *widget)
  *
  * \param[in,out]   widget  integer spin button
  *
- * \return  bool
+ * \return  TRUE if the widget was set to its factory value
  */
 gboolean vice_gtk3_resource_spin_int_factory(GtkWidget *widget)
 {
@@ -358,7 +354,9 @@ gboolean vice_gtk3_resource_spin_int_factory(GtkWidget *widget)
 
     resource = resource_widget_get_resource_name(widget);
     if (resources_get_default_value(resource, &factory) < 0) {
-        debug_gtk3("failed to get factory value for resource '%s'.", resource);
+        log_error(LOG_ERR,
+                "failed to get factory value for resource '%s'.",
+                resource);
         return FALSE;
     }
     return vice_gtk3_resource_spin_int_set(widget, factory);
@@ -369,7 +367,7 @@ gboolean vice_gtk3_resource_spin_int_factory(GtkWidget *widget)
  *
  * \param[in,out]   widget  integer resource spinbutton
  *
- * \return  bool
+ * \return  TRUE if the widget was sychronized
  */
 gboolean vice_gtk3_resource_spin_int_sync(GtkWidget *widget)
 {

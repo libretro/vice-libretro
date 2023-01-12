@@ -39,6 +39,7 @@
 #include "menu_joystick.h"
 #include "menu_ram.h"
 #include "menu_rom.h"
+#include "menu_userport.h"
 
 #ifdef HAVE_MOUSE
 #include "menu_mouse.h"
@@ -110,12 +111,6 @@ static const ui_menu_entry_t cbm2_model_menu[] = {
     SDL_MENU_LIST_END
 };
 
-static const ui_menu_entry_t cbm5x0_model_menu[] = {
-    { "CBM 510 (PAL)", MENU_ENTRY_OTHER, select_cbm2_model_callback, (ui_callback_data_t)CBM2MODEL_510_PAL },
-    { "CBM 510 (NTSC)", MENU_ENTRY_OTHER, select_cbm2_model_callback, (ui_callback_data_t)CBM2MODEL_510_NTSC },
-    SDL_MENU_LIST_END
-};
-
 static const ui_menu_entry_t cbm2_memory_menu[] = {
     SDL_MENU_ITEM_TITLE("CBM2 memory size"),
     { "128KiB",
@@ -163,156 +158,6 @@ static const ui_menu_entry_t cbm2_memory_menu[] = {
     SDL_MENU_LIST_END
 };
 
-static const ui_menu_entry_t cbm5x0_memory_menu[] = {
-    SDL_MENU_ITEM_TITLE("CBM2 memory size"),
-    { "64KiB",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_RamSize_callback,
-      (ui_callback_data_t)64 },
-    { "128KiB",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_RamSize_callback,
-      (ui_callback_data_t)128 },
-    { "256KiB",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_RamSize_callback,
-      (ui_callback_data_t)256 },
-    { "512KiB",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_RamSize_callback,
-      (ui_callback_data_t)512 },
-    { "1MiB",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_RamSize_callback,
-      (ui_callback_data_t)1024 },
-    SDL_MENU_ITEM_SEPARATOR,
-    SDL_MENU_ITEM_TITLE("CBM2 memory blocks"),
-    { "RAM at $0800-$0FFF",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_Ram08_callback,
-      NULL },
-    { "RAM at $1000-$1FFF",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_Ram1_callback,
-      NULL },
-    { "RAM at $2000-$3FFF",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_Ram2_callback,
-      NULL },
-    { "RAM at $4000-$5FFF",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_Ram4_callback,
-      NULL },
-    { "RAM at $6000-$7FFF",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_Ram6_callback,
-      NULL },
-    { "RAM at $C000-$CFFF",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_RamC_callback,
-      NULL },
-    SDL_MENU_LIST_END
-};
-
-const ui_menu_entry_t cbm5x0_hardware_menu[] = {
-    { "Select CBM2 model",
-      MENU_ENTRY_SUBMENU,
-      submenu_radio_callback,
-      (ui_callback_data_t)cbm5x0_model_menu },
-    SDL_MENU_ITEM_SEPARATOR,
-    { "Tape port devices",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)tapeport_devices_menu },
-    { "Joyport settings",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)joyport_menu },
-    { "Joystick settings",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)joystick_menu },
-#ifdef HAVE_MOUSE
-    { "Mouse emulation",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)mouse_menu },
-#endif
-    { "SID settings",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)sid_cbm2_menu },
-    { "CIA model",
-      MENU_ENTRY_SUBMENU,
-      submenu_radio_callback,
-      (ui_callback_data_t)cia1_model_submenu },
-    { "RAM pattern settings",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)ram_menu },
-    { "ROM settings",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)cbm2_rom_menu },
-    { "CBM2 memory setting",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)cbm5x0_memory_menu },
-#if defined(HAVE_RS232DEV) || defined(HAVE_RS232NET)
-    { "RS232 settings",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)rs232_nouser_menu },
-#endif
-    SDL_MENU_LIST_END
-};
-
-UI_MENU_DEFINE_TOGGLE(UserportDAC)
-UI_MENU_DEFINE_TOGGLE(UserportDIGIMAX)
-UI_MENU_DEFINE_TOGGLE(UserportRTCDS1307)
-UI_MENU_DEFINE_TOGGLE(UserportRTCDS1307Save)
-UI_MENU_DEFINE_TOGGLE(UserportRTC58321a)
-UI_MENU_DEFINE_TOGGLE(UserportRTC58321aSave)
-UI_MENU_DEFINE_TOGGLE(Userport4bitSampler)
-UI_MENU_DEFINE_TOGGLE(Userport8BSS)
-
-static const ui_menu_entry_t userport_menu[] = {
-    SDL_MENU_ITEM_TITLE("Userport devices"),
-    { "8 bit DAC enable",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_UserportDAC_callback,
-      NULL },
-    { "DigiMAX enable",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_UserportDIGIMAX_callback,
-      NULL },
-    { "RTC (58321a) enable",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_UserportRTC58321a_callback,
-      NULL },
-    { "Save RTC (58321a) data when changed",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_UserportRTC58321aSave_callback,
-      NULL },
-    { "RTC (DS1307) enable",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_UserportRTCDS1307_callback,
-      NULL },
-    { "Save RTC (DS1307) data when changed",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_UserportRTCDS1307Save_callback,
-      NULL },
-    { "4 bit sampler enable",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_Userport4bitSampler_callback,
-      NULL },
-    { "8 bit stereo sampler enable",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_Userport8BSS_callback,
-      NULL },
-    SDL_MENU_LIST_END
-};
-
 const ui_menu_entry_t cbm6x0_7x0_hardware_menu[] = {
     { "Select CBM2 model",
       MENU_ENTRY_SUBMENU,
@@ -326,7 +171,7 @@ const ui_menu_entry_t cbm6x0_7x0_hardware_menu[] = {
     { "Joystick settings",
       MENU_ENTRY_SUBMENU,
       submenu_callback,
-      (ui_callback_data_t)joystick_userport_only_menu },
+      (ui_callback_data_t)joystick_userport_cbm2_menu },
 #ifdef HAVE_MOUSE
     { "Mouse emulation",
       MENU_ENTRY_SUBMENU,
@@ -359,7 +204,7 @@ const ui_menu_entry_t cbm6x0_7x0_hardware_menu[] = {
       submenu_callback,
       (ui_callback_data_t)rs232_nouser_menu },
 #endif
-    { "Userport devices",
+    { "Userport settings",
       MENU_ENTRY_SUBMENU,
       submenu_callback,
       (ui_callback_data_t)userport_menu },

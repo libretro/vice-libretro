@@ -34,6 +34,7 @@ extern void initcmdline_check_attach(void);
 extern int cmdline_get_autostart_mode(void);
 extern void cmdline_set_autostart_mode(int mode);
 extern void initcmdline_shutdown(void);
+
 #ifdef __LIBRETRO__
 extern const char* cmdline_get_autostart_string(void);
 extern int initcmdline_cleanup();

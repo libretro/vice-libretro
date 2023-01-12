@@ -36,6 +36,9 @@
 #include "basedialogs.h"
 
 
+/*
+ * Forward declarations
+ */
 static gboolean entry_get_int(GtkWidget *entry, int *value);
 
 
@@ -43,6 +46,8 @@ static gboolean entry_get_int(GtkWidget *entry, int *value);
  */
 static void (*confirm_cb)(GtkDialog *, gboolean);
 
+/** \brief  Callback function for the integer input dialog
+ */
 static void (*integer_cb)(GtkDialog *, int, gboolean);
 
 
@@ -55,7 +60,6 @@ static void (*integer_cb)(GtkDialog *, int, gboolean);
  */
 static void on_response_info(GtkWidget *dialog, gint response_id, gpointer data)
 {
-    debug_gtk3("Called with response_id %d", response_id);
     gtk_widget_destroy(dialog);
 }
 
@@ -68,7 +72,6 @@ static void on_response_info(GtkWidget *dialog, gint response_id, gpointer data)
  */
 static void on_response_confirm(GtkDialog *dialog, gint response_id, gpointer data)
 {
-    debug_gtk3("Called with response_id %d", response_id);
     if (response_id == GTK_RESPONSE_OK) {
         confirm_cb(dialog, TRUE);
     } else {
@@ -86,8 +89,6 @@ static void on_response_confirm(GtkDialog *dialog, gint response_id, gpointer da
  */
 static void on_response_integer(GtkDialog *dialog, gint response_id, gpointer data)
 {
-    debug_gtk3("Called with response_id %d", response_id);
-
     if (response_id == GTK_RESPONSE_ACCEPT) {
         GtkWidget *entry = data;
         int result;
@@ -113,9 +114,6 @@ static void on_response_integer(GtkDialog *dialog, gint response_id, gpointer da
  */
 static void on_response_error(GtkWidget *dialog, gint response_id, gpointer data)
 {
-    debug_gtk3("Called with response_id %d", response_id);
-
-
     gtk_widget_destroy(dialog);
 }
 
@@ -178,9 +176,9 @@ static GtkWidget *create_dialog(GtkMessageType type, GtkButtonsType buttons,
 
 
 /** \brief  Create 'info' dialog
- * \param[in]   parent      parent widget
- * \param[in[   title       dialog title
- * \param[in]   fmt         message format string and arguments
+ *
+ * \param[in]   title   dialog title
+ * \param[in]   fmt     message format string and arguments
  *
  * \return  dialog
  */
@@ -210,8 +208,7 @@ GtkWidget *vice_gtk3_message_info(const char *title,
 /** \brief  Create 'confirm' dialog
  *
  * \param[in]   callback    callback function to accept the dialog's result
- * \param[out]  result      location to store result
- * \param[in[   title       dialog title
+ * \param[in]   title       dialog title
  * \param[in]   fmt         message format string and arguments
  *
  * \return  dialog
@@ -247,14 +244,15 @@ GtkWidget *vice_gtk3_message_confirm(void (*callback)(GtkDialog *, gboolean),
 
 /** \brief  Create 'error' dialog
  *
- * \param[in[   title       dialog title
+ * \param[in]   title       dialog title
  * \param[in]   fmt         message format string and arguments
  *
  * \return  dialog
  */
 GtkWidget *vice_gtk3_message_error(const char *title,
-                                 const char *fmt, ...)
+                                   const char *fmt, ...)
 {
+    GtkWindow *active_window;
     GtkWidget *dialog;
     va_list args;
     char *buffer;
@@ -267,11 +265,20 @@ GtkWidget *vice_gtk3_message_error(const char *title,
 
     lib_free(buffer);
 
-    gtk_window_set_transient_for(GTK_WINDOW(dialog), ui_get_active_window());
-    gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
-
     g_signal_connect(dialog, "response", G_CALLBACK(on_response_error), NULL);
+
+    active_window = ui_get_active_window();
+
+    if (active_window) {
+        gtk_window_set_transient_for(GTK_WINDOW(dialog), active_window);
+        gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_CENTER_ON_PARENT);
+        gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
+    } else {
+        gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_CENTER);
+    }
+
     gtk_widget_show(dialog);
+
     return dialog;
 }
 
@@ -370,7 +377,8 @@ GtkWidget *vice_gtk3_integer_input_box(
     grid = gtk_grid_new();
     gtk_grid_set_column_spacing(GTK_GRID(grid), 16);
     gtk_grid_set_row_spacing(GTK_GRID(grid), 16);
-    g_object_set(G_OBJECT(grid), "margin-left", 16, "margin-right", 16, NULL);
+    gtk_widget_set_margin_start(grid, 16);
+    gtk_widget_set_margin_end(grid, 16);
 
     /* add body message text */
     label = gtk_label_new(message);

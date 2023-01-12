@@ -2,7 +2,7 @@
  * \brief   Widget to set the PET RAM9 area type - header
  *
  * \author  Bas Wassink <b.wassink@ziggo.nl>
- * \author  André Fachat <fachat@web.de>
+ * \author  Andre Fachat <fachat@web.de>
  */
 
 /*
@@ -32,9 +32,8 @@
 #include "vice.h"
 #include <gtk/gtk.h>
 
-GtkWidget *pet_ram9_widget_create(void);
-void pet_ram9_widget_set_callback(GtkWidget *widget,
-                                     void (*func)(int));
-void pet_ram9_widget_sync(GtkWidget *widget);
+GtkWidget * pet_ram9_widget_create(void);
+void        pet_ram9_widget_set_callback(void (*func)(int));
+void        pet_ram9_widget_sync(GtkWidget *widget);
 
 #endif

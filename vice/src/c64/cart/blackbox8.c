@@ -48,7 +48,7 @@
    Black Box V8
 
    32k or 64k, 2 or 4 16K banks
-   
+
    writing to IO2 sets the cartridge config:
    A0 - EXROM
    A1 - GAME
@@ -126,6 +126,11 @@ void blackbox8_config_setup(uint8_t *rawcart)
         memcpy(&romh_banks[0x2000 * i], &rawcart[0x2000 + (0x4000 * i)], 0x2000);
     }
     roml_bank = romh_bank = (bb8_rom_banks - 1);
+
+    /* FIXME: Triggers false positive with the static analyzer:
+     *        "The result of the left shift is undefined because the left
+     *         operand is negative"
+     */
     cart_config_changed_slotmain(CMODE_16KGAME, CMODE_16KGAME | (roml_bank << CMODE_BANK_SHIFT), CMODE_READ);
 }
 
@@ -248,7 +253,7 @@ int blackbox8_snapshot_read_module(snapshot_t *s)
 
     if (0
         || SMR_B_INT(m, &bb8_rom_banks) < 0
-        || SMR_B(m, &regval) < 0 
+        || SMR_B(m, &regval) < 0
         || SMR_BA(m, roml_banks, 0x2000 * bb8_rom_banks) < 0
         || SMR_BA(m, romh_banks, 0x2000 * bb8_rom_banks) < 0) {
         goto fail;

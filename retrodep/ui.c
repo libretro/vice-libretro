@@ -11,14 +11,16 @@
 #include "machine.h"
 #include "archdep.h"
 #include "cmdline.h"
+#include "uiapi.h"
 #include "uistatusbar.h"
 #include "resources.h"
 #include "sid.h"
 #include "sid-resources.h"
 #include "util.h"
 #include "keyboard.h"
+#include "driverom.h"
 #if !defined(__XCBM5x0__)
-#include "userport_joystick.h"
+#include "userport.h"
 #endif
 
 #if defined(__XPET__)
@@ -32,13 +34,13 @@
 #include "vic20mem.h"
 #elif defined(__X128__)
 #include "c64model.h"
+#include "c64rom.h"
 #include "c128model.h"
 #include "c128rom.h"
 #include "c128mem.h"
+#include "c128memrom.h"
 #include "c128kernal.h"
 #include "c128kernal64.h"
-BYTE c128memrom_kernal128_rom_original[C128_KERNAL_ROM_IMAGE_SIZE] = {0};
-BYTE c128memrom_kernal64_rom_original[C128_KERNAL64_ROM_SIZE] = {0};
 #elif defined(__XSCPU64__)
 #include "c64model.h"
 #include "scpu64.h"
@@ -66,9 +68,11 @@ extern void vic20mem_set(void);
 extern unsigned int opt_supercpu_kernal;
 #endif
 
+extern dc_storage* dc;
 extern bool retro_ui_finalized;
 extern unsigned int opt_jiffydos;
 extern unsigned int opt_autoloadwarp;
+extern char full_path[RETRO_PATH_MAX];
 extern char retro_system_data_directory[RETRO_PATH_MAX];
 extern retro_log_printf_t log_cb;
 
@@ -88,7 +92,16 @@ void ui_resources_shutdown(void)
 {
 }
 
-int ui_init(int argc, char **argv)
+int ui_init()
+{
+   return 0;
+}
+
+void ui_init_with_args(int *argc, char **argv)
+{
+}
+
+int ui_init_finish(void)
 {
    return 0;
 }
@@ -135,6 +148,21 @@ void ui_error(const char *format, ...)
    display_retro_message(text);
 }
 
+ui_jam_action_t ui_jam_dialog(const char *format, ...)
+{
+   char message[512];
+
+   va_list ap;
+   va_start(ap, format);
+   vsnprintf(message, sizeof(message), format, ap);
+   va_end(ap);
+
+   log_cb(RETRO_LOG_ERROR, "%s\n", message);
+   machine_trigger_reset(MACHINE_RESET_MODE_HARD);
+
+   return UI_JAM_NONE;
+}
+
 int ui_emulation_is_paused(void)
 {
    return 0;
@@ -162,9 +190,12 @@ int ui_cmdline_options_init(void)
    return cmdline_register_options(cmdline_options);
 }
 
-int ui_init_finish(void)
+void ui_actions_init(void)
 {
-   return 0;
+}
+
+void ui_actions_shutdown(void)
+{
 }
 
 extern int log_resources_set_int(const char *name, int value);
@@ -175,20 +206,132 @@ int ui_init_finalize(void)
    /* Dump machine specific defaults for 'vicerc' usage, if not already dumped */
    char resources_dump_path[RETRO_PATH_MAX] = {0};
    snprintf(resources_dump_path, sizeof(resources_dump_path), "%s%s%s%s",
-         retro_system_data_directory, FSDEV_DIR_SEP_STR, "vicerc-dump-", machine_get_name());
+         retro_system_data_directory, ARCHDEP_DIR_SEP_STR, "vicerc-dump-", machine_get_name());
    if (!util_file_exists(resources_dump_path))
       resources_dump(resources_dump_path);
+
+   /* ROM */
+#if defined(__XSCPU64__)
+   /* Replace kernal always from backup, because kernal loading replaces embedded data */
+   memcpy(scpu64rom_scpu64_rom, scpu64rom_scpu64_rom_original, SCPU64_SCPU64_ROM_MAXSIZE);
+   switch (opt_supercpu_kernal)
+   {
+      case 2:
+         log_resources_set_string("SCPU64Name", "scpu-dos-2.04.bin");
+         break;
+      case 1:
+         log_resources_set_string("SCPU64Name", "scpu-dos-1.4.bin");
+         break;
+      default:
+         log_resources_set_string("SCPU64Name", "scpu64");
+         break;
+   }
+#endif
+
+   /* JiffyDOS */
+#if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
+   /* Replace kernal always from backup, because kernal loading replaces embedded data */
+#if defined(__X64__) || defined(__X64SC__)
+   memcpy(c64memrom_kernal64_rom, c64memrom_kernal64_rom_original, C64_KERNAL_ROM_SIZE);
+#endif
+   opt_jiffydos_kernal_skip = 0;
+   if (opt_jiffydos)
+   {
+      char tmp_str[RETRO_PATH_MAX] = {0};
+      int drive_type;
+      resources_get_int("Drive8Type", &drive_type);
+
+      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, ARCHDEP_DIR_SEP_CHR, "JiffyDOS_1541-II.bin");
+      log_resources_set_string("DosName1541ii", (const char*)tmp_str);
+      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, ARCHDEP_DIR_SEP_CHR, "JiffyDOS_1571_repl310654.bin");
+      log_resources_set_string("DosName1571", (const char*)tmp_str);
+      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, ARCHDEP_DIR_SEP_CHR, "JiffyDOS_1581.bin");
+      log_resources_set_string("DosName1581", (const char*)tmp_str);
+
+#if defined(__X64__) || defined(__X64SC__)
+      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, ARCHDEP_DIR_SEP_CHR, "JiffyDOS_C64.bin");
+      log_resources_set_string("KernalName", (const char*)tmp_str);
+#elif defined(__X128__)
+      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, ARCHDEP_DIR_SEP_CHR, "JiffyDOS_C64.bin");
+      log_resources_set_string("Kernal64Name", (const char*)tmp_str);
+      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, ARCHDEP_DIR_SEP_CHR, "JiffyDOS_C128.bin");
+      log_resources_set_string("KernalIntName", (const char*)tmp_str);
+#endif
+
+#if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__)
+      /* 1541-II ROM will not work unless drive type is set back to whatever it already is ?! */
+      log_resources_set_int("Drive8Type", drive_type);
+#endif
+   }
+   else
+   {
+      log_resources_set_string("DosName1541ii", DRIVE_ROM1541II_NAME);
+      log_resources_set_string("DosName1571", DRIVE_ROM1571_NAME);
+      log_resources_set_string("DosName1581", DRIVE_ROM1581_NAME);
+#if defined(__X64__) || defined(__X64SC__)
+      log_resources_set_string("KernalName", C64_KERNAL_REV3_NAME);
+#elif defined(__X128__)
+      log_resources_set_string("Kernal64Name", C64_KERNAL_REV3_NAME);
+      log_resources_set_string("KernalIntName", C128_KERNAL_NAME);
+#endif
+   }
+#endif
+
+   /* Model */
+#if defined(__XPET__)
+   petmodel_set(vice_opt.Model);
+#elif defined(__XCBM2__) || defined(__XCBM5x0__)
+   cbm2model_set(vice_opt.Model);
+#elif defined(__XVIC__)
+   vic20model_set(vice_opt.Model);
+#elif defined(__XPLUS4__)
+   plus4model_set(vice_opt.Model);
+#elif defined(__X128__)
+   c128model_set(vice_opt.Model);
+#elif defined(__X64DTV__)
+   dtvmodel_set(vice_opt.Model);
+#else
+   c64model_set(vice_opt.Model);
+#endif
+
+#if defined(__X64__) || defined(__X64SC__)
+   /* JiffyDOS SX-64 requires setting kernal after model change */
+   if (opt_jiffydos)
+   {
+      char tmp_str[RETRO_PATH_MAX] = {0};
+      switch (vice_opt.Model)
+      {
+         case C64MODEL_C64SX_PAL:
+         case C64MODEL_C64SX_NTSC:
+            snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, ARCHDEP_DIR_SEP_CHR, "JiffyDOS_SX-64.bin");
+            log_resources_set_string("KernalName", (const char*)tmp_str);
+
+            /* Also must prevent `set_kernal_rom_name()` resetting to default kernel after restart */
+            opt_jiffydos_kernal_skip = 1;
+            break;
+         default:
+            break;
+      }
+   }
+#endif
+
+   /* Keyboard map */
+   keyboard_init();
 
    /* Mute sound at startup to hide 6581 ReSID init pop, and set back to 100 in retro_run() after 3 frames */
    resources_set_int("SoundVolume", 0);
 
    /* Sensible defaults */
    log_resources_set_int("SoundFragmentSize", SOUND_FRAGMENT_SMALL);
-   log_resources_set_int("Mouse", 1);
-   log_resources_set_int("Printer4", 1);
    log_resources_set_int("AutostartPrgMode", 1);
    log_resources_set_int("AutostartDelayRandom", 0);
    log_resources_set_int("FSDeviceLongNames", 1);
+   log_resources_set_int("Mouse", 1);
+   log_resources_set_int("Printer4", 1);
+#if !defined(__XCBM2__) && !defined(__XCBM5x0__) && !defined(__XPET__) && !defined(__XPLUS4__) && !defined(__XVIC__)
+   /* Plus/4 breaks D64 disks (?) */
+   log_resources_set_int("IECDevice4", 1);
+#endif
 
    /* Machine specific defaults */
 #if defined(__X64DTV__)
@@ -266,6 +409,11 @@ int ui_init_finalize(void)
    log_resources_set_int("CrtcPALOddLineOffset", vice_opt.FilterOddLineOffset);
 #endif
 
+#if defined(__X128__)
+   log_resources_set_int("VDCFilter", (vice_opt.VDCFilter > -1) ? 1 : 0);
+   log_resources_set_int("VDCPALBlur", vice_opt.VDCFilter);
+#endif
+
 #if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__)
    log_resources_set_int("VICIIColorGamma", vice_opt.ColorGamma);
    log_resources_set_int("VICIIColorTint", vice_opt.ColorTint);
@@ -289,130 +437,21 @@ int ui_init_finalize(void)
    /* Input */
 #if !defined(__XCBM5x0__)
    if (vice_opt.UserportJoyType == -1)
-      log_resources_set_int("UserportJoy", 0);
+      log_resources_set_int("UserportDevice", 0);
    else
-   {
-      log_resources_set_int("UserportJoyType", vice_opt.UserportJoyType);
-      log_resources_set_int("UserportJoy", 1);
-   }
+      log_resources_set_int("UserportDevice", vice_opt.UserportJoyType + USERPORT_DEVICE_JOYSTICK_CGA);
 #endif
 
    /* Media */
    log_resources_set_int("AutostartWarp", vice_opt.AutostartWarp);
-   log_resources_set_int("DriveTrueEmulation", vice_opt.DriveTrueEmulation);
-   log_resources_set_int("VirtualDevices", vice_opt.VirtualDevices);
-   log_resources_set_int("AttachDevice8Readonly", vice_opt.AttachDevice8Readonly);
+   log_resources_set_int("Drive8TrueEmulation", vice_opt.DriveTrueEmulation);
+   log_resources_set_int("Drive9TrueEmulation", vice_opt.DriveTrueEmulation);
+   log_resources_set_int("VirtualDevice8", vice_opt.VirtualDevices);
+   log_resources_set_int("VirtualDevice9", vice_opt.VirtualDevices);
+   log_resources_set_int("AttachDevice8d0Readonly", vice_opt.AttachDevice8Readonly);
+   log_resources_set_int("AttachDevice8d1Readonly", vice_opt.AttachDevice8Readonly);
 #if defined(__X64__) || defined(__X64SC__) || defined(__X128__)
    log_resources_set_int("EasyFlashWriteCRT", vice_opt.EasyFlashWriteCRT);
-#endif
-
-   /* ROM */
-#if defined(__XSCPU64__)
-   /* Replace kernal always from backup, because kernal loading replaces embedded data */
-   memcpy(scpu64rom_scpu64_rom, scpu64rom_scpu64_rom_original, SCPU64_SCPU64_ROM_MAXSIZE);
-   switch (opt_supercpu_kernal)
-   {
-      case 2:
-         log_resources_set_string("SCPU64Name", "scpu-dos-2.04.bin");
-         break;
-      case 1:
-         log_resources_set_string("SCPU64Name", "scpu-dos-1.4.bin");
-         break;
-      default:
-         log_resources_set_string("SCPU64Name", "scpu64");
-         break;
-   }
-#endif
-
-   /* JiffyDOS */
-#if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
-   /* Replace kernal always from backup, because kernal loading replaces embedded data */
-#if defined(__X64__) || defined(__X64SC__)
-   memcpy(c64memrom_kernal64_rom, c64memrom_kernal64_rom_original, C64_KERNAL_ROM_SIZE);
-#elif defined(__X128__)
-   memcpy(c128kernal64_embedded, c128memrom_kernal64_rom_original, C128_KERNAL64_ROM_SIZE);
-   memcpy(kernal_int, c128memrom_kernal128_rom_original, C128_KERNAL_ROM_IMAGE_SIZE);
-#endif
-   opt_jiffydos_kernal_skip = 0;
-   if (opt_jiffydos)
-   {
-      char tmp_str[RETRO_PATH_MAX] = {0};
-      int drive_type;
-      resources_get_int("Drive8Type", &drive_type);
-
-      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, FSDEV_DIR_SEP_CHR, "JiffyDOS_1541-II.bin");
-      log_resources_set_string("DosName1541ii", (const char*)tmp_str);
-      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, FSDEV_DIR_SEP_CHR, "JiffyDOS_1571_repl310654.bin");
-      log_resources_set_string("DosName1571", (const char*)tmp_str);
-      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, FSDEV_DIR_SEP_CHR, "JiffyDOS_1581.bin");
-      log_resources_set_string("DosName1581", (const char*)tmp_str);
-
-#if defined(__X64__) || defined(__X64SC__)
-      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, FSDEV_DIR_SEP_CHR, "JiffyDOS_C64.bin");
-      log_resources_set_string("KernalName", (const char*)tmp_str);
-#elif defined(__X128__)
-      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, FSDEV_DIR_SEP_CHR, "JiffyDOS_C64.bin");
-      log_resources_set_string("Kernal64Name", (const char*)tmp_str);
-      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, FSDEV_DIR_SEP_CHR, "JiffyDOS_C128.bin");
-      log_resources_set_string("KernalIntName", (const char*)tmp_str);
-#endif
-
-#if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__)
-      /* 1541-II ROM will not work unless drive type is set back to whatever it already is ?! */
-      log_resources_set_int("Drive8Type", drive_type);
-#endif
-   }
-   else
-   {
-      log_resources_set_string("DosName1541ii", "d1541II");
-      log_resources_set_string("DosName1571", "dos1571");
-      log_resources_set_string("DosName1581", "dos1581");
-#if defined(__X64__) || defined(__X64SC__)
-      log_resources_set_string("KernalName", "kernal");
-#elif defined(__X128__)
-      log_resources_set_string("Kernal64Name", "kernal64");
-      log_resources_set_string("KernalIntName", "kernal");
-#endif
-   }
-#endif
-
-   /* Model */
-#if defined(__XPET__)
-   petmodel_set(vice_opt.Model);
-#elif defined(__XCBM2__) || defined(__XCBM5x0__)
-   cbm2model_set(vice_opt.Model);
-#elif defined(__XVIC__)
-   vic20model_set(vice_opt.Model);
-#elif defined(__XPLUS4__)
-   plus4model_set(vice_opt.Model);
-#elif defined(__X128__)
-   c128model_set(vice_opt.Model);
-#elif defined(__X64DTV__)
-   dtvmodel_set(vice_opt.Model);
-#else
-   c64model_set(vice_opt.Model);
-#endif
-   keyboard_init();
-
-#if defined(__X64__) || defined(__X64SC__)
-   /* JiffyDOS SX-64 requires setting kernal after model change */
-   if (opt_jiffydos)
-   {
-      char tmp_str[RETRO_PATH_MAX] = {0};
-      switch (vice_opt.Model)
-      {
-         case C64MODEL_C64SX_PAL:
-         case C64MODEL_C64SX_NTSC:
-            snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, FSDEV_DIR_SEP_CHR, "JiffyDOS_SX-64.bin");
-            log_resources_set_string("KernalName", (const char*)tmp_str);
-
-            /* Also must prevent `set_kernal_rom_name()` resetting to default kernel after restart */
-            opt_jiffydos_kernal_skip = 1;
-            break;
-         default:
-            break;
-      }
-   }
 #endif
 
    /* Audio */
@@ -425,6 +464,10 @@ int ui_init_finalize(void)
       log_resources_set_int("DriveSoundEmulation", 0);
 
    if (vice_opt.DriveSoundEmulation && opt_autoloadwarp & AUTOLOADWARP_DISK && !(opt_autoloadwarp & AUTOLOADWARP_MUTE))
+      log_resources_set_int("DriveSoundEmulationVolume", 0);
+
+   if ((!string_is_empty(dc->files[dc->index]) && strendswith(dc->files[dc->index], ".d81"))
+    || (!string_is_empty(full_path) && strendswith(full_path, ".d81")))
       log_resources_set_int("DriveSoundEmulationVolume", 0);
 
 #if !defined(__XSCPU64__) && !defined(__X64DTV__)
@@ -529,53 +572,50 @@ int c64ui_init_early(void)
    memcpy(c64memrom_kernal64_rom_original, c64memrom_kernal64_rom, C64_KERNAL_ROM_SIZE);
    return 0;
 }
+int c64ui_init(void) { return 0; }
+void c64ui_shutdown(void) {}
 #elif defined(__X64SC__)
 int c64scui_init_early(void)
 {
    memcpy(c64memrom_kernal64_rom_original, c64memrom_kernal64_rom, C64_KERNAL_ROM_SIZE);
    return 0;
 }
+int c64scui_init(void) { return 0; }
+void c64scui_shutdown(void) {}
 #elif defined(__X64DTV__)
-int c64dtvui_init_early(void)
-{
-   return 0;
-}
+int c64dtvui_init_early(void) { return 0; }
+int c64dtvui_init(void) { return 0; }
+void c64dtvui_shutdown(void) {}
 #elif defined(__XSCPU64__)
 int scpu64ui_init_early(void)
 {
    memcpy(scpu64rom_scpu64_rom_original, scpu64rom_scpu64_rom, SCPU64_SCPU64_ROM_MAXSIZE);
    return 0;
 }
+int scpu64ui_init(void) { return 0; }
+void scpu64ui_shutdown(void) {}
 #elif defined(__X128__)
-int c128ui_init_early(void)
-{
-   memcpy(c128memrom_kernal128_rom_original, kernal_int, C128_KERNAL_ROM_IMAGE_SIZE);
-   memcpy(c128memrom_kernal64_rom_original, c128kernal64_embedded, C128_KERNAL64_ROM_SIZE);
-   return 0;
-}
+int c128ui_init_early(void) { return 0; }
+int c128ui_init(void) { return 0; }
+void c128ui_shutdown(void) {}
 #elif defined(__XVIC__)
-int vic20ui_init_early(void)
-{
-   return 0;
-}
+int vic20ui_init_early(void) { return 0; }
+int vic20ui_init(void) { return 0; }
+void vic20ui_shutdown(void) {}
 #elif defined(__XPET__)
-int petui_init_early(void)
-{
-   return 0;
-}
+int petui_init_early(void) { return 0; }
+int petui_init(void) { return 0; }
+void petui_shutdown(void) {}
 #elif defined(__XPLUS4__)
-int plus4ui_init_early(void)
-{
-   return 0;
-}
+int plus4ui_init_early(void) { return 0; }
+int plus4ui_init(void) { return 0; }
+void plus4ui_shutdown(void) {}
 #elif defined(__XCBM2__)
-int cbm2ui_init_early(void)
-{
-   return 0;
-}
+int cbm2ui_init_early(void) { return 0; }
+int cbm2ui_init(void) { return 0; }
+void cbm2ui_shutdown(void) {}
 #elif defined(__XCBM5x0__)
-int cbm5x0ui_init_early(void)
-{
-   return 0;
-}
+int cbm5x0ui_init_early(void) { return 0; }
+int cbm5x0ui_init(void) { return 0; }
+void cbm5x0ui_shutdown(void) {}
 #endif

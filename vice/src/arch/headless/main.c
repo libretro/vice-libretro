@@ -37,7 +37,7 @@
 #include "video.h"
 
 /* For the ugly hack below */
-#ifdef WIN32_COMPILE
+#ifdef WINDOWS_COMPILE
 # include "windows.h"
 #endif
 
@@ -56,7 +56,7 @@
 int main(int argc, char **argv)
 {
     /* printf("%s\n", __func__); */
-    
+
     return main_program(argc, argv);
 }
 

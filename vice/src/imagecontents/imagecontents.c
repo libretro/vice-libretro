@@ -103,7 +103,10 @@ void image_contents_screencode_destroy(image_contents_screencode_t *c)
     }
 }
 
-
+/* FIXME: DEAD CODE
+ * Also this function formats the listing slightly wrong (different than a real
+ * drive would) */
+#if 0
 /** \brief  Write out directory listing as a list of screencodes
  *
  * This function allocates memory on the heap, so after use call
@@ -126,7 +129,8 @@ image_contents_screencode_t *image_contents_to_screencode(image_contents_t
 
     screencode_ptr = image_contents_screencode;
 
-    sprintf((char *)rawline, "0 \"%s\" %s", contents->name, contents->id);
+    sprintf((char *)rawline, "%d \"%s\" %s", contents->partition, contents->name,
+            contents->id);
     charset_petcii_to_screencode_line(rawline, &buf, &len);
     screencode_ptr->line = buf;
     screencode_ptr->length = len;
@@ -182,7 +186,7 @@ image_contents_screencode_t *image_contents_to_screencode(image_contents_t
 
     return image_contents_screencode;
 }
-
+#endif
 
 /** \brief  Generate the first line of a directory listing (0 name id)
  *
@@ -193,7 +197,8 @@ image_contents_screencode_t *image_contents_to_screencode(image_contents_t
  */
 char *image_contents_to_string(image_contents_t * contents, char out_charset)
 {
-    uint8_t *str = (uint8_t *)lib_msprintf("0 \"%s\" %s", contents->name, contents->id);
+    uint8_t *str = (uint8_t *)lib_msprintf("%d \"%s\" %s", contents->partition,
+                                           contents->name, contents->id);
 
     if (out_charset == IMAGE_CONTENTS_STRING_PETSCII) {
         return (char *)str;
@@ -300,7 +305,7 @@ char *image_contents_file_to_string(image_contents_file_list_t *p,
     uint8_t *str;
 
     print_name = image_contents_get_filename(p);
-    str = (uint8_t *)lib_msprintf("%-5d %s %s", p->size, print_name, p->type);
+    str = (uint8_t *)lib_msprintf("%-4u %s%s", p->size, print_name, p->type);
 
     if (out_charset == IMAGE_CONTENTS_STRING_PETSCII) {
         return (char *)str;

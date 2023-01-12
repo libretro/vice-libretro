@@ -51,7 +51,7 @@ static int sidcart_sound_machine_init(sound_t *psid, int speed, int cycles_per_s
 
 /* PET SID cartridge sound chip */
 static sound_chip_t sidcart_sound_chip = {
-    sid_sound_machine_open,              /* sound chip open function */ 
+    sid_sound_machine_open,              /* sound chip open function */
     sidcart_sound_machine_init,          /* sound chip init function */
     sid_sound_machine_close,             /* sound chip close function */
     sid_sound_machine_calculate_samples, /* sound chip calculate samples function */
@@ -189,7 +189,7 @@ static int set_sid_clock(int val, void *param)
 static const resource_int_t sidcart_resources_int[] = {
     { "SidCart", 0, RES_EVENT_SAME, NULL,
       &sidcart_sound_chip.chip_enabled, set_sidcart_enabled, NULL },
-    { "SidAddress", 0xe900, RES_EVENT_SAME, NULL,
+    { "SidAddress", 0x8f00, RES_EVENT_SAME, NULL,
       &sidcart_address, set_sid_address, NULL },
     { "SidClock", SIDCART_CLOCK_NATIVE, RES_EVENT_SAME, NULL,
       &sidcart_clock, set_sid_clock, NULL },
@@ -232,4 +232,13 @@ int sidcart_cmdline_options_init(void)
         return -1;
     }
     return cmdline_register_options(sidcart_cmdline_options);
+}
+
+
+/** \brief  Free memory allocated for the sidcart command line options
+ */
+void sidcart_cmdline_options_shutdown(void)
+{
+    /* clean up the runtime-constructed sid cmdline help */
+    sid_cmdline_options_shutdown();
 }

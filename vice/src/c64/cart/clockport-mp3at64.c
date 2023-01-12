@@ -70,7 +70,7 @@ static int mp3_input_rate = 44100;
 static int mp3_input_channels = 1;
 static int mp3_input_pointer = 0;
 static int mp3_input_frame_size = 0;
-static int mp3_input_frame_mpeg_version = 0; 
+static int mp3_input_frame_mpeg_version = 0;
 static int mp3_input_frame_layer = 3;
 static int mp3_protection = 0;
 static int mp3_input_bitrate = 0;
@@ -169,7 +169,7 @@ static int16_t mp3_get_current_sample(void)
 
 /* Some prototypes are needed */
 static int clockport_mp3at64_sound_machine_init(sound_t *psid, int speed, int cycles_per_sec);
-static int clockport_mp3at64_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, int sound_output_channels, int sound_chip_channels, int *delta_t);
+static int clockport_mp3at64_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, int sound_output_channels, int sound_chip_channels, CLOCK *delta_t);
 static void clockport_mp3at64_sound_reset(sound_t *psid, CLOCK cpu_clk);
 static void clockport_mp3at64_sound_machine_close(sound_t *psid);
 
@@ -185,7 +185,7 @@ static int clockport_mp3at64_sound_machine_channels(void)
 
 /* ClockPort MP3@64 sound chip */
 static sound_chip_t clockport_mp3at64_sound_chip = {
-    NULL,                                              /* NO sound chip open function */ 
+    NULL,                                              /* NO sound chip open function */
     clockport_mp3at64_sound_machine_init,              /* sound chip init function */
     clockport_mp3at64_sound_machine_close,             /* sound chip close function */
     clockport_mp3at64_sound_machine_calculate_samples, /* sound chip calculate samples function */
@@ -238,7 +238,7 @@ static void clockport_mp3at64_sound_machine_close(sound_t *psid)
     }
 }
 
-static int clockport_mp3at64_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, int soc, int scc, int *delta_t)
+static int clockport_mp3at64_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, int soc, int scc, CLOCK *delta_t)
 {
     int i;
     int16_t sample;

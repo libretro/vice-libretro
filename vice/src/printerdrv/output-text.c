@@ -32,26 +32,38 @@
 
 #include "archdep.h"
 #include "cmdline.h"
+#include "coproc.h"
 #include "lib.h"
 #include "log.h"
 #include "machine.h"
 #include "output-select.h"
-#include "output-text.h"
 #include "output.h"
 #include "resources.h"
 #include "types.h"
 #include "util.h"
 
-/* TODO: configure check that matches what arch/unix/coproc.c does... */
+#include "output-text.h"
+
+/* XXX: coproc.c now does the proper includes, and on systems where fork_coproc()
+ *      doesn't work an error is logged and -1 returned.
+ */
+#if 0
+/* TODO: configure check that matches what arch/shared/coproc.c does... */
 #if defined(HAVE_FORK)
-#  if !defined(OPENSTEP_COMPILE) && !defined(RHAPSODY_COMPILE) \
-    && !defined(NEXTSTEP_COMPILE) && !defined(BEOS_COMPILE) \
-    && !defined(__ANDROID__)
-#    include <unistd.h>
-#    define COPROC_SUPPORT        1
-#    include "coproc.h"
+# if !defined(BEOS_COMPILE)
+#   define COPROC_SUPPORT
 # endif
+#elif defined(WINDOWS_COMPILE)
+# include <windows.h>
+# define COPROC_SUPPORT
 #endif
+
+#ifdef COPROC_SUPPORT
+# include <unistd.h>
+# include "coproc.h"
+#endif
+#endif
+
 
 static char *PrinterDev[NUM_OUTPUT_SELECT] = { NULL, NULL, NULL };
 static int printer_device[NUM_OUTPUT_SELECT];
@@ -74,11 +86,6 @@ static int set_printer_device(int prn_dev, void *param)
 }
 
 static const resource_string_t resources_string[] = {
-#ifdef __LIBRETRO__
-    { "PrinterTextDevice1", ARCHDEP_PRINTER_DEFAULT,
-      RES_EVENT_NO, NULL,
-      &PrinterDev[0], set_printer_device_name, (void *)0 },
-#else
     { "PrinterTextDevice1", ARCHDEP_PRINTER_DEFAULT_DEV1,
       RES_EVENT_NO, NULL,
       &PrinterDev[0], set_printer_device_name, (void *)0 },
@@ -88,7 +95,6 @@ static const resource_string_t resources_string[] = {
     { "PrinterTextDevice3", ARCHDEP_PRINTER_DEFAULT_DEV3,
       RES_EVENT_NO, NULL,
       &PrinterDev[2], set_printer_device_name, (void *)2 },
-#endif
     RESOURCE_STRING_LIST_END
 };
 
@@ -155,26 +161,32 @@ int output_text_init_cmdline_options(void)
 
 /*
  * TODO: only do this on systems which support it.
+ *
+ * 2022-04-03:  On systems where this isn't supported fork_coproc() logs an error
+ *              and returns -1. --compyx
  */
 static FILE *fopen_or_pipe(char *name)
 {
     if (name[0] == '|') {
-#if COPROC_SUPPORT
         int fd_rd, fd_wr;
         if (fork_coproc(&fd_wr, &fd_rd, name + 1) < 0) {
-            /* error */
+            log_error(LOG_DEFAULT, "fopen_or_pipe(): Cannot fork process '%s'.", name + 1);
             return NULL;
         }
-        close(fd_rd);   /* We only want to write to the process */
-        return fdopen(fd_wr, MODE_WRITE);
-#else
-        log_error(LOG_DEFAULT, "Cannot fork process.");
-        return NULL;
-#endif
+        archdep_close(fd_rd);   /* We only want to write to the process */
+        return archdep_fdopen(fd_wr, MODE_WRITE);
     } else {
 #ifdef __LIBRETRO__
-        char *path;
-        path = util_concat(SAVEDIR, FSDEV_DIR_SEP_STR, name, NULL);
+        const char *path = util_concat(SAVEDIR, ARCHDEP_DIR_SEP_STR, name, NULL);
+
+        /* For some mythical reason MODE_APPEND does not create a new file,
+         * therefore check first and create a new one by force */
+        FILE *fd = fopen(path, MODE_READ);
+        if (fd == NULL)
+        {
+            fd = fopen(path, MODE_WRITE);
+            fclose(fd);
+        }
         return fopen(path, MODE_APPEND);
 #else
         return fopen(name, MODE_APPEND);
@@ -246,6 +258,11 @@ static int output_text_flush(unsigned int prnr)
     return 0;
 }
 
+static int output_text_formfeed(unsigned int prnr)
+{
+    return output_text_flush(prnr);
+}
+
 /* ------------------------------------------------------------------------- */
 
 int output_text_init_resources(void)
@@ -258,6 +275,7 @@ int output_text_init_resources(void)
     output_select.output_putc = output_text_putc;
     output_select.output_getc = output_text_getc;
     output_select.output_flush = output_text_flush;
+    output_select.output_formfeed = output_text_formfeed;
 
     output_select_register(&output_select);
 

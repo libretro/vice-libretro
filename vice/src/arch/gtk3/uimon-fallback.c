@@ -30,32 +30,16 @@
 
 #include "vice.h"
 
-#include "debug_gtk3.h"
-
-#include <stdlib.h>
-#include <string.h>
-#include <dirent.h>
-#include <ctype.h>
-#include <unistd.h>
-
-#ifdef HAVE_SYS_IOCTL_H
-#include <sys/ioctl.h>
-#endif
-
-#if (defined(sun) || defined(__sun)) && (defined(__SVR4) || defined(__svr4__))
-#include <sys/stat.h>
-#endif
-
-#ifdef WIN32_COMPILE
-#include <windows.h>
-#include <winternl.h>
-#endif
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stddef.h>
 
 #include "console.h"
-#include "lib.h"
+#include "debug_gtk3.h"
 #include "log.h"
-#include "ui.h"
+#include "monitor.h"
 #include "uimon.h"
+
 #include "uimon-fallback.h"
 
 
@@ -140,7 +124,7 @@ void uimonfb_window_close(void)
  *
  * Unused.
  */
-void uimonfb_window_suspend( void )
+void uimonfb_window_suspend(void)
 {
     /* ui_restore_focus(); */
 #ifdef HAVE_MOUSE
@@ -166,7 +150,7 @@ console_t *uimonfb_window_resume(void)
         return console_log_local;
     }
     log_error(LOG_DEFAULT, "uimonfb_window_resume: log was not opened.");
-    return uimon_window_open();
+    return uimon_window_open(true);
 }
 
 
@@ -198,7 +182,7 @@ char *uimonfb_get_in(char **ppchCommandLine, const char *prompt)
 
 /** \brief  NOP
  */
-void uimonfb_notify_change( void )
+void uimonfb_notify_change(void)
 {
 }
 

@@ -58,6 +58,23 @@ static void on_entry_changed(GtkWidget *widget, gpointer user_data)
 }
 
 
+
+/** \brief  Callback for the directory-select dialog
+ *
+ * \param[in]   dialog      directory-select dialog
+ * \param[in]   filename    filename (NULL if canceled)
+ * \param[in]   param       extra data (unused)
+ */
+static void browse_callback(GtkDialog *dialog, gchar *filename, gpointer param)
+{
+    if (filename != NULL) {
+        gtk_entry_set_text(GTK_ENTRY(entry), filename);
+        g_free(filename);
+    }
+    gtk_widget_destroy(GTK_WIDGET(dialog));
+}
+
+
 /** \brief  Handler for the "clicked" event of the browse button
  *
  * \param[in]   widget      widget triggering the event
@@ -65,6 +82,21 @@ static void on_entry_changed(GtkWidget *widget, gpointer user_data)
  */
 static void on_browse_clicked(GtkWidget *widget, gpointer user_data)
 {
+    GtkWidget *dialog;
+
+    /* TODO: set CWD */
+
+    dialog = vice_gtk3_select_directory_dialog(
+            "Select directory",
+            NULL,
+            TRUE,
+            NULL,
+            browse_callback,
+            NULL);
+    gtk_widget_show(dialog);
+
+
+    #if 0
     gchar *filename;
 
     filename = vice_gtk3_select_directory_dialog("Select directory",
@@ -72,6 +104,7 @@ static void on_browse_clicked(GtkWidget *widget, gpointer user_data)
     if (filename != NULL) {
         gtk_entry_set_text(GTK_ENTRY(entry), filename);
     }
+#endif
 }
 
 
@@ -93,7 +126,10 @@ GtkWidget *cwd_widget_create(GtkWidget *parent)
             1);
 
     wrapper = gtk_grid_new();
-    g_object_set(wrapper, "margin", 8, NULL);
+    gtk_widget_set_margin_top(wrapper, 8);
+    gtk_widget_set_margin_start(wrapper, 8);
+    gtk_widget_set_margin_end(wrapper, 8);
+    gtk_widget_set_margin_bottom(wrapper, 8);
     gtk_grid_set_column_spacing(GTK_GRID(wrapper), 8);
 
     entry = gtk_entry_new();

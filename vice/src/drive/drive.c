@@ -36,6 +36,8 @@
         - check for byte ready *within* `BVC', `BVS' and `PHP'.
         - serial bus handling might be faster.  */
 
+/* #define DEBUG_DRIVE */
+
 #include "vice.h"
 
 #include <stdio.h>
@@ -45,10 +47,10 @@
 #include <assert.h>
 
 #include "attach.h"
+#include "archdep.h"
 #include "diskconstants.h"
 #include "diskimage.h"
 #include "drive-check.h"
-#include "drive-overflow.h"
 #include "drive.h"
 #include "drivecpu.h"
 #include "drivecpu65c02.h"
@@ -66,12 +68,16 @@
 #include "maincpu.h"
 #include "resources.h"
 #include "rotation.h"
+#include "sound.h"
 #include "types.h"
 #include "uiapi.h"
 #include "ds1216e.h"
 #include "drive-sound.h"
 #include "p64.h"
 #include "monitor.h"
+#include "monitor_network.h"
+#include "monitor_binary.h"
+#include "vsync.h"
 
 #ifdef __LIBRETRO__
 #include <stdbool.h>
@@ -84,6 +90,12 @@ extern int tape_control;
 static int warpmode_counter_ledon = 0;
 static int warpmode_counter_ledoff = 0;
 static int drive_half_track_prev = 0;
+#endif
+
+#ifdef DEBUG_DRIVE
+#define DBG(x) log_debug x
+#else
+#define DBG(x)
 #endif
 
 static int drive_init_was_called = 0;
@@ -99,6 +111,9 @@ int rom_loaded = 0;
 /* ------------------------------------------------------------------------- */
 
 static int drive_led_color[NUM_DISK_UNITS];
+static bool is_jammed[NUM_DISK_UNITS] = { false, false, false, false };
+static char *jam_reason[NUM_DISK_UNITS] = { NULL, NULL, NULL, NULL };
+static int jam_action = MACHINE_JAM_ACTION_DIALOG;
 
 /* ------------------------------------------------------------------------- */
 
@@ -206,8 +221,6 @@ int drive_init(void)
     log_message(drive_log, "Finished loading ROM images.");
     rom_loaded = 1;
 
-    drive_overflow_init();
-
     for (unit = 0; unit < NUM_DISK_UNITS; unit++) {
         diskunit_context_t *diskunit = diskunit_context[unit];
         drive = diskunit->drives[0];
@@ -215,7 +228,7 @@ int drive_init(void)
         machine_drive_port_default(diskunit);
 
         if (drive_check_type(diskunit->type, unit) < 1) {
-            resources_set_int_sprintf("Drive%iType", DRIVE_TYPE_NONE, unit + 8);
+            resources_set_int_sprintf("Drive%uType", DRIVE_TYPE_NONE, unit + 8);
         }
 
         machine_drive_rom_setup_image(unit);
@@ -350,7 +363,6 @@ void drive_set_active_led_color(unsigned int type, unsigned int dnr)
         case DRIVE_TYPE_1551:   /* green power, red drive, horizontal, round */
         case DRIVE_TYPE_1570:   /* green power, red drive, horizontal, round */
         case DRIVE_TYPE_2031:   /* green power, red drive, horizontal, round */
-        case DRIVE_TYPE_1001:   /* green power, red drive, horizontal, round */
             drive_led_color[dnr] = DRIVE_LED1_RED;
             break;
         case DRIVE_TYPE_1571:   /* red power, green drive, horizontal, line */
@@ -364,17 +376,33 @@ void drive_set_active_led_color(unsigned int type, unsigned int dnr)
         case DRIVE_TYPE_CMDHD:   /* red power, green activity, red error, horizontal, line */
             drive_led_color[dnr] = DRIVE_LED1_GREEN | DRIVE_LED2_RED;
             break;
-        case DRIVE_TYPE_2040:   /* red drive1, red power, red drive2, horizontal, round */
-        case DRIVE_TYPE_3040:   /* red drive1, red power, red drive2, horizontal, round */
-        case DRIVE_TYPE_4040:   /* red drive1, red power, red drive2, horizontal, round */
-        case DRIVE_TYPE_8050:   /* red drive1, green power, red drive2, horizontal, round */
-            drive_led_color[dnr] = DRIVE_LED1_RED | DRIVE_LED2_RED;
+        case DRIVE_TYPE_2040:   /* red drive0, red error, red drive1, triangle, round */
+        case DRIVE_TYPE_3040:   /* red drive0, red error, red drive1, triangle, round */
+        case DRIVE_TYPE_4040:   /* red drive0, red error, red drive1, triangle, round */
+        case DRIVE_TYPE_8050:   /* green drive0, green power/red error, green drive1, very flat triangle, round */
+                                /* Some drives have red drive0/1 */
+        case DRIVE_TYPE_1001:   /* green power/red error, red drive, horizontal, round */
+            /* drive_led_color[dnr] = DRIVE_LED1_RED | DRIVE_LED2_RED;
+             * We lie here and give the LEDs different colours.
+             * The GUI can show only 2 LEDs (one for each drive) instead
+             * of 3.  It does take 2 values, but they are displayed
+             * (mixed) in the same place.  I guess it's thinking of
+             * 2-colour LEDs.
+             * So if both are set to red, we can't distinguish between
+             * activity and error. Since it seems worse to make the
+             * error LED green, I chose to make the activity green.
+             * As soon as the GUI can show all 3 leds, we can make them
+             * the right colours.
+             */
+            drive_led_color[dnr] = DRIVE_LED1_GREEN | DRIVE_LED2_RED;
             break;
         case DRIVE_TYPE_9000:   /* red drive1, green power, red drive2, horizontal, round */
             drive_led_color[dnr] = DRIVE_LED1_RED | DRIVE_LED2_RED;
             break;
-        case DRIVE_TYPE_8250:   /* red green, green power,green, horizontal, round */
-            drive_led_color[dnr] = DRIVE_LED1_GREEN | DRIVE_LED2_GREEN; /* only the LP version is RED */
+        case DRIVE_TYPE_8250:   /* red drive0, green power/red error, green drive1, horizontal, round */
+            /* drive_led_color[dnr] = DRIVE_LED1_GREEN | DRIVE_LED2_GREEN; * only the LP version is RED */
+            /* The same note as for 8050. */
+            drive_led_color[dnr] = DRIVE_LED1_GREEN | DRIVE_LED2_RED;
             break;
         default:
             drive_led_color[dnr] = DRIVE_LED1_RED;
@@ -473,7 +501,8 @@ int drive_enable(diskunit_context_t *drv)
         return -1;
     }
 
-    resources_get_int("DriveTrueEmulation", &drive_true_emulation);
+    DBG(("drive_enable unit: %d", 8 + drv->mynumber));
+    resources_get_int_sprintf("Drive%dTrueEmulation", &drive_true_emulation, 8 + drv->mynumber);
 
     /* Always disable kernal traps. */
     if (!drive_true_emulation) {
@@ -486,15 +515,16 @@ int drive_enable(diskunit_context_t *drv)
 
     /* Recalculate drive geometry.  */
     for (drive = 0; drive < NUM_DRIVES; drive++) {
-	if (drv->drives[drive]->image != NULL) {
-	    drive_image_attach(drv->drives[drive]->image, dnr, drive);
-	}
+        if (drv->drives[drive]->image != NULL) {
+            drive_image_attach(drv->drives[drive]->image, dnr, drive);
+        }
     }
 
     /* resync */
     drv->cpu->stop_clk = *(drv->clk_ptr);
 
-    if (drv->type == DRIVE_TYPE_2000 || drv->type == DRIVE_TYPE_4000 ||
+    if (drv->type == DRIVE_TYPE_2000 ||
+        drv->type == DRIVE_TYPE_4000 ||
         drv->type == DRIVE_TYPE_CMDHD) {
         drivecpu65c02_wake_up(drv);
     } else {
@@ -516,7 +546,8 @@ void drive_disable(diskunit_context_t *drv)
        drive initialization.  */
     drv->enable = 0;
 
-    resources_get_int("DriveTrueEmulation", &drive_true_emulation);
+    DBG(("drive_disable unit: %d", 8 + drv->mynumber));
+    resources_get_int_sprintf("Drive%dTrueEmulation", &drive_true_emulation, 8 + drv->mynumber);
 
     if (rom_loaded) {
         if (drv->type == DRIVE_TYPE_2000 || drv->type == DRIVE_TYPE_4000 ||
@@ -527,9 +558,9 @@ void drive_disable(diskunit_context_t *drv)
         }
         machine_drive_port_default(drv);
 
-	for (drive = 0; drive < NUM_DRIVES; drive++) {
-	    drive_gcr_data_writeback(drv->drives[drive]);
-	}
+        for (drive = 0; drive < NUM_DRIVES; drive++) {
+            drive_gcr_data_writeback(drv->drives[drive]);
+        }
     }
 
     /* Make sure the UI is updated.  */
@@ -550,22 +581,6 @@ void drive_cpu_early_init_all(void)
     }
 }
 
-void drive_cpu_prevent_clk_overflow_all(CLOCK sub)
-{
-    unsigned int dnr;
-
-    for (dnr = 0; dnr < NUM_DISK_UNITS; dnr++) {
-        diskunit_context_t *unit = diskunit_context[dnr];
-
-        if (unit->type == DRIVE_TYPE_2000 || unit->type == DRIVE_TYPE_4000 ||
-            unit->type == DRIVE_TYPE_CMDHD) {
-            drivecpu65c02_prevent_clk_overflow(diskunit_context[dnr], sub);
-        } else {
-            drivecpu_prevent_clk_overflow(diskunit_context[dnr], sub);
-        }
-    }
-}
-
 void drive_cpu_trigger_reset(unsigned int dnr)
 {
     diskunit_context_t *unit = diskunit_context[dnr];
@@ -576,6 +591,7 @@ void drive_cpu_trigger_reset(unsigned int dnr)
     } else {
         drivecpu_trigger_reset(dnr);
     }
+    is_jammed[dnr] = false;
 }
 
 /* called by machine_specific_reset() */
@@ -594,14 +610,92 @@ void drive_reset(void)
             drivecpu_reset(diskunit_context[dnr]);
         }
 
-	for (d = 0; d < NUM_DRIVES; d++) {
-	    drive_t *drive = unit->drives[d];
+        for (d = 0; d < NUM_DRIVES; d++) {
+            drive_t *drive = unit->drives[d];
 
-	    drive->led_last_change_clk = *(drive->clk);
-	    drive->led_last_uiupdate_clk = *(drive->clk);
-	    drive->led_active_ticks = 0;
-	}
+            drive->led_last_change_clk = *(drive->clk);
+            drive->led_last_uiupdate_clk = *(drive->clk);
+            drive->led_active_ticks = 0;
+        }
+        is_jammed[dnr] = false;
     }
+}
+
+/* NOTE: this function is very similar to machine_jam - in case the behavior
+         changes, change machine_jam too */
+unsigned int drive_jam(int mynumber, const char *format, ...)
+{
+    va_list ap;
+    ui_jam_action_t ret = JAM_NONE;
+
+    /* always ignore subsequent JAMs. reset would clear the flag again, not
+     * setting it when going to the monitor would just repeatedly pop up the
+     * jam dialog (until reset)
+     */
+    if (is_jammed[mynumber]) {
+        return JAM_NONE;
+    }
+
+    is_jammed[mynumber] = true;
+
+    va_start(ap, format);
+    if (jam_reason[mynumber]) {
+        lib_free(jam_reason[mynumber]);
+        jam_reason[mynumber] = NULL;
+    }
+    jam_reason[mynumber] = lib_mvsprintf(format, ap);
+    va_end(ap);
+
+    log_message(LOG_DEFAULT, "*** %s", jam_reason[mynumber]);
+
+    vsync_suspend_speed_eval();
+    sound_suspend();
+
+    /* FIXME: perhaps we want a seperate setting for drives? */
+    resources_get_int("JAMAction", &jam_action);
+
+    if (jam_action == MACHINE_JAM_ACTION_DIALOG) {
+        if (monitor_is_remote() || monitor_is_binary()) {
+            if (monitor_is_remote()) {
+                ret = monitor_network_ui_jam_dialog("%s", jam_reason[mynumber]);
+            }
+
+            if (monitor_is_binary()) {
+                ret = monitor_binary_ui_jam_dialog("%s", jam_reason[mynumber]);
+            }
+        } else if (!console_mode) {
+            ret = ui_jam_dialog("%s", jam_reason[mynumber]);
+        }
+    } else if (jam_action == MACHINE_JAM_ACTION_QUIT) {
+        archdep_vice_exit(EXIT_SUCCESS);
+    } else {
+        int actions[4] = {
+            -1, UI_JAM_MONITOR, UI_JAM_RESET, UI_JAM_HARD_RESET
+        };
+        ret = actions[jam_action - 1];
+    }
+
+    switch (ret) {
+        case UI_JAM_RESET:
+            return JAM_RESET;
+        case UI_JAM_HARD_RESET:
+            return JAM_HARD_RESET;
+        case UI_JAM_MONITOR:
+            return JAM_MONITOR;
+        default:
+            break;
+    }
+    return JAM_NONE;
+}
+
+bool drive_is_jammed(int mynumber)
+{
+    return is_jammed[mynumber];
+}
+
+char *drive_jam_reason(int mynumber)
+{
+    return jam_reason[mynumber];
 }
 
 /* Move the head to half track `num'.  */
@@ -667,8 +761,7 @@ void drive_move_head(int step, drive_t *drive)
 
 void drive_gcr_data_writeback(drive_t *drive)
 {
-    int extend;
-    unsigned int half_track, track;
+    unsigned int half_track, track, end_half_track;
     int tmp;
 
     if (drive->image == NULL) {
@@ -688,46 +781,80 @@ void drive_gcr_data_writeback(drive_t *drive)
         return;
     }
 
-    if ((drive->image->type == DISK_IMAGE_TYPE_G64)
-        || (drive->image->type == DISK_IMAGE_TYPE_G71)) {
+    /* always write track to GCR images, no need to extend the image */
+    if ((drive->image->type == DISK_IMAGE_TYPE_G64) ||
+        (drive->image->type == DISK_IMAGE_TYPE_G71)) {
         disk_image_write_half_track(drive->image, half_track,
                                     &drive->gcr->tracks[half_track - 2]);
         drive->GCR_dirty_track = 0;
         return;
     }
-
+    /* writing beyond max tracks allowed in this image is not possible */
     if (half_track > drive->image->max_half_tracks) {
         drive->GCR_dirty_track = 0;
         return;
     }
+    /* when trying beyond the image, check if we should extend the image */
+    DBG(("check track: %u > drive->image->tracks: %u", track, drive->image->tracks));
     if (track > drive->image->tracks) {
+        /* FIXME: doublesided images cant be extended with this logic, so
+                  never do it */
+        if ((drive->image->type == DISK_IMAGE_TYPE_D71) ||
+#ifdef HAVE_X64_IMAGE
+            (drive->image->type == DISK_IMAGE_TYPE_X64) ||
+#endif
+            (drive->image->type == DISK_IMAGE_TYPE_D81)) {
+            drive->ask_extend_disk_image = DRIVE_EXTEND_ASK;
+            drive->GCR_dirty_track = 0;
+            return;
+        }
+        /* depending on the selected extend policy, ask or never/always extend */
         switch (drive->extend_image_policy) {
             case DRIVE_EXTEND_NEVER:
-                drive->ask_extend_disk_image = 1;
+                drive->ask_extend_disk_image = DRIVE_EXTEND_ASK;
                 drive->GCR_dirty_track = 0;
                 return;
             case DRIVE_EXTEND_ASK:
-                if (drive->ask_extend_disk_image == 1) {
-                    extend = ui_extend_image_dialog();
-                    if (extend == 0) {
+                if (drive->ask_extend_disk_image == DRIVE_EXTEND_ASK) {
+                    if (ui_extend_image_dialog() == 0) {
                         drive->GCR_dirty_track = 0;
-                        drive->ask_extend_disk_image = 0;
+                        drive->ask_extend_disk_image = DRIVE_EXTEND_NEVER;
                         return;
                     }
-                    drive->ask_extend_disk_image = 2;
-                } else if (drive->ask_extend_disk_image == 0) {
+                    drive->ask_extend_disk_image = DRIVE_EXTEND_ACCESS;
+                } else if (drive->ask_extend_disk_image == DRIVE_EXTEND_NEVER) {
                     drive->GCR_dirty_track = 0;
                     return;
                 }
                 break;
             case DRIVE_EXTEND_ACCESS:
-                drive->ask_extend_disk_image = 1;
+                drive->ask_extend_disk_image = DRIVE_EXTEND_ASK;
                 break;
         }
+        /* determine the desired new size of the image. usually we want either
+           35, 40 or 42 tracks */
+        if (drive->image->tracks <= 35) {
+            /* usually extend from 35 to 40 tracks */
+            end_half_track = 2 + (40 * 2);
+        } else if (drive->image->tracks <= 40) {
+            /* next size is 42 tracks (usually the maximum) */
+            end_half_track = 2 + (42 * 2);
+        } else {
+            /* beyond this, extend one track. this should never happen */
+            end_half_track = half_track + 2;
+        }
+        /* write all tracks up to the end of the image */
+        DBG(("extend track: %u drive->image->max_half_tracks: %u drive->image->tracks: %u", track, drive->image->max_half_tracks, drive->image->tracks));
+        while (half_track < end_half_track) {
+            DBG(("write halftrack: %u end: %u track: %u", half_track, end_half_track, half_track / 2));
+            disk_image_write_half_track(drive->image, half_track, &drive->gcr->tracks[half_track - 2]);
+            half_track += 2;
+        }
+    } else {
+        /* write (only) the requested track */
+        DBG(("write track: %u drive->image->max_half_tracks: %u drive->image->tracks: %u", track, drive->image->max_half_tracks, drive->image->tracks));
+        disk_image_write_half_track(drive->image, half_track, &drive->gcr->tracks[half_track - 2]);
     }
-
-    disk_image_write_half_track(drive->image, half_track,
-                                &drive->gcr->tracks[half_track - 2]);
 
     drive->GCR_dirty_track = 0;
 }
@@ -736,6 +863,7 @@ void drive_gcr_data_writeback_all(void)
 {
     drive_t *drive;
     unsigned int i, j;
+
 #ifdef __LIBRETRO__
     if (!diskunit_context[0])
         return;
@@ -765,7 +893,7 @@ static void drive_led_update(diskunit_context_t *unit, drive_t *drive, int base)
 {
     int my_led_status = 0;
     CLOCK led_period;
-    unsigned int led_pwm1;
+    int led_pwm1;
 
     /* Actually update the LED status only if the `trap idle'
        idling method is being used, as the LED status could be
@@ -790,13 +918,13 @@ static void drive_led_update(diskunit_context_t *unit, drive_t *drive, int base)
     }
 
     if (drive->led_active_ticks > led_period) {
-        /* during startup it has been observer that led_pwm1 > 1000,
+        /* during startup it has been observed that led_pwm1 > 1000,
            which potentially breaks several UIs */
         /* this also happens when the drive is reset from UI
            and the LED was on */
         led_pwm1 = 1000;
     } else {
-        led_pwm1 = drive->led_active_ticks * 1000 / led_period;
+        led_pwm1 = (int)(drive->led_active_ticks / led_period * 1000);
     }
     assert(led_pwm1 <= MAX_PWM);
     if (led_pwm1 > MAX_PWM) {
@@ -832,23 +960,20 @@ void drive_update_ui_status(void)
         if (unit->enable) {
 
             drive_led_update(unit, drive0, 0);
-            /* drive_led_update(unit, drive0, 0); */ /* FIXME */
             if (drive0->current_half_track != drive0->old_half_track
                 || drive0->side != drive0->old_side) {
                 drive0->old_half_track = drive0->current_half_track;
                 drive0->old_side = drive0->side;
-                ui_display_drive_track(i, 0,
-                                       drive0->current_half_track + (drive0->side * DRIVE_HALFTRACKS_1571));
+                ui_display_drive_track(i, 0, drive0->current_half_track, drive0->side);
             }
             /* update LED and track of the second drive for dual drives */
             if (drive_check_dual(unit->type)) {
-                /* drive_led_update(unit, drive1, 1); */ /* FIXME */
+                drive_led_update(unit, drive1, 1);
                 if (drive1->current_half_track != drive1->old_half_track
                     || drive1->side != drive1->old_side) {
                     drive1->old_half_track = drive1->current_half_track;
                     drive1->old_side = drive1->side;
-                    ui_display_drive_track(i, 1,
-                                        drive1->current_half_track + (drive1->side * DRIVE_HALFTRACKS_1571));
+                    ui_display_drive_track(i, 1, drive1->current_half_track, drive1->side);
                 }
             }
 #ifdef __LIBRETRO__
@@ -895,7 +1020,7 @@ void drive_update_ui_status(void)
 
                 if (warp > -1)
                 {
-                    resources_set_int("WarpMode", (warp > 1) ? 0 : warp);
+                    vsync_set_warp_mode((warp > 1) ? 0 : warp);
 #if 0
                     printf("Disk Warp:%2d track:%3d prev:%3d led:%d audio:%d timer:%3d,%3d\n",
                             warp, drive_half_track, drive_half_track_prev, drive_led_status,

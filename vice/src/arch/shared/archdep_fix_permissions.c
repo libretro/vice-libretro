@@ -31,18 +31,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(ARCHDEP_OS_UNIX) || defined(ARCHDEP_OS_WINDOWS)
+#if defined(UNIX_COMPILE) || defined(WINDOWS_COMPILE)
 # include <sys/stat.h>
 # include <sys/types.h>
 #endif
-#ifdef ARCHDEP_OS_WINDOWS
+#ifdef WINDOWS_COMPILE
 # include <io.h>
 # include <windows.h>
 #endif
-
-#include "lib.h"
-#include "log.h"
-#include "util.h"
 
 #include "archdep_fix_permissions.h"
 
@@ -51,21 +47,22 @@
  *
  * \param[in]   name    pathname
  *
- * \return  bool
+ * \return  non-0 on success
+ *
+ * \note    does nothing on system other than Unix or Windows
  */
 int archdep_fix_permissions(const char *name)
 {
-#ifdef ARCHDEP_OS_WINDOWS
+#ifdef WINDOWS_COMPILE
     return _chmod(name, _S_IREAD|_S_IWRITE);
-#elif defined(ARCHDEP_OS_UNIX)
+#elif defined(UNIX_COMPILE)
     mode_t mask = umask(0);
     umask(mask);
     return chmod(name, mask ^ 0666); /* this is really octal here! */
-#elif defined(ARCHDEP_OS_BEOS)
+#elif defined(BEOS_COMPILE)
     /* there's got to be some beos-ish stuff to change permissions, at least
      * with Haiku */
     return 0;
-
 #endif
     /* OS/2 etc */
     return 0;

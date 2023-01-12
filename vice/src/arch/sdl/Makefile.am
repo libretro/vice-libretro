@@ -2,13 +2,6 @@
 
 sdldatadir = $(VICE_DATADIR)/common
 
-if WIN32_COMPILE
-extra_includes = -I$(top_srcdir)/src/arch/mingw32-pcap/wpcap
-else
-extra_includes =
-endif
-
-
 AM_CPPFLAGS = \
 	@VICE_CPPFLAGS@ \
 	@ARCH_INCLUDES@ \
@@ -16,14 +9,17 @@ AM_CPPFLAGS = \
 	$(extra_includes) \
 	-I$(top_builddir)/src \
 	-I$(top_srcdir)/src/drive \
+	-I$(top_srcdir)/src/printerdrv \
 	-I$(top_srcdir)/src/c64 \
 	-I$(top_srcdir)/src/c64/cart \
 	-I$(top_srcdir)/src/c64dtv \
+	-I$(top_srcdir)/src/scpu64 \
 	-I$(top_srcdir)/src/c128 \
 	-I$(top_srcdir)/src/vic20 \
 	-I$(top_srcdir)/src/pet \
 	-I$(top_srcdir)/src/cbm2 \
 	-I$(top_srcdir)/src/plus4 \
+	-I$(top_srcdir)/src/plus4/cart \
 	-I$(top_srcdir)/src/raster \
 	-I$(top_srcdir)/src/rs232drv \
 	-I$(top_srcdir)/src/samplerdrv \
@@ -31,6 +27,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src/userport \
 	-I$(top_srcdir)/src/vdrive \
 	-I$(top_srcdir)/src/video \
+	-I$(top_srcdir)/src/lib/ \
 	-I$(top_srcdir)/src/lib/p64 \
 	-I$(top_srcdir)/src/platform \
 	-I$(top_srcdir)/src/joyport \
@@ -38,6 +35,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src/tapeport \
 	-I$(top_srcdir)/src/imagecontents \
 	-I$(top_srcdir)/src/datasette \
+	-I$(top_srcdir)/src/core/rtc \
 	-I$(top_srcdir)/src
 
 AM_CFLAGS = @VICE_CFLAGS@
@@ -49,7 +47,7 @@ AM_LDFLAGS = @VICE_LDFLAGS@
 
 noinst_LIBRARIES = libarch.a libtoolarch.a
 
-if SDL2_COMPILE
+if USE_SDL2UI
 
 libarch_a_VERDEP_SOURCES = \
 	video_sdl2.c
@@ -92,6 +90,8 @@ libarch_a_SOURCES = \
 	menu_cbm2cart.h \
 	menu_cbm2hw.c \
 	menu_cbm2hw.h \
+	menu_cbm5x0hw.c \
+	menu_cbm5x0hw.h \
 	menu_common.c \
 	menu_common.h \
 	menu_debug.c \
@@ -162,6 +162,8 @@ libarch_a_SOURCES = \
 	menu_speed.h \
 	menu_tape.c \
 	menu_tape.h \
+	menu_userport.c \
+	menu_userport.h \
 	menu_vic20cart.c \
 	menu_vic20cart.h \
 	menu_vic20hw.c \
@@ -173,11 +175,6 @@ libarch_a_SOURCES = \
 	sdlmain.c \
 	ui.c \
 	ui.h \
-	uifontscbm2.c \
-	uifontscrtc.c \
-	uifontsted.c \
-	uifontsvic.c \
-	uifontsvicii.c \
 	uifonts.c \
 	uifonts.h \
 	uifilereq.c \
@@ -207,6 +204,7 @@ libarch_a_SOURCES = \
 	x64dtv_ui.c \
 	x64sc_ui.c \
 	xcbm2_ui.c \
+	xcbm5x0_ui.c \
 	xpet_ui.c \
 	xplus4_ui.c \
 	xscpu64_ui.c \
@@ -216,16 +214,17 @@ libtoolarch_a_SOURCES = \
 	archdep.c
 
 EXTRA_DIST = \
-	make-bindist_amiga.sh \
 	make-bindist_beos.sh \
 	make-bindist_osx.sh \
 	make-bindist_win32.sh \
+	make_bindist_win32_sdl.sh \
 	macOS-ui-runtime.sh \
 	Resources/VICE.icns \
 	vice-launcher.sh \
-	x11-launcher.sh
+	x11-launcher.sh \
+	vice_sdl.h
 
-if WIN32_COMPILE
+if WINDOWS_COMPILE
 
 # Use Gtk's icon stuff to generate icon sets
 all:

@@ -5,7 +5,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/src/core \
 	-I$(top_srcdir)/src/drive \
-	-I$(top_srcdir)/src/rtc \
+	-I$(top_srcdir)/src/core/rtc \
 	-I$(top_srcdir)/src/c64 \
 	-I$(top_srcdir)/src/sid \
 	-I$(top_srcdir)/src/lib/p64 \
@@ -29,9 +29,7 @@ libc64cartsystem_a_SOURCES = \
 	c64carthooks.c \
 	c64cartmem.c \
 	c64cartmem.h \
-	c64cartsystem.h \
-	crt.c \
-	crt.h
+	c64cartsystem.h
 
 libc64cart_a_SOURCES = \
 	actionreplay2.c \
@@ -88,6 +86,8 @@ libc64cart_a_SOURCES = \
 	dinamic.h \
 	dqbb.c \
 	dqbb.h \
+	drean.c \
+	drean.h \
 	easycalc.c \
 	easycalc.h \
 	easyflash.c \
@@ -108,6 +108,8 @@ libc64cart_a_SOURCES = \
 	formel64.h \
 	freezeframe.c \
 	freezeframe.h \
+	freezeframe2.c \
+	freezeframe2.h \
 	freezemachine.c \
 	freezemachine.h \
 	funplay.c \
@@ -120,10 +122,10 @@ libc64cart_a_SOURCES = \
 	gmod3.h \
 	gs.c \
 	gs.h \
-	hero.c \
-	hero.h \
 	ide64.c \
 	ide64.h \
+	ieeeflash64.c \
+	ieeeflash64.h \
 	isepic.c \
 	isepic.h \
 	kcs.c \
@@ -154,6 +156,8 @@ libc64cart_a_SOURCES = \
 	ocean.h \
 	pagefox.c \
 	pagefox.h \
+	partner64.c \
+	partner64.h \
 	prophet64.c \
 	prophet64.h \
 	ramcart.c \
@@ -202,6 +206,8 @@ libc64cart_a_SOURCES = \
 	supersnapshot.h \
 	supersnapshot4.c \
 	supersnapshot4.h \
+	turtlegraphics.c \
+	turtlegraphics.h \
 	warpspeed.c \
 	warpspeed.h \
 	westermann.c \

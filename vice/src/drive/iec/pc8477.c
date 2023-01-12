@@ -26,9 +26,9 @@
 
 #include "vice.h"
 
+#include <stdio.h>
 #include <string.h>
 
-#include "clkguard.h"
 #include "diskimage.h"
 #include "drive.h"
 #include "drivetypes.h"
@@ -39,6 +39,8 @@
 #include "alarm.h"
 #include "drivesync.h"
 #include "fdd.h"
+
+/* #define PC8477_DEBUG */
 
 #ifdef PC8477_DEBUG
 #define debug(_x_) log_message _x_
@@ -230,19 +232,6 @@ static void seek_alarm_handler(CLOCK offset, void *data)
     }
 }
 
-/* Clock overflow handling.  */
-static void clk_overflow_callback(CLOCK sub, void *data)
-{
-    pc8477_t *drv = (pc8477_t *)data;
-
-    if (drv->clk > (CLOCK) 0) {
-        drv->clk -= sub;
-    }
-    if (drv->motor_clk > (CLOCK) 0) {
-        drv->motor_clk -= sub;
-    }
-}
-
 /* Functions using drive context.  */
 void pc8477d_init(diskunit_context_t *drv)
 {
@@ -251,8 +240,6 @@ void pc8477d_init(diskunit_context_t *drv)
     if (pc8477_log == LOG_ERR) {
         pc8477_log = log_open("PC8477");
     }
-
-    clk_guard_add_callback(drv->cpu->clk_guard, clk_overflow_callback, drv->pc8477);
 
     name = lib_msprintf("%sEXEC", drv->pc8477->myname);
     drv->pc8477->seek_alarm = alarm_new(drv->cpu->alarm_context, name, seek_alarm_handler, drv->pc8477);
@@ -306,20 +293,25 @@ static void pc8477_result(pc8477_t *drv)
         case PC8477_CMD_SENSE_INTERRUPT:
             drv->res[0] = drv->st[0];
             drv->res[1] = drv->current->track;
+            debug((pc8477_log, "RESULT: %02x %02x", drv->res[0], drv->res[1]));
             return;
         case PC8477_CMD_VERSION:
             drv->res[0] = 0x90;
+            debug((pc8477_log, "RESULT: %02x", drv->res[0]));
             return;
         case PC8477_CMD_NSC:
             drv->res[0] = 0x72;
+            debug((pc8477_log, "RESULT: %02x", drv->res[0]));
             return;
         case PC8477_CMD_SENSE_DRIVE_STATUS:
             drv->res[0] = drv->st[3] | 0x20 | (drv->is8477 ? 0x08 : 0)
                           | (fdd_track0(drv->fdd) ? PC8477_ST3_TK0 : 0)
                           | (fdd_write_protect(drv->fdd) ? PC8477_ST3_WP : 0);
+            debug((pc8477_log, "RESULT: %02x", drv->res[0]));
             return;
         case PC8477_CMD_READ_ID:
             memcpy(drv->res, drv->st, 3);
+            debug((pc8477_log, "RESULT: %02x %02x %02x %02x %02x %02x", drv->res[0], drv->res[1], drv->res[2], drv->res[3], drv->res[4], drv->res[5]));
             return;
         case PC8477_CMD_RECALIBRATE:
             return;
@@ -337,19 +329,23 @@ static void pc8477_result(pc8477_t *drv)
             drv->res[7] |= (drv->fdds[1].perpendicular ? 0x04 : 0);
             drv->res[7] |= (drv->fdds[2].perpendicular ? 0x08 : 0);
             drv->res[7] |= (drv->fdds[3].perpendicular ? 0x10 : 0);
+            debug((pc8477_log, "RESULT: %02x %02x %02x %02x %02x %02x %02x", drv->res[0], drv->res[1], drv->res[2], drv->res[3], drv->res[4], drv->res[5], drv->res[6]));
             /* TODO */
             return;
         case PC8477_CMD_SET_TRACK:
             drv->res[0] = drv->current->track >> ((drv->cmd[1] & 4) ? 8 : 0);
+            debug((pc8477_log, "RESULT: %02x", drv->res[0]));
             return;
         case PC8477_CMD_READ_DATA:
         case PC8477_CMD_WRITE_DATA:
         case PC8477_CMD_FORMAT_A_TRACK:
             memcpy(drv->res, drv->st, 3);
             memcpy(drv->res + 3, drv->cmd + 2, 4);
+            debug((pc8477_log, "RESULT: %02x %02x %02x %02x %02x %02x", drv->res[0], drv->res[1], drv->res[2], drv->res[3], drv->res[4], drv->res[5]));
             return;
         default:
             drv->res[0] = drv->st[0];
+            debug((pc8477_log, "RESULT: %02x", drv->res[0]));
     }
 }
 
@@ -649,7 +645,7 @@ static pc8477_state_t pc8477_execute(pc8477_t *drv)
                         /* fall through */
                     case 5:
                         if (drv->fifo_fill) {
-                            drv->clk += fdd_rotate(drv->fdd, (*drv->mycontext->clk_ptr - drv->clk) / BYTE_RATE) * BYTE_RATE;
+                            drv->clk += fdd_rotate(drv->fdd, (int)((*drv->mycontext->clk_ptr - drv->clk) / BYTE_RATE)) * BYTE_RATE;
                             return PC8477_READ;
                         }
                         if (drv->cmd[6] != drv->sector) {
@@ -964,7 +960,7 @@ static pc8477_state_t pc8477_execute(pc8477_t *drv)
                         break;
                 }
                 if (fdd_index_count(drv->fdd) > 1) {
-                    drv->clk += fdd_rotate(drv->fdd, (*drv->mycontext->clk_ptr - drv->clk) / BYTE_RATE) * BYTE_RATE;
+                    drv->clk += fdd_rotate(drv->fdd, (int)((*drv->mycontext->clk_ptr - drv->clk) / BYTE_RATE)) * BYTE_RATE;
                     drv->cmd[3] = drv->sector;
                     drv->st[0] |= 0x40;
                     return PC8477_RESULT;
@@ -974,7 +970,7 @@ static pc8477_state_t pc8477_execute(pc8477_t *drv)
         default:
             break;
     }
-    debug((pc8477_log, "invalid command %02x", drv->cmd[0]));
+    debug((pc8477_log, "invalid command %02x", drv->command));
     drv->command = PC8477_CMD_INVALID;
     drv->st[0] = drv->st[3] | 0x80; /* invalid command */
     drv->res_size = 1;
@@ -998,7 +994,7 @@ static void pc8477_store(pc8477_t *drv, uint16_t addr, uint8_t byte)
                 pc8477_software_reset(drv);
             }
             drv->dor = byte;
-            drv->clk += fdd_rotate(drv->fdd, (*drv->mycontext->clk_ptr - drv->clk) / BYTE_RATE) * BYTE_RATE;
+            drv->clk += fdd_rotate(drv->fdd, (int)((*drv->mycontext->clk_ptr - drv->clk) / BYTE_RATE)) * BYTE_RATE;
             for (i = 0; i < 4; i++) {
                 if ((byte & (0x10 << i)) != drv->fdds[i].motor_on_out && drv->fdds[i].motor_on) {
                     (drv->fdds[i].motor_on)(drv->fdds[i].motor_on_data, drv->fdds[i].motor_on_out ? 0 : 1);
@@ -1054,7 +1050,7 @@ static void pc8477_store(pc8477_t *drv, uint16_t addr, uint8_t byte)
                     drv->int_step = 0;
                     drv->fifo_fill = 0;
                     drv->fifop2 = drv->fifop;
-                    drv->clk += fdd_rotate(drv->fdd, (*drv->mycontext->clk_ptr - drv->clk) / BYTE_RATE) * BYTE_RATE;
+                    drv->clk += fdd_rotate(drv->fdd, (int)((*drv->mycontext->clk_ptr - drv->clk) / BYTE_RATE)) * BYTE_RATE;
                     fdd_index_count_reset(drv->fdd);
                     drv->state = pc8477_execute(drv);
                     break;

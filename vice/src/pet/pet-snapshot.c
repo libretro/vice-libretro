@@ -31,21 +31,21 @@
 #include <stdio.h>
 
 #include "6809.h"
+#include "archdep.h"
 #include "crtc.h"
 #include "drive-snapshot.h"
-#include "ioutil.h"
 #include "joystick.h"
 #include "keyboard.h"
 #include "log.h"
 #include "machine.h"
 #include "maincpu.h"
-#include "pet-snapshot.h"
 #include "pet.h"
 #include "petacia.h"
 #include "petdww.h"
 #include "petmemsnapshot.h"
 #include "petpia.h"
 #include "pets.h"
+#include "serial.h"
 #include "snapshot.h"
 #include "sound.h"
 #include "tapeport.h"
@@ -54,7 +54,10 @@
 #include "via.h"
 #include "vice-event.h"
 
-#define SNAP_MAJOR 0
+#include "pet-snapshot.h"
+
+
+#define SNAP_MAJOR 1
 #define SNAP_MINOR 0
 
 int pet_snapshot_write(const char *name, int save_roms, int save_disks,
@@ -80,6 +83,7 @@ int pet_snapshot_write(const char *name, int save_roms, int save_disks,
         || petdww_snapshot_write_module(s) < 0
         || viacore_snapshot_write_module(machine_context.via, s) < 0
         || drive_snapshot_write_module(s, save_disks, save_roms) < 0
+        || fsdrive_snapshot_write_module(s) < 0
         || event_snapshot_write_module(s, event_mode) < 0
         || tapeport_snapshot_write_module(s, save_disks) < 0
         || keyboard_snapshot_write_module(s) < 0
@@ -94,7 +98,7 @@ int pet_snapshot_write(const char *name, int save_roms, int save_disks,
     snapshot_close(s);
 
     if (ef) {
-        ioutil_remove(name);
+        archdep_remove(name);
     }
 
     return ef;
@@ -128,6 +132,7 @@ int pet_snapshot_read(const char *name, int event_mode)
         || petdww_snapshot_read_module(s) < 0
         || viacore_snapshot_read_module(machine_context.via, s) < 0
         || drive_snapshot_read_module(s) < 0
+        || fsdrive_snapshot_read_module(s) < 0
         || event_snapshot_read_module(s, event_mode) < 0
         || tapeport_snapshot_read_module(s) < 0
         || keyboard_snapshot_read_module(s) < 0

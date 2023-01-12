@@ -37,18 +37,13 @@
 
 #include <gtk/gtk.h>
 
-#include "basewidgets.h"
+#include "vice_gtk3.h"
 #include "debug_gtk3.h"
-#include "widgethelpers.h"
 #include "resources.h"
 #include "video.h"
 
 #include "videorenderfilterwidget.h"
 
-
-/** \brief  Video chip prefix, used in the resource getting/setting
- */
-static const char *chip_prefix;
 
 
 /** \brief  List of radio buttons
@@ -59,24 +54,6 @@ static const vice_gtk3_radiogroup_entry_t filters[] = {
     { "Scale2x",        VIDEO_FILTER_SCALE2X },
     { NULL, -1 }
 };
-
-
-#if 0
-/** \brief  Handler for the "toggled" event of the radio buttons
- *
- * \param[in]   widget      radio button
- * \param[in]   user_data   new value for render filter (`int1)
- */
-static void on_render_filter_toggled(GtkWidget *widget, gpointer user_data)
-{
-    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
-        int value = GPOINTER_TO_INT(user_data);
-
-        debug_gtk3("setting '%sFilter' to %d.", chip_prefix, value);
-        resources_set_int_sprintf("%sFilter", value, chip_prefix);
-    }
-}
-#endif
 
 
 /** \brief  Create widget to control render filter resources
@@ -90,14 +67,28 @@ GtkWidget *video_render_filter_widget_create(const char *chip)
     GtkWidget *grid;
     GtkWidget *render_widget;
 
-    chip_prefix = chip;
-
     grid = vice_gtk3_grid_new_spaced_with_label(
             VICE_GTK3_DEFAULT, VICE_GTK3_DEFAULT, "Render filter", 1);
     render_widget = vice_gtk3_resource_radiogroup_new_sprintf(
             "%sFilter", filters, GTK_ORIENTATION_VERTICAL, chip);
-    g_object_set(render_widget, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(render_widget, 16);
     gtk_grid_attach(GTK_GRID(grid), render_widget, 0, 1, 1, 1);
+
     gtk_widget_show_all(grid);
     return grid;
+}
+
+
+/** \brief  Set callback function to trigger on radio button toggles
+ *
+ * \param[in,out]   widget      render filter widget
+ * \param[in]       callback    function accepting the radio button and its value
+ */
+void video_render_filter_widget_add_callback(GtkWidget *widget,
+                                             void (*callback)(GtkWidget *, int))
+{
+    GtkWidget *group;
+
+    group = gtk_grid_get_child_at(GTK_GRID(widget), 0, 1);
+    vice_gtk3_resource_radiogroup_add_callback(group, callback);
 }

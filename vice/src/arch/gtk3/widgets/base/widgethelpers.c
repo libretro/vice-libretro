@@ -43,61 +43,12 @@
 
 #include "lib.h"
 #include "resources.h"
-#include "vsync.h"
 
 #include "vice_gtk3_settings.h"
 #include "debug_gtk3.h"
 
 #include "widgethelpers.h"
 
-
-/** \brief  Size of the buffer used for snprintf() calls to generate labels
- */
-#define LABEL_BUFFER_SIZE   256
-
-
-/** \brief  Create a GtkGrid with a bold GtkLabel as its first widget
- *
- * This creates a GtkGrid with a left-aligned, bold label, optionally spread
- * over multiple columns. If you don't know what pass as the \a columns
- * argument, just pass 1.
- *
- * \note    Deprecated in favour of vice_gtk3_grid_new_spaced_with_label()
- *
- * \param[in]   text    label text
- * \param[in]   columns number of columns in the grid the label should span
- *
- * \return  GtkGrid with a label
- */
-GtkWidget *uihelpers_create_grid_with_label(const gchar *text, gint columns)
-{
-    GtkWidget *grid;
-    GtkWidget *label;
-    gchar buffer[LABEL_BUFFER_SIZE];
-
-
-    debug_gtk3("Deprecated in favout of vice_gtk3_grid_new_spaced()");
-
-    /* sanitize columns input */
-    if (columns < 1) {
-        columns = 1;
-    }
-
-    /* use HTML-ish markup to make the label bold */
-    g_snprintf(buffer, LABEL_BUFFER_SIZE, "<b>%s</b>", text);
-
-    grid = gtk_grid_new();
-    g_object_set(grid, "margin", 8, NULL);
-    label = gtk_label_new(NULL);
-    gtk_label_set_markup(GTK_LABEL(label), buffer);
-    gtk_widget_set_halign(label, GTK_ALIGN_START);    /* align left */
-    g_object_set(label, "margin-bottom", 8, NULL);  /* add 8 units of margin
-                                                       to the bottom */
-    gtk_widget_show(label);
-
-    gtk_grid_attach(GTK_GRID(grid), label, 0, 0, columns, 1);
-    return grid;
-}
 
 
 /** \brief  Get index of \a value in \a list
@@ -133,7 +84,7 @@ int vice_gtk3_radiogroup_get_list_index(
  * So it might need some refactoring
  *
  * \param[in]   grid    GtkGrid containing radio buttons
- * \param[in[   index   index of the radio button (the actual index of the
+ * \param[in]   index   index of the radio button (the actual index of the
  *                      radio button, other widgets are skipped)
  */
 void vice_gtk3_radiogroup_set_index(GtkWidget *grid, int index)
@@ -142,9 +93,6 @@ void vice_gtk3_radiogroup_set_index(GtkWidget *grid, int index)
     int row = 0;
     int radio_index = 0;
 
-#if 0
-    debug_gtk3("Looking for index %d.", index);
-#endif
     if (index < 0) {
         debug_gtk3("Warning: negative index given, giving up.");
         return;
@@ -153,9 +101,6 @@ void vice_gtk3_radiogroup_set_index(GtkWidget *grid, int index)
     do {
         radio = gtk_grid_get_child_at(GTK_GRID(grid), 0, row);
         if (GTK_IS_TOGGLE_BUTTON(radio)) {
-#if 0
-            debug_gtk3("got toggle button at row %d.", row);
-#endif
             if (radio_index == index) {
                 gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(radio), TRUE);
                 return;
@@ -174,14 +119,14 @@ void vice_gtk3_radiogroup_set_index(GtkWidget *grid, int index)
  *
  * \param[in]   text    label text
  *
- * \return  label
+ * \return  GtkLabel
   */
 GtkWidget *vice_gtk3_create_indented_label(const char *text)
 {
     GtkWidget *label = gtk_label_new(text);
 
     gtk_widget_set_halign(label, GTK_ALIGN_START);
-    g_object_set(label, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(label, 16);
     return label;
 }
 
@@ -191,7 +136,7 @@ GtkWidget *vice_gtk3_create_indented_label(const char *text)
  * \param[in]   column_spacing  column spacing (< 0 to use default)
  * \param[in]   row_spacing     row spacing (< 0 to use default)
  *
- * \return  new `GtkGrid` instance
+ * \return  GtkGrid
  */
 GtkWidget *vice_gtk3_grid_new_spaced(int column_spacing, int row_spacing)
 {
@@ -212,7 +157,7 @@ GtkWidget *vice_gtk3_grid_new_spaced(int column_spacing, int row_spacing)
  * \param[in]   label           label text
  * \param[in]   span            number of columns for the \a label to span
  *
- * \return  new `GtkGrid` instance
+ * \return  GtkGrid
  */
 GtkWidget *vice_gtk3_grid_new_spaced_with_label(int column_spacing,
                                                 int row_spacing,
@@ -223,7 +168,7 @@ GtkWidget *vice_gtk3_grid_new_spaced_with_label(int column_spacing,
     GtkWidget *lbl = gtk_label_new(NULL);
     char *temp;
 
-    if (span <= 0) {
+    if (span < 1) {
         span = 1;
     }
 
@@ -231,13 +176,44 @@ GtkWidget *vice_gtk3_grid_new_spaced_with_label(int column_spacing,
     temp = lib_msprintf("<b>%s</b>", label);
     gtk_label_set_markup(GTK_LABEL(lbl), temp);
     gtk_widget_set_halign(lbl, GTK_ALIGN_START);
-    /* g_object_set(lbl, "margin-bottom", 8, NULL); */
     lib_free(temp);
 
     /* attach label */
     gtk_grid_attach(GTK_GRID(grid), lbl, 0, 0, span, 1);
     gtk_widget_show(grid);
     return grid;
+}
+
+
+/** \brief  Set margin on \a grid
+ *
+ * Set margins on a GtkGrid. passing a value of <0 means skipping that property.
+ *
+ * \param[in,out]   grid    GtkGrid instance
+ * \param[in]       top     top margin
+ * \param[in]       bottom  bottom margin
+ * \param[in]       start   start (left) margin
+ * \param[in]       end     end (right) margin
+ *
+ */
+void vice_gtk3_grid_set_margins(GtkWidget *grid,
+                                gint top,
+                                gint bottom,
+                                gint start,
+                                gint end)
+{
+    if (top >= 0) {
+        gtk_widget_set_margin_top(grid, top);
+    }
+    if (bottom >= 0) {
+        gtk_widget_set_margin_bottom(grid, bottom);
+    }
+    if (start >= 0) {
+        gtk_widget_set_margin_start(grid, start);
+    }
+    if (end >= 0) {
+        gtk_widget_set_margin_end(grid, end);
+    }
 }
 
 
@@ -250,6 +226,14 @@ GtkWidget *vice_gtk3_grid_new_spaced_with_label(int column_spacing,
  * \param[in]   s           PETSCII string to convert to UTF-8
  * \param[in]   inverted    use inverted mode
  * \param[in]   lowercase   use the lowercase chargen
+ *
+ * \return  heap-allocated UTF-8 string, free with lib_free()
+ *
+ * \note    only valid for the "C64_Pro_Mono-STYLE.ttf" font, not the old
+ *          "CBM.ttf" font.
+ *
+ * \note    Somehow the inverted space has a line on top on at least Linux,
+ *          the codepoint seems fine though, so perhaps a bug in Pango?
  */
 unsigned char *vice_gtk3_petscii_to_utf8(unsigned char *s,
                                          bool inverted,
@@ -259,7 +243,16 @@ unsigned char *vice_gtk3_petscii_to_utf8(unsigned char *s,
     unsigned int codepoint;
 
     r = d = lib_malloc((size_t)(strlen((char *)s) * 3 + 1));
-
+#if 0
+    debug_gtk3("Input: '%s'", s);
+#ifdef HAVE_DEBUG_GTK3UI
+    unsigned char *t = s;
+    while (*t) {
+        printf(" %02x", *t++);
+    }
+    putchar('\n');
+#endif
+#endif
     while (*s) {
 
         /* 0xe000-0xe0ff codepoints cover the regular, uppercase, petscii codes
@@ -267,7 +260,7 @@ unsigned char *vice_gtk3_petscii_to_utf8(unsigned char *s,
            0xe200-0xe2ff codepoints cover the same characters, but contain the
                          respective inverted glyphs.
 
-           regular valid petscii codes are converted as is, petscii control 
+           regular valid petscii codes are converted as is, petscii control
            codes will produce the glyph that the petscii code would produce
            in so called "quote mode".
         */
@@ -275,7 +268,7 @@ unsigned char *vice_gtk3_petscii_to_utf8(unsigned char *s,
         /* first convert petscii to utf8 codepoint */
         if (*s < 0x20) {
             /* petscii 0x00-0x1f  control codes (inverted @ABC..etc) */
-            codepoint  = *s + 0xe240;           /* 0xe240-0xe25f */
+            codepoint = *s + 0xe240;            /* 0xe240-0xe25f */
         } else if (*s < 0x80) {
             /* petscii 0x20-0x7f  printable petscii codes */
             codepoint = *s + 0xe000;            /* 0xe020-0xe07f */
@@ -295,34 +288,30 @@ unsigned char *vice_gtk3_petscii_to_utf8(unsigned char *s,
         }
         s++;
 
-        /* now copy to the destination string and convert to utf8 */
 #if 0
-        if (codepoint < 0x80) {
-            /* one byte form - 0xxxxxxx */
-            *d = codepoint;
-        } else if (codepoint < 0x800) {
-            /* two byte form - 110xxxxx 10xxxxxx */
-
-            /* for some reason 0xad will not result in output in the popup
-             * menu, so we remap it to 0xed, which works */
-            if (codepoint == 0xad) { /* Unicode U+00AD SOFT HYPHEN */
-                codepoint = 0xed;
-            }
-
-            *d++ = 0xc0 | (codepoint >> 6);
-            *d = (codepoint & ~0xc0) | 0x80;
-        } else
-#endif
-        /* we can get away with just this, because all codepoints are > 4095 */
-        {
-            /* three byte form - 1110xxxx 10xxxxxx 10xxxxxx */
-            *d++ = 0xe0 | ((codepoint >> 12) & 0x0f);
-            *d++ = 0x80 | ((codepoint >> (6)) & 0x3f);
-            *d   = 0x80 | ((codepoint >> (0)) & 0x3f);
+        if (codepoint == 0xe220) {
+            codepoint = 0xeee4;
         }
+#endif
+        /* now copy to the destination string and convert to utf8 */
+        /* we can get away with just this, because all codepoints are > 4095 */
+        /* three byte form - 1110xxxx 10xxxxxx 10xxxxxx */
+        *d++ = 0xe0 | ((codepoint >> 12) & 0x0f);
+        *d++ = 0x80 | ((codepoint >> (6)) & 0x3f);
+        *d   = 0x80 | ((codepoint >> (0)) & 0x3f);
         d++;
     }
     *d = '\0';
+#if 0
+    debug_gtk3("Result: ");
+#ifdef HAVE_DEBUG_GTK3UI
+    t = r;
+    while (*t) {
+        printf(" %02x", *t++);
+    }
+    putchar('\n');
+#endif
+#endif
     return r;
 }
 

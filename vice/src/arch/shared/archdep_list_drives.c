@@ -1,3 +1,8 @@
+/** \file   archdep_list_drives.c
+ * \brief   Get a list of available Windows drives
+ * \author  (Unknown)
+ */
+
 /*
  * This file is part of VICE, the Versatile Commodore Emulator.
  * See README for copyright notice.
@@ -21,13 +26,20 @@
 
 #include "vice.h"
 #include "archdep_defs.h"
-
 #include "archdep.h"
 #include "lib.h"
 
-/* FIXME: includes for amiga */
+#include "archdep_list_drives.h"
 
-#if defined(ARCHDEP_OS_WINDOWS)
+/** \fn     archdep_list_drives
+ * \brief   Get a list of available Windows drives
+ *
+ * \return  list of strings, NULL-terminated
+ *
+ * \note    the list and its elements need to be freed with lib_free().
+ */
+
+#if defined(WINDOWS_COMPILE)
 
 /* FIXME: is this needed* */
 # ifdef SDL_CHOOSE_DRIVES
@@ -66,4 +78,4 @@ char **archdep_list_drives(void)
 }
 # endif /* SDL_CHOOSE_DRIVES */
 
-#endif  /* ARCHDEP_OS_WINDOWS */
+#endif  /* WINDOWS_COMPILE */

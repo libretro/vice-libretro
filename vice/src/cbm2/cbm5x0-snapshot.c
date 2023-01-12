@@ -29,28 +29,30 @@
 
 #include <stdio.h>
 
-#include "cbm2-snapshot.h"
+#include "archdep.h"
 #include "cbm2.h"
 #include "cbm2acia.h"
 #include "cbm2memsnapshot.h"
 #include "cia.h"
 #include "drive-snapshot.h"
 #include "drive.h"
-#include "ioutil.h"
 #include "joyport.h"
 #include "joystick.h"
 #include "keyboard.h"
 #include "log.h"
 #include "machine.h"
 #include "maincpu.h"
+#include "serial.h"
 #include "sid-snapshot.h"
-#include "sound.h"
 #include "snapshot.h"
+#include "sound.h"
 #include "tapeport.h"
 #include "tpi.h"
 #include "types.h"
 #include "vice-event.h"
 #include "vicii.h"
+
+#include "cbm2-snapshot.h"
 
 
 #define SNAP_MAJOR          0
@@ -77,6 +79,7 @@ int cbm2_snapshot_write(const char *name, int save_roms, int save_disks,
         || acia1_snapshot_write_module(s) < 0
         || sid_snapshot_write_module(s) < 0
         || drive_snapshot_write_module(s, save_disks, save_roms) < 0
+        || fsdrive_snapshot_write_module(s) < 0
         || vicii_snapshot_write_module(s) < 0
         || cbm2_c500_snapshot_write_module(s) < 0
         || event_snapshot_write_module(s, event_mode) < 0
@@ -85,7 +88,7 @@ int cbm2_snapshot_write(const char *name, int save_roms, int save_disks,
         || joyport_snapshot_write_module(s, JOYPORT_1) < 0
         || joyport_snapshot_write_module(s, JOYPORT_2) < 0) {
         snapshot_close(s);
-        ioutil_remove(name);
+        archdep_remove(name);
         return -1;
     }
 

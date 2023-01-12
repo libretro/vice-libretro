@@ -41,7 +41,7 @@ void mousedrv_mouse_changed(void)
     ui_check_mouse_cursor();
 }
 
-int mousedrv_resources_init(mouse_func_t *funcs)
+int mousedrv_resources_init(const mouse_func_t *funcs)
 {
     mouse_funcs.mbl = funcs->mbl;
     mouse_funcs.mbr = funcs->mbr;
@@ -51,50 +51,39 @@ int mousedrv_resources_init(mouse_func_t *funcs)
     return 0;
 }
 
-/* ------------------------------------------------------------------------- */
-
 int mousedrv_cmdline_options_init(void)
 {
     return 0;
 }
 
-/* ------------------------------------------------------------------------- */
-
 void mousedrv_init(void)
 {
-}
-
-/* ------------------------------------------------------------------------- */
-
-void mouse_button_left(int pressed)
-{
-    mouse_funcs.mbl(pressed);
-}
-
-void mouse_button_right(int pressed)
-{
-    mouse_funcs.mbr(pressed);
-}
-
-void mouse_button_middle(int pressed)
-{
-    mouse_funcs.mbm(pressed);
 }
 
 void mouse_button(int bnumber, int state)
 {
     switch (bnumber) {
         case 0:
-            mouse_button_left(state);
+            if (mouse_funcs.mbl)
+                mouse_funcs.mbl(state);
             break;
         case 1:
-            mouse_button_right(state);
+            if (mouse_funcs.mbr)
+                mouse_funcs.mbr(state);
             break;
         case 2:
-            mouse_button_middle(state);
+            if (mouse_funcs.mbm)
+                mouse_funcs.mbm(state);
+            break;
+        case 3:
+            if (mouse_funcs.mbu)
+                mouse_funcs.mbu(state);
+            break;
+        case 4:
+            if (mouse_funcs.mbd)
+                mouse_funcs.mbd(state);
             break;
         default:
             break;
     }
 }
-

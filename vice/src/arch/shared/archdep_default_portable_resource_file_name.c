@@ -4,11 +4,12 @@
  *
  * Get path to default portable resource file (vicerc/vice.ini)
  *
- * unlike the normal resource file, this one is located in the same
- * directory as the .exe file (on windows).
+ * Unlike the normal resource file, this one is located in the 'root' directory
+ * of the bindist (Windows) or in the user's home directory (Unix).
  *
  * OS support:
  *  - Windows
+ *  - Unix
  *
  */
 
@@ -38,9 +39,9 @@
 
 #include <stdlib.h>
 
-#include "archdep_join_paths.h"
 #include "archdep_boot_path.h"
 #include "archdep_home_path.h"
+#include "util.h"
 
 #include "archdep_default_portable_resource_file_name.h"
 
@@ -51,17 +52,16 @@
  */
 char *archdep_default_portable_resource_file_name(void)
 {
-    const char *cfg;
-#ifdef ARCHDEP_OS_WINDOWS
-    cfg = archdep_boot_path();
-    return archdep_join_paths(cfg, ARCHDEP_VICERC_NAME, NULL);
+#ifdef WINDOWS_COMPILE
+    return util_join_paths(archdep_boot_path(),
+# ifdef USE_GTK3UI
+                           "..", /* Gtk-Win binaries live in bin/, so go up */
+# endif
+                           ARCHDEP_VICERC_NAME,
+                           NULL);
 #else
-    cfg = archdep_home_path();
-    /* Don't pass the leading dot of .vicerc as a separate argument, but use
-     * the preprocessor's string concatenation feature.
-     * Perhaps at some point archdep_join_paths() might be updated to normalize
-     * its path, meaning it would eat the ".".
-     */
-    return archdep_join_paths(cfg, "." ARCHDEP_VICERC_NAME, NULL);
+    return util_join_paths(archdep_home_path(),
+                           "." ARCHDEP_VICERC_NAME, /* ".vicerc" */
+                           NULL);
 #endif
 }

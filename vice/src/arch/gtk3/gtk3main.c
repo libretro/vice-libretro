@@ -36,6 +36,7 @@
 #include "log.h"
 #include "machine.h"
 #include "main.h"
+#include "mainlock.h"
 #include "render_thread.h"
 #include "ui.h"
 #include "video.h"
@@ -65,7 +66,7 @@ int main(int argc, char **argv)
      *
      * --Compyx
      */
-#ifdef WIN32_COMPILE
+#ifdef WINDOWS_COMPILE
     _putenv("LANG=C");
 #endif
 
@@ -93,9 +94,9 @@ int main(int argc, char **argv)
      * Because gtk_main will  never return, we call archdep_thread_shutdown()
      * for the main thread in the exit subsystem rather than here.
      */
-    
     return 0;
 }
+
 
 /** \brief  Exit handler
  */
@@ -114,6 +115,6 @@ void main_exit(void)
     ui_exit();
 
     vice_thread_shutdown();
-    
+
     machine_shutdown();
 }

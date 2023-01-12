@@ -61,7 +61,19 @@
  * Probably will require some testing/tweaking to get this to look acceptable
  * with various themes (and OSes).
  */
-#define SLIDER_CSS "scale slider { min-width: 10px; min-height: 10px; margin: -3px; } scale { margin-top: -8px; margin-bottom: -8px; } scale value { min-width: 4em; }"
+#define SLIDER_CSS \
+    "scale slider {\n" \
+    "    min-width: 10px;\n" \
+    "    min-height: 10px;\n" \
+    "    margin: -3px;\n" \
+    "}\n" \
+    "scale {\n" \
+    "    margin-top: -8px;\n" \
+    "    margin-bottom: -8px;\n" \
+    "}\n" \
+    "scale value {\n" \
+    "    min-width: 4em;\n" \
+    "}\n"
 
 
 /** \brief  CSS for the labels
@@ -70,11 +82,19 @@
  *
  * Here Be Dragons!
  */
-#define LABEL_CSS "label { font-size: 80%; margin-top: -2px; margin-bottom: -2px; }"
+#define LABEL_CSS \
+    "label {\n" \
+    "    font-size: 80%;\n" \
+    "    margin-top: -2px;\n" \
+    "    margin-bottom: -2px;\n" \
+    "}\n"
 
 
 /** \brief  Main volume slider */
 static GtkWidget *volume;
+
+/** \brief  CB2 low pass filter setting (PETs only) */
+static GtkWidget *lowpass;
 
 #ifdef HAVE_RESID
 
@@ -126,7 +146,8 @@ static GtkCssProvider *scale_css_provider;
 
 
 
-/* depending on what SID type is being used, show the right widgets */
+/** \brief  Depending on what SID type is being used, show the right widgets
+ */
 void mixer_widget_sid_type_changed(void)
 {
     int model = 0;
@@ -142,7 +163,8 @@ void mixer_widget_sid_type_changed(void)
 #endif
 
     if (resources_get_int("SidModel", &model) < 0) {
-        debug_gtk3("failed to get SidModel resource");
+        log_error(LOG_ERR, "failed to get SidModel resource, bailing!");
+        return;
     }
 
     if (machine_class == VICE_MACHINE_VSID) {
@@ -188,12 +210,9 @@ void mixer_widget_sid_type_changed(void)
 #endif
 
     /* disable sliders when not ReSID */
-    debug_gtk3("Getting SID engine...");
     if (resources_get_int("SidEngine", &engine) < 0) {
-        debug_gtk3("Failed, using FastSID.");
-        engine = SID_ENGINE_FASTSID;
-    } else {
-        debug_gtk3("OK: engine = %d.", engine);
+        log_error(LOG_ERR, "failed to reead 'SidEngine' resource, bailing!");
+        return;
     }
     enabled = engine == SID_ENGINE_FASTSID ? 0 : 1;
 
@@ -223,6 +242,10 @@ static void on_reset_clicked(GtkWidget *widget, gpointer data)
     mixer_widget_sid_type_changed();
     resources_get_default_value("SoundVolume", &value);
     gtk_range_set_value(GTK_RANGE(volume), (gdouble)value);
+    if (lowpass) {
+        resources_get_default_value("CB2Lowpass", &value);
+        vice_gtk3_resource_exp_range_set_value(GTK_RANGE(lowpass), (gdouble)value);
+    }
 #ifdef HAVE_RESID
     /* FIXME: Maybe only reset the current SID model? */
     resources_get_default_value("SidResid8580Passband", &value);
@@ -241,14 +264,16 @@ static void on_reset_clicked(GtkWidget *widget, gpointer data)
 }
 
 
-/** \brief  Create a right-align label
+/** \brief  Create a horizontally aligned label
  *
- * \param[in]   text    text for the label
- * \param[in]   minimal use CSS to reduce size of use as statusbar widget
+ * \param[in]   text        text for the label
+ * \param[in]   minimal     use CSS to reduce size of use as statusbar widget
+ * \param[in]   alignment   label alignment (see `GtkAlingn` enum`)
  *
  * \return  GtkLabel
  */
-static GtkWidget *create_label(const char *text, gboolean minimal,
+static GtkWidget *create_label(const char *text,
+                               gboolean minimal,
                                GtkAlign alignment)
 {
     GtkWidget *label;
@@ -296,6 +321,40 @@ static GtkWidget *create_slider(
     return scale;
 }
 
+/** \brief  Create an exponential GtkScale for \a resource
+ *
+ * \param[in]   resource    resource name without the video \a chip name prefix
+ * \param[in]   power       exponent
+ * \param[in]   low         lower bound
+ * \param[in]   high        upper bound
+ * \param[in]   step        step used to increase/decrease slider value
+ * \param[in]   minimal     reduce slider size to be used in the statusbar
+ *
+ * \return  GtkScale
+ */
+static GtkWidget *create_exp_slider(
+        const char *resource,
+        double power,
+        int low, int high, int step,
+        gboolean minimal)
+{
+    GtkWidget *scale;
+
+    scale = vice_gtk3_resource_scale_exp_new(resource,
+            GTK_ORIENTATION_HORIZONTAL, power, low, high, step, "%d");
+    gtk_widget_set_hexpand(scale, TRUE);
+    gtk_scale_set_value_pos(GTK_SCALE(scale), GTK_POS_RIGHT);
+    /* vice_gtk3_resource_scale_int_set_marks(scale, step); */
+
+    if (minimal) {
+        /* use CSS to make sliders use less space */
+        vice_gtk3_css_provider_add(scale, scale_css_provider);
+    }
+
+    /*    gtk_scale_set_draw_value(GTK_SCALE(scale), FALSE); */
+    return scale;
+}
+
 /* Commented out for now, the idea here is to allow more fine-grained control
  * over ReSID filter resources, which is still a TODO
  */
@@ -321,6 +380,23 @@ static GtkWidget *create_spin(
 static GtkWidget *create_volume_widget(gboolean minimal)
 {
     return create_slider("SoundVolume", 0, 100, 5, minimal);
+}
+
+
+/** \brief  Create slider for CB2 low pass filter
+ *
+ * \param[in]   minimal resize slider to minimal size
+ *
+ * \return  GtkScale
+ */
+static GtkWidget *create_lowpass_widget(gboolean minimal)
+{
+    /*
+     * 3.8118 is chosen so that the default setting of 16000
+     * (1/3 of the full range) is at 75% on the slider:
+     * (0.75)^3.8118 ~ 0.33.
+     */
+    return create_exp_slider("CB2Lowpass", 3.81184, 1, 48000, 1000, minimal);
 }
 
 
@@ -422,16 +498,17 @@ GtkWidget *mixer_widget_create(gboolean minimal, GtkAlign alignment)
             || machine_class == VICE_MACHINE_PLUS4) {
         /* check for presence of SidCart */
         if (resources_get_int("SidCart", &tmp) < 0) {
-            debug_gtk3("failed to get value for resource SidCart, disabling.");
-            sid_present = FALSE;
-        } else {
-            sid_present = (gboolean)tmp;
+            log_error(LOG_ERR,
+                    "failed to get value for resource SidCart, bailing!");
+            return NULL;
         }
+        sid_present = (gboolean)tmp;
     }
 #endif
 
     grid = vice_gtk3_grid_new_spaced(16, 0);
-    g_object_set(G_OBJECT(grid), "margin-left", 8, "margin-right", 8, NULL);
+    gtk_widget_set_margin_start(grid, 8);
+    gtk_widget_set_margin_end(grid, 8);
     gtk_widget_set_hexpand(grid, TRUE);
 
     /* create reusable CSS providers */
@@ -472,8 +549,21 @@ GtkWidget *mixer_widget_create(gboolean minimal, GtkAlign alignment)
     gtk_grid_attach(GTK_GRID(grid), volume, 1,row, 1, 1);
     row++;
 
+    /* Only make this slider when the resource is available, i.e. on PETs */
+    if (resources_query_type("CB2Lowpass") == RES_INTEGER) {
+        label = create_label("CB2 Low Pass", minimal, alignment);
+        lowpass = create_lowpass_widget(minimal);
+        gtk_widget_set_hexpand(lowpass, TRUE);
+        gtk_grid_attach(GTK_GRID(grid), label, 0, row, 1, 1);
+        gtk_grid_attach(GTK_GRID(grid), lowpass, 1,row, 1, 1);
+        row++;
+    } else {
+        lowpass = NULL;
+    }
+
     if (resources_get_int("SidModel", &model) < 0) {
-        debug_gtk3("failed to get SidModel resource");
+        log_error(LOG_ERR, "failed to get SidModel resource");
+        return NULL;
     }
 
 #ifdef HAVE_RESID

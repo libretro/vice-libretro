@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "cartridge.h"
 #include "cartio.h"
 #include "datasette.h"
 #include "digiblaster.h"
@@ -39,7 +40,9 @@
 #include "mem.h"
 #include "monitor.h"
 #include "plus4iec.h"
+#include "plus4cart.h"
 #include "plus4mem.h"
+#include "plus4memrom.h"
 #include "plus4memcsory256k.h"
 #include "plus4memhannes256k.h"
 #include "plus4memhacks.h"
@@ -64,19 +67,6 @@ static int hard_reset_flag = 1;
 
 /* The Plus4 memory.  */
 uint8_t mem_ram[PLUS4_RAM_SIZE];
-
-#ifdef USE_EMBEDDED
-#include "plus43plus1lo.h"
-#include "plus43plus1hi.h"
-#else
-uint8_t extromlo1[PLUS4_BASIC_ROM_SIZE];
-uint8_t extromhi1[PLUS4_KERNAL_ROM_SIZE];
-#endif
-
-uint8_t extromlo2[PLUS4_BASIC_ROM_SIZE];
-uint8_t extromlo3[PLUS4_BASIC_ROM_SIZE];
-uint8_t extromhi2[PLUS4_KERNAL_ROM_SIZE];
-uint8_t extromhi3[PLUS4_KERNAL_ROM_SIZE];
 
 /* Pointers to the currently used memory read and write tables.  */
 read_func_ptr_t *_mem_read_tab_ptr;
@@ -141,6 +131,8 @@ static uint8_t *chargen_tab[8][16] = {
             RAM4, RAM4, RAM4, RAM4,
             RAM4, RAM4, RAM4, RAM4 },
     /* 8000-bfff, ROM selected  */
+    /* FIXME: we cant directly point to cartridge ROM here, we need a better
+              (indirect) way to do this */
     {  plus4memrom_basic_rom, extromlo1, extromlo2, extromlo3,
        plus4memrom_basic_rom, extromlo1, extromlo2, extromlo3,
        plus4memrom_basic_rom, extromlo1, extromlo2, extromlo3,
@@ -173,7 +165,7 @@ static uint8_t tape_read = 0xff;
 static uint8_t tape_write_in = 0xff;
 static uint8_t tape_motor_in = 0xff;
 
-/* Current watchpoint state. 
+/* Current watchpoint state.
           0 = no watchpoints
     bit0; 1 = watchpoints active
     bit1; 2 = watchpoints trigger on dummy accesses
@@ -190,14 +182,14 @@ inline static void mem_proc_port_store(void)
 
     if (((~pport.dir | pport.data) & 0x02) != old_port_write_bit) {
         old_port_write_bit = (~pport.dir | pport.data) & 0x02;
-        tapeport_toggle_write_bit((~pport.dir | ~pport.data) & 0x02);
+        tapeport_toggle_write_bit(TAPEPORT_PORT_1, (~pport.dir | ~pport.data) & 0x02);
     }
 
     (*iecbus_callback_write)((uint8_t)~pport.data_out, last_write_cycle);
 
     if (((pport.dir & pport.data) & 0x08) != old_port_data_out) {
         old_port_data_out = (pport.dir & pport.data) & 0x08;
-        tapeport_set_motor(!old_port_data_out);
+        tapeport_set_motor(TAPEPORT_PORT_1, !old_port_data_out);
     }
 }
 
@@ -333,7 +325,7 @@ static void mem_config_set(unsigned int config)
     mem_config = config;
 
     mem_update_tab_ptrs(watchpoints_active);
-    
+
     _mem_read_base_tab_ptr = mem_read_base_tab[mem_config];
     mem_read_limit_tab_ptr = mem_read_limit_tab[mem_config];
 
@@ -730,32 +722,36 @@ void mem_initialize_memory(void)
         mem_read_base_tab[1][i] = plus4memrom_basic_rom + ((i & 0x3f) << 8);
         mem_read_tab[3][i] = plus4memrom_extromlo1_read;
         mem_read_base_tab[3][i] = extromlo1 + ((i & 0x3f) << 8);
-        mem_read_tab[5][i] = plus4memrom_extromlo2_read;
-        mem_read_base_tab[5][i] = extromlo2 + ((i & 0x3f) << 8);
+        mem_read_tab[5][i] = plus4cart_c1lo_read;
+        /*mem_read_base_tab[5][i] = extromlo2 + ((i & 0x3f) << 8);*/
+        mem_read_base_tab[5][i] = NULL;
         mem_read_tab[7][i] = plus4memrom_extromlo3_read;
         mem_read_base_tab[7][i] = extromlo3 + ((i & 0x3f) << 8);
         mem_read_tab[9][i] = plus4memrom_basic_read;
         mem_read_base_tab[9][i] = plus4memrom_basic_rom + ((i & 0x3f) << 8);
         mem_read_tab[11][i] = plus4memrom_extromlo1_read;
         mem_read_base_tab[11][i] = extromlo1 + ((i & 0x3f) << 8);
-        mem_read_tab[13][i] = plus4memrom_extromlo2_read;
-        mem_read_base_tab[13][i] = extromlo2 + ((i & 0x3f) << 8);
+        mem_read_tab[13][i] = plus4cart_c1lo_read;
+        /*mem_read_base_tab[13][i] = extromlo2 + ((i & 0x3f) << 8);*/
+        mem_read_base_tab[13][i] = NULL;
         mem_read_tab[15][i] = plus4memrom_extromlo3_read;
         mem_read_base_tab[15][i] = extromlo3 + ((i & 0x3f) << 8);
         mem_read_tab[17][i] = plus4memrom_basic_read;
         mem_read_base_tab[17][i] = plus4memrom_basic_rom + ((i & 0x3f) << 8);
         mem_read_tab[19][i] = plus4memrom_extromlo1_read;
         mem_read_base_tab[19][i] = extromlo1 + ((i & 0x3f) << 8);
-        mem_read_tab[21][i] = plus4memrom_extromlo2_read;
-        mem_read_base_tab[21][i] = extromlo2 + ((i & 0x3f) << 8);
+        mem_read_tab[21][i] = plus4cart_c1lo_read;
+        /*mem_read_base_tab[21][i] = extromlo2 + ((i & 0x3f) << 8);*/
+        mem_read_base_tab[21][i] = NULL;
         mem_read_tab[23][i] = plus4memrom_extromlo3_read;
         mem_read_base_tab[23][i] = extromlo3 + ((i & 0x3f) << 8);
         mem_read_tab[25][i] = plus4memrom_basic_read;
         mem_read_base_tab[25][i] = plus4memrom_basic_rom + ((i & 0x3f) << 8);
         mem_read_tab[27][i] = plus4memrom_extromlo1_read;
         mem_read_base_tab[27][i] = extromlo1 + ((i & 0x3f) << 8);
-        mem_read_tab[29][i] = plus4memrom_extromlo2_read;
-        mem_read_base_tab[29][i] = extromlo2 + ((i & 0x3f) << 8);
+        mem_read_tab[29][i] = plus4cart_c1lo_read;
+        /*mem_read_base_tab[29][i] = extromlo2 + ((i & 0x3f) << 8);*/
+        mem_read_base_tab[29][i] = NULL;
         mem_read_tab[31][i] = plus4memrom_extromlo3_read;
         mem_read_base_tab[31][i] = extromlo3 + ((i & 0x3f) << 8);
     }
@@ -782,14 +778,18 @@ void mem_initialize_memory(void)
         mem_read_base_tab[13][i] = extromhi1 + ((i & 0x3f) << 8);
         mem_read_tab[15][i] = plus4memrom_extromhi1_read;
         mem_read_base_tab[15][i] = extromhi1 + ((i & 0x3f) << 8);
-        mem_read_tab[17][i] = plus4memrom_extromhi2_read;
-        mem_read_base_tab[17][i] = extromhi2 + ((i & 0x3f) << 8);
-        mem_read_tab[19][i] = plus4memrom_extromhi2_read;
-        mem_read_base_tab[19][i] = extromhi2 + ((i & 0x3f) << 8);
-        mem_read_tab[21][i] = plus4memrom_extromhi2_read;
-        mem_read_base_tab[21][i] = extromhi2 + ((i & 0x3f) << 8);
-        mem_read_tab[23][i] = plus4memrom_extromhi2_read;
-        mem_read_base_tab[23][i] = extromhi2 + ((i & 0x3f) << 8);
+        mem_read_tab[17][i] = plus4cart_c1hi_read;
+        /*mem_read_base_tab[17][i] = extromhi2 + ((i & 0x3f) << 8);*/
+        mem_read_base_tab[17][i] = NULL;
+        mem_read_tab[19][i] = plus4cart_c1hi_read;
+        /*mem_read_base_tab[19][i] = extromhi2 + ((i & 0x3f) << 8);*/
+        mem_read_base_tab[19][i] = NULL;
+        mem_read_tab[21][i] = plus4cart_c1hi_read;
+        /*mem_read_base_tab[21][i] = extromhi2 + ((i & 0x3f) << 8);*/
+        mem_read_base_tab[21][i] = NULL;
+        mem_read_tab[23][i] = plus4cart_c1hi_read;
+        /*mem_read_base_tab[23][i] = extromhi2 + ((i & 0x3f) << 8);*/
+        mem_read_base_tab[23][i] = NULL;
         mem_read_tab[25][i] = plus4memrom_extromhi3_read;
         mem_read_base_tab[25][i] = extromhi3 + ((i & 0x3f) << 8);
         mem_read_tab[27][i] = plus4memrom_extromhi3_read;
@@ -885,9 +885,13 @@ void mem_mmu_translate(unsigned int addr, uint8_t **base, int *start, int *limit
 {
     uint8_t *p = _mem_read_base_tab_ptr[addr >> 8];
 
-    *base = (p == NULL) ? NULL : (p - (addr & 0xff00));
-    *start = addr; /* TODO */
-    *limit = mem_read_limit_tab_ptr[addr >> 8];
+    if (p != NULL && addr > 1) {
+        *base = (p - (addr & 0xff00));
+        *start = addr; /* TODO */
+        *limit = mem_read_limit_tab_ptr[addr >> 8];
+    } else {
+        cartridge_mmu_translate(addr, base, start, limit);
+    }
 }
 
 /* ------------------------------------------------------------------------- */
@@ -923,7 +927,7 @@ void mem_set_basic_text(uint16_t start, uint16_t end)
 }
 
 /* this function should always read from the screen currently used by the kernal
-   for output, normally this does just return system ram - except when the 
+   for output, normally this does just return system ram - except when the
    videoram is not memory mapped.
    used by autostart to "read" the kernal messages
 */
@@ -979,7 +983,7 @@ static const char *banknames[MAXBANKS + 1] = {
     NULL
 };
 
-static const int banknums[MAXBANKS + 1] = { 1, 0, 1, 2, 6, 3, 4, 5, -1 };
+static const int banknums[MAXBANKS + 1] = { 0, 1, 1, 2, 6, 3, 4, 5, -1 };
 static const int bankindex[MAXBANKS + 1] = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
 static const int bankflags[MAXBANKS + 1] = { 0, 0, 0, 0, 0, 0, 0, 0, -1 };
 
@@ -1098,39 +1102,39 @@ uint8_t mem_bank_peek(int bank, uint16_t addr, void *context)
                 $0000-$7fff   RAM
                 $8000-$9fff   RAM / BASIC / Function LO
                 $a000-$bfff   RAM / Kernal / Function HI
-                
+
                 $c000-$cfff   RAM / Basic Extension
-                
+
                 $d000-$d7ff   RAM / character ROM / Function HI
                 $d800-$fbff   RAM / operating system
-              
+
                 $FC00-        Kernal Routines for switching banks
-              
+
                 $FD00-$FF3F always I/O:
 
                     $FD00-FD0F: 6551  (only on the +4.  4 registers.)
                     $FD10-FD1F: 6529B (1 register)
                     $FD30-FD3F: 6529B (1 register)
-                
+
                 $FDD0-$FDDF ROM bank select
-                
+
                     a0 a1 bank
                     0  0  BASIC (low internal #1)
                     0  1  Function LO (low internal #2)
                     1  0  Cartridge LO (low external #1)
                     1  1  reserved
-                
+
                     a2 a3 bank
                     0  0  Kernal (hi internal #1)
                     0  1  Function HI (hi internal #2)
                     1  0  Cartridge HI (hi external #1)
                     1  1  reserved
-                
+
                 $FF00-  TED registers
-                
+
                 $FF3E   ROM select, Write switches on ROM bank
-                $FF3F   RAM select, Write switches on RAM bank                
-                
+                $FF3F   RAM select, Write switches on RAM bank
+
                 $FF40-$FFFF RAM / Kernal / Function HI
             */
             if ((addr >= 0xfd00) && (addr <= 0xfd3f)) {
@@ -1177,10 +1181,12 @@ uint8_t mem_bank_read(int bank, uint16_t addr, void *context)
             break;
         case 4:                   /* cart1rom */
             if (addr >= 0x8000 && addr <= 0xbfff) {
-                return extromlo2[addr & 0x3fff];
+                /* return extromlo2[addr & 0x3fff]; */
+                return plus4cart_c1lo_read(addr);
             }
             if (addr >= 0xc000) {
-                return extromhi2[addr & 0x3fff];
+                /* return extromhi2[addr & 0x3fff]; */
+                return plus4cart_c1hi_read(addr);
             }
             break;
         case 5:                   /* cart2rom */
@@ -1282,7 +1288,7 @@ void mem_get_screen_parameter(uint16_t *base, uint8_t *rows, uint8_t *columns, i
 
 /* used by autostart to locate and "read" kernal output on the current screen
  * this function should return whatever the kernal currently uses, regardless
- * what is currently visible/active in the UI 
+ * what is currently visible/active in the UI
  */
 void mem_get_cursor_parameter(uint16_t *screen_addr, uint8_t *cursor_column, uint8_t *line_length, int *blinking)
 {
@@ -1338,8 +1344,8 @@ static mem_config_t mem_config_table[] = {
 
 static int memconfig_dump(void)
 {
-    mon_out("$8000-$BFFF: %s", (mem_config & 1) ? mem_config_table[mem_config >> 1].mem_8000 : "RAM");
-    mon_out("$C000-$FFFF: %s", (mem_config & 1) ? mem_config_table[mem_config >> 1].mem_c000 : "RAM");
+    mon_out("$8000-$BFFF: %s\n", (mem_config & 1) ? mem_config_table[mem_config >> 1].mem_8000 : "RAM");
+    mon_out("$C000-$FFFF: %s\n", (mem_config & 1) ? mem_config_table[mem_config >> 1].mem_c000 : "RAM");
 
     return 0;
 }
@@ -1382,7 +1388,7 @@ static io_source_t pio1_only_device = {
     "PIO1",                /* name of the chip */
     IO_DETACH_NEVER,       /* chip is never involved in collisions, so no detach */
     IO_DETACH_NO_RESOURCE, /* does not use a resource for detach */
-    0xfd10, 0xfd10, 0x00,  /* range for the device, reg:$fd10 */ 
+    0xfd10, 0xfd10, 0x00,  /* range for the device, reg:$fd10 */
     1,                     /* read is always valid */
     pio1_store,            /* store function */
     NULL,                  /* NO poke function */
@@ -1479,3 +1485,4 @@ void plus4io_init(void)
     tcbm1_list_item = io_source_register(&tcbm1_device);
     tcbm2_list_item = io_source_register(&tcbm2_device);
 }
+

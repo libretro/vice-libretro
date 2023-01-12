@@ -1,7 +1,6 @@
 AM_CPPFLAGS = \
 	@VICE_CPPFLAGS@ \
 	@ARCH_INCLUDES@ \
-	-I$(top_srcdir)/src/arch/shared \
 	-I$(top_builddir)/src \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/src/joyport
@@ -39,6 +38,8 @@ libraster_a_SOURCES = \
 	raster-modes.h \
 	raster-resources.c \
 	raster-resources.h \
+	raster-snapshot.c \
+	raster-snapshot.h \
 	raster-sprite.c \
 	raster-sprite.h \
 	raster-sprite-status.c \

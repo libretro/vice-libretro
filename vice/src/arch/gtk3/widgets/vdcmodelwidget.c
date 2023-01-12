@@ -53,40 +53,24 @@ static const vice_gtk3_radiogroup_entry_t vdc_revs[] = {
 };
 
 
+/** \brief  Callback function for revision changes */
 static void (*vdc_revision_func)(int);
+
+/** \brief  Callback function for RAM size changes */
 static void (*vdc_ram_func)(int);
 
 
-#if 0
 
-/** \brief  Get index in revisions table of \a revision
- *
- * \param[in]   revision    revision number
- *
- * \return  index in revisions table or -1 on error
- *
- * \note    Looks a bit over-the-top for a simple sequence, but should revision
- *          numbers change somehow, this code will still work.
- */
-static int get_revision_index(int revision)
-{
-    return uihelpers_radiogroup_get_index(vdc_revs, revision);
-}
-#endif
-
-/** \brief  Handler for the "toggled" event of the revision radio buttons
+/** \brief  Handler for the 'toggled' event of the revision radio buttons
  *
  * \param[in]   widget      radio button
  * \param[in]   user_data   revision (`int`)
  */
 static void on_revision_toggled(GtkWidget *widget, gpointer user_data)
 {
-    int rev = GPOINTER_TO_INT(user_data);
-
-    debug_gtk3("GOT REV %d.", rev);
-
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
-        debug_gtk3("setting VDCRevision to %d.", rev);
+        int rev = GPOINTER_TO_INT(user_data);
+
         resources_set_int("VDCRevision", rev);
 
         if (vdc_revision_func != NULL) {
@@ -103,10 +87,8 @@ static void on_revision_toggled(GtkWidget *widget, gpointer user_data)
  */
 static void on_64kb_ram_toggled(GtkWidget *widget, gpointer data)
 {
-    int state = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
     if (vdc_ram_func != NULL) {
-        debug_gtk3("calling vdc_ram_func(%d).", state);
-        vdc_ram_func(state);
+        vdc_ram_func(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget)));
     }
 }
 
@@ -121,8 +103,31 @@ static GtkWidget *create_64kb_widget(void)
 
     check = vice_gtk3_resource_check_button_new(
             "VDC64KB", "Enable 64KiB video ram");
-    g_object_set(check, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(check, 16);
     return check;
+}
+
+
+/** \brief  Connect extra signal handlers to the VDC revision radiogroup
+ *
+ * Add signal handlers to the revision radio buttons to trigger the extra
+ * callback.
+ *
+ * \param[in,out]   widget  VDC revision widget
+ */
+static void vdc_model_widget_connect_signals(GtkWidget *widget)
+{
+    GtkWidget *radio;
+    int i = 0;
+
+    while ((radio = gtk_grid_get_child_at(
+                    GTK_GRID(widget), 0, i)) != NULL) {
+        if (GTK_IS_RADIO_BUTTON(radio)) {
+            g_signal_connect(radio, "toggled", G_CALLBACK(on_revision_toggled),
+                    GINT_TO_POINTER(vdc_revs[i].id));
+        }
+        i++;
+    }
 }
 
 
@@ -141,15 +146,18 @@ GtkWidget *vdc_model_widget_create(void)
             "VDC settings", 1);
 
     extra_ram = create_64kb_widget();
+    gtk_widget_set_margin_start(extra_ram, 16);
     g_signal_connect(extra_ram, "toggled", G_CALLBACK(on_64kb_ram_toggled),
             NULL);
     group = vice_gtk3_resource_radiogroup_new("VDCRevision",
             vdc_revs, GTK_ORIENTATION_VERTICAL);
-    g_object_set(extra_ram, "margin-left", 16, NULL);
-    g_object_set(group, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(group, 16);
+
+    /* connect extra handlers */
+    vdc_model_widget_connect_signals(group);
+
     gtk_grid_attach(GTK_GRID(grid), extra_ram, 0, 1, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), group, 0, 2, 1, 1);
-
     gtk_widget_show_all(grid);
     return grid;
 }
@@ -169,7 +177,6 @@ void vdc_model_widget_update(GtkWidget *widget)
 
     resources_get_int("VDCRevision", &rev);
     index = vice_gtk3_radiogroup_get_list_index(vdc_revs, rev);
-    debug_gtk3("got VDCRevision %d.", rev);
 
     /* grab VDC revisions grid from the VDC widget */
     rev_widget = gtk_grid_get_child_at(GTK_GRID(widget), 0, 2);
@@ -187,15 +194,10 @@ void vdc_model_widget_update(GtkWidget *widget)
 
         while ((radio = gtk_grid_get_child_at(
                         GTK_GRID(rev_widget), 0, i)) != NULL) {
-#if 0
-            debug_gtk3("index = %d, i = %d.", index, i);
-#endif
             if (GTK_IS_RADIO_BUTTON(radio)) {
                 if (i == index) {
-#if 0
-                    debug_gtk3("setting toggle button.");
-#endif
-                    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(radio),
+                    gtk_toggle_button_set_active(
+                            GTK_TOGGLE_BUTTON(radio),
                             TRUE);
                     break;
                 }
@@ -209,57 +211,27 @@ void vdc_model_widget_update(GtkWidget *widget)
 
     /* update the 16/64 KB widget */
     resources_get_int("VDC64KB", &ram);
-    debug_gtk3("Got 64KiB VDC RAM: %s.", ram ? "TRUE" : "FALSE");
     ram_widget = gtk_grid_get_child_at(GTK_GRID(widget), 0, 1);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ram_widget), ram);
 
 }
 
 
-/** \brief  Connect signal handlers of the VDC widget
+/** \brief  Set callback function to trigger on revision changes
  *
- * \param[in,out]   widget  VDC model widget
- */
-void vdc_model_widget_connect_signals(GtkWidget *widget)
-{
-    GtkWidget *grid;
-    GtkWidget *radio;
-    int i = 0;
-
-    /* revisions grid is at (0,2) in the 'main' grid */
-    grid = gtk_grid_get_child_at(GTK_GRID(widget), 0, 2);
-    while ((radio = gtk_grid_get_child_at(
-                    GTK_GRID(grid), 0, i)) != NULL) {
-#if 0
-        debug_gtk3("Connection signsal handler %d", i);
-#endif
-        if (GTK_IS_RADIO_BUTTON(radio)) {
-#if 0
-            debug_gtk3("IS RADIO");
-#endif
-            g_signal_connect(radio, "toggled", G_CALLBACK(on_revision_toggled),
-                    GINT_TO_POINTER(vdc_revs[i].id));
-        }
-        i++;
-    }
-}
-
-
-/** \brief  Set callback function to trigger on revision change
- *
- * \param[in,out]   widget  vdc model widget
  * \param[in]       func    callback
  */
-void vdc_model_widget_set_revision_callback(GtkWidget *widget,
-                                           void (*func)(int))
+void vdc_model_widget_set_revision_callback(void (*func)(int))
 {
     vdc_revision_func = func;
 }
 
 
-
-void vdc_model_widget_set_ram_callback(GtkWidget *widget,
-                                       void (*func)(int))
+/** \brief  Set callback function to trigger on RAM size changes
+ *
+ * \param[in]       func    callback
+ */
+void vdc_model_widget_set_ram_callback(void (*func)(int))
 {
     vdc_ram_func = func;
 }

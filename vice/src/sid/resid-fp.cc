@@ -182,7 +182,7 @@ static void residfp_reset(sound_t *psid, CLOCK cpu_clk)
 /* nr can be safely ignored as output buffer is much larger than what we're ever going to use */
 /* interleave is unsupported as only mono output is supported by residfp */
 static int residfp_calculate_samples(sound_t *psid, short *pbuf, int nr,
-                                   int interleave, int *delta_t)
+                                   int interleave, CLOCK *delta_t)
 {
     int retval = 0;
 
@@ -215,7 +215,6 @@ sid_engine_t residfp_hooks =
     residfp_store,
     residfp_reset,
     residfp_calculate_samples,
-    residfp_prevent_clk_overflow,
     residfp_dump_state,
     // residfp_state_read not used by vice-libretro, unsupported by residfp
     nullptr,

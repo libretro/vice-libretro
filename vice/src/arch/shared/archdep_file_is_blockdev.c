@@ -31,7 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef ARCHDEP_OS_UNIX
+#ifdef UNIX_COMPILE
 # include <sys/stat.h>
 # include <sys/types.h>
 #endif
@@ -47,12 +47,13 @@
  *
  * \param[in]   name    pathname
  *
- * \return  bool
+ * \return  non-0 if \a name is a block device
+ *
+ * \note    returns 0 on non-Unix
  */
 int archdep_file_is_blockdev(const char *name)
 {
-#ifdef ARCHDEP_OS_UNIX
-
+#ifdef UNIX_COMPILE
     struct stat buf;
 
     if (stat(name, &buf) != 0) {

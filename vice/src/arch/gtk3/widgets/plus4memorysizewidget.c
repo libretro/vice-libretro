@@ -32,10 +32,8 @@
 #include "vice.h"
 #include <gtk/gtk.h>
 
-#include "widgethelpers.h"
-#include "debug_gtk3.h"
+#include "vice_gtk3.h"
 #include "resources.h"
-#include "resourceradiogroup.h"
 
 #include "plus4memorysizewidget.h"
 
@@ -50,7 +48,7 @@ static const vice_gtk3_radiogroup_entry_t ram_sizes[] = {
 };
 
 
-
+/** \brief  Reference to the memory size widget */
 static GtkWidget *memory_size_widget = NULL;
 
 
@@ -62,13 +60,13 @@ GtkWidget *plus4_memory_size_widget_create(void)
 {
     GtkWidget *grid;
 
-    grid = uihelpers_create_grid_with_label("Memory size", 1);
+    grid = vice_gtk3_grid_new_spaced_with_label(-1, -1, "Memory size", 1);
     memory_size_widget = vice_gtk3_resource_radiogroup_new(
             "RamSize",
             ram_sizes,
             GTK_ORIENTATION_VERTICAL);
+    gtk_widget_set_margin_start(memory_size_widget, 16);
     gtk_grid_attach(GTK_GRID(grid), memory_size_widget, 0, 1, 1, 1);
-    g_object_set(memory_size_widget, "margin-left", 16, NULL);
 
     gtk_widget_show_all(grid);
     return grid;
@@ -86,6 +84,8 @@ void plus4_memory_size_widget_add_callback(void (*callback)(GtkWidget *, int))
 
 
 /** \brief  Synchronize the widget with its resource
+ *
+ * \return  TRUE if the widget was synchronized
  */
 gboolean plus4_memory_size_widget_sync(void)
 {

@@ -41,6 +41,8 @@
 #include "vsyncapi.h"
 #include "joystick.h"
 #include "archdep.h"
+#include "keyboard.h"
+#include "keymap.h"
 
 #include "libretro-core.h"
 #include "libretro-graph.h"
@@ -226,6 +228,10 @@ void ui_display_paused(int flag)
     display_speed();
 }
 
+void ui_display_reset(int device, int mode)
+{
+}
+
 /* ----------------------------------------------------------------- */
 /* uiapi.h */
 
@@ -258,7 +264,8 @@ void ui_enable_drive_status(ui_drive_enable_t state, int *drive_led_color)
     }
 }
 
-void ui_display_drive_track(unsigned int drive_number, unsigned int drive_base, unsigned int half_track_number)
+void ui_display_drive_track(
+      unsigned int drive_number, unsigned int drive_base, unsigned int half_track_number, unsigned int disk_side)
 {
     if (drive_empty)
         return;
@@ -343,14 +350,14 @@ static void display_tape(void)
 
         if (tape_control == 1 && tape_motor == 2 && !audio && !vsync_get_warp_mode())
         {
-            resources_set_int("WarpMode", 1);
+            vsync_set_warp_mode(1);
 #if 0
             printf("Tape Warp  ON, control:%d motor:%d audio:%d\n", tape_control, tape_motor, audio);
 #endif
         }
         else if ((tape_control != 1 || !tape_motor || audio) && vsync_get_warp_mode() || !(opt_autoloadwarp & AUTOLOADWARP_TAPE))
         {
-            resources_set_int("WarpMode", 0);
+            vsync_set_warp_mode(0);
 #if 0
             printf("Tape Warp OFF, control:%d motor:%d audio:%d\n", tape_control, tape_motor, audio);
 #endif
@@ -370,28 +377,28 @@ static void display_tape(void)
     }
 }
 
-void ui_set_tape_status(int tape_status)
+void ui_set_tape_status(int port, int tape_status)
 {
     tape_enabled = tape_status;
 
     display_tape();
 }
 
-void ui_display_tape_motor_status(int motor)
+void ui_display_tape_motor_status(int port, int motor)
 {
     tape_motor = motor;
 
     display_tape();
 }
 
-void ui_display_tape_control_status(int control)
+void ui_display_tape_control_status(int port, int control)
 {
     tape_control = control;
 
     display_tape();
 }
 
-void ui_display_tape_counter(int counter)
+void ui_display_tape_counter(int port, int counter)
 {
     if (tape_counter != counter) {
         display_tape();
@@ -403,7 +410,7 @@ void ui_display_tape_counter(int counter)
     tape_counter = counter;
 }
 
-void ui_display_tape_current_image(const char *image)
+void ui_display_tape_current_image(int port, const char *image)
 {
 #ifdef SDL_DEBUG
     fprintf(stderr, "%s: %s\n", __func__, image);
@@ -433,7 +440,7 @@ void ui_display_event_time(unsigned int current, unsigned int total)
 }
 
 /* Joystick UI */
-void ui_display_joyport(BYTE *joyport)
+void ui_display_joyport(uint16_t *joyport)
 {
 #ifdef SDL_DEBUG
     fprintf(stderr, "%s: %02x %02x %02x %02x %02x\n", __func__, joyport[0], joyport[1], joyport[2], joyport[3], joyport[4]);
@@ -502,7 +509,7 @@ static void display_joyport(void)
         snprintf(tmpstr, sizeof(tmpstr), "P%s%3s ", joy1, joystick_value_human(mouse_value[1], 1));
     /* Joystick */
     else
-        snprintf(tmpstr, sizeof(tmpstr), "J%s%3s ", joy1, joystick_value_human(joystick_value[1], 0));
+        snprintf(tmpstr, sizeof(tmpstr), "J%s%3s ", joy1, joystick_value_human(get_joystick_value(1-1), 0));
 
     /* Lightpen/gun */
     if (opt_joyport_type > 10 && cur_port == 2)
@@ -515,7 +522,7 @@ static void display_joyport(void)
         snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "P%s%3s ", joy2, joystick_value_human(mouse_value[2], 1));
     /* Joystick */
     else
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%s%3s ", joy2, joystick_value_human(joystick_value[2], 0));
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%s%3s ", joy2, joystick_value_human(get_joystick_value(2-1), 0));
 #elif defined(__XVIC__)
     char joy1[2];
     snprintf(joy1, sizeof(joy1), "%s", "1");
@@ -531,14 +538,14 @@ static void display_joyport(void)
        snprintf(tmpstr, sizeof(tmpstr), "P%s%3s ", joy1, joystick_value_human(mouse_value[1], 1));
     /* Joystick */
     else
-       snprintf(tmpstr, sizeof(tmpstr), "J%s%3s ", joy1, joystick_value_human(joystick_value[1], 0));
+       snprintf(tmpstr, sizeof(tmpstr), "J%s%3s ", joy1, joystick_value_human(get_joystick_value(1-1), 0));
 #endif
 
 #if !defined(__XPET__) && !defined(__XCBM2__) && !defined(__XVIC__)
     if (vice_opt.UserportJoyType != -1)
     {
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 3, joystick_value_human(joystick_value[3], 0));
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 4, joystick_value_human(joystick_value[4], 0));
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 3, joystick_value_human(get_joystick_value(3-1), 0));
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 4, joystick_value_human(get_joystick_value(4-1), 0));
     }
     else
     {
@@ -548,8 +555,8 @@ static void display_joyport(void)
 #elif defined(__XVIC__)
     if (vice_opt.UserportJoyType != -1)
     {
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 2, joystick_value_human(joystick_value[2], 0));
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 3, joystick_value_human(joystick_value[3], 0));
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 2, joystick_value_human(get_joystick_value(2-1), 0));
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 3, joystick_value_human(get_joystick_value(3-1), 0));
     }
     else
     {
@@ -559,8 +566,8 @@ static void display_joyport(void)
 #elif defined(__XPET__) || defined(__XCBM2__)
     if (vice_opt.UserportJoyType != -1)
     {
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 1, joystick_value_human(joystick_value[1], 0));
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 2, joystick_value_human(joystick_value[2], 0));
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 1, joystick_value_human(get_joystick_value(1-1), 0));
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 2, joystick_value_human(get_joystick_value(2-1), 0));
     }
     else
     {
@@ -683,6 +690,7 @@ void uistatusbar_close(void)
     uistatusbar_state = UISTATUSBAR_REPAINT;
 }
 
+
 #define COLOR_BLACK   0
 #define COLOR_WHITE   RGBc(255, 255, 255)
 #define COLOR_RED     RGBc(204,   0,   0)
@@ -781,9 +789,9 @@ void uistatusbar_draw(void)
     }
     else if (!(opt_statusbar & STATUSBAR_BASIC))
     {
-        draw_text(bkg_x + (max_width / 2) - (20), y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, char_scale_x, 1, 10, statusbar_resolution);
-        draw_text(bkg_x + (max_width / 2) + (30), y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, char_scale_x, 1, 10, statusbar_memory);
-        draw_text(bkg_x + (max_width / 2) + (70), y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, char_scale_x, 1, 10, statusbar_model);
+        draw_text(bkg_x + (max_width / 2) - (20 * char_scale_x), y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, char_scale_x, 1, 10, statusbar_resolution);
+        draw_text(bkg_x + (max_width / 2) + (30 * char_scale_x), y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, char_scale_x, 1, 10, statusbar_memory);
+        draw_text(bkg_x + (max_width / 2) + (70 * char_scale_x), y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, char_scale_x, 1, 10, statusbar_model);
     }
 
     /* Tape indicator + drive & power LEDs */

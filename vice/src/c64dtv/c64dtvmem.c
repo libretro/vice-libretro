@@ -140,7 +140,7 @@ static int vbank;
 /* Current memory configuration.  */
 static int mem_config;
 
-/* Current watchpoint state. 
+/* Current watchpoint state.
           0 = no watchpoints
     bit0; 1 = watchpoints active
     bit1; 2 = watchpoints trigger on dummy accesses
@@ -529,7 +529,7 @@ void mem_set_basic_text(uint16_t start, uint16_t end)
 }
 
 /* this function should always read from the screen currently used by the kernal
-   for output, normally this does just return system ram - except when the 
+   for output, normally this does just return system ram - except when the
    videoram is not memory mapped.
    used by autostart to "read" the kernal messages
 */
@@ -719,7 +719,7 @@ void mem_get_screen_parameter(uint16_t *base, uint8_t *rows, uint8_t *columns, i
 
 /* used by autostart to locate and "read" kernal output on the current screen
  * this function should return whatever the kernal currently uses, regardless
- * what is currently visible/active in the UI 
+ * what is currently visible/active in the UI
  */
 void mem_get_cursor_parameter(uint16_t *screen_addr, uint8_t *cursor_column, uint8_t *line_length, int *blinking)
 {
@@ -853,9 +853,38 @@ uint8_t colorram_read(uint16_t addr)
 
 /* ------------------------------------------------------------------------- */
 
+#define NUM_TRAP_DEVICES 9  /* FIXME: is there a better constant ? */
+static int trapfl[NUM_TRAP_DEVICES];
+static int trapdevices[NUM_TRAP_DEVICES + 1] = { 1, 4, 5, 6, 7, 8, 9, 10, 11, -1 };
+
+static void get_trapflags(void)
+{
+    int i;
+    for(i = 0; trapdevices[i] != -1; i++) {
+        resources_get_int_sprintf("VirtualDevice%d", &trapfl[i], trapdevices[i]);
+    }
+}
+
+static void clear_trapflags(void)
+{
+    int i;
+    for(i = 0; trapdevices[i] != -1; i++) {
+        resources_set_int_sprintf("VirtualDevice%d", 0, trapdevices[i]);
+    }
+}
+
+static int restore_trapflags(void)
+{
+    int i, flags = 0;
+    for(i = 0; trapdevices[i] != -1; i++) {
+        resources_set_int_sprintf("VirtualDevice%d", trapfl[i], trapdevices[i]);
+        flags |= trapfl[i];
+    }
+    return flags;
+}
+
 void c64dtv_init(void)
 {
-    int trapfl;
     if (c64dtvmem_log == LOG_ERR) {
         c64dtvmem_log = log_open("C64DTVMEM");
     }
@@ -867,9 +896,9 @@ void c64dtv_init(void)
     DBG("installing floppy traps");
     /* TODO disable copying by command line parameter */
     /* Make sure serial code traps are in place.  */
-    resources_get_int("VirtualDevices", &trapfl);
-    resources_set_int("VirtualDevices", 0);
-    resources_set_int("VirtualDevices", trapfl);
+    get_trapflags();
+    clear_trapflags();
+    restore_trapflags();
     /* TODO chargen ROM support */
 
     DBG("END init");
@@ -915,33 +944,30 @@ void c64dtvmem_init_config(void)
 
 void c64dtvmem_shutdown(void)
 {
-    int trapfl;
-
     hummeradc_shutdown();
     c64dtvblitter_shutdown();
     c64dtvdma_shutdown();
     /* work around for non transparent kernal traps.
        Disable serial traps when shutting down c64dtvflash, which
        saves the contents if enabled */
-    resources_get_int("VirtualDevices", &trapfl);
-    resources_set_int("VirtualDevices", 0);
+    get_trapflags();
+    clear_trapflags();
     c64dtvflash_shutdown();
-    resources_set_int("VirtualDevices", trapfl);
+    restore_trapflags();
 
     DBG("END shutdown");
 }
 
 void c64dtvmem_reset(void)
 {
-    int trapfl;
     DBG("reset");
 
     /* Disable serial traps when resetting mem mapper */
-    resources_get_int("VirtualDevices", &trapfl);
-    resources_set_int("VirtualDevices", 0);
+    get_trapflags();
+    clear_trapflags();
     c64dtvmem_memmapper[0x00] = 0; /* KERNAL ROM segment (0x10000 byte segments) */
     c64dtvmem_memmapper[0x01] = 0; /* BASIC ROM segment (0x10000 byte segments) */
-    resources_set_int("VirtualDevices", trapfl);
+    restore_trapflags();
 
     /* TODO move register file initialization somewhere else? */
     dtv_registers[8] = 0x55; /* RAM/ROM access mode */
@@ -974,7 +1000,6 @@ uint8_t c64dtv_mapper_read(uint16_t addr)
 
 void c64dtv_mapper_store(uint16_t addr, uint8_t value)
 {
-    int trapfl;
     if (!vicii_extended_regs()) {
         vicii_store(addr, value);
         return;
@@ -991,12 +1016,11 @@ void c64dtv_mapper_store(uint16_t addr, uint8_t value)
     switch (addr) {
         case 0x00:
             /* Deinstall serial traps, change KERNAL segment, reinstall traps */
-            resources_get_int("VirtualDevices", &trapfl);
-            resources_set_int("VirtualDevices", 0);
+            get_trapflags();
+            clear_trapflags();
             c64dtvmem_memmapper[0] = value;
             maincpu_resync_limits();
-            resources_set_int("VirtualDevices", trapfl);
-            if (trapfl) {
+            if (restore_trapflags()) {
                 log_message(c64dtvmem_log, "Changed KERNAL segment - disable VirtualDevices if you encounter problems");
             }
             break;
@@ -1112,7 +1136,7 @@ static const char *banknames[MAXBANKS + 1] =
 
 static const int banknums[MAXBANKS + 1] =
 {
-    1, 0, 1, 2, 3, 4,
+    0, 0, 1, 2, 3, 4,
     5, 6, 7, 8, 9, 10, 11, 12,
     13, 14, 15, 16, 17, 18, 19, 20,
     21, 22, 23, 24, 25, 26, 27, 28,

@@ -109,7 +109,6 @@ void video_canvas_shutdown(video_canvas_t *canvas)
 
         lib_free(canvas->videoconfig);
         lib_free(canvas->draw_buffer);
-        video_viewport_title_free(canvas->viewport);
         lib_free(canvas->viewport);
         lib_free(canvas->geometry);
         lib_free(canvas);
@@ -118,9 +117,8 @@ void video_canvas_shutdown(video_canvas_t *canvas)
 
 void video_canvas_render(video_canvas_t *canvas, uint8_t *trg, int width,
                          int height, int xs, int ys, int xt, int yt,
-                         int pitcht, int depth)
+                         int pitcht)
 {
-    static int lastmode = -1;
     viewport_t *viewport = canvas->viewport;
 #ifdef VIDEO_SCALE_SOURCE
     xs /= canvas->videoconfig->scalex;
@@ -128,9 +126,9 @@ void video_canvas_render(video_canvas_t *canvas, uint8_t *trg, int width,
 #endif
 
     /* when the color encoding changed, the palette must be recalculated */
-    if (viewport->crt_type != lastmode) {
+    if (viewport->crt_type != canvas->crt_type) {
         canvas->videoconfig->color_tables.updated = 0;
-        lastmode = viewport->crt_type;
+        canvas->crt_type = viewport->crt_type;
     }
 
     if (!canvas->videoconfig->color_tables.updated) { /* update colors as necessary */
@@ -138,19 +136,19 @@ void video_canvas_render(video_canvas_t *canvas, uint8_t *trg, int width,
     }
     video_render_main(canvas->videoconfig, canvas->draw_buffer->draw_buffer,
                       trg, width, height, xs, ys, xt, yt,
-                      canvas->draw_buffer->draw_buffer_width, pitcht, depth,
+                      canvas->draw_buffer->draw_buffer_width, pitcht,
                       viewport);
 }
 
 /** \brief Force refresh all tracked canvases.
- * 
+ *
  * Added to enable visible updates each time the monitor
  * prompts for input.
  */
 void video_canvas_refresh_all_tracked(void)
 {
     int i;
-    
+
     for (i = 0; i < TRACKED_CANVAS_MAX; i++) {
         if (tracked_canvas[i]) {
             video_canvas_refresh_all(tracked_canvas[i]);
@@ -187,7 +185,7 @@ void video_canvas_refresh_all(video_canvas_t *canvas)
 	retroYS = viewport->first_line;
 	retrow = MIN(canvas->draw_buffer->canvas_width, geometry->screen_size.width - viewport->first_x);
 	retroh = MIN(canvas->draw_buffer->canvas_height, viewport->last_line - viewport->first_line + 1);
-#endif
+#endif /* __LIBRETRO__ */
     video_canvas_refresh(canvas,
                          viewport->first_x
                          + geometry->extra_offscreen_border_left,

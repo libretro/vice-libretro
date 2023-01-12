@@ -27,6 +27,7 @@
 #include "vice.h"
 
 #include "sound.h"
+#include "datasette-sound.h"
 #include "maincpu.h"
 
 #ifdef __LIBRETRO__
@@ -132,10 +133,10 @@ static CLOCK datasette_sound_remove_from_circular_buffer(
 }
 
 static int datasette_sound_machine_calculate_samples(sound_t **psid,
-    int16_t *pbuf, int nr, int soc, int scc, int *delta_t)
+    int16_t *pbuf, int nr, int soc, int scc, CLOCK *delta_t)
 {
     int i = 0, j, num_samples;
-    int cycles_to_be_consumed = *delta_t;
+    CLOCK cycles_to_be_consumed = *delta_t;
     double factor = (double)cycles_to_be_consumed / nr;
     char must_flip;
 
@@ -152,7 +153,7 @@ static int datasette_sound_machine_calculate_samples(sound_t **psid,
         CLOCK max_amount_to_consume = cycles_to_be_consumed;
         CLOCK cycles_to_consume_now =
             datasette_sound_remove_from_circular_buffer(max_amount_to_consume,
-                datasette_square_sign == 1 && !datasette_halfwaves, &must_flip);
+                (datasette_square_sign == 1) && !datasette_halfwaves, &must_flip);
         if (!cycles_to_consume_now) {
             break;
         }
@@ -162,8 +163,8 @@ static int datasette_sound_machine_calculate_samples(sound_t **psid,
                 num_samples = nr - i;
             } else {
                 num_samples = cycles_to_consume_now / factor;
-                if (i + num_samples < nr - 1
-                    && cycles_to_be_consumed * 1.0 / (nr-i-num_samples) < factor) {
+                if (((i + num_samples) < (nr - 1))
+                    && ((cycles_to_be_consumed * 1.0) / ((nr - i) - num_samples)) < factor) {
                     num_samples++;
                 }
             }
@@ -172,8 +173,7 @@ static int datasette_sound_machine_calculate_samples(sound_t **psid,
                 float volume_multiplier = 1;
                 if (opt_datasette_sound_volume > 0)
                     volume_multiplier = (float)opt_datasette_sound_volume / 100;
-                int m = 
-                    datasette_sound_emulation_volume * datasette_square_sign * volume_multiplier;
+                int m = datasette_sound_emulation_volume * datasette_square_sign * volume_multiplier;
                 switch (soc) {
                     default:
                     case 1:
@@ -199,8 +199,9 @@ static int datasette_sound_machine_calculate_samples(sound_t **psid,
 #endif
             }
         }
-        if (must_flip)
+        if (must_flip) {
             datasette_square_sign = -datasette_square_sign;
+        }
     }
     while (i < nr) {
         pbuf[i++] = 0;
@@ -220,7 +221,7 @@ static int datasette_sound_machine_channels(void)
 
 /* Drive sound 'chip', emulates the sound of a 1541 disk drive */
 static sound_chip_t datasette_sound = {
-    NULL,                                      /* NO sound chip open function */ 
+    NULL,                                      /* NO sound chip open function */
     NULL,                                      /* NO sound chip init function */
     NULL,                                      /* NO sound chip close function */
     datasette_sound_machine_calculate_samples, /* sound chip calculate samples function */

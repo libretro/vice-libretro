@@ -26,14 +26,17 @@
 
 #include "vice.h"
 
+#include <stddef.h>
 #include <stdio.h>
+#include <stdint.h>
+#include <errno.h>
 
 #include "archdep.h"
 #include "fileio.h"
-#include "ioutil.h"
 #include "lib.h"
-#include "rawfile.h"
 #include "util.h"
+
+#include "rawfile.h"
 
 
 struct rawfile_info_s {
@@ -58,7 +61,7 @@ rawfile_info_t *rawfile_open(const char *file_name, const char *path,
     if (path == NULL) {
         complete = lib_strdup(file_name);
     } else {
-        complete = util_concat(path, FSDEV_DIR_SEP_STR, file_name, NULL);
+        complete = util_concat(path, ARCHDEP_DIR_SEP_STR, file_name, NULL);
     }
 
     switch (command) {
@@ -83,11 +86,11 @@ rawfile_info_t *rawfile_open(const char *file_name, const char *path,
             return NULL;
     }
 
-    if (ioutil_stat(complete, &len, &isdir) != 0) {
+    if (archdep_stat(complete, &len, &isdir) != 0) {
         /* if stat failed exit early, except in write mode
            (since opening a non existing file creates a new file) */
         if (command != FILEIO_COMMAND_WRITE &&
-	    command != FILEIO_COMMAND_OVERWRITE) {
+            command != FILEIO_COMMAND_OVERWRITE) {
             lib_free(complete);
             return NULL;
         }
@@ -95,8 +98,8 @@ rawfile_info_t *rawfile_open(const char *file_name, const char *path,
         if (command == FILEIO_COMMAND_WRITE) {
         /* A real drive doesn't overwrite an existing file,
            so we should not either.
-	   Use FILEIO_COMMAND_OVERWRITE to go ahead and
-	   overwrite the file anyway. */
+            Use FILEIO_COMMAND_OVERWRITE to go ahead and
+            overwrite the file anyway. */
             lib_free(complete);
             return NULL;
         }
@@ -188,18 +191,18 @@ unsigned int rawfile_rename(const char *src_name, const char *dst_name,
         complete_src = lib_strdup(src_name);
         complete_dst = lib_strdup(dst_name);
     } else {
-        complete_src = util_concat(path, FSDEV_DIR_SEP_STR, src_name, NULL);
-        complete_dst = util_concat(path, FSDEV_DIR_SEP_STR, dst_name, NULL);
+        complete_src = util_concat(path, ARCHDEP_DIR_SEP_STR, src_name, NULL);
+        complete_dst = util_concat(path, ARCHDEP_DIR_SEP_STR, dst_name, NULL);
     }
 
-    /*ioutil_remove(dst_name);*/
-    rc = ioutil_rename(complete_src, complete_dst);
+    /*archdep_remove(dst_name);*/
+    rc = archdep_rename(complete_src, complete_dst);
 
     lib_free(complete_src);
     lib_free(complete_dst);
 
     if (rc < 0) {
-        if (ioutil_errno(IOUTIL_ERRNO_EPERM)) {
+        if (errno == EPERM) {
             return FILEIO_FILE_PERMISSION;
         }
         return FILEIO_FILE_NOT_FOUND;
@@ -216,10 +219,10 @@ unsigned int rawfile_remove(const char *src_name, const char *path)
     if (path == NULL) {
         complete_src = lib_strdup(src_name);
     } else {
-        complete_src = util_concat(path, FSDEV_DIR_SEP_STR, src_name, NULL);
+        complete_src = util_concat(path, ARCHDEP_DIR_SEP_STR, src_name, NULL);
     }
 
-    rc = ioutil_remove(complete_src);
+    rc = archdep_remove(complete_src);
 
     lib_free(complete_src);
 

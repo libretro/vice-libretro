@@ -9,6 +9,7 @@ AM_CPPFLAGS = \
 	-I$(top_builddir)/src \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/src/drive \
+	-I$(top_srcdir)/src/printerdrv \
 	-I$(top_srcdir)/src/joyport \
 	-I$(top_srcdir)/src/lib/p64 \
 	-I$(top_srcdir)/src/platform \
@@ -28,6 +29,8 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src/arch/gtk3/widgets \
 	-I$(top_srcdir)/src/arch/gtk3/widgets/base \
 	-I$(top_srcdir)/src/samplerdrv \
+	-I$(top_srcdir)/src/tapeport \
+	-I$(top_srcdir)/src/core/rtc \
 	-I$(top_srcdir)/src/hvsc
 
 AM_CFLAGS = @VICE_CFLAGS@
@@ -47,64 +50,45 @@ libwidgets_a_SOURCES = \
 	c128machinetypewidget.c \
 	c64dtvflashsettingswidget.c \
 	c64memhackswidget.c \
-	canvasrenderbackendwidget.c \
 	canvasrenderfilterwidget.c \
 	cbm2hardwiredswitcheswidget.c \
 	cbm2memorysizewidget.c \
 	cbm2rammappingwidget.c \
 	ciamodelwidget.c \
 	contentpreviewwidget.c \
-	cpmwidget.c \
 	crtcontrolwidget.c \
 	crtpreviewwidget.c \
 	cwdwidget.c \
-	digimaxwidget.c \
 	dirmenupopup.c \
-	dqbbwidget.c \
 	drivedoswidget.c \
 	driveextendpolicywidget.c \
+	drivefixedsizewidget.c \
 	drivefsdevicewidget.c \
 	driveidlemethodwidget.c \
 	drivemodelwidget.c \
-	driveoptionswidget.c \
 	driveparallelcablewidget.c \
 	driveramwidget.c \
 	driverpmwidget.c \
 	driveunitwidget.c \
 	drivenowidget.c \
 	drivewidgethelpers.c \
-	ds12c887widget.c \
-	easyflashwidget.c \
-	ethernetcartwidget.c \
-	expertwidget.c \
+	extendimagedialog.c \
 	ffmpegwidget.c \
-	finalexpansionwidget.c \
-	georamwidget.c \
-	gmod2widget.c \
-	gmod3widget.c \
 	hvscsettingswidget.c \
 	hvscstilwidget.c \
-	ide64widget.c \
-	ieee488widget.c \
-	isepicwidget.c \
 	jamactionwidget.c \
 	jamdialog.c \
+	joystickautofirewidget.c \
 	joystickdevicewidget.c \
 	joystickmenupopup.c \
-	joystickuserportadapterwidget.c \
 	kbddebugwidget.c \
 	kbdlayoutwidget.c \
 	kbdmappingwidget.c \
 	kernalrevisionwidget.c \
 	keysetdialog.c \
-	ltkernalwidget.c \
 	machinemodelwidget.c \
-	magicvoicewidget.c \
-	megacartwidget.c \
-	midiwidget.c \
+	mididevicewidget.c \
 	mixerwidget.c \
-	mmc64widget.c \
-	mmcrwidget.c \
 	netplaywidget.c \
 	petcolourgraphicswidget.c \
 	petdiagpinwidget.c \
@@ -126,40 +110,69 @@ libwidgets_a_SOURCES = \
 	printeremulationtypewidget.c \
 	printeroutputdevicewidget.c \
 	printeroutputmodewidget.c \
-	ramcartwidget.c \
-	ramlinkwidget.c \
-	retroreplaywidget.c \
-	reuwidget.c \
 	romsetmanagerwidget.c \
-	rrnetmk3widget.c \
 	scpu64settingswidget.c \
+	settings_autofire.c \
 	settings_autostart.c \
 	settings_controlport.c \
+	settings_cpm.c \
 	settings_crt.c \
+	settings_default_cart.c \
+	settings_digimax.c \
+	settings_dqbb.c \
 	settings_drive.c \
+	settings_ds12c887.c \
+	settings_easyflash.c \
 	settings_ethernet.c \
+	settings_ethernetcart.c \
+	settings_expert.c \
+	settings_finalexpansion.c \
 	settings_fsdevice.c \
+	settings_georam.c \
+	settings_gmod2.c \
+	settings_gmod2c128.c \
+	settings_gmod3.c \
 	settings_host_display.c \
+	settings_hotkeys.c \
+	settings_ide64.c \
+	settings_ieee488.c \
+	settings_ieeeflash64.c \
 	settings_io.c \
+	settings_isepic.c \
 	settings_joystick.c \
 	settings_keyboard.c \
+	settings_ltkernal.c \
+	settings_magicvoice.c \
+	settings_megacart.c \
+	settings_midi.c \
 	settings_misc.c \
 	settings_mixer.c \
+	settings_mmc64.c \
+	settings_mmcr.c \
 	settings_model.c \
 	settings_monitor.c \
-	settings_peripherals_generic.c \
 	settings_printer.c \
+	settings_ramcart.c \
+	settings_ramlink.c \
 	settings_ramreset.c \
+	settings_retroreplay.c \
+	settings_reu.c \
+	settings_rexramfloppy.c \
 	settings_romset.c \
+	settings_rrnetmk3.c \
 	settings_rs232.c \
 	settings_sampler.c \
+	settings_sfxsoundexpander.c \
+	settings_sfxsoundsampler.c \
 	settings_snapshot.c \
 	settings_sound.c \
 	settings_soundchip.c \
 	settings_speed.c \
+	settings_supersnapshot.c \
+	settings_tapeport.c \
+	settings_ultimem.c \
+	settings_vicflashplugin.c \
 	settings_video.c \
-	sfxsoundexpanderwidget.c \
-	sfxsoundsamplerwidget.c \
 	sidcartwidget.c \
 	sidenginemodelwidget.c \
 	sidmodelwidget.c \
@@ -169,21 +182,18 @@ libwidgets_a_SOURCES = \
 	soundfragmentsizewidget.c \
 	soundoutputmodewidget.c \
 	soundsampleratewidget.c \
-	soundsuspendtimewidget.c \
 	speedwidget.c \
+	statusbarledwidget.c \
 	statusbarrecordingwidget.c \
 	statusbarspeedwidget.c \
 	superpetwidget.c \
-	supersnapshotwidget.c \
-	tapeportdeviceswidget.c \
-	ultimemwidget.c \
 	userportdeviceswidget.c \
+	userportrsinterfacewidget.c \
 	userportprinterwidget.c \
 	v364speechwidget.c \
 	vdcmodelwidget.c \
 	vfliwidget.c \
 	vic20memoryexpansionwidget.c \
-	vicflashwidget.c \
 	vicieee488widget.c \
 	vicioramwidget.c \
 	videobordermodewidget.c \
@@ -208,61 +218,42 @@ EXTRA_DIST = \
 	cbm2memorysizewidget.h \
 	cbm2rammappingwidget.h \
 	c64memhackswidget.h \
-	canvasrenderbackendwidget.h \
 	canvasrenderfilterwidget.h \
 	ciamodelwidget.h \
 	contentpreviewwidget.h \
-	cpmwidget.h \
 	crtcontrolwidget.h \
 	crtpreviewwidget.h \
 	cwdwidget.h \
 	dirmenupopup.h \
-	digimaxwidget.h \
-	dqbbwidget.h \
 	drivedoswidget.h \
 	driveextendpolicywidget.h \
+	drivefixedsizewidget.h \
 	drivefsdevicewidget.h \
 	driveidlemethodwidget.h \
 	drivemodelwidget.h \
-	driveoptionswidget.h \
 	driveparallelcablewidget.h \
 	driveramwidget.h \
 	driverpmwidget.h \
 	driveunitwidget.h \
 	drivenowidget.h \
 	drivewidgethelpers.h \
-	ds12c887widget.h \
-	easyflashwidget.h \
-	ethernetcartwidget.h \
-	expertwidget.h \
+	extendimagedialog.h \
 	ffmpegwidget.h \
-	finalexpansionwidget.h \
-	georamwidget.h \
-	gmod2widget.h \
-	gmod3widget.h \
 	hvscsettingswidget.h \
 	hvscstilwidget.h \
-	ide64widget.h \
-	ieee488widget.h \
-	isepicwidget.h \
 	jamactionwidget.h \
 	jamdialog.h \
+	joystickautofirewidget.h \
 	joystickdevicewidget.h \
 	joystickmenupopup.h \
-	joystickuserportadapterwidget.h \
 	kbddebugwidget.h \
 	kbdlayoutwidget.h \
 	kbdmappingwidget.h \
 	kernalrevisionwidget.h \
 	keysetdialog.h \
-	ltkernalwidget.h \
 	machinemodelwidget.h \
-	magicvoicewidget.h \
-	megacartwidget.h \
-	midiwidget.h \
+	mididevicewidget.h \
 	mixerwidget.h \
-	mmc64widget.h \
-	mmcrwidget.h \
 	netplaywidget.h \
 	petcolourgraphicswidget.h \
 	petdiagpinwidget.h \
@@ -284,40 +275,69 @@ EXTRA_DIST = \
 	printeremulationtypewidget.h \
 	printeroutputdevicewidget.h \
 	printeroutputmodewidget.h \
-	ramcartwidget.h \
-	ramlinkwidget.h \
-	retroreplaywidget.h \
-	reuwidget.h \
 	romsetmanagerwidget.h \
-	rrnetmk3widget.h \
 	scpu64settingswidget.h \
+	settings_autofire.h \
 	settings_autostart.h \
 	settings_controlport.h \
+	settings_cpm.h \
 	settings_crt.h \
+	settings_default_cart.h \
+	settings_digimax.h \
+	settings_dqbb.h \
 	settings_drive.h \
+	settings_ds12c887.h \
+	settings_easyflash.h \
 	settings_ethernet.h \
+	settings_ethernetcart.h \
+	settings_expert.h \
+	settings_finalexpansion.h \
 	settings_fsdevice.h \
+	settings_georam.h \
+	settings_gmod2.h \
+	settings_gmod2c128.h \
+	settings_gmod3.h \
 	settings_host_display.h \
+	settings_hotkeys.h \
+	settings_ide64.h \
+	settings_ieee488.h \
+	settings_ieeeflash64.h \
 	settings_io.h \
+	settings_isepic.h \
 	settings_joystick.h \
 	settings_keyboard.h \
+	settings_ltkernal.h \
+	settings_magicvoice.h \
+	settings_megacart.h \
+	settings_midi.h \
 	settings_misc.h \
 	settings_mixer.h \
+	settings_mmc64.h \
+	settings_mmcr.h \
 	settings_model.h \
 	settings_monitor.h \
-	settings_peripherals_generic.h \
 	settings_printer.h \
+	settings_ramcart.h \
+	settings_ramlink.h \
 	settings_ramreset.h \
+	settings_retroreplay.h \
+	settings_reu.h \
+	settings_rexramfloppy.h \
 	settings_romset.h \
+	settings_rrnetmk3.h \
 	settings_rs232.h \
 	settings_sampler.h \
+	settings_sfxsoundexpander.h \
+	settings_sfxsoundsampler.h \
 	settings_snapshot.h \
 	settings_sound.h \
 	settings_soundchip.h \
 	settings_speed.h \
+	settings_supersnapshot.h \
+	settings_tapeport.h \
+	settings_ultimem.h \
+	settings_vicflashplugin.h \
 	settings_video.h \
-	sfxsoundexpanderwidget.h \
-	sfxsoundsamplerwidget.h \
 	sidcartwidget.h \
 	sidenginemodelwidget.h \
 	sidmodelwidget.h \
@@ -327,21 +347,18 @@ EXTRA_DIST = \
 	soundfragmentsizewidget.h \
 	soundoutputmodewidget.h \
 	soundsampleratewidget.h \
-	soundsuspendtimewidget.h \
 	speedwidget.h \
+	statusbarledwidget.h \
 	statusbarrecordingwidget.h \
 	statusbarspeedwidget.h \
 	superpetwidget.h \
-	supersnapshotwidget.h \
-	tapeportdeviceswidget.h \
-	ultimemwidget.h \
 	userportdeviceswidget.h \
+	userportrsinterfacewidget.h \
 	userportprinterwidget.h \
 	v364speechwidget.h \
 	vdcmodelwidget.h \
 	vfliwidget.h \
 	vic20memoryexpansionwidget.h \
-	vicflashwidget.h \
 	vicieee488widget.h \
 	vicioramwidget.h \
 	videobordermodewidget.h \

@@ -4,7 +4,9 @@
  * \author  Bas Wassink <b.wassink@ziggo.nl>
  *
  * Provide extra text for the window title bar indicating which key to press
- * to access the menu. Only used in the SDL port.
+ * to access the menu.
+ *
+ * \note    Only used in the SDL port.
  */
 
 /*
@@ -37,7 +39,7 @@
 #include "archdep_extra_title_text.h"
 
 
-#ifdef SDL_UI_SUPPORT
+#if defined(USE_SDLUI) || defined(USE_SDL2UI)
 /** \brief  Extra text for the window title bar
  *
  * Heap-allocated by archdep_extra_title_text(), needs to be freed on emu exit
@@ -47,13 +49,25 @@ static char *extra_title_text = NULL;
 #endif
 
 
-char *archdep_extra_title_text(void)
+/** \brief  Get extra text for title bar
+ *
+ * \return  'press "\$MENU_KEY" for the menu.'
+ *
+ * \note    Call archdep_extra_title_text_free() on emulator shutdown to free
+ *          memory allocated for the string.
+ */
+const char *archdep_extra_title_text(void)
 {
-#ifdef SDL_UI_SUPPORT
-    extra_title_text = util_concat(", press \"",
-                                   kbd_get_menu_keyname(),
-                                   "\" for the menu.",
-                                   NULL);
+#if defined(USE_SDLUI) || defined(USE_SDL2UI)
+    if (extra_title_text == NULL) {
+        char *menu_keyname = kbd_get_menu_keyname();
+
+        extra_title_text = util_concat(", press \"",
+                                       menu_keyname,
+                                       "\" for the menu.",
+                                       NULL);
+        lib_free(menu_keyname);
+    }
     return extra_title_text;
 #else
     return NULL;
@@ -61,11 +75,16 @@ char *archdep_extra_title_text(void)
 }
 
 
+/** \brief  Free memory used by the extra title text
+ *
+ * \note    Call on emulator shutdown.
+ */
 void archdep_extra_title_text_free(void)
 {
-#ifdef SDL_UI_SUPPORT
+#if defined(USE_SDLUI) || defined(USE_SDL2UI)
     if (extra_title_text != NULL) {
         lib_free(extra_title_text);
+        extra_title_text = NULL;
     }
 #endif
 }

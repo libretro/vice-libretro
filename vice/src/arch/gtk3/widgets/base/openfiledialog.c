@@ -30,6 +30,7 @@
 
 #include "debug_gtk3.h"
 #include "filechooserhelpers.h"
+#include "log.h"
 #include "mainlock.h"
 #include "ui.h"
 
@@ -55,10 +56,10 @@ static void on_response(GtkDialog *dialog, gint response_id, gpointer data)
         case GTK_RESPONSE_ACCEPT:
             filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
             if (filename != NULL) {
-                debug_gtk3("Calling callback with '%s'\n", filename);
                 filename_cb(dialog, filename, data);
             } else {
-                debug_gtk3("Error: filename is NULL");
+                /* should never be reached */
+                log_error(LOG_ERR, "filename is NULL.");
             }
             break;
         default:
@@ -68,27 +69,26 @@ static void on_response(GtkDialog *dialog, gint response_id, gpointer data)
 }
 
 
-
-
-#ifndef SANDBOX_MODE
 /** \brief  Create an 'open file' dialog
  *
  * \param[in]   title       dialog title
  * \param[in]   filter_desc file filter name
  * \param[in]   filter_list list of file type filters, NULL-terminated
  * \param[in]   path        directory to use (optional)
+ * \param[in]   callback    callback to trigger on response
+ * \param[in]   param       extra data for \a callback (optional)
  *
- * \return  filename or `NULL` on cancel
+ * \return  GtkDialog
  *
- * \note    the filename returned is allocated by GLib and needs to be freed
- *          after use with g_free()
+ * \note    the filename passed to the \a callback is allocated by GLib and
+ *          needs to be freed after use with g_free()
  */
 GtkWidget *vice_gtk3_open_file_dialog(
         const char *title,
         const char *filter_desc,
         const char **filter_list,
         const char *path,
-        void (*callback)(GtkDialog *, char *, gpointer),
+        void (*callback)(GtkDialog *, gchar *, gpointer),
         gpointer param)
 {
     GtkWidget *dialog;
@@ -126,62 +126,25 @@ GtkWidget *vice_gtk3_open_file_dialog(
         gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dialog), path);
     }
 
-    /* NO: */
-#if 0
-    result = gtk_dialog_run(GTK_DIALOG(dialog));
-    if (result == GTK_RESPONSE_ACCEPT) {
-        filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-    } else {
-        filename = NULL;
-    }
-#endif
-    /* YES: */
     g_signal_connect(dialog, "response", G_CALLBACK(on_response), param);
     gtk_widget_show(dialog);
     return dialog;
 }
-#else
-
-gchar *vice_gtk3_open_file_dialog(
-        const char *title,
-        const char *filter_desc,
-        const char **filter_list,
-        const char *path)
-{
-    GtkFileChooserNative *dialog;
-    gint result;
-    gchar *filename;
-
-    dialog = gtk_file_chooser_native_new(
-            title,
-            ui_get_active_window(),
-            GTK_FILE_CHOOSER_ACTION_OPEN,
-            NULL, NULL);
-
-    result = gtk_native_dialog_run(GTK_NATIVE_DIALOG(dialog));
-    if (result == GTK_RESPONSE_ACCEPT) {
-        filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-    } else {
-        filename = NULL;
-    }
-    g_object_unref(dialog);
-    return filename;
-}
-#endif
 
 
-#ifndef SANDBOX_MODE
 /** \brief  Create a 'open or create file' dialog
  *
  * \param[in]   title       dialog title
  * \param[in]   proposed    proposed file name (optional)
  * \param[in]   confirm     confirm overwriting an existing file
  * \param[in]   path        set starting directory (optional)
+ * \param[in]   callback    callback to trigger on response
+ * \param[in]   param       extra data for \a callback (optional)
  *
- * \return  filename or `NULL` on cancel
+ * \return  GtkDialog
  *
- * \note    the filename returned is allocated by GLib and needs to be freed
- *          after use with g_free()
+ * \note    the filename passed to the \a callback is allocated by GLib and
+ *          needs to be freed after use with g_free()
  */
 GtkWidget *vice_gtk3_open_create_file_dialog(
         const char *title,
@@ -222,35 +185,7 @@ GtkWidget *vice_gtk3_open_create_file_dialog(
         gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dialog), path);
     }
 
-    g_signal_connect(dialog, "response", G_CALLBACK(on_response), NULL);
+    g_signal_connect(dialog, "response", G_CALLBACK(on_response), param);
     gtk_widget_show(dialog);
     return dialog;
 }
-
-#else
-gchar *vice_gtk3_open_create_file_dialog(
-        const char *title,
-        const char *proposed,
-        gboolean confirm,
-        const char *path)
-{
-    GtkFileChooserNative *dialog;
-    gint result;
-    gchar *filename;
-
-    dialog = gtk_file_chooser_native_new(
-            title,
-            ui_get_active_window(),
-            GTK_FILE_CHOOSER_ACTION_SAVE,
-            NULL, NULL);
-
-    result = gtk_native_dialog_run(GTK_NATIVE_DIALOG(dialog));
-    if (result == GTK_RESPONSE_ACCEPT) {
-        filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-    } else {
-        filename = NULL;
-    }
-    g_object_unref(dialog);
-    return filename;
-}
-#endif

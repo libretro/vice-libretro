@@ -4,7 +4,7 @@
  * \author  Fabrizio Gennari <fabrizio.ge@tiscali.it>
  * \author  David Hogan <david.q.hogan@gmail.com>
  *
- * \todo    Properly document this, please.
+ * TODO:    Properly document this, please.
  */
 
 /*
@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <limits.h>
 
 #include "novte/novte.h"
 
@@ -57,10 +58,7 @@
 #include <sys/ioctl.h>
 #endif
 
-#if (defined(sun) || defined(__sun)) && (defined(__SVR4) || defined(__svr4__))
-#include <sys/stat.h>
-#endif
-
+#include "archdep.h"
 #include "console.h"
 #include "debug_gtk3.h"
 #include "machine.h"
@@ -71,9 +69,7 @@
 #include "log.h"
 #include "ui.h"
 #include "linenoise.h"
-#include "tick.h"
 #include "uimon.h"
-#include "uimonarch.h"
 #include "uimon-fallback.h"
 #include "mon_command.h"
 #include "vsync.h"
@@ -90,16 +86,16 @@ static gboolean uimon_window_resume_impl(gpointer user_data);
  *
  * Again, guess work. Someone, not me, should have documented this.
  */
-struct console_private_s {
+static struct console_private_s {
+    pthread_mutex_t lock;
+
     GtkWidget *window;  /**< windows */
     GtkWidget *term;    /**< could be a VTE instance? */
     char *input_buffer;
-
-    pthread_mutex_t output_lock;
     char *output_buffer;
     size_t output_buffer_allocated_size;
     size_t output_buffer_used_size;
-} fixed = {NULL, NULL, NULL, PTHREAD_MUTEX_INITIALIZER, NULL, 0, 0};
+} fixed;
 
 static console_t vte_console;
 static linenoiseCompletions command_lc = {0, NULL};
@@ -109,22 +105,6 @@ static linenoiseCompletions need_filename_lc = {0, NULL};
 /* FIXME: this should perhaps be done using some function from archdep */
 static int is_dir(struct dirent *de)
 {
-#if 0 /* FIXME: mingw */
-
-#if (defined(sun) || defined(__sun)) && (defined(__SVR4) || defined(__svr4__))
-    struct stat t;
-
-    stat(de->d_name, &t);
-    if ((t.st_mode & S_IFMT) == S_IFDIR) {
-        return 1;
-    }
-#else
-    if (de->d_type == DT_DIR) {
-        return 1;
-    }
-#endif
-
-#endif
     return 0;
 }
 
@@ -135,9 +115,14 @@ static int native_monitor(void)
     return res;
 }
 
-static gboolean uimon_write_to_terminal_impl(gpointer _unused)
+static gboolean write_to_terminal(gpointer _)
 {
-    pthread_mutex_lock(&fixed.output_lock);
+    pthread_mutex_lock(&fixed.lock);
+
+    if (!fixed.term) {
+        /* Terminal hasn't been created yet, queue up the write for now. */
+        goto done;
+    }
 
     if (fixed.output_buffer) {
         vte_terminal_feed(VTE_TERMINAL(fixed.term), fixed.output_buffer, fixed.output_buffer_used_size);
@@ -148,7 +133,8 @@ static gboolean uimon_write_to_terminal_impl(gpointer _unused)
         fixed.output_buffer_used_size = 0;
     }
 
-    pthread_mutex_unlock(&fixed.output_lock);
+done:
+    pthread_mutex_unlock(&fixed.lock);
 
     return FALSE;
 }
@@ -157,13 +143,10 @@ void uimon_write_to_terminal(struct console_private_s *t,
                              const char *data,
                              glong length)
 {
-    if (!t->term) {
-        return;
-    }
-
     size_t output_buffer_required_size;
+    bool write_scheduled = false;
 
-    pthread_mutex_lock(&fixed.output_lock);
+    pthread_mutex_lock(&fixed.lock);
 
     /*
      * If the output buffer exists, we've already scheduled a write
@@ -176,12 +159,10 @@ void uimon_write_to_terminal(struct console_private_s *t,
         output_buffer_required_size += 4096;
 
         if (fixed.output_buffer) {
+            write_scheduled = true;
             fixed.output_buffer = lib_realloc(fixed.output_buffer, output_buffer_required_size);
         } else {
             fixed.output_buffer = lib_malloc(output_buffer_required_size);
-
-            /* schedule a call on the ui thread */
-            gdk_threads_add_timeout(10, uimon_write_to_terminal_impl, NULL);
         }
 
         fixed.output_buffer_allocated_size = output_buffer_required_size;
@@ -190,7 +171,42 @@ void uimon_write_to_terminal(struct console_private_s *t,
     memcpy(fixed.output_buffer + fixed.output_buffer_used_size, data, length);
     fixed.output_buffer_used_size += length;
 
-    pthread_mutex_unlock(&fixed.output_lock);
+    if (!write_scheduled) {
+        /* schedule a call on the ui thread */
+        gdk_threads_add_timeout(0, write_to_terminal, NULL);
+    }
+
+    pthread_mutex_unlock(&fixed.lock);
+}
+
+int uimon_out(const char *buffer)
+{
+    const char *line;
+    const char *line_end;
+
+    if (native_monitor()) {
+        return uimonfb_out(buffer);
+    }
+
+    /* Substitute \n for \r\n when feeding the terminal */
+
+    line = buffer;
+    while (*line != '\0') {
+        line_end = strchr(line, '\n');
+
+        if (line_end == NULL) {
+            /* buffer ends without a \n */
+            uimon_write_to_terminal(&fixed, line, strlen(line));
+            break;
+        }
+
+        uimon_write_to_terminal(&fixed, line, line_end - line);
+        uimon_write_to_terminal(&fixed, "\r\n", 2);
+
+        line = line_end + 1;
+    }
+
+    return 0;
 }
 
 
@@ -266,7 +282,10 @@ static gboolean plain_key_pressed(char **input_buffer, guint keyval)
             return TRUE;
         case GDK_KEY_Delete:
         case GDK_KEY_KP_Delete:
-            *input_buffer = append_char_to_input_buffer(*input_buffer, 4);
+            /* We use Ctrl+W here to signal linenoise to not exit the monitor
+             * when pressing Delete on an empty line, see comment at
+             * src/arch/gtk3/linenoise.c:308 --compyx */
+            *input_buffer = append_char_to_input_buffer(*input_buffer, 23);
             return TRUE;
         case GDK_KEY_End:
         case GDK_KEY_KP_End:
@@ -381,7 +400,7 @@ static gboolean ctrl_plus_key_pressed(char **input_buffer, guint keyval, GtkWidg
             /* ctrl+e, go to the end of the line */
             *input_buffer = append_char_to_input_buffer(*input_buffer, 5);
             return TRUE;
-#ifndef MACOSX_SUPPORT
+#ifndef MACOS_COMPILE
         case GDK_KEY_c:
         case GDK_KEY_C:
             vte_terminal_copy_clipboard(VTE_TERMINAL(terminal));
@@ -396,7 +415,7 @@ static gboolean ctrl_plus_key_pressed(char **input_buffer, guint keyval, GtkWidg
     }
 }
 
-#ifdef MACOSX_SUPPORT
+#ifdef MACOS_COMPILE
 static gboolean cmd_plus_key_pressed(char **input_buffer, guint keyval, GtkWidget *terminal)
 {
     switch (keyval) {
@@ -420,23 +439,40 @@ static gboolean key_press_event (GtkWidget   *widget,
                                  GdkEventKey *event,
                                  gpointer     user_data)
 {
-    char **input_buffer = (char **)user_data;
     GdkModifierType state = 0;
+    gboolean retval = FALSE;
 
     gdk_event_get_state((GdkEvent*)event, &state);
 
-    if (*input_buffer && event->type == GDK_KEY_PRESS) {
-        if (state & GDK_CONTROL_MASK) {
-            return ctrl_plus_key_pressed(input_buffer, event->keyval, widget);
-        }
-#ifdef MACOSX_SUPPORT
-        if (state & GDK_MOD2_MASK) {
-            return cmd_plus_key_pressed(input_buffer, event->keyval, widget);
+    pthread_mutex_lock(&fixed.lock);
+
+    if (event->type == GDK_KEY_PRESS) {
+        /*printf("keyval: %04x state:%04x\n", event->keyval, state);fflush(stdout);*/
+#ifdef WINDOWS_COMPILE
+        /* extra check for ALT-GR */
+        if ((state & (GDK_CONTROL_MASK | GDK_MOD1_MASK)) == (GDK_CONTROL_MASK | GDK_MOD1_MASK)) {
+            retval = plain_key_pressed(&fixed.input_buffer, event->keyval);
+            goto done;
         }
 #endif
-        return plain_key_pressed(input_buffer, event->keyval);
+        if (state & GDK_CONTROL_MASK) {
+            retval = ctrl_plus_key_pressed(&fixed.input_buffer, event->keyval, widget);
+            goto done;
+        }
+#ifdef MACOS_COMPILE
+        if (state & GDK_MOD2_MASK) {
+            retval = cmd_plus_key_pressed(&fixed.input_buffer, event->keyval, widget);
+            goto done;
+        }
+#endif
+        retval = plain_key_pressed(&fixed.input_buffer, event->keyval);
+        goto done;
     }
-    return FALSE;
+
+done:
+    pthread_mutex_unlock(&fixed.lock);
+
+    return retval;
 }
 
 
@@ -444,7 +480,6 @@ static gboolean button_press_event(GtkWidget *widget,
                             GdkEvent  *event,
                             gpointer   user_data)
 {
-    char **input_buffer = (char **)user_data;
     GdkEventButton *button_event = (GdkEventButton*)event;
 
     if (button_event->button != 2
@@ -452,15 +487,22 @@ static gboolean button_press_event(GtkWidget *widget,
         return FALSE;
     }
 
-    *input_buffer = append_string_to_input_buffer(*input_buffer, widget, GDK_SELECTION_PRIMARY);
+    pthread_mutex_lock(&fixed.lock);
+    fixed.input_buffer = append_string_to_input_buffer(fixed.input_buffer, widget, GDK_SELECTION_PRIMARY);
+    pthread_mutex_unlock(&fixed.lock);
+
     return TRUE;
 }
 
 static gboolean close_window(GtkWidget *widget, GdkEvent *event, gpointer user_data)
 {
-    char **input_buffer = (char **)user_data;
-    lib_free(*input_buffer);
-    *input_buffer = NULL;
+    pthread_mutex_lock(&fixed.lock);
+
+    lib_free(fixed.input_buffer);
+    fixed.input_buffer = NULL;
+
+    pthread_mutex_unlock(&fixed.lock);
+
     return gtk_widget_hide_on_delete(widget);
 }
 
@@ -471,16 +513,26 @@ int uimon_get_string(struct console_private_s *t, char* string, int string_len)
     while(retval<string_len) {
         int i;
 
-        /* give the ui a chance to do stuff, and also don't max out the CPU waiting for input */
-        tick_sleep(tick_per_second() / 60);
+        pthread_mutex_lock(&t->lock);
 
         if (!t->input_buffer) {
+            /* TODO: Not sure if this check makes sense anymore, needs testing without */
+            pthread_mutex_unlock(&t->lock);
             return -1;
         }
+
+        if (strlen(t->input_buffer) == 0) {
+            /* There's no input yet, so have a little sleep and look again. */
+            pthread_mutex_unlock(&t->lock);
+            mainlock_yield_and_sleep(tick_per_second() / 60);
+            continue;
+        }
+
         for (i = 0; i < strlen(t->input_buffer) && retval < string_len; i++, retval++) {
             string[retval]=t->input_buffer[i];
         }
         memmove(t->input_buffer, t->input_buffer + i, strlen(t->input_buffer) + 1 - i);
+        pthread_mutex_unlock(&t->lock);
     }
     return retval;
 }
@@ -507,10 +559,13 @@ static void screen_resize_window_cb2 (VteTerminal *terminal,
                          gpointer* window)
 {
     gint width, height;
+    gint xpos;
+    gint ypos;
     glong cwidth, cheight;
     glong newwidth, newheight;
 
     gtk_window_get_size (GTK_WINDOW(fixed.window), &width, &height);
+    gtk_window_get_position(GTK_WINDOW(fixed.window), &xpos, &ypos);
     cwidth = vte_terminal_get_char_width (VTE_TERMINAL(fixed.term));
     cheight = vte_terminal_get_char_height (VTE_TERMINAL(fixed.term));
 
@@ -522,6 +577,16 @@ static void screen_resize_window_cb2 (VteTerminal *terminal,
     if (newheight < 1) {
         newheight = 1;
     }
+
+    if (xpos >= 0 && ypos >= 0) {
+        resources_set_int("MonitorXPos", xpos);
+        resources_set_int("MonitorYPos", ypos);
+    }
+    if (width > 0 && height > 0) {
+        resources_set_int("MonitorWidth", width);
+        resources_set_int("MonitorHeight", height);
+    }
+
 
     vte_terminal_set_size(VTE_TERMINAL(fixed.term), newwidth, newheight);
 }
@@ -555,7 +620,9 @@ bool uimon_set_font(void)
     const char *monitor_font = NULL;
     GList *widgets;
     GList *box;
-
+    const char *bg;
+    const char *fg;
+    GdkRGBA color;
 
     if (resources_get_string("MonitorFont", &monitor_font) < 0) {
         log_error(LOG_ERR, "Failed to read 'MonitorFont' resource.");
@@ -582,6 +649,22 @@ bool uimon_set_font(void)
     vte_terminal_set_font(VTE_TERMINAL(fixed.term), desc);
     pango_font_description_free(desc);
 
+    /* try background color */
+    if (resources_get_string("MonitorBG", &bg) < 0) {
+        bg = NULL;
+    }
+    if (gdk_rgba_parse(&color, bg)) {
+        vte_terminal_set_color_background(VTE_TERMINAL(fixed.term), &color);
+    }
+
+    /* try foreground color */
+    if (resources_get_string("MonitorFG", &fg) < 0) {
+        fg = NULL;
+    }
+    if (gdk_rgba_parse(&color, fg)) {
+        vte_terminal_set_color_foreground(VTE_TERMINAL(fixed.term), &color);
+    }
+
     gtk_widget_set_size_request(GTK_WIDGET(fixed.window), -1, -1);
     gtk_widget_set_size_request(GTK_WIDGET(fixed.term), -1, -1);
 
@@ -593,19 +676,84 @@ bool uimon_set_font(void)
     return true;
 }
 
+
+/** \brief  Set foreground color
+ *
+ * Set VTE terminal foreground color to \a color.
+ *
+ * \param[in]   color   Gdk RGBA color string
+ *
+ * \return  bool
+ *
+ * \see     https://docs.gtk.org/gdk3/method.RGBA.parse.html
+ */
+bool uimon_set_foreground_color(const char *color)
+{
+    if (fixed.term != NULL) {
+        GdkRGBA rgba;
+
+        if (gdk_rgba_parse(&rgba, color)) {
+            vte_terminal_set_color_foreground(VTE_TERMINAL(fixed.term), &rgba);
+            return true;
+        }
+    }
+    return false;
+}
+
+
+/** \brief  Set foreground color
+ *
+ * Set VTE terminal foreground color to \a color.
+ *
+ * \param[in]   color   Gdk RGBA color string
+ *
+ * \return  bool
+ *
+ * \see     https://docs.gtk.org/gdk3/method.RGBA.parse.html
+ */
+bool uimon_set_background_color(const char *color)
+{
+    if (fixed.term != NULL) {
+        GdkRGBA rgba;
+
+        if (gdk_rgba_parse(&rgba, color)) {
+            vte_terminal_set_color_background(VTE_TERMINAL(fixed.term), &rgba);
+            return true;
+        }
+    }
+    return false;
+}
+
+
 static gboolean uimon_window_open_impl(gpointer user_data)
 {
+    bool display_now = (bool)user_data;
     GtkWidget *scrollbar, *horizontal_container;
     GdkGeometry hints;
     GdkPixbuf *icon;
     int sblines;
+    int xpos = -1;
+    int ypos = -1;
+    int width = -1;
+    int height = -1;
+
+    pthread_mutex_lock(&fixed.lock);
 
     resources_get_int("MonitorScrollbackLines", &sblines);
+    resources_get_int("MonitorXPos", &xpos);
+    resources_get_int("MonitorYPos", &ypos);
+    resources_get_int("MonitorHeight", &height);
+    resources_get_int("MonitorWidth", &width);
 
     if (fixed.window == NULL) {
         fixed.window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
         gtk_window_set_title(GTK_WINDOW(fixed.window), "VICE monitor");
-        gtk_window_set_position(GTK_WINDOW(fixed.window), GTK_WIN_POS_CENTER);
+        if (xpos < 0 && ypos < 0) {
+            /* Only center if we didn't get either a previous position or
+             * the position was set via the command line.
+             */
+            gtk_window_set_position(GTK_WINDOW(fixed.window), GTK_WIN_POS_CENTER);
+        }
         gtk_widget_set_app_paintable(fixed.window, TRUE);
         gtk_window_set_deletable(GTK_WINDOW(fixed.window), TRUE);
 
@@ -636,6 +784,15 @@ static gboolean uimon_window_open_impl(gpointer user_data)
                                      GDK_HINT_RESIZE_INC |
                                      GDK_HINT_MIN_SIZE |
                                      GDK_HINT_BASE_SIZE);
+
+         if (xpos > INT_MIN && ypos > INT_MIN) {
+            gtk_window_move(GTK_WINDOW(fixed.window), xpos, ypos);
+        }
+        if (width >= 0 && height >= 0) {
+            gtk_window_resize(GTK_WINDOW(fixed.window), width, height);
+        }
+
+
         scrollbar = gtk_scrollbar_new(GTK_ORIENTATION_VERTICAL,
                 gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(fixed.term)));
 
@@ -652,20 +809,19 @@ static gboolean uimon_window_open_impl(gpointer user_data)
                 FALSE, FALSE, 0);
 #endif
 
-
         g_signal_connect(G_OBJECT(fixed.window), "delete-event",
-            G_CALLBACK(close_window), &fixed.input_buffer);
+            G_CALLBACK(close_window), NULL);
 
-        g_signal_connect(G_OBJECT(fixed.term), "key-press-event",
-            G_CALLBACK(key_press_event), &fixed.input_buffer);
+        g_signal_connect_unlocked(G_OBJECT(fixed.term), "key-press-event",
+            G_CALLBACK(key_press_event), NULL);
 
-        g_signal_connect(G_OBJECT(fixed.term), "button-press-event",
-            G_CALLBACK(button_press_event), &fixed.input_buffer);
+        g_signal_connect_unlocked(G_OBJECT(fixed.term), "button-press-event",
+            G_CALLBACK(button_press_event), NULL);
 
-        g_signal_connect(G_OBJECT(fixed.term), "text-modified",
+        g_signal_connect_unlocked(G_OBJECT(fixed.term), "text-modified",
             G_CALLBACK (screen_resize_window_cb), NULL);
 
-        g_signal_connect(G_OBJECT(fixed.window), "configure-event",
+        g_signal_connect_unlocked(G_OBJECT(fixed.window), "configure-event",
             G_CALLBACK (screen_resize_window_cb2), NULL);
 
         vte_console.console_can_stay_open = 1;
@@ -675,7 +831,14 @@ static gboolean uimon_window_open_impl(gpointer user_data)
         vte_terminal_set_scrollback_lines (VTE_TERMINAL(fixed.term), sblines);
     }
 
-    uimon_window_resume_impl(user_data);
+    pthread_mutex_unlock(&fixed.lock);
+
+    if (display_now) {
+        uimon_window_resume_impl(NULL);
+    }
+
+    /* Ensure any queued monitor output is displayed */
+    gdk_threads_add_timeout(0, write_to_terminal, NULL);
 
     return FALSE;
 }
@@ -690,13 +853,6 @@ static gboolean uimon_window_resume_impl(gpointer user_data)
      * window. This makes the monitor window show when the emulated machine
      * window is in fullscreen mode. (only tested on Windows 10)
      */
-#if 0
-    active = ui_get_active_window();
-    if (active != GTK_WINDOW(fixed.window)) {
-        debug_gtk3("setting monitor window transient for emulator window.");
-        gtk_window_set_transient_for(GTK_WINDOW(fixed.window), active);
-    }
-#endif
     gtk_window_present(GTK_WINDOW(fixed.window));
 
     return FALSE;
@@ -721,27 +877,10 @@ static gboolean uimon_window_suspend_impl(gpointer user_data)
     return FALSE;
 }
 
-static gboolean uimon_out_impl(gpointer user_data)
-{
-    char *buffer = (char*)user_data;
-    const char *c;
-
-    for(c = buffer; *c; c++) {
-        if(*c == '\n') {
-            uimon_write_to_terminal(&fixed, "\r", 1);
-        }
-        uimon_write_to_terminal(&fixed, c, 1);
-    }
-
-    lib_free(buffer);
-
-    return FALSE;
-}
-
 static gboolean uimon_window_close_impl(gpointer user_data)
 {
     /* Flush any queued writes */
-    uimon_write_to_terminal_impl(NULL);
+    write_to_terminal(NULL);
 
     /* only close window if there is one: this avoids a GTK_CRITICAL warning
      * when using a remote monitor */
@@ -752,14 +891,14 @@ static gboolean uimon_window_close_impl(gpointer user_data)
     return FALSE;
 }
 
-console_t *uimon_window_open(void)
+console_t *uimon_window_open(bool display_now)
 {
     if (native_monitor()) {
         return uimonfb_window_open();
     }
 
     /* call from ui thread */
-    gdk_threads_add_timeout(0, uimon_window_open_impl, NULL);
+    gdk_threads_add_timeout(0, uimon_window_open_impl, (gpointer)display_now);
 
     return &vte_console;
 }
@@ -785,18 +924,6 @@ void uimon_window_suspend(void)
 
     /* call from ui thread */
     gdk_threads_add_timeout(0, uimon_window_suspend_impl, NULL);
-}
-
-int uimon_out(const char *buffer)
-{
-    if (native_monitor()) {
-        return uimonfb_out(buffer);
-    }
-
-    /* call from ui thread */
-    gdk_threads_add_timeout(0, uimon_out_impl, (gpointer)lib_strdup(buffer));
-
-    return 0;
 }
 
 void uimon_window_close(void)
@@ -949,9 +1076,12 @@ char *uimon_get_in(char **ppchCommandLine, const char *prompt)
         return uimonfb_get_in(ppchCommandLine, prompt);
     }
 
+    pthread_mutex_lock(&fixed.lock);
     if (!fixed.input_buffer) {
         fixed.input_buffer = lib_strdup("");
     }
+    pthread_mutex_unlock(&fixed.lock);
+
     vte_linenoiseSetCompletionCallback(monitor_completions);
     p = vte_linenoise(prompt, &fixed);
     if (p) {
@@ -961,7 +1091,7 @@ char *uimon_get_in(char **ppchCommandLine, const char *prompt)
         ret_string = lib_strdup(p);
         free(p);
     } else {
-        ret_string = lib_strdup("x");
+        ret_string = NULL;
     }
 
     return ret_string;
@@ -973,12 +1103,16 @@ int console_init(void)
     char *full_name;
     char *short_name;
     int takes_filename_as_arg;
+    pthread_mutexattr_t lock_attributes;
 
+    /* our console lock needs to be recursive */
+    pthread_mutexattr_init(&lock_attributes);
+    pthread_mutexattr_settype(&lock_attributes, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(&fixed.lock, &lock_attributes);
 
     if (native_monitor()) {
         return consolefb_init();
     }
-
 
     while (mon_get_nth_command(i++,
                 &full_name,
@@ -1004,6 +1138,8 @@ int console_close_all(void)
 {
     int i;
 
+    pthread_mutex_lock(&fixed.lock);
+
     if (fixed.input_buffer) {
         /* This happens if the application exits with the monitor open, as the VICE thread
          * exits while the monitor is waiting for user input into this buffer.
@@ -1011,6 +1147,8 @@ int console_close_all(void)
         lib_free(fixed.input_buffer);
         fixed.input_buffer = NULL;
     }
+
+    pthread_mutex_unlock(&fixed.lock);
 
     if (native_monitor()) {
         return consolefb_close_all();
@@ -1025,45 +1163,3 @@ int console_close_all(void)
 
     return 0;
 }
-
-/** \brief  Callback to activate the ML-monitor
- *
- * \param[in,out]   widget      widget triggering the event
- * \param[in]       user_data   data for the event (unused)
- *
- * \return  TRUE
- */
-gboolean ui_monitor_activate_callback(GtkWidget *widget, gpointer user_data)
-{
-    int v;
-    int native = 0;
-
-    /*
-     * Determine if we use the spawing terminal or the (yet to write) Gtk3
-     * base monitor
-     */
-    if (resources_get_int("NativeMonitor", &native) < 0) {
-        debug_gtk3("failed to get value of resource 'NativeMonitor'.");
-    }
-    debug_gtk3("called, native monitor = %s.", native ? "true" : "false");
-
-    resources_get_int("MonitorServer", &v);
-
-    if (v == 0) {
-        vsync_suspend_speed_eval();
-        /* ui_autorepeat_on(); */
-
-#ifdef HAVE_MOUSE
-        /* FIXME: restore mouse in case it was grabbed */
-        /* ui_restore_mouse(); */
-#endif
-
-        if (ui_pause_active()) {
-            ui_pause_enter_monitor();
-        } else {
-            monitor_startup_trap();
-        }
-    }
-    return TRUE;
-}
-

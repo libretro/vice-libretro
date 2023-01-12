@@ -30,6 +30,7 @@
 
 #include "types.h"
 
+#include "c128.h"
 #include "c128model.h"
 #include "cartridge.h"
 #include "cia.h"
@@ -55,6 +56,7 @@
 
 #include "menu_sid.h"
 #include "menu_tape.h"
+#include "menu_userport.h"
 
 #ifdef HAVE_RAWNET
 #include "menu_ethernet.h"
@@ -141,49 +143,41 @@ static const ui_menu_entry_t vdc_menu[] = {
     SDL_MENU_LIST_END
 };
 
-UI_MENU_DEFINE_TOGGLE(UserportDAC)
-UI_MENU_DEFINE_TOGGLE(UserportDIGIMAX)
-UI_MENU_DEFINE_TOGGLE(UserportRTCDS1307)
-UI_MENU_DEFINE_TOGGLE(UserportRTCDS1307Save)
-UI_MENU_DEFINE_TOGGLE(UserportRTC58321a)
-UI_MENU_DEFINE_TOGGLE(UserportRTC58321aSave)
-UI_MENU_DEFINE_TOGGLE(Userport4bitSampler)
-UI_MENU_DEFINE_TOGGLE(Userport8BSS)
+UI_MENU_DEFINE_RADIO(MachineType)
 
-static const ui_menu_entry_t userport_menu[] = {
-    SDL_MENU_ITEM_TITLE("Userport devices"),
-    { "8 bit DAC enable",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_UserportDAC_callback,
-      NULL },
-    { "DigiMAX enable",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_UserportDIGIMAX_callback,
-      NULL },
-    { "RTC (58321a) enable",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_UserportRTC58321a_callback,
-      NULL },
-    { "Save RTC (58321a) data when changed",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_UserportRTC58321aSave_callback,
-      NULL },
-    { "4 bit sampler enable",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_Userport4bitSampler_callback,
-      NULL },
-    { "8 bit stereo sampler enable",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_Userport8BSS_callback,
-      NULL },
-    { "RTC (DS1307) enable",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_UserportRTCDS1307_callback,
-      NULL },
-    { "Save RTC (DS1307) data when changed",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_UserportRTCDS1307Save_callback,
-      NULL },
+static const ui_menu_entry_t machine_type_menu[] = {
+    { "International",
+      MENU_ENTRY_RESOURCE_RADIO,
+      radio_MachineType_callback,
+      (ui_callback_data_t)C128_MACHINE_INT },
+    { "Finnish",
+      MENU_ENTRY_RESOURCE_RADIO,
+      radio_MachineType_callback,
+      (ui_callback_data_t)C128_MACHINE_FINNISH },
+    { "French",
+      MENU_ENTRY_RESOURCE_RADIO,
+      radio_MachineType_callback,
+      (ui_callback_data_t)C128_MACHINE_FRENCH },
+    { "German",
+      MENU_ENTRY_RESOURCE_RADIO,
+      radio_MachineType_callback,
+      (ui_callback_data_t)C128_MACHINE_GERMAN },
+    { "Italian",
+      MENU_ENTRY_RESOURCE_RADIO,
+      radio_MachineType_callback,
+      (ui_callback_data_t)C128_MACHINE_ITALIAN },
+    { "Norwegian",
+      MENU_ENTRY_RESOURCE_RADIO,
+      radio_MachineType_callback,
+      (ui_callback_data_t)C128_MACHINE_NORWEGIAN },
+    { "Swedish",
+      MENU_ENTRY_RESOURCE_RADIO,
+      radio_MachineType_callback,
+      (ui_callback_data_t)C128_MACHINE_SWEDISH },
+    { "Swiss",
+      MENU_ENTRY_RESOURCE_RADIO,
+      radio_MachineType_callback,
+      (ui_callback_data_t)C128_MACHINE_SWISS },
     SDL_MENU_LIST_END
 };
 
@@ -196,6 +190,10 @@ const ui_menu_entry_t c128_hardware_menu[] = {
       MENU_ENTRY_SUBMENU,
       submenu_radio_callback,
       (ui_callback_data_t)c128_model_menu },
+    { "Select machine type",
+      MENU_ENTRY_SUBMENU,
+      submenu_radio_callback,
+      (ui_callback_data_t)machine_type_menu },
     SDL_MENU_ITEM_SEPARATOR,
     { "Joyport settings",
       MENU_ENTRY_SUBMENU,
@@ -209,6 +207,7 @@ const ui_menu_entry_t c128_hardware_menu[] = {
       MENU_ENTRY_SUBMENU,
       submenu_callback,
       (ui_callback_data_t)sid_c128_menu },
+    SDL_MENU_ITEM_SEPARATOR,
     SDL_MENU_ITEM_TITLE("CIA models"),
     { "CIA 1 model",
       MENU_ENTRY_SUBMENU,
@@ -218,6 +217,7 @@ const ui_menu_entry_t c128_hardware_menu[] = {
       MENU_ENTRY_SUBMENU,
       submenu_radio_callback,
       (ui_callback_data_t)cia2_model_submenu },
+    SDL_MENU_ITEM_SEPARATOR,
     { "VDC settings",
       MENU_ENTRY_SUBMENU,
       submenu_callback,
@@ -264,7 +264,7 @@ const ui_menu_entry_t c128_hardware_menu[] = {
       MENU_ENTRY_RESOURCE_TOGGLE,
       toggle_IEEE488_callback,
       NULL },
-    { "Userport devices",
+    { "Userport settings",
       MENU_ENTRY_SUBMENU,
       submenu_callback,
       (ui_callback_data_t)userport_menu },

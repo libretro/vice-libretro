@@ -37,43 +37,80 @@
 
 #include "vice_sdl.h"
 
+#include "archdep.h"
 #include "viewport.h"
 #include "video.h"
 
+#define VIDEO_CANVAS_IDX_VDC   1
+#define VIDEO_CANVAS_IDX_VICII 0
 #define MAX_CANVAS_NUM 2
 
+#define VIDEO_SDL2_CANVAS_INDEX_KEY "canvas_index"
+
 typedef void (*video_refresh_func_t)(struct video_canvas_s *, int, int, int, int, unsigned int, unsigned int);
+
+#ifdef USE_SDL2UI
+/** \brief Everything needed to render textures to the screen in a window */
+struct video_container_s {
+    /** \brief The SDL window associated with this renderer and texture. */
+    SDL_Window* window;
+
+    /** \brief The renderer associated with this SDL_Window. */
+    SDL_Renderer* renderer;
+
+    /** \brief State variable for making sure that the OS let us leave fullscreen sanely. */
+    int leaving_fullscreen;
+
+    /** \brief Recorded width, for dealing with windowing systems that forget
+     * how big the window was when leaving fullscreen. */
+    int last_width;
+
+    /** \brief Recorded height, for dealing with windowing systems that forget
+     * how big the window was when leaving fullscreen. */
+    int last_height;
+};
+typedef struct video_container_s video_container_t;
+#endif
 
 struct video_canvas_s {
     /** \brief Nonzero if it is safe to access other members of the
      *         structure. */
     unsigned int initialized;
-    
+
     /** \brief Nonzero if the structure has been fully realized. */
     unsigned int created;
 
-    /* Index of the canvas, needed for x128 and xcbm2 */
+    /** \brief Index of the canvas, needed for x128 and xcbm2 */
     int index;
+
+    /** \brief Depth of the canvas in bpp */
     unsigned int depth;
 
-    /* Size of the drawable canvas area, including the black borders */
+    /** \brief Size of the drawable canvas area, including the black borders */
     unsigned int width, height;
 
-    /* Size of the canvas as requested by the emulator itself */
+    /** \brief Size of the canvas as requested by the emulator itself */
     unsigned int real_width, real_height;
 
-    /* Actual size of the window; in most cases the same as width/height */
+    /** \brief  Actual size of the window; in most cases the same as width/height */
     unsigned int actual_width, actual_height;
 
-    /* Drawable surface */
+    /** \brief Drawable surface. Main output for SDL1, SDL2 uses other members. */
     SDL_Surface* screen;
 
-#ifdef USE_SDLUI2
-    /* texture */
-    SDL_Texture *texture;
+#ifdef USE_SDL2UI
+    /** \brief The texture that can be rendered to for this window and renderer. */
+    SDL_Texture* texture;
+
+    /** \brief Last frame's texture, used for interlaced modes. */
+    SDL_Texture* previous_frame_texture;
+
+    /** \brief The SDL2 objects that this canvas can output to. */
+    video_container_t* container;
 #endif
 
     struct video_render_config_s *videoconfig;
+    int crt_type;
     struct draw_buffer_s *draw_buffer;
     struct draw_buffer_s *draw_buffer_vsid;
     struct viewport_s *viewport;
@@ -81,13 +118,16 @@ struct video_canvas_s {
     struct palette_s *palette;
     struct raster_s *parent_raster;
 
-    struct video_draw_buffer_callback_s *video_draw_buffer_callback;
     struct fullscreenconfig_s *fullscreenconfig;
     video_refresh_func_t video_fullscreen_refresh_func;
-#if defined(HAVE_HWSCALE) && !defined(USE_SDLUI2)
+
+#if defined(HAVE_HWSCALE) && !defined(USE_SDL2UI)
     /* OpenGL context */
     SDL_Surface *hwscale_screen;
 #endif
+
+    /** \brief Used to limit frame rate under warp. */
+    tick_t warp_next_render_tick;
 };
 typedef struct video_canvas_s video_canvas_t;
 
@@ -95,8 +135,14 @@ extern video_canvas_t *sdl_active_canvas;
 
 /* Resize window to stored real size */
 extern void sdl_video_restore_size(void);
+
+#ifdef USE_SDL2UI
+/* special case handling for the SDL window resize event */
+extern void sdl2_video_resize_event(int canvas_id, unsigned int w, unsigned int h);
+#else
 /* special case handling for the SDL window resize event */
 extern void sdl_video_resize_event(unsigned int w, unsigned int h);
+#endif
 
 /* Switch to canvas with given index; used by x128 and xcbm2 */
 extern void sdl_video_canvas_switch(int index);
@@ -114,7 +160,7 @@ extern uint8_t *draw_buffer_vsid;
 #define SDL_LIMIT_MODE_MAX   1
 #define SDL_LIMIT_MODE_FIXED 2
 
-#if defined(HAVE_HWSCALE) || defined(USE_SDLUI2)
+#if defined(HAVE_HWSCALE) || defined(USE_SDL2UI)
 /* Modes of fixed aspect ratio */
 #define SDL_ASPECT_MODE_OFF    0
 #define SDL_ASPECT_MODE_CUSTOM 1
@@ -126,5 +172,10 @@ extern uint8_t *draw_buffer_vsid;
 #endif
 
 extern void sdl_ui_set_window_title(char *title);
+
+#ifdef USE_SDL2UI
+extern void sdl2_show_second_window(void);
+extern void sdl2_hide_second_window(void);
+#endif
 
 #endif

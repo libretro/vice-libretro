@@ -27,17 +27,18 @@
 #include "vice.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <errno.h>
 
 #include "archdep.h"
 #include "archdep_defs.h"
 
 
-#ifdef ARCHDEP_OS_UNIX
+#ifdef UNIX_COMPILE
 # include <unistd.h>
 #endif
 
-#ifdef ARCHDEP_OS_WINDOWS
+#ifdef WINDOWS_COMPILE
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #endif
@@ -45,24 +46,26 @@
 #include "archdep_file_exists.h"
 
 
+/** \brief  Check if file at \a path exists
+ *
+ * \param[in]   path    path to file
+ *
+ * \return  bool
+ */
 bool archdep_file_exists(const char *path)
 {
-#ifdef ARCHDEP_OS_UNIX
-
+#ifdef UNIX_COMPILE
     if (access(path, F_OK) == 0) {
         return true;
     }
 #endif
 
-#ifdef ARCHDEP_OS_WINDOWS
+#ifdef WINDOWS_COMPILE
     /* Possible TODO: convert path from UTF-8 to UTF-16LE and use the
      * more consistent GetFileAttributesW call */
     if (GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES) {
         return true;
     }
 #endif
-    
     return false;
-
 }
-

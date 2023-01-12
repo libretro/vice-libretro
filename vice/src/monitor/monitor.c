@@ -41,15 +41,12 @@
 #include <stdint.h>
 #include <errno.h>
 
-#ifdef __IBMC__
-#include <direct.h>
-#endif
-
 #ifdef HAVE_STRINGS_H
 #include <strings.h>
 #endif
 
 #include "archdep.h"
+#include "archdep_defs.h"
 #include "cartio.h"
 #include "charset.h"
 #include "cmdline.h"
@@ -58,7 +55,6 @@
 #include "drive.h"
 
 #include "interrupt.h"
-#include "ioutil.h"
 #include "kbdbuf.h"
 #include "lib.h"
 #include "util.h"
@@ -72,10 +68,6 @@
 #include "mon_memory.h"
 #include "asm.h"
 
-#ifdef AMIGA_MORPHOS
-#undef REG_PC
-#endif
-
 #include "mon_parse.h"
 #include "mon_register.h"
 #include "mon_ui.h"
@@ -84,11 +76,17 @@
 #include "monitor_network.h"
 #include "monitor_binary.h"
 #include "montypes.h"
+
+#include "userport_io_sim.h"
+#include "joyport_io_sim.h"
+#include "joyport.h"
+
 #include "resources.h"
 #include "screenshot.h"
 #include "sysfile.h"
 #include "traps.h"
 #include "types.h"
+#include "ui.h"
 #include "uiapi.h"
 #include "uimon.h"
 #include "util.h"
@@ -126,8 +124,6 @@ static int init_break_address = -1;
 #define MONITOR_GET_OPCODE(mem) (mon_get_mem_val_nosfx(mem, MONITOR_GET_PC(mem)))
 
 console_t *console_log = NULL;
-
-static int monitor_trap_triggered = 0;
 
 monitor_cartridge_commands_t mon_cart_cmd;
 
@@ -167,8 +163,10 @@ static int mon_console_close_on_leaving = 0;
 int sidefx = 0;
 int break_on_dummy_access = 0;
 RADIXTYPE default_radix;
-MEMSPACE default_memspace;
+MEMSPACE default_memspace = e_comp_space;
 static bool inside_monitor = false;
+static bool should_pause_on_exit_mon = false;
+static bool pause_on_exit_mon = false;
 static unsigned int instruction_count;
 static bool skip_jsrs;
 static int wait_for_return_level;
@@ -202,7 +200,7 @@ static bool recording;
 static FILE *recording_fp;
 static char *recording_name;
 
-#define PLAYBACK_MAX_RECUSRION 128
+#define PLAYBACK_MAX_FP_DEPTH 128
 
 static char **playback_filename_stack = NULL;
 static FILE **playback_fp_stack = NULL;
@@ -215,7 +213,7 @@ static bool playback_exit_after_all_playback = false;
 
 static void playback_end_file(void);
 
-static void monitor_close(int check);
+static void monitor_close(bool check_exit);
 static int monitor_set_moncommands_file(const char *param, void *extra_param);
 
 /* Disassemble the current opcode on entry.  Used for single step.  */
@@ -225,14 +223,8 @@ static int disassemble_on_entry = 0;
 /* This gets initialized in monitor_init(). */
 monitor_cpu_type_t *monitor_cpu_for_memspace[NUM_MEMSPACES];
 
-struct supported_cpu_type_list_s {
-    monitor_cpu_type_t *monitor_cpu_type_p;
-    struct supported_cpu_type_list_s *next;
-};
-typedef struct supported_cpu_type_list_s supported_cpu_type_list_t;
-
 /* A linked list of supported monitor_cpu_types for each memspace */
-static supported_cpu_type_list_t *monitor_cpu_type_supported[NUM_MEMSPACES];
+supported_cpu_type_list_t *monitor_cpu_type_supported[NUM_MEMSPACES];
 
 struct monitor_cpu_type_list_s {
     monitor_cpu_type_t monitor_cpu_type;
@@ -354,7 +346,7 @@ static bool is_machine_ready(void)
     if (cursor_column != 0) {
         return false;
     }
-    
+
     /* now we expect the string in the previous line (typically "READY.") */
     addr = screen_addr - line_length;
 
@@ -371,7 +363,7 @@ void monitor_reset_hook(void)
 {
     if (init_break_mode == ON_RESET) {
         init_break_mode = NONE;
-        
+
         monitor_startup_trap();
     }
 }
@@ -385,11 +377,11 @@ void monitor_vsync_hook(void)
          */
         if (is_machine_ready()) {
             init_break_mode = NONE;
-            
+
             monitor_startup_trap();
         }
     }
-    
+
 #ifdef HAVE_NETWORK
     /* check if someone wants to connect remotely to the monitor */
     monitor_check_remote();
@@ -638,12 +630,12 @@ bool check_drive_emu_level_ok(int drive_num)
 
 void monitor_cpu_type_set(const char *cpu_type)
 {
-    int serchcpu;
+    int searchcpu;
     monitor_cpu_type_t *monitor_cpu_type_p = NULL;
 
-    serchcpu = find_cpu_type_from_string(cpu_type);
-    if (serchcpu > -1) {
-        monitor_cpu_type_p = monitor_find_cpu_for_memspace(default_memspace, serchcpu);
+    searchcpu = find_cpu_type_from_string(cpu_type);
+    if (searchcpu > -1) {
+        monitor_cpu_type_p = monitor_find_cpu_for_memspace(default_memspace, searchcpu);
     }
     if (monitor_cpu_type_p) {
         monitor_cpu_for_memspace[default_memspace] = monitor_cpu_type_p;
@@ -815,10 +807,12 @@ const char *mon_get_current_bank_name(MEMSPACE mem)
     return mon_get_bank_name_for_bank(mem, mon_interfaces[mem]->current_bank);
 }
 
-const int mon_get_current_bank_index(MEMSPACE mem)
+#if 0
+static const int mon_get_current_bank_index(MEMSPACE mem)
 {
     return mon_get_bank_index_for_bank(mem, mon_interfaces[mem]->current_bank);
 }
+#endif
 
 /*
     main entry point for the monitor to read a value from memory
@@ -891,7 +885,7 @@ void mon_get_mem_block(MEMSPACE mem, uint16_t start, uint16_t end, uint8_t *data
     main entry point for the monitor to write a value to memory
 
     mem_bank_peek and mem_bank_read are set up in src/drive/drivecpu.c,
-    src/drive/drivecpu65c02.c, src/mainc64cpu.c, src/mainviccpu.c, 
+    src/drive/drivecpu65c02.c, src/mainc64cpu.c, src/mainviccpu.c,
     src/maincpu.c, src/main65816cpu.c
 */
 
@@ -906,12 +900,12 @@ void mon_set_mem_val(MEMSPACE mem, uint16_t mem_addr, uint8_t val)
             return;
         }
     }
-    
+
     if ((sidefx == 0) && (mon_interfaces[mem]->mem_bank_poke != NULL)) {
         mon_interfaces[mem]->mem_bank_poke(bank, mem_addr, val, mon_interfaces[mem]->context);
     } else {
         mon_interfaces[mem]->mem_bank_write(bank, mem_addr, val, mon_interfaces[mem]->context);
-    }    
+    }
 }
 
 /*! \internal \brief set a byte of memory in a specific bank, not the current.
@@ -936,12 +930,12 @@ void mon_set_mem_val_ex(MEMSPACE mem, int bank, uint16_t mem_addr, uint8_t val)
             return;
         }
     }
-    
+
     if ((sidefx == 0) && (mon_interfaces[mem]->mem_bank_poke != NULL)) {
         mon_interfaces[mem]->mem_bank_poke(bank, mem_addr, val, mon_interfaces[mem]->context);
     } else {
         mon_interfaces[mem]->mem_bank_write(bank, mem_addr, val, mon_interfaces[mem]->context);
-    }    
+    }
 }
 
 /* exit monitor  */
@@ -956,6 +950,11 @@ void mon_jump(MON_ADDR addr)
 void mon_go(void)
 {
     exit_mon = 1;
+
+    if (should_pause_on_exit_mon || ui_pause_active()) {
+        should_pause_on_exit_mon = false;
+        pause_on_exit_mon = true;
+    }
 }
 
 /* exit monitor, close monitor window  */
@@ -963,6 +962,11 @@ void mon_exit(void)
 {
     exit_mon = 1;
     mon_console_close_on_leaving = 1;
+
+    if (should_pause_on_exit_mon || ui_pause_active()) {
+        should_pause_on_exit_mon = false;
+        pause_on_exit_mon = true;
+    }
 }
 
 /* If we want 'quit' for OS/2 I couldn't leave the emulator by calling exit(0)
@@ -1129,58 +1133,55 @@ void mon_screenshot_save(const char* filename, int format)
  */
 void mon_show_pwd(void)
 {
-    char *p = ioutil_current_dir();
+    char *p = archdep_current_dir();
     mon_out("%s\n", p);
     lib_free(p);
 }
 
 void mon_show_dir(const char *path)
 {
-    struct ioutil_dir_s *dir;
-    char *name;
+    archdep_dir_t *dir;
+    const char *name;
     char *mpath;
     char *fullname;
 
     if (path) {
         mpath = lib_strdup(path);
     } else {
-        mpath = ioutil_current_dir();
+        mpath = archdep_current_dir();
     }
     mon_out("Displaying directory: `%s'\n", mpath);
 
-    dir = ioutil_opendir(mpath, IOUTIL_OPENDIR_ALL_FILES);
+    dir = archdep_opendir(mpath, ARCHDEP_OPENDIR_ALL_FILES);
     if (!dir) {
         mon_out("Couldn't open directory.\n");
         lib_free(mpath);
         return;
     }
 
-    while ((name = ioutil_readdir(dir))) {
+    while ((name = archdep_readdir(dir))) {
         size_t len;
         unsigned int isdir;
         int ret;
         if (path) {
-            fullname = util_concat(path, FSDEV_DIR_SEP_STR, name, NULL);
-            ret = ioutil_stat(fullname, &len, &isdir);
+            fullname = util_concat(path, ARCHDEP_DIR_SEP_STR, name, NULL);
+            ret = archdep_stat(fullname, &len, &isdir);
             lib_free(fullname);
         } else {
-            ret = ioutil_stat(name, &len, &isdir);
+            ret = archdep_stat(name, &len, &isdir);
         }
         if (!ret) {
             if (isdir) {
                 mon_out("     <dir> %s\n", name);
             } else {
-                /* Should use '%zu' here for `len`, but that would break
-                 * Windows :(
-                 */
-                mon_out("%10u %s\n", (unsigned int)len, name);
+                mon_out("%"PRI_SIZE_T" %s\n", len, name);
             }
         } else {
             mon_out("%-20s?????\n", name);
         }
     }
     lib_free(mpath);
-    ioutil_closedir(dir);
+    archdep_closedir(dir);
 }
 
 void mon_resource_get(const char *name)
@@ -1231,12 +1232,12 @@ void mon_reset_machine(int type)
     }
 }
 
-void mon_tape_ctrl(int command)
+void mon_tape_ctrl(int port, int command)
 {
     if ((command < 0) || (command > 6)) {
         mon_out("Unknown command.\n");
     } else {
-        datasette_control(command);
+        datasette_control(port, command);
     }
 }
 
@@ -1246,6 +1247,73 @@ void mon_cart_freeze(void)
         (mon_cart_cmd.cartridge_trigger_freeze)();
     } else {
         mon_out("Unsupported.\n");
+    }
+}
+
+IO_SIM_RESULT mon_userport_set_output(int value)
+{
+    if (machine_class == VICE_MACHINE_CBM5x0) {
+        mon_out("Unsupported.\n");
+        return e_IO_SIM_RESULT_GENERAL_FAILURE;
+    } else if (value >= 0x00 && value <= 0xff) {
+        userport_io_sim_set_pbx_out_lines((uint8_t)value);
+        return e_IO_SIM_RESULT_OK;
+    } else {
+        mon_out("Illegal value.\n");
+        return e_IO_SIM_RESULT_ILLEGAL_VALUE;
+    }
+
+    return 0;
+}
+
+IO_SIM_RESULT mon_joyport_set_output(int port, int value)
+{
+    int command_ok = 0;
+    int port_ok = 1;
+
+    if (value < 0x00 || value > 0xff) {
+        mon_out("Illegal value.\n");
+        return e_IO_SIM_RESULT_ILLEGAL_VALUE;
+    }
+
+    switch (machine_class) {
+        case VICE_MACHINE_C64:
+        case VICE_MACHINE_C128:
+        case VICE_MACHINE_CBM5x0:
+        case VICE_MACHINE_C64DTV:
+        case VICE_MACHINE_C64SC:
+        case VICE_MACHINE_SCPU64:
+            if (port == JOYPORT_1 || port == JOYPORT_2) {
+                command_ok = 1;
+            } else {
+                port_ok = 0;
+            }
+            break;
+        case VICE_MACHINE_VIC20:
+            if (port == JOYPORT_1) {
+                command_ok = 1;
+            } else {
+                port_ok = 0;
+            }
+            break;
+        case VICE_MACHINE_PLUS4:
+            if (port == JOYPORT_1 || port == JOYPORT_2 || port == JOYPORT_6) {
+                command_ok = 1;
+            } else {
+                port_ok = 0;
+            }
+            break;
+    }
+
+    if (command_ok) {
+        joyport_io_sim_set_out_lines((uint8_t)value, port);
+        return e_IO_SIM_RESULT_OK;
+    } else if (!port_ok) {
+        mon_out("Illegal port.\n");
+        return e_IO_SIM_RESULT_ILLEGAL_PORT;
+    } else {
+        mon_out("Unsupported.\n");
+        return e_IO_SIM_RESULT_GENERAL_FAILURE;
     }
 }
 
@@ -1418,7 +1486,14 @@ void monitor_init(monitor_interface_t *maincpu_interface_init,
     }
 
     mon_memmap_init();
-    
+
+    /* set the current bank to the CPU bank. we need to do this here since this may not be bank 0 */
+    if (mon_interfaces[e_comp_space]->mem_bank_from_name != NULL) {
+        mon_interfaces[e_comp_space]->current_bank = mon_interfaces[e_comp_space]->mem_bank_from_name("cpu");
+    } else {
+        mon_interfaces[e_comp_space]->current_bank = 0;
+    }
+
     if (init_break_mode == ON_EXECUTE) {
         /* Create the -initbreak execute address breakpoint */
         if (init_break_address >= 0 && init_break_address < 65536) {
@@ -1433,12 +1508,12 @@ void monitor_shutdown(void)
     monitor_cpu_type_list_t *list, *list_next;
     supported_cpu_type_list_t *slist, *slist_next;
     int i;
-    
+
     if (inside_monitor) {
         /* Can happen if VICE thread exited while monitor open */
-        monitor_close(0);
+        monitor_close(false);
     }
-    
+
     if (last_cmd) {
         lib_free(last_cmd);
         last_cmd = NULL;
@@ -1463,14 +1538,14 @@ void monitor_shutdown(void)
     }
 
     mon_memmap_shutdown();
-    
+
     while (playback_fp_stack_size) {
         playback_end_file();
     }
-    
+
     lib_free(playback_filename_stack);
     lib_free(playback_fp_stack);
-    
+
     playback_filename_stack = NULL;
     playback_fp_stack = NULL;
     playback_fp_stack_size = 0;
@@ -1481,35 +1556,35 @@ static int monitor_set_initial_breakpoint(const char *param, void *extra_param)
 {
     long val;
     char *end;
-    
+
     /* -initbreak <address> */
-    
+
     errno = 0;
     val = strtoul(param, &end, 0);
-    
+
     if (errno == 0 && end != param && *end == '\0') {
         if (val >= 0 && val < 65536) {
             init_break_mode = ON_EXECUTE;
             init_break_address = (int)val;
-            
+
             return 0;
         }
     }
-    
+
     /* -initbreak reset */
-    
+
     if (strcmp(param, "reset") == 0) {
         init_break_mode = ON_RESET;
         return 0;
     }
-    
+
     /* -initbreak ready */
-    
+
     if (strcmp(param, "ready") == 0) {
         init_break_mode = ON_READY;
         return 0;
     }
-    
+
     return -1;
 }
 
@@ -1550,7 +1625,7 @@ static int set_monitor_log_enabled(int val, void *param)
 {
     int old = monitorlogenabled;
     monitorlogenabled = val ? 1 : 0;
-    
+
     if (!old && monitorlogenabled) {
         mon_log_file_open(monitorlogfilename);
     }
@@ -1600,7 +1675,7 @@ static const resource_int_t resources_int[] = {
     { "MonitorLogEnabled", 0, RES_EVENT_NO, NULL,
       &monitorlogenabled, set_monitor_log_enabled, NULL },
 #ifdef FEATURE_CPUMEMHISTORY
-    { "MonitorChisLines", 4096, RES_EVENT_NO, NULL,
+    { "MonitorChisLines", 8192, RES_EVENT_NO, NULL,
       &monitorchislines, set_monitor_chis_lines, NULL },
 #endif
     { "MonitorScrollbackLines", 4096, RES_EVENT_NO, NULL,
@@ -1642,7 +1717,7 @@ static const cmdline_option_t cmdline_options[] =
       NULL, "Disable logging monitor output to a file" },
     { "-initbreak", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
       monitor_set_initial_breakpoint, NULL, NULL, NULL,
-      "<value>", "Set an initial breakpoint for the monitor" },
+      "<value>", "Set an initial breakpoint for the monitor: <address>, ready, or reset" },
 #ifdef ARCHDEP_SEPERATE_MONITOR_WINDOW
     { "-keepmonopen", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
       NULL, NULL, "KeepMonitorOpen", (resource_value_t)1,
@@ -1739,7 +1814,7 @@ void mon_display_screen(long addr)
 
     for (r = 0; r < rows; r++) {
         /* Only show addresses of each line in non-SDL */
-#if !defined(USE_SDLUI) && !defined(USE_SDLUI2)
+#if !defined(USE_SDLUI) && !defined(USE_SDL2UI)
         mon_out("%04x  ", base);
 #endif
         for (c = 0; c < cols; c++) {
@@ -1749,7 +1824,7 @@ void mon_display_screen(long addr)
                Do we want monitor sidefx in a function that's *supposed*
                to just read from screen memory? */
             data = mon_get_mem_val_ex_nosfx(e_comp_space, bank, (uint16_t)ADDR_LIMIT(base++));
-            data = charset_p_toascii(charset_screencode_to_petcii(data), 1);
+            data = charset_p_toascii(charset_screencode_to_petcii(data), CONVERT_WITH_CTRLCODES);
 
             mon_out("%c", data);
         }
@@ -1804,7 +1879,7 @@ void mon_display_io_regs(MON_ADDR addr)
                     if (addr > 0) {
                         if (mem_ioreg_list_base[n].dump) {
                             mon_out("\n");
-                            if (mem_ioreg_list_base[n].dump(mem_ioreg_list_base[n].context, 
+                            if (mem_ioreg_list_base[n].dump(mem_ioreg_list_base[n].context,
                                     (uint16_t)(addr_location(start))) < 0) {
                                 mon_out("No details available.\n");
                             }
@@ -1874,7 +1949,7 @@ void mon_change_dir(const char *path)
     if (path != NULL && path[0] == '~' && path[1] == '\0') {
         path = archdep_home_path();
     }
-    if (ioutil_chdir(path) < 0) {
+    if (archdep_chdir(path) != 0) {
         mon_out("Cannot change to directory: '%s'\n", path);
     } else {
         mon_out("Changing to directory: '%s'\n", path);
@@ -1972,94 +2047,115 @@ void mon_end_recording(void)
 
 static int monitor_set_moncommands_file(const char *filename, void *extra_param)
 {
-    if (mon_playback_commands(filename) != 0) {
+    if (mon_playback_commands(filename, false) != 0) {
         return -1;
     }
-    
+
     /*
      * Default for -moncommands is to execute immediately on launch.
      * Override it if it hasn't been changed.
      */
-    
+
     if (init_break_mode == NONE) {
         init_break_mode = ON_RESET;
     }
-    
+
     /*
      * We're executing a -moncommands script at some point, so return
      * to emulation when it completes.
      */
-    
+
     playback_exit_after_all_playback = true;
-    
+
     return 0;
 }
 
 
-int mon_playback_commands(const char *filename)
+int mon_playback_commands(const char *filename, bool interrupt_current_playback)
 {
     FILE *fp;
-    
+
     log_message(LOG_DEFAULT, "Opening monitor command playback file: %s", filename);
-    
+
     if (playback_fp_stack_size == playback_fp_stack_size_max) {
-        
-        /* Need to grow the playback FP stack. But look out for insane playback include depth. */
-        if (playback_fp_stack_size_max >= PLAYBACK_MAX_RECUSRION) {
-            log_error(LOG_ERR, "Max level of playback file recursion depth %d reached, exiting", playback_fp_stack_size_max);
-            exit(1);
+        /*
+         * Need to grow the playback FP stack. But look out for insane playback include depth.
+         */
+        if (playback_fp_stack_size_max >= PLAYBACK_MAX_FP_DEPTH) {
+            log_error(LOG_ERR, "Max level of playback file depth %d reached, exiting", playback_fp_stack_size_max);
+            archdep_vice_exit(1);
         }
-        
+
         playback_fp_stack_size_max += 1;
         playback_fp_stack       = lib_realloc(playback_fp_stack,       playback_fp_stack_size_max * sizeof(FILE *));
         playback_filename_stack = lib_realloc(playback_filename_stack, playback_fp_stack_size_max * sizeof(char *));
     }
-    
+
     fp = fopen(filename, MODE_READ_TEXT);
-    
+
     if (fp == NULL) {
-        fp = sysfile_open(filename, NULL, MODE_READ_TEXT);
+        fp = sysfile_open(filename, NULL, NULL, MODE_READ_TEXT);
     }
-    
+
     if (fp == NULL) {
-        log_error(LOG_ERR, "Failed to open playback file: %s", filename);
+        log_error(LOG_ERR, "Failed to open playback file: '%s'", filename);
+        mon_out("Cannot open '%s'.\n", filename);
         return -1;
     }
-    
-    playback_filename_stack[playback_fp_stack_size] = lib_strdup(filename);
-    playback_fp_stack[playback_fp_stack_size] = fp;
-    playback_fp = fp;
-    
+
+    if (interrupt_current_playback || playback_fp_stack_size == 0) {
+        /*
+         * Place the new file at the top of the stack and set the current playback fp,
+         * which means that the commands within this file will be be next commands to execute.
+         */
+
+        playback_fp = fp;
+
+        playback_fp_stack[playback_fp_stack_size] = fp;
+        playback_filename_stack[playback_fp_stack_size] = lib_strdup(filename);
+    } else {
+        /*
+         * Place the new file at the bottom of the stack, which means that the commands
+         * within will execute after all queued playback files have finished. If no
+         * playback is currently active, start with this file.
+         */
+
+        memmove(playback_fp_stack + 1,       playback_fp_stack,       playback_fp_stack_size * sizeof(char *));
+        memmove(playback_filename_stack + 1, playback_filename_stack, playback_fp_stack_size * sizeof(FILE *));
+
+        playback_fp_stack[0] = fp;
+        playback_filename_stack[0] = lib_strdup(filename);
+    }
+
     playback_fp_stack_size++;
-    
+
     return 0;
 }
 
 static void playback_end_file(void)
 {
     fclose(playback_fp);
-    
+
     playback_fp_stack_size--;
-    
+
     log_message(LOG_DEFAULT, "Closed monitor command playback file: %s", playback_filename_stack[playback_fp_stack_size]);
     lib_free(playback_filename_stack[playback_fp_stack_size]);
-    
+
     playback_filename_stack[playback_fp_stack_size] = NULL;
     playback_fp_stack[playback_fp_stack_size] = NULL;
-    
+
     if (playback_fp_stack_size) {
         /* Return to playing back the previous file */
         playback_fp = playback_fp_stack[playback_fp_stack_size - 1];
         return;
     }
-    
+
     /* Playback of all files is complete */
     playback_fp = NULL;
-    
+
     /* Should we return to emulation? (Yes if -moncommands arg used) */
     if (playback_exit_after_all_playback) {
         playback_exit_after_all_playback = false;
-        
         mon_exit();
     }
 }
@@ -2068,11 +2164,11 @@ static void playback_next_command(void)
 {
     char line[1024];
     char *command;
-    
+
     if (fgets(line, sizeof(line), playback_fp) == NULL) {
         /* Reached the end of the file */
         playback_end_file();
-        
+
         if (playback_fp) {
             playback_next_command();
         }
@@ -2081,7 +2177,7 @@ static void playback_next_command(void)
 
     line[strlen(line) - 1] = '\0';
     command = lib_strdup_trimmed(line);
-    
+
     log_message(LOG_DEFAULT, "Monitor playback command: %s", command);
     parse_and_execute_line(command);
 
@@ -2179,6 +2275,7 @@ void mon_add_name_to_symbol_table(MON_ADDR addr, char *name)
     int old_addr;
     MEMSPACE mem = addr_memspace(addr);
     uint16_t loc = addr_location(addr);
+    int silent = (playback_fp != NULL); /* suppress warnings when playing back label file */
 
     if (mem == e_default_space) {
         mem = default_memspace;
@@ -2193,11 +2290,11 @@ void mon_add_name_to_symbol_table(MON_ADDR addr, char *name)
 
     old_name = mon_symbol_table_lookup_name(mem, loc);
     old_addr = mon_symbol_table_lookup_addr(mem, name);
-    if (old_name && (MON_ADDR)addr_location(old_addr) != addr) {
+    if ((old_name && (MON_ADDR)addr_location(old_addr) != addr) && (!silent)) {
         mon_out("Warning: label(s) for address $%04x already exist.\n", loc);
     }
     if (old_addr >= 0) {
-        if (old_addr != loc) {
+        if ((old_addr != loc) && (!silent)) {
             mon_out("Changing address of label %s from $%04x to $%04x\n",
                     name, (unsigned int)old_addr, loc);
         }
@@ -2264,7 +2361,7 @@ void mon_remove_name_from_symbol_table(MEMSPACE mem, char *name)
     sym_ptr = monitor_labels[mem].addr_hash_table[HASH_ADDR(addr)];
     prev_ptr = NULL;
     while (sym_ptr) {
-        if (addr == sym_ptr->addr) {
+        if ((addr == sym_ptr->addr) && !strcmp(sym_ptr->name, name)) {
             lib_free(sym_ptr->name);
             if (prev_ptr) {
                 prev_ptr->next = sym_ptr->next;
@@ -2444,10 +2541,10 @@ int mon_evaluate_conditional(cond_node_t *cnode)
             case e_LTE:
                 cnode->value = (value_1 <= value_2);
                 break;
-            case e_AND:
+            case e_LOGICAL_AND:
                 cnode->value = (value_1 && value_2);
                 break;
-            case e_OR:
+            case e_LOGICAL_OR:
                 cnode->value = (value_1 || value_2);
                 break;
             case e_ADD:
@@ -2462,15 +2559,15 @@ int mon_evaluate_conditional(cond_node_t *cnode)
             case e_DIV:
                 if (value_2 == 0) {
                     log_error(LOG_ERR, "Division by zero in conditional\n");
-                    return 0;                    
+                    return 0;
                 }
                 cnode->value = (value_1 / value_2);
                 break;
             case e_BINARY_AND:
-                cnode->value = (value_1 && value_2);
+                cnode->value = (value_1 & value_2);
                 break;
             case e_BINARY_OR:
-                cnode->value = (value_1 || value_2);
+                cnode->value = (value_1 | value_2);
                 break;
             default:
                 log_error(LOG_ERR, "Unexpected conditional operator: %d\n",
@@ -2770,6 +2867,10 @@ int monitor_diskspace_mem(int dnr)
 
 void monitor_change_device(MEMSPACE mem)
 {
+    /* if no argument given, switch back to computer */
+    if (mem == e_default_space) {
+        mem = e_comp_space;
+    }
     mon_out("Setting default device to `%s'\n", _mon_space_strings[(int) mem]);
     default_memspace = mem;
 }
@@ -2793,6 +2894,7 @@ void monitor_abort(void)
 static void monitor_open(void)
 {
     supported_cpu_type_list_t *slist, *slist_next;
+    monitor_cpu_type_t *monitor_cpu_type_p = NULL;
     unsigned int dnr;
     int i;
 
@@ -2810,7 +2912,8 @@ static void monitor_open(void)
         if (console_log) {
             console_log = uimon_window_resume();
         } else {
-            console_log = uimon_window_open();
+            /* We 'open' the monitor, but only display it if we're not in -moncommands playback mode */
+            console_log = uimon_window_open(playback_fp == NULL);
             uimon_set_interface(mon_interfaces, NUM_MEMSPACES);
         }
     }
@@ -2818,20 +2921,19 @@ static void monitor_open(void)
     if (console_log == NULL) {
         log_error(LOG_DEFAULT, "monitor_open: could not open monitor console.");
         exit_mon = 1;
-        monitor_trap_triggered = false;
         return;
     }
 
-#ifdef FEATURE_CPUHISTORY
+#ifdef FEATURE_CPUMEMHISTORY
     memmap_state |= MEMMAP_STATE_IN_MONITOR;
 #endif
     inside_monitor = true;
-    monitor_trap_triggered = false;
     vsync_suspend_speed_eval();
     sound_suspend();
 
     uimon_notify_change();
 
+    /* free the list of supported CPUs */
     for (i = 0; i < NUM_MEMSPACES; i++) {
         slist = monitor_cpu_type_supported[i];
         while (slist != NULL) {
@@ -2841,6 +2943,7 @@ static void monitor_open(void)
         }
         monitor_cpu_type_supported[i] = NULL;
     }
+
     /* We should really be told what CPUs are supported by each memspace, but that will
      * require a bunch of changes, so for now we detect it based on the available registers. */
     find_supported_monitor_cpu_types(&monitor_cpu_type_supported[e_comp_space], mon_interfaces[e_comp_space]);
@@ -2851,14 +2954,39 @@ static void monitor_open(void)
     }
 
     /* Build array of pointers to monitor_cpu_type structs */
+
+    /* NOTE: We can't just init the struct(s) with the default CPU for each memspace, if
+             we did that, the monitor will not be able to eg single step on any CPU that
+             is not the first in the list. This loop makes sure the last active CPU is
+             still active in the monitor. */
+    for (i = 0; i < NUM_MEMSPACES; i++) {
+        slist = monitor_cpu_type_supported[i];
+        monitor_cpu_type_p = NULL;
+        /* check if the CPU was already set to an available type */
+        while (slist != NULL) {
+            if (slist->monitor_cpu_type_p == monitor_cpu_for_memspace[i]) {
+                monitor_cpu_type_p = slist->monitor_cpu_type_p;
+            }
+            slist = slist->next;
+        }
+        /* if no matching CPU was set, use the first supported one, if there is any */
+        if (monitor_cpu_type_p == NULL && monitor_cpu_type_supported[i]) {
+            monitor_cpu_for_memspace[i] = monitor_cpu_type_supported[i]->monitor_cpu_type_p;
+        }
+    }
+
+#if 0
     monitor_cpu_for_memspace[e_comp_space] =
         monitor_cpu_type_supported[e_comp_space]->monitor_cpu_type_p;
+
     for (dnr = 0; dnr < NUM_DISK_UNITS; dnr++) {
         monitor_cpu_for_memspace[monitor_diskspace_mem(dnr)] =
             monitor_cpu_type_supported[monitor_diskspace_mem(dnr)]->monitor_cpu_type_p;
     }
+#endif
     /* Safety precaution */
-    monitor_cpu_for_memspace[default_memspace] = monitor_cpu_for_memspace[default_memspace];
+    /* FIXME: this makes no sense at all */
+    /* monitor_cpu_for_memspace[default_memspace] = monitor_cpu_for_memspace[default_memspace]; */
 
     dot_addr[e_comp_space] = new_addr(e_comp_space, ((uint16_t)((monitor_cpu_for_memspace[e_comp_space]->mon_register_get_val)(e_comp_space, e_PC))));
 
@@ -2872,7 +3000,12 @@ static void monitor_open(void)
     /* disassemble at monitor entry, for single stepping */
     if (disassemble_on_entry) {
         int monbank = mon_interfaces[default_memspace]->current_bank;
-        mon_interfaces[default_memspace]->current_bank = 0; /* always disassemble using CPU bank */
+        /* always disassemble using CPU bank */
+        if (mon_interfaces[default_memspace]->mem_bank_from_name != NULL) {
+            mon_interfaces[default_memspace]->current_bank = mon_interfaces[default_memspace]->mem_bank_from_name("cpu");
+        } else {
+            mon_interfaces[default_memspace]->current_bank = 0;
+        }
         mon_disassemble_with_regdump(default_memspace, dot_addr[default_memspace]);
         mon_interfaces[default_memspace]->current_bank = monbank; /* restore value used in monitor */
         disassemble_on_entry = 0;
@@ -2882,7 +3015,7 @@ static void monitor_open(void)
 static int monitor_process(char *cmd)
 {
     char *trimmed_command;
-    
+
     mon_stop_output = 0;
 
     if (cmd == NULL) {
@@ -2900,9 +3033,9 @@ static int monitor_process(char *cmd)
 
         if (cmd) {
             if (recording) {
-                
+
                 trimmed_command = lib_strdup_trimmed(cmd);
-                
+
                 if (strcmp(trimmed_command, "stop") != 0) {
                     if (fprintf(recording_fp, "%s\n", trimmed_command) < 0) {
                         mon_out("Error while recording commands. Output file closed.\n");
@@ -2911,11 +3044,9 @@ static int monitor_process(char *cmd)
                         recording = false;
                     }
                 }
-                
                 lib_free(trimmed_command);
                 trimmed_command = NULL;
             }
-
             parse_and_execute_line(cmd);
         }
     }
@@ -2934,9 +3065,9 @@ static int monitor_process(char *cmd)
     return exit_mon;
 }
 
-static void monitor_close(int check)
+static void monitor_close(bool check_exit)
 {
-#ifdef FEATURE_CPUHISTORY
+#ifdef FEATURE_CPUMEMHISTORY
     memmap_state &= ~(MEMMAP_STATE_IN_MONITOR);
 #endif
     inside_monitor = false;
@@ -2945,7 +3076,7 @@ static void monitor_close(int check)
         exit_mon--;
     }
 
-    if (check && exit_mon) {
+    if (check_exit && exit_mon) {
         if (!monitor_is_remote()) {
             uimon_window_close();
         }
@@ -2985,27 +3116,46 @@ void monitor_startup(MEMSPACE mem)
     char prompt[40];
     char *p;
 
+    if (inside_monitor) {
+        /*
+         * Drive cpu interrupt can enter the monitor .. and then the monitor
+         * can tell the drive to catch up, re-triggering the incomplete interrupt
+         * .. recursion, etc
+         */
+        return;
+    }
+
+    if (ui_pause_active()) {
+        should_pause_on_exit_mon = true;
+
+        ui_pause_disable();
+    }
+
     if (mem != e_default_space) {
         default_memspace = mem;
     }
 
     monitor_open();
     while (!exit_mon) {
-        
+
         if (playback_fp) {
             playback_next_command();
         } else {
+            /*
+             * We are about to go interactive.
+             */
+
             if (refresh_on_break) {
                 /* Render all in-progress frames as we enter the prompt */
                 video_canvas_refresh_all_tracked();
             }
-            
+
             make_prompt(prompt);
             p = uimon_in(prompt);
             if (p) {
                 exit_mon = monitor_process(p);
             } else if (exit_mon < 1) {
-                exit_mon = 1;
+                mon_exit();
             }
         }
 
@@ -3014,7 +3164,15 @@ void monitor_startup(MEMSPACE mem)
             break;
         }
     }
-    monitor_close(1);
+    monitor_close(true);
+
+    if (pause_on_exit_mon) {
+        pause_on_exit_mon = false;
+
+        ui_pause_enable();
+
+        while (ui_pause_loop_iteration());
+    }
 }
 
 static void monitor_trap(uint16_t addr, void *unused_data)
@@ -3024,8 +3182,7 @@ static void monitor_trap(uint16_t addr, void *unused_data)
 
 void monitor_startup_trap(void)
 {
-    if (!monitor_trap_triggered && !inside_monitor) {
-        monitor_trap_triggered = true;
+    if (!inside_monitor) {
         interrupt_maincpu_trigger_trap(monitor_trap, 0);
     }
 }

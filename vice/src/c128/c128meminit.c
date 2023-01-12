@@ -32,6 +32,7 @@
 #include "c128meminit.h"
 #include "c128memrom.h"
 #include "c128mmu.h"
+#include "c128cart.h"
 #include "c64cia.h"
 #include "cartio.h"
 #include "functionrom.h"
@@ -184,38 +185,38 @@ void c128meminit(void)
             mem_set_write_hook(61 + j, i, lo_store);
             mem_set_write_hook(62 + j, i, lo_store);
             mem_set_write_hook(63 + j, i, lo_store);
-            mem_read_base_set(0 + j, i, mem_ram);
-            mem_read_base_set(1 + j, i, mem_ram);
-            mem_read_base_set(2 + j, i, mem_ram);
-            mem_read_base_set(3 + j, i, mem_ram);
-            mem_read_base_set(4 + j, i, mem_ram);
-            mem_read_base_set(5 + j, i, mem_ram);
-            mem_read_base_set(6 + j, i, mem_ram);
-            mem_read_base_set(7 + j, i, mem_ram);
-            mem_read_base_set(8 + j, i, mem_ram);
-            mem_read_base_set(9 + j, i, mem_ram);
-            mem_read_base_set(10 + j, i, mem_ram);
-            mem_read_base_set(11 + j, i, mem_ram);
-            mem_read_base_set(12 + j, i, mem_ram);
-            mem_read_base_set(13 + j, i, mem_ram);
-            mem_read_base_set(14 + j, i, mem_ram);
-            mem_read_base_set(15 + j, i, mem_ram);
-            mem_read_base_set(16 + j, i, mem_ram);
-            mem_read_base_set(17 + j, i, mem_ram);
-            mem_read_base_set(18 + j, i, mem_ram);
-            mem_read_base_set(19 + j, i, mem_ram);
-            mem_read_base_set(20 + j, i, mem_ram);
-            mem_read_base_set(21 + j, i, mem_ram);
-            mem_read_base_set(22 + j, i, mem_ram);
-            mem_read_base_set(23 + j, i, mem_ram);
-            mem_read_base_set(24 + j, i, mem_ram);
-            mem_read_base_set(25 + j, i, mem_ram);
-            mem_read_base_set(26 + j, i, mem_ram);
-            mem_read_base_set(27 + j, i, mem_ram);
-            mem_read_base_set(28 + j, i, mem_ram);
-            mem_read_base_set(29 + j, i, mem_ram);
-            mem_read_base_set(30 + j, i, mem_ram);
-            mem_read_base_set(31 + j, i, mem_ram);
+            mem_read_base_set(0 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(1 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(2 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(3 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(4 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(5 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(6 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(7 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(8 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(9 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(10 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(11 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(12 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(13 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(14 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(15 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(16 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(17 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(18 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(19 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(20 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(21 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(22 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(23 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(24 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(25 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(26 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(27 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(28 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(29 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(30 + j, i, NULL /* mem_ram */);
+            mem_read_base_set(31 + j, i, NULL /* mem_ram */);
             mem_read_base_set(32 + j, i, NULL);
             mem_read_base_set(33 + j, i, NULL);
             mem_read_base_set(34 + j, i, NULL);
@@ -1045,8 +1046,8 @@ void c128meminit(void)
         mem_set_write_hook(j, 0xd4, c128_c64io_d400_store);
         mem_read_tab_set(j, 0xd5, c128_mmu_read);
         mem_set_write_hook(j, 0xd5, c128_mmu_store);
-        mem_read_tab_set(j, 0xd6, c128_vdc_read);
-        mem_set_write_hook(j, 0xd6, c128_vdc_store);
+        mem_read_tab_set(j, 0xd6, c128_c64io_d600_read);
+        mem_set_write_hook(j, 0xd6, c128_c64io_d600_store);
         mem_read_tab_set(j, 0xd7, c128_c64io_d700_read);
         mem_set_write_hook(j, 0xd7, c128_c64io_d700_store);
 

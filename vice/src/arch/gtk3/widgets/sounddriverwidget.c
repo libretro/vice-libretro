@@ -46,13 +46,9 @@
 #include "sounddriverwidget.h"
 
 
-#define LABEL_BUFFER_SIZE   256
-
-
 /*
  * Event handlers
  */
-
 
 /** \brief  Handler for the "changed" event of the device combobox
  *
@@ -64,7 +60,6 @@ static void on_device_changed(GtkWidget *widget, gpointer user_data)
     const char *id;
 
     id = gtk_combo_box_get_active_id(GTK_COMBO_BOX(widget));
-    debug_gtk3("device ID = '%s'.", id);
     resources_set_string("SoundDeviceName", id);
 }
 
@@ -85,11 +80,7 @@ static GtkWidget *create_device_combobox(void)
     int count = sound_device_num();
     const char *current_device = NULL;
 
-    debug_gtk3("%d sound devices.", count);
-
     resources_get_string("SoundDeviceName", &current_device);
-    debug_gtk3("current device: '%s'.", current_device);
-
     combo = gtk_combo_box_text_new();
     for (i = 0; i < count; i++) {
         const char *device = sound_device_name(i);
@@ -127,10 +118,13 @@ GtkWidget *sound_driver_widget_create(void)
     GtkWidget *device;
     GtkWidget *args;
 
-    debug_gtk3("called.");
-
     grid = vice_gtk3_grid_new_spaced_with_label(
-            VICE_GTK3_DEFAULT, VICE_GTK3_DEFAULT, "Driver", 2);
+            VICE_GTK3_DEFAULT, VICE_GTK3_DEFAULT,
+            "Driver", 2);
+    gtk_widget_set_margin_top(grid, 8);
+    gtk_widget_set_margin_start(grid, 8);
+    gtk_widget_set_margin_end(grid, 8);
+    gtk_widget_set_margin_bottom(grid, 8);
 
     gtk_grid_attach(GTK_GRID(grid),
             vice_gtk3_create_indented_label("Device name"), 0, 1, 1, 1);
@@ -143,8 +137,6 @@ GtkWidget *sound_driver_widget_create(void)
     gtk_grid_attach(GTK_GRID(grid),
             vice_gtk3_create_indented_label("Driver argument"), 0, 2, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), args, 1, 2, 1, 1);
-
-    g_object_set(grid, "margin", 8, NULL);
 
     gtk_widget_show_all(grid);
     return grid;

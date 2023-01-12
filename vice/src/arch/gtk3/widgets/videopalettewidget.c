@@ -8,14 +8,14 @@
  * FIXME:   Note sure x64dtv here:
  *
  * $VICERES CrtcPaletteFile         xpet xcbm2
- * $VICERES CrtcExternalPaelette    xpet xcbm2
+ * $VICERES CrtcExternalPalette     xpet xcbm2
  * $VICEREs TEDPaletteFile          xplus4
  * $VICERES TEDExternalPalette      xplu4
  * $VICERES VDCPaletteFile          x128
  * $VICERES VDCExternalPalette      x128
  * $VICERES VICPaletteFile          xvic
  * $VICERES VICExternalPalette      xvic
- * $VICERES  VICIIPaletteFile       x64 x64sc xscpu64 xd64tv xcbm5x0
+ * $VICERES VICIIPaletteFile        x64 x64sc xscpu64 xd64tv xcbm5x0
  * $VICERES VICIIExternalPalette    x64 x64sc xscpu64 xd64tv xcbm5x0
  */
 
@@ -45,12 +45,11 @@
 #include <gtk/gtk.h>
 #include <string.h>
 
+#include "vice_gtk3.h"
 #include "debug_gtk3.h"
-#include "openfiledialog.h"
 #include "palette.h"
 #include "resources.h"
 #include "ui.h"
-#include "widgethelpers.h"
 
 #include "videopalettewidget.h"
 
@@ -59,10 +58,20 @@
  */
 static const char *chip_prefix = NULL;
 
-
+/** \brief  Internal palette radio button */
 static GtkWidget *radio_internal = NULL;
+
+/** \brief  External palette radio button */
 static GtkWidget *radio_external = NULL;
+
+/** \brief  External palette combo box
+ */
 static GtkWidget *combo_external = NULL;
+
+/** \brief  Browse button for custom palette files
+ *
+ * TODO:    Replace with resourcebrowser.c
+ */
 static GtkWidget *button_custom = NULL;
 
 
@@ -87,25 +96,25 @@ static void on_internal_toggled(GtkWidget *radio, gpointer data)
  */
 static void on_combo_changed(GtkComboBox *combo, gpointer user_data)
 {
-#ifdef HAVE_DEBUG_GTK3UI
-    int index = gtk_combo_box_get_active(combo);
-#endif
     const char *id = gtk_combo_box_get_active_id(combo);
 
-    debug_gtk3("got combo index %d, id '%s'.", index, id);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(radio_external), TRUE);
     resources_set_string_sprintf("%sPaletteFile", id, chip_prefix);
     resources_set_int_sprintf("%sExternalPalette", 1, chip_prefix);
-
 }
 
 
+/** \brief  Callback for the custom palette file chooser
+ *
+ * \param[in,out]   dialog      file chooser dialog
+ * \param[in,out]   filename    palette filename (NULL to cancel)
+ * \param[in]       data        extra data (unused)
+ */
 static void browse_filename_callback(GtkDialog *dialog,
                                      gchar *filename,
                                      gpointer data)
 {
     if (filename != NULL) {
-        debug_gtk3("got palette file '%s'.", filename);
         resources_set_string_sprintf("%sPaletteFile", filename, chip_prefix);
 
         /* add to combo box */
@@ -118,7 +127,6 @@ static void browse_filename_callback(GtkDialog *dialog,
 }
 
 
-
 /** \brief  Handler for the "clicked" event of the "browse ..." button
  *
  * Opens a custom palette file and adds the file name to the combo box.
@@ -129,12 +137,14 @@ static void browse_filename_callback(GtkDialog *dialog,
 static void on_browse_clicked(GtkButton *button, gpointer user_data)
 {
     const char *flist[] = { "*.vpl", NULL };
+    GtkWidget *dialog;
 
-    vice_gtk3_open_file_dialog(
+    dialog = vice_gtk3_open_file_dialog(
             "Open palette file",
             "Palette files", flist, NULL,
             browse_filename_callback,
             NULL);
+    gtk_widget_show(dialog);
 }
 
 
@@ -217,16 +227,16 @@ GtkWidget *video_palette_widget_create(const char *chip)
     chip_prefix = chip;
 
     resources_get_int_sprintf("%sExternalPalette", &external, chip);
-    debug_gtk3("%sExternalPalette is %s.", chip, external ? "ON" : "OFF");
 
-    grid = vice_gtk3_grid_new_spaced_with_label(-1, -1, "Palette settings", 4);
+    grid = vice_gtk3_grid_new_spaced_with_label(
+            VICE_GTK3_DEFAULT, VICE_GTK3_DEFAULT,
+            "Palette settings", 4);
 
     radio_internal = gtk_radio_button_new_with_label(group, "Internal");
-    g_object_set(radio_internal, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(radio_internal, 16);
     radio_external = gtk_radio_button_new_with_label(group, "External");
-    gtk_radio_button_join_group(
-            GTK_RADIO_BUTTON(radio_external),
-            GTK_RADIO_BUTTON(radio_internal));
+    gtk_radio_button_join_group(GTK_RADIO_BUTTON(radio_external),
+                                GTK_RADIO_BUTTON(radio_internal));
 
     combo_external = create_combo_box();
     gtk_widget_set_hexpand(combo_external, TRUE);

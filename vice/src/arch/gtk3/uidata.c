@@ -5,8 +5,6 @@
  * handle binary resources in Gtk3 applications.
  *
  * \author  Bas Wassink <b.wassink@ziggo.nl>
- *
- * \note    WORK IN PROGRESS, leave this alone for now -- compyx
  */
 
 /*
@@ -33,17 +31,14 @@
 #include "vice.h"
 
 #include <gtk/gtk.h>
-#include <stdio.h>
-#include <stdlib.h>
 
-#include "archdep.h"
 #include "debug_gtk3.h"
 #include "lib.h"
 #include "log.h"
+#include "sysfile.h"
 #include "util.h"
 
 #include "uidata.h"
-
 
 
 /** \brief  Reference to the global GResource data
@@ -53,36 +48,39 @@ static GResource *gresource = NULL;
 
 /** \brief  Intialize the GResource binary blob handling
  *
- * \return  bool
+ * \return  non-0 on success
  */
-int uidata_init(void)
+gboolean uidata_init(void)
 {
     GError *err = NULL;
+    gchar *path;
+#if 0
 #ifdef HAVE_DEBUG_GTK3UI
     char **files;
     int i;
 #endif
-    char *path;
-    char *dir;
+#endif
 
-    /* try directory with VICE's data files */
-    dir = archdep_get_vice_datadir();
-    debug_gtk3("trying archdep_get_vice_datadir() %s/common", dir);
-    path = archdep_join_paths(dir, "common", "vice.gresource", NULL);
-    debug_gtk3("Loading gresource from '%s'\n", path);
-    lib_free(dir);
+    if (sysfile_locate(UIDATA_GRESOURCE_FILE, "common", &path) < 0) {
+        log_error(LOG_ERR,
+                  "failed to find resource data '%s'.",
+                  UIDATA_GRESOURCE_FILE);
+        return FALSE;
+    }
 
     gresource = g_resource_load(path, &err);
     if (gresource == NULL && err != NULL) {
-        debug_gtk3("failed to load resource data '%s': %s.",
-                path, err->message);
+        log_error(LOG_ERR,
+                  "failed to load resource data '%s': %s.",
+                  path, err->message);
         g_clear_error(&err);
         lib_free(path);
-        return 0;
+        return FALSE;
     }
     lib_free(path);
     g_resources_register(gresource);
 
+#if 0
     /* debugging: show files in the resource blob */
 #ifdef HAVE_DEBUG_GTK3UI
     files = g_resource_enumerate_children(
@@ -100,7 +98,8 @@ int uidata_init(void)
         debug_gtk3("%d: %s.", i, files[i]);
     }
 #endif
-    return 1;
+#endif
+    return TRUE;
 }
 
 
@@ -108,7 +107,6 @@ int uidata_init(void)
  */
 void uidata_shutdown(void)
 {
-    debug_gtk3("freeing GResource data.");
     if (gresource != NULL) {
         g_free(gresource);
         gresource = NULL;
@@ -118,18 +116,17 @@ void uidata_shutdown(void)
 
 /** \brief  Get a pixbuf from the GResource blob
  *
- * \param   name    virtual path to the file
+ * \param[in]   name    virtual path to the file
  *
- * \return  pixbuf or `NULL` on error
+ * \return  GdkPixbuf or `NULL` on error
  */
-GdkPixbuf * uidata_get_pixbuf(const char *name)
+GdkPixbuf *uidata_get_pixbuf(const gchar *name)
 {
     GdkPixbuf *buf;
     GError *err = NULL;
-    char *path;
+    gchar *path;
 
     path = util_concat(UIDATA_ROOT_PATH, "/", name, NULL);
-    debug_gtk3("attempting to load resource '%s'.", path);
     buf = gdk_pixbuf_new_from_resource(path, &err);
     lib_free(path);
     if (err) {
@@ -139,21 +136,28 @@ GdkPixbuf * uidata_get_pixbuf(const char *name)
     return buf;
 }
 
+
 /** \brief  Get a pixbuf from the GResource blob and scale it
  *
- * \param   name    virtual path to the file
+ * \param[in]   name            path in gresource
+ * \param[in]   width           width of rescaled pixbuf
+ * \param[in]   height          height of rescaled pixbuf
+ * \param[in]   preserve_aspect preserve aspect ratio
  *
  * \return  pixbuf or `NULL` on error
  */
-GdkPixbuf * uidata_get_pixbuf_at_scale(const char *name, int width, int height, gboolean preserve_aspect_ratio)
+GdkPixbuf *uidata_get_pixbuf_at_scale(const gchar *name,
+                                      gint width,
+                                      gint height,
+                                      gboolean preserve_aspect)
 {
     GdkPixbuf *buf;
     GError *err = NULL;
-    char *path;
+    gchar *path;
 
     path = util_concat(UIDATA_ROOT_PATH, "/", name, NULL);
-    debug_gtk3("attempting to load resource '%s'.", path);
-    buf = gdk_pixbuf_new_from_resource_at_scale(path, width, height, preserve_aspect_ratio, &err);
+    buf = gdk_pixbuf_new_from_resource_at_scale(path, width, height,
+                                                preserve_aspect, &err);
     lib_free(path);
     if (err) {
         log_error(LOG_ERR, "Failed to obtain pixbuf for %s, Error: %s", name, err->message);
@@ -163,53 +167,24 @@ GdkPixbuf * uidata_get_pixbuf_at_scale(const char *name, int width, int height, 
 }
 
 
-#if 0
-/** \brief  Load an animation from VICE's GResource instance
- *
- * \param[in]   name    filename inside the GResource
- * \param[in]   loop    loop animation
- *
- * \return  animation reference or `NULL` on error
- */
-GdkPixbufAnimation *uidata_get_pixbuf_animated(const char *name, gboolean loop)
-{
-    GdkPixbufAnimation *buf;
-    GError *err = NULL;
-    char *path;
-
-    path = util_concat(UIDATA_ROOT_PATH, "/", name, NULL);
-    debug_gtk3("attempting to load resource '%s'.", path);
-    buf = gdk_pixbuf_animation_new_from_resource(path, &err);
-    lib_free(path);
-    if (buf == NULL) {
-        debug_gtk3("failed: %s.", err->message);
-        /* TODO: log error */
-        g_clear_error(&err);
-    }
-    return buf;
-}
-#endif
-
-
 /** \brief  Get a bytes from the GResource blob
  *
- * \param   name    virtual path to the file
+ * \param[in]   name    path in gresource
  *
  * \return  GBytes* or `NULL` on error
  */
-GBytes * uidata_get_bytes(const char *name)
+GBytes *uidata_get_bytes(const gchar *name)
 {
     GBytes *bytes;
     GError *err = NULL;
-    char *path;
+    gchar *path;
 
     path = util_concat(UIDATA_ROOT_PATH, "/", name, NULL);
-    debug_gtk3("attempting to load resource '%s'.", path);
-    bytes = g_resource_lookup_data(gresource, path, G_RESOURCE_LOOKUP_FLAGS_NONE, &err);
+    bytes = g_resource_lookup_data(gresource, path,
+            G_RESOURCE_LOOKUP_FLAGS_NONE, &err);
     lib_free(path);
     if (bytes == NULL) {
-        debug_gtk3("failed: %s.", err->message);
-        /* TODO: log error */
+        log_error(LOG_ERR, "failed: %s.", err->message);
         g_clear_error(&err);
     }
     return bytes;

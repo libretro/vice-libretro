@@ -2,7 +2,7 @@
  * \brief   Retrieve dirname of currently running binary
  * \author  Bas Wassink <b.wassink@ziggo.nl>
  *
- * Get path to running executable, stripping executable name and extension
+ * Get path to running executable, stripping executable name and extension.
  *
  * OS support:
  *  - Linux
@@ -33,29 +33,11 @@
  */
 
 #include "vice.h"
-#include "archdep_defs.h"
-
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "archdep.h"
 #include "lib.h"
-#include "log.h"
-
-/* for readlink(2) */
-#ifdef UNIX_COMPILE
-# include <unistd.h>
-#endif
-
-#ifdef MACOSX_SUPPORT
-# include <libproc.h>
-#endif
-
-/* for GetModuleFileName() */
-#ifdef WIN32_COMPILE
-# include "windows.h"
-#endif
-
 #include "archdep_program_path.h"
 
 #include "archdep_boot_path.h"
@@ -65,12 +47,18 @@
  *
  * Heap allocated on the first call, must be free when exiting the program
  * with lib_free().
+ *
+ * \see archdep_boot_path_free()
  */
 static char *boot_path = NULL;
 
 
 /** \brief  Get dirname of currently running binary
  *
+ * Retrieve the path to the running binary, excluding binary name.
+ *
+ * \note    The path is allocated internally by VICE on the first call and
+ *          should be freed on emulator shutdown with archdep_boot_path_free().
  *
  * \return  directory of running binary
  */
@@ -79,9 +67,6 @@ const char *archdep_boot_path(void)
     const char *full_path;
     char *p;
 
-#if 0
-    printf("%s:%s(): CALLED\n", __FILE__, __func__);
-#endif
     if (boot_path != NULL) {
         /* already determined boot path, return */
         return boot_path;
@@ -89,12 +74,7 @@ const char *archdep_boot_path(void)
 
     full_path = archdep_program_path();
 
-
-#if defined(ARCHDEP_OS_WINDOWS)
-    p = strrchr(full_path, '\\');
-#else
-    p = strrchr(full_path, '/');
-#endif
+    p = strrchr(full_path, ARCHDEP_DIR_SEP_CHR);
     if (p == NULL) {
         /* didn't find a '/' or '\' anywhere */
         boot_path = lib_strdup(".");
@@ -103,16 +83,13 @@ const char *archdep_boot_path(void)
         memcpy(boot_path, full_path, (size_t)(p - full_path));
         boot_path[p - full_path] = '\0';
     }
-#if 0
-    printf("%s:%s(): boot path = %s\n", __FILE__, __func__, boot_path);
-#endif
     return boot_path;
 }
 
 
 /** \brief  Free memory used by boot path
  *
- * Call from emulator exit code
+ * This must be called from the emulator shutdown code.
  */
 void archdep_boot_path_free(void)
 {

@@ -51,21 +51,25 @@ HTML_DOCS=$9
 
 
 # Try to get the SVN revision
-#echo "Trying to get SVN revision"
+
 SVN_SUFFIX=""
-svnrev_string=`svnversion $TOPSRCDIR`
-if test "$?" != "0"; then
-    #echo "No svnversion found"
-    # nop:
-    :
-else
-    # Choose the second number (usually higher) if it exists; drop letter suffixes.
-    svnrev=`echo "$svnrev_string" | sed 's/^\([0-9]*:\)*\([0-9]*\)*.*/\2/'`
-    #echo "svnrev string: $svnrev"
-    # Only a number is extracted.
-    if test -n "$svnrev"
-        then SVN_SUFFIX="-r$svnrev"
-    fi
+svnrev_string=$(svnversion $TOPSRCDIR)
+if test "$?" = "0"; then
+  # Choose the second number (usually higher) if it exists; drop letter suffixes.
+  svnrev=`echo "$svnrev_string" | sed 's/^\([0-9]*:\)*\([0-9]*\)*.*/\2/'`
+  #echo "svnrev string: $svnrev"
+  # Only a number is extracted.
+  if test -n "$svnrev"
+    then SVN_SUFFIX="-r$svnrev"
+  fi
+fi
+
+if test "$SVN_SUFFIX" = ""; then
+  # No svnversion found, checking if there is a git svn ref
+  GIT_SVN_COMMIT_HASH=$(git -C "$TOPSRCDIR" log --grep='git-svn-id:' -n 1 --pretty=format:"%H")
+  if test "$GIT_SVN_COMMIT_HASH" != ""; then
+    SVN_SUFFIX="-r$(git svn find-rev $GIT_SVN_COMMIT_HASH)"
+  fi
 fi
 
 
@@ -94,7 +98,7 @@ fi
 
 
 EMULATORS="$X64FILE x64sc xscpu64 x64dtv x128 xcbm2 xcbm5x0 xpet xplus4 xvic vsid"
-CONSOLE_TOOLS="c1541 cartconv petcat"
+CONSOLE_TOOLS="c1541 tools/cartconv/cartconv tools/petcat/petcat"
 EXECUTABLES="$EMULATORS $CONSOLE_TOOLS"
 
 unset CONSOLE_TOOLS EMULATORS X64FILE X64INC CPU svnrev_string
@@ -121,7 +125,7 @@ mkdir -p $BUILDPATH/bin
 # Copy binaries.  Strip them unless VICE is configured with "--enable-debug".
 for i in $EXECUTABLES; do
   cp $TOPBUILDDIR/src/$i.exe $BUILDPATH/bin
-  $STRIP $BUILDPATH/bin/$i.exe
+  $STRIP $BUILDPATH/bin/$(basename $i).exe
 done
 
 if test x"$CROSS" != "xtrue"; then
@@ -139,6 +143,9 @@ if test x"$CROSS" != "xtrue"; then
   cp --parents share/glib-2.0/schemas/gschemas.compiled $BUILDPATH
   cp bin/gspawn-win??-helper*.exe $BUILDPATH/bin
   cd - >/dev/null
+  if grep -q '^#define EXTERNAL_FFMPEG ' $TOPBUILDDIR/src/config.h
+    then cp -u `ntldd -R $MINGW_PREFIX/bin/avfilter-*.dll|gawk '/\\\\bin\\\\/{print $3;}'|cygpath -f -` $BUILDPATH/bin
+  fi
 else
 
 # The following lines assume a cross compiler,
@@ -226,17 +233,17 @@ rm -f `find $BUILDPATH -name "sdl_*"`
 mkdir $BUILDPATH/common
 cp $TOPBUILDDIR/data/common/vice.gresource $BUILDPATH/common
 cp $TOPSRCDIR/data/common/C64_Pro_Mono-STYLE.ttf $BUILDPATH/common
+cp $TOPSRCDIR/data/common/*.vhk $BUILDPATH/common
 
-if test x"$HTML_DOCS" = "xyes"; then
-    cp -a $TOPSRCDIR/doc/html $BUILDPATH
-    cp -a -u $TOPBUILDDIR/doc/html $BUILDPATH
-    rm -f $BUILDPATH/html/Makefile* $BUILDPATH/html/checklinks.sh $BUILDPATH/html/texi2html
-    rm -f $BUILDPATH/html/robots.txt $BUILDPATH/html/sitemap.xml
-    rm -f $BUILDPATH/html/COPYING $BUILDPATH/html/NEWS
-fi
+#if test x"$HTML_DOCS" = "xyes"; then
+#    cp -a $TOPSRCDIR/doc/html $BUILDPATH
+#    cp -a -u $TOPBUILDDIR/doc/html $BUILDPATH
+#    rm -f $BUILDPATH/html/Makefile* $BUILDPATH/html/checklinks.sh $BUILDPATH/html/texi2html
+#    rm -f $BUILDPATH/html/robots.txt $BUILDPATH/html/sitemap.xml
+#    rm -f $BUILDPATH/html/COPYING $BUILDPATH/html/NEWS
+#fi
 
 cp $TOPSRCDIR/COPYING $TOPSRCDIR/NEWS $TOPSRCDIR/README $BUILDPATH
-cp $TOPSRCDIR/doc/readmes/Readme-GTK3.txt $BUILDPATH
 mkdir $BUILDPATH/doc
 test -e $TOPBUILDDIR/doc/vice.pdf&&cp $TOPBUILDDIR/doc/vice.pdf $BUILDPATH/doc
 

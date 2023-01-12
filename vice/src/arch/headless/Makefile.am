@@ -1,11 +1,5 @@
 ## Makefile.am for the native headless version of `libarch.a'.
 
-if WIN32_COMPILE
-extra_includes = -I$(top_srcdir)/src/arch/mingw32-pcap/wpcap
-else
-extra_includes =
-endif
-
 AM_CPPFLAGS = \
 	@VICE_CPPFLAGS@ \
 	@ARCH_INCLUDES@ \
@@ -34,6 +28,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src/imagecontents \
 	-I$(top_srcdir)/src/monitor \
 	-I$(top_srcdir)/src/tapeport \
+	-I$(top_srcdir)/src/core/rtc \
 	-I$(top_srcdir)/src/hvsc \
 	-I$(top_srcdir)/src/datasette
 
@@ -49,7 +44,6 @@ noinst_LIBRARIES = libarch.a libtoolarch.a
 
 libarch_a_SOURCES = \
 	archdep.c \
-	joy.c \
 	kbd.c \
 	console.c \
 	ui.c \
@@ -78,9 +72,9 @@ EXTRA_DIST = \
 	archdep.h \
 	coproc.h \
 	debug_headless.h \
-	joy.h \
 	kbd.h \
 	mousedrv.h \
 	ui.h \
 	uistatusbar.h \
-	videoarch.h
+	videoarch.h \
+	make-bindist_win32.sh

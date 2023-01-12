@@ -25,18 +25,22 @@
  */
 
 #include "vice.h"
+#include "archdep_defs.h"
+
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "archdep_defs.h"
-#include "archdep_join_paths.h"
+#ifdef UNIX_COMPILE
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#endif
 #include "archdep_user_config_path.h"
 #include "lib.h"
 #include "log.h"
-#ifdef UNIX_COMPILE
-#include "unistd.h"
-#endif
+#include "util.h"
+
 #include "archdep_open_default_log_file.h"
+
 
 /* amiga */
 #if 0
@@ -93,10 +97,11 @@ FILE *archdep_open_default_log_file(void)
 #endif
 
 
-/** \brief  Opens the default log file. On *nix the log goes to stdout by
- *          default. If that does not exist, attempt to open a log file in 
- *          the user's vice config dir. If the file cannot be opened for some 
- *          reason, stdout is returned anyway.
+/** \brief  Opens the default log file
+ *
+ * On *nix the log goes to stdout by default. If that does not exist, attempt
+ * to open a log file in the user's vice config dir. If the file cannot be
+ * opened for some reason, stdout is returned anyway.
  *
  * \return  file pointer to log file
  */
@@ -109,17 +114,24 @@ FILE *archdep_open_default_log_file(void)
        started from a terminal, and only if not open a file instead of stdout */
 #ifdef UNIX_COMPILE
     if (!isatty(fileno(fp))) {
+        struct stat statinfo;
+        fstat(fileno(fp), &statinfo);
+        /* also check if stdout is connected to a pipe or regular file, in that
+           case do not open a logfile either, so we can redirect the output on
+           the shell */
+        if (!S_ISFIFO(statinfo.st_mode) && !S_ISREG(statinfo.st_mode)) {
 #endif
-        path = archdep_join_paths(archdep_user_config_path(), "vice.log", NULL);
-        fp = fopen(path, "w");
-        if (fp == NULL) {
-            log_error(LOG_ERR,
-                    "failed to open log file '%s' for writing, reverting to stdout",
-                    path);
-            fp = stdout;
-        }
-        lib_free(path);
+            path = util_join_paths(archdep_user_config_path(), "vice.log", NULL);
+            fp = fopen(path, "w");
+            if (fp == NULL) {
+                log_error(LOG_ERR,
+                        "failed to open log file '%s' for writing, reverting to stdout",
+                        path);
+                fp = stdout;
+            }
+            lib_free(path);
 #ifdef UNIX_COMPILE
+        }
     }
 #endif
     return fp;

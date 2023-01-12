@@ -46,6 +46,7 @@
 #include "keyboard.h"
 #include "lib.h"
 #include "log.h"
+#include "mouse.h"
 #include "resources.h"
 #include "sysfile.h"
 #include "util.h"
@@ -67,7 +68,7 @@ static int autorepeat_delay;
 static char *joymap_file = NULL;
 
 /* Total number of joysticks */
-static int num_joysticks;
+static int num_joysticks = 0;
 
 /* Joystick threshold (0..32767) */
 static int joystick_threshold;
@@ -109,7 +110,10 @@ typedef enum {
     UI_ACTIVATE = 4,
 
     /* Call UI function */
-    UI_FUNCTION = 5
+    UI_FUNCTION = 5,
+
+    /* Joystick axis used for potentiometers */
+    POT_AXIS = 6
 } sdljoystick_action_t;
 
 /* Input mapping for each direction/button/etc */
@@ -122,7 +126,10 @@ struct sdljoystick_mapping_s {
 
     union {
         /* joy[0] = port number (0,1), joy[1] = pin number */
-        uint8_t joy[2];
+        uint16_t joy[2];
+
+        /* axis[0] = port number (0,1), axis[1] = pot number (x=0/y=1) */
+        uint16_t axis[2];
 
         /* key[0] = row, key[1] = column */
         int key[2];
@@ -133,11 +140,16 @@ struct sdljoystick_mapping_s {
 };
 typedef struct sdljoystick_mapping_s sdljoystick_mapping_t;
 
+#ifndef USE_SDL2UI
+typedef int SDL_JoystickID;
+#endif
+
 struct sdljoystick_s {
     SDL_Joystick *joyptr;
     char *name;
     int input_max[NUM_INPUT_TYPES];
     sdljoystick_mapping_t *input[NUM_INPUT_TYPES];
+    SDL_JoystickID joystickid;
 };
 typedef struct sdljoystick_s sdljoystick_t;
 
@@ -149,22 +161,33 @@ static sdljoystick_t *sdljoystick = NULL;
  */
 static char *joymap_factory = NULL;
 
+/* joystick axis mapping for pot-x/y,
+   high byte is the joystick nr,
+   low byte is the axis nr,
+   0xffff means no mapping */
+static uint16_t sdljoystick_axis_mapping[4] = {
+    0xffff,    /* pot-x port 1 (x64/x64sc/xscpu64/x128/xcbm5x0/xvic and xplus4 sidcard) */
+    0xffff,    /* pot-y port 1 (x64/x64sc/xscpu64/x128/xcbm5x0/xvic and xplus4 sidcard) */
+    0xffff,    /* pot-x port 2 (x64/x64sc/xscpu64/x128/xcbm5x0) */
+    0xffff     /* pot-y port 2 (x64/x64sc/xscpu64/x128/xcbm5x0) */
+};
+
 #endif /* HAVE_SDL_NUMJOYSTICKS */
 
 /* ------------------------------------------------------------------------- */
 
-int joy_arch_set_device(int port_idx, int new_dev)
+/* Resources.  */
+
+#ifdef HAVE_SDL_NUMJOYSTICKS
+static int use_joysticks_for_menu = 0;
+
+static int set_use_joysticks_for_menu(int val, void *param)
 {
-    if (new_dev < 0 || new_dev > JOYDEV_MAX) {
-        return -1;
-    }
+    use_joysticks_for_menu = val ? 1 : 0;
 
     return 0;
 }
 
-/* Resources.  */
-
-#ifdef HAVE_SDL_NUMJOYSTICKS
 static int set_joystick_threshold(int val, void *param)
 {
     if (val < 0 || val > 32767) {
@@ -205,6 +228,8 @@ static const resource_int_t resources_int[] = {
       &joystick_threshold, set_joystick_threshold, NULL },
     { "JoyFuzz", DEFAULT_JOYSTICK_FUZZ, RES_EVENT_NO, NULL,
       &joystick_fuzz, set_joystick_fuzz, NULL },
+    { "JoyMenuControl", 0, RES_EVENT_NO, NULL,
+      &use_joysticks_for_menu, set_use_joysticks_for_menu, NULL },
     RESOURCE_INT_LIST_END
 };
 #endif /* HAVE_SDL_NUMJOYSTICKS */
@@ -223,54 +248,17 @@ static const cmdline_option_t cmdline_options[] =
     { "-joyfuzz", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
       NULL, NULL, "JoyFuzz", NULL,
       "<0-32767>", "Set joystick fuzz" },
+    { "-joymenucontrol", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
+      NULL, NULL, "JoyMenuControl", (resource_value_t)1,
+      NULL, "Enable controlling the menu with joysticks" },
+    { "+joymenucontrol", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
+      NULL, NULL, "JoyMenuControl", (resource_value_t)0,
+      NULL, "Disable controlling the menu with joysticks" },
     CMDLINE_LIST_END
 };
 #endif
 
-
-#if 0
-static const cmdline_option_t joydev1cmdline_options[] =
-{
-    { "-joydev1", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
-      NULL, NULL, "JoyDevice1", NULL,
-      JOYDEV_RANGE_TEXT, JOYDEV_DESCRIPTION_1 },
-    CMDLINE_LIST_END
-};
-
-static const cmdline_option_t joydev2cmdline_options[] =
-{
-    { "-joydev2", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
-      NULL, NULL, "JoyDevice2", NULL,
-      JOYDEV_RANGE_TEXT, JOYDEV_DESCRIPTION_2 },
-    CMDLINE_LIST_END
-};
-
-static const cmdline_option_t joydev3cmdline_options[] =
-{
-    { "-extrajoydev1", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
-      NULL, NULL, "JoyDevice3", NULL,
-      JOYDEV_RANGE_TEXT, JOYDEV_DESCRIPTION_3 },
-    CMDLINE_LIST_END
-};
-
-static const cmdline_option_t joydev4cmdline_options[] =
-{
-    { "-extrajoydev2", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
-      NULL, NULL, "JoyDevice4", NULL,
-      JOYDEV_RANGE_TEXT, JOYDEV_DESCRIPTION_4 },
-    CMDLINE_LIST_END
-};
-
-static const cmdline_option_t joydev5cmdline_options[] =
-{
-    { "-extrajoydev3", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
-      NULL, NULL, "JoyDevice5", NULL,
-      JOYDEV_RANGE_TEXT, JOYDEV_DESCRIPTION_5 },
-    CMDLINE_LIST_END
-};
-#endif
-
-int joy_arch_resources_init(void)
+int joy_sdl_resources_init(void)
 {
     /* Init the keyboard resources here before resources_set_defaults is called */
     if (sdlkbd_init_resources() < 0) {
@@ -306,7 +294,7 @@ void joy_arch_resources_shutdown(void)
 #endif
 }
 
-int joy_arch_cmdline_options_init(void)
+int joy_sdl_cmdline_options_init(void)
 {
 #ifdef HAVE_SDL_NUMJOYSTICKS
     if (cmdline_register_options(cmdline_options) < 0) {
@@ -317,33 +305,6 @@ int joy_arch_cmdline_options_init(void)
     if (sdlkbd_init_cmdline() < 0) {
         return -1;
     }
-#if 0
-    if (joyport_get_port_name(JOYPORT_1)) {
-        if (cmdline_register_options(joydev1cmdline_options) < 0) {
-            return -1;
-        }
-    }
-    if (joyport_get_port_name(JOYPORT_2)) {
-        if (cmdline_register_options(joydev2cmdline_options) < 0) {
-            return -1;
-        }
-    }
-    if (joyport_get_port_name(JOYPORT_3)) {
-        if (cmdline_register_options(joydev3cmdline_options) < 0) {
-            return -1;
-        }
-    }
-    if (joyport_get_port_name(JOYPORT_4)) {
-        if (cmdline_register_options(joydev4cmdline_options) < 0) {
-            return -1;
-        }
-    }
-    if (joyport_get_port_name(JOYPORT_5)) {
-        if (cmdline_register_options(joydev5cmdline_options) < 0) {
-            return -1;
-        }
-    }
-#endif
     return 0;
 }
 
@@ -354,14 +315,8 @@ int joy_arch_cmdline_options_init(void)
 /**********************************************************
  * Generic high level joy routine                         *
  **********************************************************/
-int joy_arch_init(void)
+int joy_sdl_init(void)
 {
-    int i, axis, button, hat, ball;
-    sdljoystick_input_t j;
-    SDL_Joystick *joy;
-
-    sdljoystick = NULL;
-
     sdljoy_log = log_open("SDLJoystick");
 
     if (SDL_InitSubSystem(SDL_INIT_JOYSTICK)) {
@@ -369,10 +324,50 @@ int joy_arch_init(void)
         return -1;
     }
 
+    sdljoy_rescan();
+
+    return 0;
+}
+
+int sdljoy_rescan(void)
+{
+    int i, k, axis, button, hat, ball;
+    sdljoystick_input_t j;
+    SDL_Joystick *joy;
+    sdljoystick_t *sdljoystick_old = sdljoystick;
+    int num_joysticks_old = num_joysticks;
+
+    SDL_JoystickEventState(SDL_DISABLE);
+
+    /* close all joysticks */
+    for (i = 0; i < num_joysticks; ++i) {
+        if (sdljoystick[i].joyptr) {
+#ifdef USE_SDL2UI
+            if (SDL_JoystickGetAttached(sdljoystick[i].joyptr)) {
+                SDL_JoystickClose(sdljoystick[i].joyptr);
+            }
+#else
+            SDL_JoystickClose(sdljoystick[i].joyptr);
+#endif
+        }
+    }
+
     num_joysticks = SDL_NumJoysticks();
 
     if (num_joysticks == 0) {
         log_message(sdljoy_log, "No joysticks found");
+        for (i = 0; i < num_joysticks_old; ++i) {
+            lib_free(sdljoystick[i].name);
+            sdljoystick[i].name = NULL;
+
+            for (j = AXIS; j < NUM_INPUT_TYPES; ++j) {
+                lib_free(sdljoystick[i].input[j]);
+                sdljoystick[i].input[j] = NULL;
+            }
+        }
+        lib_free(sdljoystick);
+        sdljoystick = NULL;
+        SDL_JoystickEventState(SDL_ENABLE);
         return 0;
     }
 
@@ -383,10 +378,12 @@ int joy_arch_init(void)
     for (i = 0; i < num_joysticks; ++i) {
         joy = sdljoystick[i].joyptr = SDL_JoystickOpen(i);
         if (joy) {
-#ifndef USE_SDLUI2
-            sdljoystick[i].name = lib_strdup(SDL_JoystickName(i));
-#else
+#ifdef USE_SDL2UI
             sdljoystick[i].name = lib_strdup(SDL_JoystickName(sdljoystick[i].joyptr));
+            sdljoystick[i].joystickid = SDL_JoystickInstanceID(joy);
+#else
+            sdljoystick[i].name = lib_strdup(SDL_JoystickName(i));
+            sdljoystick[i].joystickid = SDL_JoystickIndex(joy);
 #endif
             axis = sdljoystick[i].input_max[AXIS] = SDL_JoystickNumAxes(joy);
             button = sdljoystick[i].input_max[BUTTON] = SDL_JoystickNumButtons(joy);
@@ -401,15 +398,51 @@ int joy_arch_init(void)
                 }
             }
 
-            log_message(sdljoy_log, "Device %i \"%s\" (%i axes, %i buttons, %i hats, %i balls)", i, sdljoystick[i].name, axis, button, hat, ball);
+            /* only use default mapping if previously there were no joysticks found */
+            if (num_joysticks_old == 0) {
+                joy_arch_init_default_mapping(i);
+            }
 
-            joy_arch_init_default_mapping(i);
+            log_message(sdljoy_log, "Device %i \"%s\" (%i axes, %i buttons, %i hats, %i balls)", i, sdljoystick[i].name, axis, button, hat, ball);
         } else {
             log_warning(sdljoy_log, "Couldn't open joystick %i", i);
         }
     }
 
-    joy_arch_mapping_load(joymap_file);
+    /* only load joy map file if previously there were no joysticks found */
+    if (num_joysticks_old == 0) {
+        joy_arch_mapping_load(joymap_file);
+    }
+
+    /* copy over input mapping customisations from this session */
+    for (i = 0; i < num_joysticks; ++i) {
+        for (k = 0; k < num_joysticks_old; ++k) {
+            if (sdljoystick[i].joystickid == sdljoystick_old[k].joystickid) {
+                for (j = AXIS; j < NUM_INPUT_TYPES; ++j) {
+                    if (sdljoystick[i].input[j] != NULL) {
+                        lib_free(sdljoystick[i].input[j]);
+                    }
+                    sdljoystick[i].input[j] = sdljoystick_old[k].input[j];
+                    sdljoystick_old[k].input[j] = NULL;
+                }
+            }
+        }
+    }
+
+    for (i = 0; i < num_joysticks_old; ++i) {
+        lib_free(sdljoystick_old[i].name);
+        sdljoystick_old[i].name = NULL;
+
+        for (j = AXIS; j < NUM_INPUT_TYPES; ++j) {
+            if (sdljoystick_old[i].input[j] != NULL) {
+                lib_free(sdljoystick_old[i].input[j]);
+                sdljoystick_old[i].input[j] = NULL;
+            }
+        }
+    }
+
+    lib_free(sdljoystick_old);
+    sdljoystick_old = NULL;
 
     SDL_JoystickEventState(SDL_ENABLE);
     return 0;
@@ -501,10 +534,14 @@ void joy_arch_init_default_mapping(int joynum)
                 sdljoystick[joynum].input[BUTTON][i].value.joy[1] = pin;
                 break;
             case 1:
-                sdljoystick[joynum].input[BUTTON][i].action = UI_ACTIVATE;
+                if (use_joysticks_for_menu) {
+                    sdljoystick[joynum].input[BUTTON][i].action = UI_ACTIVATE;
+                }
                 break;
             case 2:
-                sdljoystick[joynum].input[BUTTON][i].action = MAP;
+                if (use_joysticks_for_menu) {
+                    sdljoystick[joynum].input[BUTTON][i].action = MAP;
+                }
                 break;
         }
     }
@@ -520,6 +557,229 @@ void joy_arch_init_default_mapping(int joynum)
 
     for (i = 0; i < sdljoystick[joynum].input_max[BALL] * input_mult[BALL]; ++i) {
         sdljoystick[joynum].input[BALL][i].action = NONE;
+    }
+}
+
+static char mapping_retval[50];
+
+char *get_joy_pot_mapping_string(int joynr, int pot)
+{
+    uint16_t portaxis = 0xffff;
+    uint8_t port = portaxis >> 8;
+    uint8_t axis = portaxis & 0xff;
+    char *retval = NULL;
+
+    if (joynr <= 1 && pot <= 1) {
+        portaxis = sdljoystick_axis_mapping[(joynr << 1) | pot];
+    }
+
+    if (port != 255 && axis != 255) {
+        snprintf(mapping_retval, 50, "J%d, Ax%d", port, axis);
+        retval = mapping_retval;
+    }
+    return retval;
+}
+
+char *get_joy_pin_mapping_string(int joynr, int pin)
+{
+    int i, k;
+    sdljoystick_input_t j;
+    sdljoystick_action_t t;
+    int valid = 0;
+    int joy = 0;
+    int type = 0;
+    int index = 0;
+    int sub_index = 0;
+    char *retval = NULL;
+    char *type_string = NULL;
+    char *index_string = NULL;
+
+    for (i = 0; i < num_joysticks; ++i) {
+        for (j = AXIS; j < NUM_INPUT_TYPES; ++j) {
+            for (k = 0; k < sdljoystick[i].input_max[j] * input_mult[j]; ++k) {
+                t = sdljoystick[i].input[j][k].action;
+                if (t == JOYSTICK) {
+                    if (sdljoystick[i].input[j][k].value.joy[0] == joynr && sdljoystick[i].input[j][k].value.joy[1] == pin) {
+                        valid++;
+                        joy = i;
+                        type = j;
+                        switch (type) {
+                            case AXIS:
+                                type_string = "Ax";
+                                index_string = "I";
+                                index = k / 2;
+                                sub_index = k % 2;
+                                break;
+                            case BUTTON:
+                                type_string = "Bt";
+                                index_string = NULL;
+                                index = k;
+                                sub_index = 0;
+                                break;
+                            case HAT:
+                                type_string = "Ht";
+                                index_string = "I";
+                                index = k / 4;
+                                sub_index = k % 4;
+                                break;
+                            case BALL:
+                                type_string = "Bl";
+                                index_string = NULL;
+                                index = k;
+                                sub_index = 0;
+                                break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (valid > 1) {
+        retval = "Multiple";
+    }
+    if (valid == 1) {
+        if (index_string != NULL ) {
+            snprintf(mapping_retval, 50, "J%d, %s%d, %s%d", joy, type_string, index, index_string, sub_index);
+        } else {
+            snprintf(mapping_retval, 50, "J%d, %s%d", joy, type_string, index);
+        }
+        retval = mapping_retval;
+    }
+
+    return retval;
+}
+
+char *get_joy_extra_mapping_string(int which)
+{
+    int i, k;
+    sdljoystick_input_t j;
+    sdljoystick_action_t t;
+    int valid = 0;
+    int joy = 0;
+    int type = 0;
+    int index = 0;
+    int sub_index = 0;
+    char *retval = NULL;
+    char *type_string = NULL;
+    char *index_string = NULL;
+
+    for (i = 0; i < num_joysticks; ++i) {
+        for (j = AXIS; j < NUM_INPUT_TYPES; ++j) {
+            for (k = 0; k < sdljoystick[i].input_max[j] * input_mult[j]; ++k) {
+                t = sdljoystick[i].input[j][k].action;
+                if (t == (which ? MAP : UI_ACTIVATE)) {
+                    valid++;
+                    joy = i;
+                    type = j;
+                    switch (type) {
+                        case AXIS:
+                            type_string = "Ax";
+                            index_string = "I";
+                            index = k / 2;
+                            sub_index = k % 2;
+                            break;
+                        case BUTTON:
+                            type_string = "Bt";
+                            index_string = NULL;
+                            index = k;
+                            sub_index = 0;
+                            break;
+                        case HAT:
+                            type_string = "Ht";
+                            index_string = "I";
+                            index = k / 4;
+                            sub_index = k % 4;
+                            break;
+                        case BALL:
+                            type_string = "Bl";
+                            index_string = NULL;
+                            index = k;
+                            sub_index = 0;
+                            break;
+                    }
+                }
+            }
+        }
+    }
+    if (valid > 1) {
+        retval = "Multiple";
+    }
+    if (valid == 1) {
+        if (index_string != NULL ) {
+            snprintf(mapping_retval, 50, "J%d, %s%d, %s%d", joy, type_string, index, index_string, sub_index);
+        } else {
+            snprintf(mapping_retval, 50, "J%d, %s%d", joy, type_string, index);
+        }
+        retval = mapping_retval;
+    }
+
+    return retval;
+}
+
+void sdljoy_delete_pot_mapping(int port, int pot)
+{
+    int i, k;
+    sdljoystick_input_t j;
+    sdljoystick_action_t t;
+
+    for (i = 0; i < num_joysticks; ++i) {
+        for (j = AXIS; j < NUM_INPUT_TYPES; ++j) {
+            for (k = 0; k < sdljoystick[i].input_max[j] * input_mult[j]; ++k) {
+                t = sdljoystick[i].input[j][k].action;
+                if (t == POT_AXIS) {
+                    if (sdljoystick[i].input[j][k].value.axis[0] == port && sdljoystick[i].input[j][k].value.axis[1] == pot) {
+                        sdljoystick[i].input[j][k].action = NONE;
+                        sdljoystick[i].input[j][k].value.axis[0] = 0;
+                        sdljoystick[i].input[j][k].value.axis[1] = 0;
+                    }
+                    if (port <= 1 && pot <= 1) {
+                        sdljoystick_axis_mapping[(port << 1) | pot] = 0xffff;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void sdljoy_delete_pin_mapping(int port, int pin)
+{
+    int i, k;
+    sdljoystick_input_t j;
+    sdljoystick_action_t t;
+
+    for (i = 0; i < num_joysticks; ++i) {
+        for (j = AXIS; j < NUM_INPUT_TYPES; ++j) {
+            for (k = 0; k < sdljoystick[i].input_max[j] * input_mult[j]; ++k) {
+                t = sdljoystick[i].input[j][k].action;
+                if (t == JOYSTICK) {
+                    if (sdljoystick[i].input[j][k].value.joy[0] == port && sdljoystick[i].input[j][k].value.joy[1] == pin) {
+                        sdljoystick[i].input[j][k].action = NONE;
+                        sdljoystick[i].input[j][k].value.joy[0] = 0;
+                        sdljoystick[i].input[j][k].value.joy[1] = 0;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void sdljoy_delete_extra_mapping(int type)
+{
+    int i, k;
+    sdljoystick_input_t j;
+    sdljoystick_action_t t;
+
+    for (i = 0; i < num_joysticks; ++i) {
+        for (j = AXIS; j < NUM_INPUT_TYPES; ++j) {
+            for (k = 0; k < sdljoystick[i].input_max[j] * input_mult[j]; ++k) {
+                t = sdljoystick[i].input[j][k].action;
+                if (t == (type ? MAP : UI_ACTIVATE)) {
+                    sdljoystick[i].input[j][k].action = NONE;
+                    sdljoystick[i].input[j][k].value.joy[0] = 0;
+                    sdljoystick[i].input[j][k].value.joy[1] = 0;
+                }
+            }
+        }
     }
 }
 
@@ -569,11 +829,12 @@ int joy_arch_mapping_dump(const char *filename)
             "#\n"
             "# action [action_parameters]:\n"
             "# 0               none\n"
-            "# 1 port pin      joystick (pin: 1/2/4/8/16/32/64 = u/d/l/r/fire/fire2/fire3)\n"
+            "# 1 port pin      joystick (pin: 1/2/4/8/16/32/64/128/256/512/1024/2048 = u/d/l/r/fire(A)/fire2(B)/fire3(X)/Y/LB/RB/select/start)\n"
             "# 2 row col       keyboard\n"
             "# 3               map\n"
             "# 4               UI activate\n"
             "# 5 path&to&item  UI function\n"
+            "# 6 pot axis      joystick (pot: 1/2/3/4 = x1/y1/x2/y2)\n"
             "#\n\n"
             );
 
@@ -602,6 +863,12 @@ int joy_arch_mapping_dump(const char *filename)
                         hotkey_path = sdl_ui_hotkey_path(sdljoystick[i].input[j][k].value.ui_function);
                         fprintf(fp, " %s", hotkey_path);
                         lib_free(hotkey_path);
+                        break;
+                    case POT_AXIS:
+                        fprintf(fp, " %i %i",
+                                sdljoystick[i].input[j][k].value.axis[0],
+                                sdljoystick[i].input[j][k].value.axis[1]
+                                );
                         break;
                     default:
                         break;
@@ -674,6 +941,7 @@ static void joy_arch_parse_entry(char *buffer)
                         p = strtok(NULL, "\t\r\n");
                         break;
                     case JOYSTICK:
+                    case POT_AXIS:
                     case KEYBOARD:
                         p = strtok(NULL, " \t");
                         data1 = atoi(p);
@@ -691,6 +959,14 @@ static void joy_arch_parse_entry(char *buffer)
                         case JOYSTICK:
                             sdljoystick[joynum].input[inputtype][inputindex].value.joy[0] = data1;
                             sdljoystick[joynum].input[inputtype][inputindex].value.joy[1] = data2;
+                            break;
+                        case POT_AXIS:
+                            sdljoystick[joynum].input[inputtype][inputindex].value.axis[0] = data1;
+                            sdljoystick[joynum].input[inputtype][inputindex].value.axis[1] = data2;
+                            if (data1 <= 1 && data2 <= 1) {
+                                sdljoystick_axis_mapping[(data1 << 1) | data2] = (joynum << 8) | (inputindex / 2);
+                                resources_set_int_sprintf("PaddlesInput%d", PADDLES_INPUT_JOY_AXIS, data1 + 1);
+                            }
                             break;
                         case KEYBOARD:
                             sdljoystick[joynum].input[inputtype][inputindex].value.key[0] = data1;
@@ -729,7 +1005,7 @@ int joy_arch_mapping_load(const char *filename)
         return -1;
     }
 
-    fp = sysfile_open(filename, &complete_path, MODE_READ_TEXT);
+    fp = sysfile_open(filename, NULL, &complete_path, MODE_READ_TEXT);
 
     if (fp == NULL) {
         log_warning(sdljoy_log, "Failed to open `%s'.", filename);
@@ -832,29 +1108,84 @@ static sdljoystick_mapping_t *sdljoy_get_mapping(SDL_Event e)
 {
     sdljoystick_mapping_t *retval = NULL;
     uint8_t cur;
+    int joynum;
 
     switch (e.type) {
         case SDL_JOYAXISMOTION:
             cur = sdljoy_axis_direction(e.jaxis.value, 0);
             if (cur > 0) {
                 --cur;
-                retval = &(sdljoystick[e.jaxis.which].input[AXIS][e.jaxis.axis * input_mult[AXIS] + cur]);
+                joynum = sdljoy_get_joynum_for_event(e.jaxis.which);
+                if (joynum != -1) {
+                    retval = &(sdljoystick[joynum].input[AXIS][e.jaxis.axis * input_mult[AXIS] + cur]);
+                }
             }
             break;
         case SDL_JOYHATMOTION:
             cur = sdljoy_hat_direction(e.jhat.value, 0);
             if (cur > 0) {
                 --cur;
-                retval = &(sdljoystick[e.jhat.which].input[HAT][e.jhat.hat * input_mult[HAT] + cur]);
+                joynum = sdljoy_get_joynum_for_event(e.jhat.which);
+                if (joynum != -1) {
+                    retval = &(sdljoystick[joynum].input[HAT][e.jhat.hat * input_mult[HAT] + cur]);
+                }
             }
             break;
         case SDL_JOYBUTTONDOWN:
-            retval = &(sdljoystick[e.jbutton.which].input[BUTTON][e.jbutton.button]);
+            joynum = sdljoy_get_joynum_for_event(e.jbutton.which);
+            if (joynum != -1) {
+                retval = &(sdljoystick[joynum].input[BUTTON][e.jbutton.button]);
+            }
             break;
         default:
             break;
     }
     return retval;
+}
+
+static int sdljoy_pins[JOYPORT_MAX_PORTS][JOYPORT_MAX_PINS] = { 0 };
+
+void sdljoy_clear_presses(void)
+{
+    int i, j;
+
+    for (i = 0; i < JOYPORT_MAX_PORTS; i++) {
+        for (j = 0; j < JOYPORT_MAX_PINS; j++) {
+            sdljoy_pins[i][j] = 0;
+        }
+        joystick_set_value_and(i, 0);
+    }
+}
+
+/* When a host joystick event happens that cause a 'press' of a pin, increment the 'press amount' of that pin */
+static void sdljoy_set_value_press(unsigned int joyport, uint16_t value)
+{
+    int i;
+
+    for (i = 0; i < JOYPORT_MAX_PINS; i++) {
+        if (value & (1 << i)) {
+            sdljoy_pins[joyport][i]++;
+        }
+    }
+    joystick_set_value_or(joyport, value);
+}
+
+/* When a host joystick event happens that cause a 'release' of a pin, decrement the 'press amount' of that pin,
+   and only release the pin for real if the 'press amount' is 0 */
+static void sdljoy_set_value_release(unsigned int joyport, uint16_t value)
+{
+    int i;
+
+    for (i = 0; i < JOYPORT_MAX_PINS; i++) {
+        if (value & (1 << i)) {
+            if (sdljoy_pins[joyport][i]) {
+                sdljoy_pins[joyport][i]--;
+            }
+            if (sdljoy_pins[joyport][i] == 0) {
+                joystick_set_value_and(joyport, ~(value));
+            }
+        }
+    }
 }
 
 static ui_menu_action_t sdljoy_perform_event(sdljoystick_mapping_t *event, int value)
@@ -866,24 +1197,26 @@ static ui_menu_action_t sdljoy_perform_event(sdljoystick_mapping_t *event, int v
 
     if (sdl_menu_state || (sdl_vkbd_state & SDL_VKBD_ACTIVE)) {
         if (event->action == JOYSTICK) {
-            switch (event->value.joy[1]) {
-                case 0x01:
-                    retval = autorepeat = MENU_ACTION_UP;
-                    break;
-                case 0x02:
-                    retval = autorepeat = MENU_ACTION_DOWN;
-                    break;
-                case 0x04:
-                    retval = autorepeat = MENU_ACTION_LEFT;
-                    break;
-                case 0x08:
-                    retval = autorepeat = MENU_ACTION_RIGHT;
-                    break;
-                case 0x10:
-                    retval = MENU_ACTION_SELECT;
-                    break;
-                default:
-                    break;
+            if (use_joysticks_for_menu) {
+                switch (event->value.joy[1]) {
+                    case 0x01:
+                        retval = autorepeat = MENU_ACTION_UP;
+                        break;
+                    case 0x02:
+                        retval = autorepeat = MENU_ACTION_DOWN;
+                        break;
+                    case 0x04:
+                        retval = autorepeat = MENU_ACTION_LEFT;
+                        break;
+                    case 0x08:
+                        retval = autorepeat = MENU_ACTION_RIGHT;
+                        break;
+                    case 0x10:
+                        retval = MENU_ACTION_SELECT;
+                        break;
+                    default:
+                        break;
+                }
             }
         } else if (event->action == UI_ACTIVATE) {
             retval = MENU_ACTION_CANCEL;
@@ -905,9 +1238,9 @@ static ui_menu_action_t sdljoy_perform_event(sdljoystick_mapping_t *event, int v
             t = event->value.joy[0];
             if (joystick_port_map[t] == JOYDEV_JOYSTICK) {
                 if (value) {
-                    joystick_set_value_or(t + 1, event->value.joy[1]);
+                    sdljoy_set_value_press(t, (uint16_t)event->value.joy[1]);
                 } else {
-                    joystick_set_value_and(t + 1, (uint8_t) ~(event->value.joy[1]));
+                    sdljoy_set_value_release(t, (uint16_t) event->value.joy[1]);
                 }
             }
             break;
@@ -955,7 +1288,7 @@ uint8_t sdljoy_check_axis_movement(SDL_Event e)
     Uint8 axis;
     Sint16 value;
 
-    joynum = e.jaxis.which;
+    joynum = sdljoy_get_joynum_for_event(e.jaxis.which);
     axis = e.jaxis.axis;
     value = e.jaxis.value;
 
@@ -980,7 +1313,7 @@ uint8_t sdljoy_check_hat_movement(SDL_Event e)
     Uint8 hat;
     Uint8 value;
 
-    joynum = e.jhat.which;
+    joynum = sdljoy_get_joynum_for_event(e.jhat.which);
     hat = e.jhat.hat;
     value = e.jhat.value;
 
@@ -997,11 +1330,32 @@ uint8_t sdljoy_check_hat_movement(SDL_Event e)
     return cur;
 }
 
+int sdljoy_get_joynum_for_event(Uint8 event_device_id)
+{
+    int i;
+
+    for (i = 0; i < num_joysticks; i++) {
+        if (sdljoystick[i].joystickid == event_device_id) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
 ui_menu_action_t sdljoy_axis_event(Uint8 joynum, Uint8 axis, Sint16 value)
 {
+    int i;
     uint8_t cur, prev;
     int index;
     ui_menu_action_t retval = MENU_ACTION_NONE;
+    Sint16 val = ~value;
+
+    for (i = 0; i < 4; i++) {
+        if (sdljoystick_axis_mapping[i] == ((joynum << 8) | axis)) {
+            joystick_set_axis_value(i, (uint8_t)((val + 32768) >> 8));
+        }
+    }
 
     index = axis * input_mult[AXIS];
     prev = sdljoystick[joynum].input[AXIS][index].prev;
@@ -1116,8 +1470,30 @@ void sdljoy_set_joystick(SDL_Event e, int port, int bits)
 
     if (joyevent != NULL) {
         joyevent->action = JOYSTICK;
-        joyevent->value.joy[0] = (uint8_t)port;
-        joyevent->value.joy[1] = (uint8_t)bits;
+        joyevent->value.joy[0] = (uint16_t)port;
+        joyevent->value.joy[1] = (uint16_t)bits;
+    }
+}
+
+void sdljoy_set_joystick_axis(SDL_Event e, int port, int pot)
+{
+    int index = (port << 1) | pot;
+    uint8_t axis = e.jaxis.axis;
+    sdljoystick_mapping_t *joyevent = sdljoy_get_mapping(e);
+    int joynum = sdljoy_get_joynum_for_event(e.jaxis.which);
+
+    if (joynum == -1) {
+        return;
+    }
+
+    if (joyevent != NULL) {
+        joyevent->action = POT_AXIS;
+        joyevent->value.axis[0] = (uint16_t)port;
+        joyevent->value.axis[1] = (uint16_t)pot;
+    }
+
+    if (index <= 3) {
+        sdljoystick_axis_mapping[index] = (joynum << 8) | axis;
     }
 }
 
@@ -1163,7 +1539,6 @@ void sdljoy_unset(SDL_Event e)
 /* ------------------------------------------------------------------------- */
 
 static int _sdljoy_swap_ports = 0;
-static int _sdljoy_swap_userport_ports = 0;
 
 void sdljoy_swap_ports(void)
 {
@@ -1187,27 +1562,10 @@ void sdljoy_swap_ports(void)
     }
 }
 
-int sdljoy_get_swap_ports(void) 
+int sdljoy_get_swap_ports(void)
 {
     return _sdljoy_swap_ports;
 }
-
-void sdljoy_swap_userport_ports(void)
-{
-    int i, k;
- 
-    resources_get_int("JoyDevice3", &i);
-    resources_get_int("JoyDevice4", &k);
-    resources_set_int("JoyDevice3", k);
-    resources_set_int("JoyDevice4", i);
-    _sdljoy_swap_userport_ports ^= 1;
-}
-
-int sdljoy_get_swap_userport_ports(void) 
-{
-    return _sdljoy_swap_userport_ports;
-}
-
 
 /* ------------------------------------------------------------------------- */
 
@@ -1237,5 +1595,4 @@ int joy_arch_init(void)
 {
     return 0;
 }
-
 #endif

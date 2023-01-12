@@ -106,34 +106,21 @@ struct sid_snapshot_state_s;
 #define SIDTYPE_SIDDTV    1
 #define SIDTYPE_SIDCART   2
 
-
-/** \brief  Maximum number of SIDs supported by the emulation
- *
- * This differs from the number of SIDs actually possible per emu.
- */
-#define SID_COUNT_MAX   8
-
-
-/** \brief  Maximum number of SIDs supported by the PSID file format
- *
- * VSID specific: this differs from the number of SIDs actually possible per
- * emu, although it can easily be extended to support more SIDs, since the
- * header has on offset to the tune data, so expanding the header is easy, but
- * will probably break some SID tools.
- */
-#define SID_COUNT_MAX_PSID  3
-
-
 #define SID_MACHINE_MAX_SID_C64     8
 #define SID_MACHINE_MAX_SID_C64DTV  1
 #define SID_MACHINE_MAX_SID_C128    8
-#define SID_MACHINE_MAX_SID_VIC20   0
+/** \brief  The VIC20 has an optional SID cartridge */
+#define SID_MACHINE_MAX_SID_VIC20   1
+/** \brief  The Plus4 has an optional SIDCard expansion */
 #define SID_MACHINE_MAX_SID_PLUS4   1
 #define SID_MACHINE_MAX_SID_CBM5x0  1
 #define SID_MACHINE_MAX_SID_CBM6x0  0
-#define SID_MACHINE_MAX_SID_PET     0
-/** \brief  This can be the same as C64 in emulation, but PSID currently only
- *          manages 3 SIDs
+/** \brief  The PET has an optional SID Card expansion */
+#define SID_MACHINE_MAX_SID_PET     1
+/** \brief  VSID supports up to three SIDS
+ *
+ * This can be the same as C64 in emulation, but PSID currently only manages 3
+ * SIDs.
  */
 #define SID_MACHINE_MAX_SID_VSID    3
 
@@ -196,8 +183,7 @@ struct sid_engine_s {
     void (*store)(struct sound_s *psid, uint16_t addr, uint8_t val);
     void (*reset)(struct sound_s *psid, CLOCK cpu_clk);
     int (*calculate_samples)(struct sound_s *psid, short *pbuf, int nr,
-                             int interleave, int *delta_t);
-    void (*prevent_clk_overflow)(struct sound_s *psid, CLOCK sub);
+                             int interleave, CLOCK *delta_t);
     char *(*dump_state)(struct sound_s *psid);
     void (*state_read)(struct sound_s *psid,
                        struct sid_snapshot_state_s *sid_state);
@@ -220,8 +206,7 @@ extern void sid_sound_machine_close(sound_t *psid);
 extern uint8_t sid_sound_machine_read(sound_t *psid, uint16_t addr);
 extern void sid_sound_machine_store(sound_t *psid, uint16_t addr, uint8_t byte);
 extern void sid_sound_machine_reset(sound_t *psid, CLOCK cpu_clk);
-extern int sid_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, int sound_output_channels, int sound_chip_channels, int *delta_t);
-extern void sid_sound_machine_prevent_clk_overflow(sound_t *psid, CLOCK sub);
+extern int sid_sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr, int sound_output_channels, int sound_chip_channels, CLOCK *delta_t);
 extern char *sid_sound_machine_dump_state(sound_t *psid);
 extern int sid_sound_machine_cycle_based(void);
 extern int sid_sound_machine_channels(void);

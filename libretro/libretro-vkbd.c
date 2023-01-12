@@ -631,6 +631,12 @@ void print_vkbd(void)
       XPADDING    = 120;
       XPADDING   *= 2;
       FONT_WIDTH *= 2;
+
+      if (retro_region == RETRO_REGION_NTSC)
+      {
+         YOFFSET     = 2;
+         YPADDING    = 68;
+      }
    }
 #endif
 #endif

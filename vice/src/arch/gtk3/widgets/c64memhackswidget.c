@@ -80,13 +80,19 @@ static const vice_gtk3_radiogroup_entry_t plus_60k_base_addresses[] = {
 
 
 /*
- * References to widget that need to be enabled/disabled, depending on the 
+ * References to widget that need to be enabled/disabled, depending on the
  * memory expansion hack selected
  */
+
+/** \brief  256K I/O base widget reference */
 static GtkWidget *c64_256k_base = NULL;
+/** \brief  256K image widget reference */
 static GtkWidget *c64_256k_image = NULL;
+/** \brief  Plus60K I/O base widget reference */
 static GtkWidget *plus_60k_base = NULL;
+/** \brief  Plus60K image widget reference */
 static GtkWidget *plus_60k_image = NULL;
+/** \brief  Plus256K image widget reference */
 static GtkWidget *plus_256k_image = NULL;
 
 
@@ -94,7 +100,7 @@ static GtkWidget *plus_256k_image = NULL;
  *
  * \param[in]       dialog      open-file dialog
  * \param[in]       filename    image filename
- * \param[in,out]   entry       target GtkEntry for image filename
+ * \param[in,out]   data        target GtkEntry for image filename
  */
 static void c64_256k_filename_callback(GtkDialog *dialog,
                                        gchar *filename,
@@ -127,7 +133,7 @@ static void on_256k_image_browse_clicked(GtkWidget *button, gpointer user_data)
  *
  * \param[in]       dialog      open-file dialog
  * \param[in]       filename    image filename
- * \param[in,out]   entry       target GtkEntry for image filename
+ * \param[in,out]   data        target GtkEntry for image filename
  */
 static void browse_plus60k_filename_callback(GtkDialog *dialog,
                                              gchar *filename,
@@ -161,7 +167,7 @@ static void on_plus60k_image_browse_clicked(GtkWidget *button, gpointer user_dat
  *
  * \param[in]       dialog      open-file dialog
  * \param[in]       filename    image filename
- * \param[in,out]   entry       target GtkEntry for image filename
+ * \param[in,out]   data        target GtkEntry for image filename
  */
 static void browse_plus256k_filename_callback(GtkDialog *dialog,
                                               gchar *filename,
@@ -205,8 +211,6 @@ static void on_hack_toggled(GtkWidget *widget, gpointer user_data)
     int hack_id = GPOINTER_TO_INT(user_data);
 
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
-        debug_gtk3("hack %d selected.", hack_id);
-
         switch (hack_id) {
             case MEMORY_HACK_NONE:
                 gtk_widget_set_sensitive(c64_256k_base, FALSE);
@@ -262,7 +266,7 @@ static GtkWidget *memory_hacks_device_widget_create(void)
             GTK_ORIENTATION_HORIZONTAL);
 
     gtk_grid_set_column_spacing(GTK_GRID(group), 16);
-    g_object_set(group, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(group, 16);
     gtk_grid_attach(GTK_GRID(grid), group, 0, 1, 1, 1);
     gtk_widget_show_all(grid);
 
@@ -299,7 +303,7 @@ static GtkWidget *c64_256k_base_address_widget_create(void)
             GTK_ORIENTATION_HORIZONTAL);
 
     gtk_grid_set_column_spacing(GTK_GRID(group), 16);
-    g_object_set(group, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(group, 16);
     gtk_grid_attach(GTK_GRID(grid), group, 0, 1, 1, 1);
     gtk_widget_show_all(grid);
     return grid;
@@ -324,7 +328,7 @@ static GtkWidget *plus_60k_base_address_widget_create(void)
             GTK_ORIENTATION_HORIZONTAL);
 
     gtk_grid_set_column_spacing(GTK_GRID(group), 16);
-    g_object_set(group, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(group, 16);
     gtk_grid_attach(GTK_GRID(grid), group, 0, 1, 1, 1);
     gtk_widget_show_all(grid);
     return grid;
@@ -349,7 +353,7 @@ static GtkWidget *c64_256k_image_widget_create(void)
             3);
 
     label = gtk_label_new("filename");
-    g_object_set(label, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(label, 16);
     entry = vice_gtk3_resource_entry_full_new("C64_256Kfilename");
     gtk_widget_set_hexpand(entry, TRUE);
     browse = gtk_button_new_with_label("Browse ...");
@@ -385,7 +389,7 @@ static GtkWidget *plus_60k_image_widget_create(void)
             3);
 
     label = gtk_label_new("filename");
-    g_object_set(label, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(label, 16);
     entry = vice_gtk3_resource_entry_full_new("PLUS60Kfilename");
     gtk_widget_set_hexpand(entry, TRUE);
     browse = gtk_button_new_with_label("Browse ...");
@@ -418,7 +422,7 @@ static GtkWidget *plus_256k_image_widget_create(void)
     grid = vice_gtk3_grid_new_spaced_with_label(-1, -1, "+256K image file", 3);
 
     label = gtk_label_new("filename");
-    g_object_set(label, "margin-left", 16, NULL);
+    gtk_widget_set_margin_start(label, 16);
     entry = vice_gtk3_resource_entry_full_new("PLUS256Kfilename");
 
     gtk_widget_set_hexpand(entry, TRUE);

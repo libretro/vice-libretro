@@ -58,19 +58,25 @@ HTML_DOCS=$9
 
 
 # Try to get the SVN revision
-#echo "Trying to get SVN revision"
+
 SVN_SUFFIX=""
-svnrev_string=`svnversion $TOPSRCDIR`
+svnrev_string=$(svnversion $TOPSRCDIR)
 if test "$?" = "0"; then
-    # Choose the second number (usually higher) if it exists; drop letter suffixes.
-    svnrev=`echo "$svnrev_string" | sed 's/^\([0-9]*:\)*\([0-9]*\)*.*/\2/'`
-    #echo "svnrev string: $svnrev"
-    # Only a number is extracted.
-    test -n "$svnrev"&&SVN_SUFFIX="-r$svnrev"
-else
-    #echo "No svnversion found"
-    # nop:
-    :
+  # Choose the second number (usually higher) if it exists; drop letter suffixes.
+  svnrev=`echo "$svnrev_string" | sed 's/^\([0-9]*:\)*\([0-9]*\)*.*/\2/'`
+  #echo "svnrev string: $svnrev"
+  # Only a number is extracted.
+  if test -n "$svnrev"
+    then SVN_SUFFIX="-r$svnrev"
+  fi
+fi
+
+if test "$SVN_SUFFIX" = ""; then
+  # No svnversion found, checking if there is a git svn ref
+  GIT_SVN_COMMIT_HASH=$(git -C "$TOPSRCDIR" log --grep='git-svn-id:' -n 1 --pretty=format:"%H")
+  if test "$GIT_SVN_COMMIT_HASH" != ""; then
+    SVN_SUFFIX="-r$(git svn find-rev $GIT_SVN_COMMIT_HASH)"
+  fi
 fi
 
 
@@ -87,7 +93,7 @@ else X64FILE=""
 fi
 
 EMULATORS="$X64FILE x64sc xscpu64 x64dtv x128 xcbm2 xcbm5x0 xpet xplus4 xvic vsid"
-CONSOLE_TOOLS="c1541 cartconv petcat"
+CONSOLE_TOOLS="c1541 tools/cartconv/cartconv tools/petcat/petcat"
 EXECUTABLES="$EMULATORS $CONSOLE_TOOLS"
 
 unset CONSOLE_TOOLS EMULATORS X64FILE svnrev svnrev_string CPU X64INC
@@ -120,7 +126,7 @@ mkdir $BINDIST_DIR
 # Copy binaries.  Strip them unless VICE is configured with "--enable-debug".
 for i in $EXECUTABLES; do
   cp $TOPBUILDDIR/src/$i.exe $BINDIST_DIR
-  $STRIP $BINDIST_DIR/$i.exe
+  $STRIP $BINDIST_DIR/$(basename $i).exe
 done
 
 
@@ -128,6 +134,9 @@ if test x"$CROSS" != "xtrue"; then
   # Assume MSYS2 on Windows here.
   dlls=`ntldd -R $BINDIST_DIR/x64sc.exe|gawk '/\\\\bin\\\\/{print $3;}'|cygpath -f -`
   test -n "$dlls"&&cp $dlls $BINDIST_DIR
+  if grep -q '^#define EXTERNAL_FFMPEG ' $TOPBUILDDIR/src/config.h
+    then cp -u `ntldd -R $MINGW_PREFIX/bin/avfilter-*.dll|gawk '/\\\\bin\\\\/{print $3;}'|cygpath -f -` $BINDIST_DIR
+  fi
 
 else
   # Assume a cross-builder for Windows here.
@@ -168,11 +177,18 @@ cp -a $TOPSRCDIR/data/PLUS4 $TOPSRCDIR/data/PRINTER $BINDIST_DIR
 cp -a $TOPSRCDIR/data/SCPU64 $TOPSRCDIR/data/VIC20 $BINDIST_DIR
 rm -f `find $BINDIST_DIR -name "Makefile*"`
 rm -f `find $BINDIST_DIR -name "gtk3_*"`
-mkdir $BINDIST_DIR/doc
-if test x"$HTML_DOCS" = "xyes"; then
-    cp -a $TOPSRCDIR/doc/html/* $BINDIST_DIR/doc
-    cp -a -u $TOPBUILDDIR/doc/html/* $BINDIST_DIR/doc
+
+# Icon files for SDL1
+if test x"$SDLVERSION" = "x1"; then
+    mkdir $BINDIST_DIR/common
+    cp -a $TOPSRCDIR/data/common/*_32.png $BINDIST_DIR/common
 fi
+
+mkdir $BINDIST_DIR/doc
+#if test x"$HTML_DOCS" = "xyes"; then
+#    cp -a $TOPSRCDIR/doc/html/* $BINDIST_DIR/doc
+#    cp -a -u $TOPBUILDDIR/doc/html/* $BINDIST_DIR/doc
+#fi
 rm -f $BINDIST_DIR/doc/Makefile* $BINDIST_DIR/doc/texi2html
 rm -f $BINDIST_DIR/doc/checklinks.sh $BINDIST_DIR/doc/sitemap.xml
 rm -f $BINDIST_DIR/doc/robots.txt $BINDIST_DIR/doc/COPYING $BINDIST_DIR/doc/NEWS
