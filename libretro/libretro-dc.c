@@ -268,6 +268,7 @@ void dc_reset(dc_storage* dc)
    dc->unit        = 0;
    dc->count       = 0;
    dc->index       = 0;
+   dc->index_prev  = 0;
    dc->eject_state = true;
    dc->replace     = false;
 }
@@ -282,6 +283,7 @@ dc_storage* dc_create(void)
       dc->unit        = 0;
       dc->count       = 0;
       dc->index       = 0;
+      dc->index_prev  = 0;
       dc->eject_state = true;
       dc->replace     = false;
       dc->command     = NULL;
