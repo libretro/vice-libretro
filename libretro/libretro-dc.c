@@ -886,7 +886,7 @@ void dc_parse_list(dc_storage* dc, const char* list_file, bool is_vfl, const cha
 
                /* Quote handling */
                if (strstr(token, "\""))
-                  token_temp = string_replace_substring(token, "\"", "");
+                  token_temp = string_replace_substring(token, "\"", strlen("\""), "", strlen(""));
                else
                   token_temp = strdup(token);
                snprintf(image_prg, sizeof(image_prg), "%s", token_temp);

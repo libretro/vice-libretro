@@ -975,10 +975,10 @@ static int process_cmdline(const char* argv)
                         snprintf(cart_base, sizeof(cart_base), "%s", argv);
                         path_remove_extension(cart_base);
 
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "-2000", ""));
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "-4000", ""));
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "-6000", ""));
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "-a000", ""));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "-2000", strlen("-2000"), "", strlen("")));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "-4000", strlen("-4000"), "", strlen("")));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "-6000", strlen("-6000"), "", strlen("")));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "-a000", strlen("-a000"), "", strlen("")));
 
                         snprintf(cart_2000, sizeof(cart_2000), "%s%s%s", cart_base, "-2000", ".prg");
                         snprintf(cart_4000, sizeof(cart_4000), "%s%s%s", cart_base, "-4000", ".prg");
@@ -989,60 +989,60 @@ static int process_cmdline(const char* argv)
                      case CARTRIDGE_VIC20_CART_TOSEC: /* TOSEC */
                         snprintf(cart_base, sizeof(cart_base), "%s", argv);
                         path_remove_extension(cart_base);
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[4000]", "[2000]"));
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[6000]", "[2000]"));
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[A000]", "[2000]"));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[4000]", strlen("[4000]"), "[2000]", strlen("[2000]")));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[6000]", strlen("[6000]"), "[2000]", strlen("[2000]")));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[A000]", strlen("[A000]"), "[2000]", strlen("[2000]")));
                         snprintf(cart_2000, sizeof(cart_2000), "%s%s", cart_base, ".crt");
 
                         snprintf(cart_base, sizeof(cart_base), "%s", argv);
                         path_remove_extension(cart_base);
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[2000]", "[4000]"));
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[6000]", "[4000]"));
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[A000]", "[4000]"));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[2000]", strlen("[2000]"), "[4000]", strlen("[4000]")));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[6000]", strlen("[6000]"), "[4000]", strlen("[4000]")));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[A000]", strlen("[A000]"), "[4000]", strlen("[4000]")));
                         snprintf(cart_4000, sizeof(cart_4000), "%s%s", cart_base, ".crt");
 
                         snprintf(cart_base, sizeof(cart_base), "%s", argv);
                         path_remove_extension(cart_base);
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[2000]", "[6000]"));
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[4000]", "[6000]"));
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[A000]", "[6000]"));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[2000]", strlen("[2000]"), "[6000]", strlen("[6000]")));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[4000]", strlen("[4000]"), "[6000]", strlen("[6000]")));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[A000]", strlen("[A000]"), "[6000]", strlen("[6000]")));
                         snprintf(cart_6000, sizeof(cart_6000), "%s%s", cart_base, ".crt");
 
                         snprintf(cart_base, sizeof(cart_base), "%s", argv);
                         path_remove_extension(cart_base);
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[2000]", "[A000]"));
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[4000]", "[A000]"));
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[6000]", "[A000]"));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[2000]", strlen("[2000]"), "[A000]", strlen("[A000]")));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[4000]", strlen("[4000]"), "[A000]", strlen("[A000]")));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "[6000]", strlen("[6000]"), "[A000]", strlen("[A000]")));
                         snprintf(cart_A000, sizeof(cart_A000), "%s%s", cart_base, ".crt");
                         break;
 
                      case CARTRIDGE_VIC20_CART_NOINTRO: /* No-Intro */
                         snprintf(cart_base, sizeof(cart_base), "%s", argv);
                         path_remove_extension(cart_base);
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$4000", "$2000"));
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$6000", "$2000"));
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$A000", "$2000"));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$4000", strlen("$4000"), "$2000", strlen("$2000")));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$6000", strlen("$6000"), "$2000", strlen("$2000")));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$A000", strlen("$A000"), "$2000", strlen("$2000")));
                         snprintf(cart_2000, sizeof(cart_2000), "%s%s", cart_base, ".20");
 
                         snprintf(cart_base, sizeof(cart_base), "%s", argv);
                         path_remove_extension(cart_base);
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$2000", "$4000"));
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$6000", "$4000"));
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$A000", "$4000"));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$2000", strlen("$2000"), "$4000", strlen("$4000")));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$6000", strlen("$6000"), "$4000", strlen("$4000")));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$A000", strlen("$A000"), "$4000", strlen("$4000")));
                         snprintf(cart_4000, sizeof(cart_4000), "%s%s", cart_base, ".40");
 
                         snprintf(cart_base, sizeof(cart_base), "%s", argv);
                         path_remove_extension(cart_base);
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$2000", "$6000"));
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$4000", "$6000"));
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$A000", "$6000"));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$2000", strlen("$2000"), "$6000", strlen("$6000")));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$4000", strlen("$4000"), "$6000", strlen("$6000")));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$A000", strlen("$A000"), "$6000", strlen("$6000")));
                         snprintf(cart_6000, sizeof(cart_6000), "%s%s", cart_base, ".60");
 
                         snprintf(cart_base, sizeof(cart_base), "%s", argv);
                         path_remove_extension(cart_base);
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$2000", "$A000"));
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$4000", "$A000"));
-                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$6000", "$A000"));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$2000", strlen("$2000"), "$A000", strlen("$A000")));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$4000", strlen("$4000"), "$A000", strlen("$A000")));
+                        snprintf(cart_base, sizeof(cart_base), "%s", string_replace_substring(cart_base, "$6000", strlen("$6000"), "$A000", strlen("$A000")));
                         snprintf(cart_A000, sizeof(cart_A000), "%s%s", cart_base, ".a0");
                         break;
                   }
@@ -5227,7 +5227,7 @@ void retro_set_environment(retro_environment_t cb)
 
 #ifdef USE_LIBRETRO_VFS
    struct retro_vfs_interface_info vfs_iface_info;
-   vfs_iface_info.required_interface_version = 1;
+   vfs_iface_info.required_interface_version = 2;
    vfs_iface_info.iface                      = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VFS_INTERFACE, &vfs_iface_info))
       filestream_vfs_init(&vfs_iface_info);
