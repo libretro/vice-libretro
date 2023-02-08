@@ -54,6 +54,10 @@
 #include "video-color.h"
 #include "video.h"
 
+#ifdef __LIBRETRO__
+#define OLD_EVEN_SATURATION
+#endif
+
 #define RMIN(x,min) (((x) < (min)) ? (min) : (x))
 #define RMAX(x,max) (((x) > (max)) ? (max) : (x))
 #define RMINMAX(x,min,max) RMIN(RMAX(x,max),min)
@@ -562,7 +566,11 @@ static void video_calc_ycbcrtable(video_resources_t *video_resources,
     gam = 1.0;
 #else
     /* default: sat:320,000000 bri:0,000000 con:1,250000 gam:0,785714 tin:0,000000 */
+#ifdef OLD_EVEN_SATURATION
+    sat = ((float)(video_resources->color_saturation)) * (256.0f / 1000.0f);
+#else
     sat = ((float)(video_resources->color_saturation)) * (256.0f / 1000.0f) * CRT_SAT_MUL;
+#endif
     tin = (((float)(video_resources->color_tint)) * (50.0f / 2000.0f)) - 25.0f;
     bri = ((float)(video_resources->color_brightness - 1000)) * (112.0f / 1000.0f);
     con = ((float)(video_resources->color_contrast   )) / 1000.0f;

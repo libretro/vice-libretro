@@ -2954,30 +2954,6 @@ static void retro_set_core_options()
       },
       {
 #if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__)
-         "vice_vicii_filter_oddline_phase",
-         "Video > VIC-II Filter Oddline Phase",
-         "VIC-II Filter Oddline Phase",
-#elif defined(__XVIC__)
-         "vice_vic_filter_oddline_phase",
-         "Video > VIC Filter Oddline Phase",
-         "VIC Filter Oddline Phase",
-#elif defined(__XPLUS4__)
-         "vice_ted_filter_oddline_phase",
-         "Video > TED Filter Oddline Phase",
-         "TED Filter Oddline Phase",
-#elif defined(__XPET__) || defined(__XCBM2__)
-         "vice_crtc_filter_oddline_phase",
-         "Video > CRTC Filter Oddline Phase",
-         "CRTC Filter Oddline Phase",
-#endif
-         "PAL emulation filter oddline phase. Applies with 'Internal' palette only!",
-         NULL,
-         "video",
-         PALETTE_COLOR_OPTIONS,
-         "1000"
-      },
-      {
-#if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__)
          "vice_vicii_filter_oddline_offset",
          "Video > VIC-II Filter Oddline Offset",
          "VIC-II Filter Oddline Offset",
@@ -2995,6 +2971,30 @@ static void retro_set_core_options()
          "CRTC Filter Oddline Offset",
 #endif
          "PAL emulation filter oddline offset.",
+         NULL,
+         "video",
+         PALETTE_COLOR_OPTIONS,
+         "1000"
+      },
+      {
+#if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__)
+         "vice_vicii_filter_oddline_phase",
+         "Video > VIC-II Filter Oddline Phase",
+         "VIC-II Filter Oddline Phase",
+#elif defined(__XVIC__)
+         "vice_vic_filter_oddline_phase",
+         "Video > VIC Filter Oddline Phase",
+         "VIC Filter Oddline Phase",
+#elif defined(__XPLUS4__)
+         "vice_ted_filter_oddline_phase",
+         "Video > TED Filter Oddline Phase",
+         "TED Filter Oddline Phase",
+#elif defined(__XPET__) || defined(__XCBM2__)
+         "vice_crtc_filter_oddline_phase",
+         "Video > CRTC Filter Oddline Phase",
+         "CRTC Filter Oddline Phase",
+#endif
+         "PAL emulation filter oddline phase. Applies with 'Internal' palette only!",
          NULL,
          "video",
          PALETTE_COLOR_OPTIONS,
