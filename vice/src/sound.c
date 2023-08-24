@@ -62,6 +62,7 @@
 #include "sid.h"
 #include "libretro-core.h"
 extern unsigned int opt_warp_boost;
+extern unsigned int opt_autoloadwarp;
 extern void sound_volume_counter_reset(void);
 extern int16_t *audio_buffer;
 extern int tape_enabled;
@@ -1218,7 +1219,8 @@ static int sound_run_sound(void)
     snddata.lastclk = maincpu_clk;
 
 #ifdef __LIBRETRO__
-    memcpy(&audio_buffer, &snddata.buffer, sizeof(audio_buffer));
+    if (opt_autoloadwarp)
+        memcpy(&audio_buffer, &snddata.buffer, sizeof(audio_buffer));
 #endif
 
     return 0;
