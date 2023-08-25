@@ -139,6 +139,7 @@ static struct {
 /* Audio buffer copy for auto warp detection */
 int16_t *audio_buffer;
 static bool audio_is_playing = false;
+static bool audio_is_ignored = false;
 
 /* Core options */
 struct vice_core_options vice_opt;
@@ -210,6 +211,7 @@ extern unsigned int turbo_pulse;
 
 extern char *fsdevice_get_path(unsigned int unit);
 extern int tape_enabled;
+extern int tape_control;
 
 #if defined(__XVIC__)
 void cartridge_trigger_freeze(void) {}
@@ -2066,6 +2068,12 @@ bool audio_playing(void)
    static unsigned int audio_timer_playing = 0;
    static unsigned int audio_timer_stopped = 0;
    bool audio_alive = false;
+
+   if (audio_is_ignored)
+   {
+      audio_is_playing = false;
+      return audio_is_playing;
+   }
 
    if (audio_buffer)
    {
@@ -8364,6 +8372,16 @@ void retro_run(void)
             kbdbuf_feed("RUN:\r");
          }
       }
+
+      /* Allow re-enabling warp during tape loading music playback by pressing Space */
+      if (     opt_autoloadwarp
+            && !audio_is_ignored && audio_is_playing
+            && tape_enabled && tape_control == 1
+            && !vsync_get_warp_mode())
+      {
+         if (retro_key_state_internal[RETROK_SPACE])
+            audio_is_ignored = true;
+      }
    }
 
    /* Input poll */
@@ -8507,6 +8525,9 @@ bool retro_load_game(const struct retro_game_info *info)
    cur_port = 1;
    cur_port_locked = true;
 #endif
+
+   /* Reset autoloadwarp audio ignore */
+   audio_is_ignored = false;
 
    if (runstate == RUNSTATE_FIRST_START)
    {
