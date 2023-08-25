@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "libretro-core.h"
+#include "libretro-vkbd.h"
 
 int machine_ui_done = 0;
 
@@ -117,6 +118,10 @@ void video_canvas_refresh(struct video_canvas_s *canvas,
          0, 0, /*xi, yi,*/
          retrow * pix_bytes
    );
+
+   /* Virtual keyboard */
+   if (retro_vkbd)
+      print_vkbd();
 
    if (!retroh || crop_id < CROP_AUTO)
       return;

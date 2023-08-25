@@ -2052,13 +2052,19 @@ static void retro_led_interface(void)
 void retro_fastforwarding(bool enabled)
 {
    struct retro_fastforwarding_override ff_override;
+   bool frontend_ff_enabled = false;
 
    if (!libretro_supports_ff_override)
       return;
 
-   ff_override.ratio       = 10.0f;
-   ff_override.fastforward = enabled;
-   libretro_ff_enabled     = enabled;
+   environ_cb(RETRO_ENVIRONMENT_GET_FASTFORWARDING, &frontend_ff_enabled);
+   if (enabled && frontend_ff_enabled)
+      return;
+
+   ff_override.ratio          = 10.0f;
+   ff_override.fastforward    = enabled;
+   ff_override.inhibit_toggle = enabled;
+   libretro_ff_enabled        = enabled;
 
    environ_cb(RETRO_ENVIRONMENT_SET_FASTFORWARDING_OVERRIDE, &ff_override);
 }
@@ -2117,11 +2123,6 @@ bool audio_playing(void)
    }
 
    return audio_is_playing;
-}
-
-bool is_audio_playing_while_autoloadwarping(void)
-{
-   return (audio_is_playing && !retro_warpmode && !(opt_autoloadwarp & AUTOLOADWARP_MUTE));
 }
 
 static void retro_set_paths(void)
@@ -8388,38 +8389,18 @@ void retro_run(void)
    input_poll_cb();
    retro_poll_event();
 
-   /* Main loop with Warp Mode maximizing without too much input lag */
-   unsigned int frame_max = vsync_get_warp_mode() ? retro_refresh : 1;
-   unsigned int frame_count = 0;
-   long frame_time = 0;
-   long frame_start = retro_ticks();
+   /* Main loop */
+   while (retro_renderloop)
+      maincpu_mainloop();
+   retro_renderloop = 1;
    retro_now += 1000000 / retro_refresh;
-
-   for (frame_count = 0; frame_count < frame_max; ++frame_count)
-   {
-      frame_time = retro_ticks();
-
-#if 0
-      /* Slow cores will cripple warp speed severely if smoothness is the target */
-      if (frame_max > 1 && frame_time != 0 && frame_time - frame_start + (frame_time - frame_start) > (retro_refresh_ms / 2))
-         break;
-#endif
-
-      if (frame_max > 1 && (!vsync_get_warp_mode() || is_audio_playing_while_autoloadwarping()))
-         break;
-
-      while (retro_renderloop)
-         maincpu_mainloop();
-      retro_renderloop = 1;
-   }
 
    /* LED interface */
    if (led_state_cb)
       retro_led_interface();
 
    /* Virtual keyboard */
-   if (retro_vkbd)
-      print_vkbd();
+   /* Moved to retrodep video_canvas_refresh() in order to stop flashing during warping */
 
    /* Statusbar message timer */
    if (statusbar_message_timer > 0)
