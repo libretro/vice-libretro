@@ -24,6 +24,7 @@
 #include "libretro-vkbd.h"
 
 int machine_ui_done = 0;
+int num_screens = 0;
 
 static const cmdline_option_t cmdline_options[] = {
      { NULL }
@@ -46,7 +47,19 @@ void video_canvas_resize(struct video_canvas_s *canvas, char resize_canvas)
 video_canvas_t *video_canvas_create(video_canvas_t *canvas, 
       unsigned int *width, unsigned int *height, int mapped)
 {
-   canvas->videoconfig->rendermode = VIDEO_RENDER_PAL_NTSC_1X1;
+   switch (canvas->index)
+   {
+      default:
+      case 0:
+         /* VIC-II, VIC etc */
+         canvas->videoconfig->rendermode = VIDEO_RENDER_PAL_NTSC_1X1;
+         break;
+      case 1:
+         /* VDC */
+         canvas->videoconfig->rendermode = VIDEO_RENDER_RGBI_1X1;
+         break;
+   }
+
    canvas->depth = 8 * pix_bytes;
    video_canvas_set_palette(canvas, canvas->palette);
    return canvas;
@@ -58,6 +71,8 @@ void video_canvas_destroy(struct video_canvas_s *canvas)
 
 void video_arch_canvas_init(struct video_canvas_s *canvas)
 {
+   canvas->index = num_screens;
+   num_screens++;
 }
 
 char video_canvas_can_resize(video_canvas_t *canvas)
@@ -105,7 +120,11 @@ void video_canvas_refresh(struct video_canvas_s *canvas,
    unsigned i = 0;
    unsigned j = 0;
    unsigned color_diff = 0;
+   unsigned crop_height_max = 0;
+   unsigned crop_top_border = 0;
    unsigned crop_bottom_border = 0;
+   unsigned crop_left_border = 0;
+   unsigned crop_pad = 4;
 
 #ifdef RETRO_DEBUG
    printf("XS:%d YS:%d XI:%d YI:%d W:%d H:%d\n",xs,ys,xi,yi,w,h);
@@ -127,8 +146,27 @@ void video_canvas_refresh(struct video_canvas_s *canvas,
       return;
 
    /* Reset to maximum crop */
-   vice_raster.first_line = CROP_TOP_BORDER;
-   vice_raster.last_line  = vice_raster.first_line + CROP_HEIGHT_MAX;
+   crop_top_border  = CROP_TOP_BORDER;
+   crop_left_border = CROP_LEFT_BORDER;
+   crop_height_max  = CROP_HEIGHT_MAX;
+
+#ifdef __X128__
+   switch (canvas->videoconfig->rendermode)
+   {
+      case VIDEO_RENDER_RGBI_1X1:
+         crop_top_border     = CROP_VDC_TOP_BORDER;
+         crop_left_border    = CROP_VDC_LEFT_BORDER;
+         crop_height_max     = vice_raster.first_line + CROP_VDC_HEIGHT_MAX;
+
+         vice_raster.blanked = false;
+         break;
+      default:
+         break;
+   }
+#endif
+
+   vice_raster.first_line = crop_top_border;
+   vice_raster.last_line  = vice_raster.first_line + crop_height_max;
 
    switch (crop_id)
    {
@@ -137,18 +175,17 @@ void video_canvas_refresh(struct video_canvas_s *canvas,
           * in order to count as a show-worthy row, otherwise
           * loaders with flashing borders would count as hits */
          color_diff         = 3000 * pix_bytes;
-         crop_bottom_border = CROP_TOP_BORDER + CROP_HEIGHT_MAX;
+         crop_bottom_border = crop_top_border + crop_height_max;
 
          /* Top border, start from top */
-         for (i = 0; i < CROP_TOP_BORDER && !vice_raster.blanked; i++)
+         for (i = 0; i < crop_top_border && !vice_raster.blanked; i++)
          {
             unsigned row   = i * (retrow << (pix_bytes >> 2));
-            unsigned pad   = 8;
-            unsigned col_x = row + (CROP_LEFT_BORDER + pad) * (pix_bytes >> 1);
+            unsigned col_x = row + (crop_left_border + crop_pad) * (pix_bytes >> 1);
             unsigned color = retro_bmp[col_x];
             unsigned found = 0;
 
-            for (j = CROP_LEFT_BORDER + pad; j < retrow - CROP_LEFT_BORDER - pad; j++)
+            for (j = crop_left_border + crop_pad; j < retrow - crop_left_border - crop_pad; j++)
             {
                unsigned pixel = row + j * (pix_bytes >> 1);
 
@@ -165,7 +202,7 @@ void video_canvas_refresh(struct video_canvas_s *canvas,
                }
             }
 
-            if (vice_raster.first_line < CROP_TOP_BORDER)
+            if (vice_raster.first_line < crop_top_border)
                break;
          }
 
@@ -178,12 +215,11 @@ void video_canvas_refresh(struct video_canvas_s *canvas,
          for (i = retroh - 2; i > crop_bottom_border && !vice_raster.blanked; i--)
          {
             unsigned row   = i * (retrow << (pix_bytes >> 2));
-            unsigned pad   = 8;
-            unsigned col_x = row + (CROP_LEFT_BORDER + pad) * (pix_bytes >> 1);
+            unsigned col_x = row + (crop_left_border + crop_pad) * (pix_bytes >> 1);
             unsigned color = retro_bmp[col_x];
             unsigned found = 0;
 
-            for (j = CROP_LEFT_BORDER + pad; j < retrow - CROP_LEFT_BORDER - pad; j++)
+            for (j = crop_left_border + crop_pad; j < retrow - crop_left_border - crop_pad; j++)
             {
                unsigned pixel = row + j * (pix_bytes >> 1);
 
@@ -200,7 +236,7 @@ void video_canvas_refresh(struct video_canvas_s *canvas,
                }
             }
 
-            if (vice_raster.last_line > CROP_TOP_BORDER + CROP_HEIGHT_MAX)
+            if (vice_raster.last_line > crop_top_border + crop_height_max)
                break;
          }
 

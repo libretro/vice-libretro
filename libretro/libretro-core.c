@@ -6364,7 +6364,7 @@ static void update_variables(void)
          else                                   blur = 500;
       }
 
-      if (retro_ui_finalized && vice_opt.Filter != blur)
+      if (retro_ui_finalized && vice_opt.VDCFilter != blur)
       {
          log_resources_set_int("VDCFilter", filter);
          log_resources_set_int("VDCPALBlur", blur);

@@ -623,19 +623,27 @@ void print_vkbd(void)
       YPADDING = 72;
    }
 #if defined(__X128__)
+   /* Difference due to VKBD height difference */
+   if (retro_region == RETRO_REGION_NTSC)
+   {
+      YOFFSET  = 2;
+      YPADDING = 64;
+   }
+
    /* VDC */
    if (retrow > 704)
    {
-      YOFFSET     = -8;
-      YPADDING    = 108;
+      XOFFSET     = 2;
+      YOFFSET     = 1;
       XPADDING    = 120;
       XPADDING   *= 2;
+      YPADDING    = 108;
       FONT_WIDTH *= 2;
 
-      if (retro_region == RETRO_REGION_NTSC)
+      if (retro_region == RETRO_REGION_NTSC || retroh == 240)
       {
-         YOFFSET     = 2;
-         YPADDING    = 68;
+         YOFFSET  = 7;
+         YPADDING = 64;
       }
    }
 #endif
@@ -941,7 +949,7 @@ void print_vkbd(void)
 
       /* Bottom */
       corner_y_min = vkbd_y_max + YKEYSPACING;
-      corner_y_max = retroh - retroYS_offset - vkbd_y_max - YKEYSPACING;
+      corner_y_max = retroh - vkbd_y_max - YKEYSPACING;
       draw_fbox(0, corner_y_min,
                 retrow, corner_y_max,
                 0, BRD_ALPHA);
