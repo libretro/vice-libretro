@@ -152,11 +152,15 @@ int vic20mem_forced = -1;
 int c128_vdc = 0;
 int is_vdc(void)
 {
-   int vdc;
-   resources_get_int("C128ColumnKey", &vdc);
-   vdc = !vdc;
-   c128_vdc = vdc;
-   return vdc;
+   int key;
+   resources_get_int("C128ColumnKey", &key);
+   c128_vdc = !key;
+   return c128_vdc;
+}
+int set_vdc(int enabled)
+{
+   log_resources_set_int("C128ColumnKey", !enabled);
+   c128_vdc = enabled;
 }
 #endif
 
@@ -7864,7 +7868,7 @@ float retro_get_aspect_ratio(unsigned int width, unsigned int height, bool pixel
          break;
    }
 #if defined(__X128__)
-   if (is_vdc())
+   if (c128_vdc)
    {
       switch (region)
       {
@@ -7918,11 +7922,16 @@ void update_geometry(int mode)
    defaultw = retrow;
    defaulth = retroh;
 
+#if defined(__X128__)
+   /* Refresh VDC output */
+   is_vdc();
+#endif
+
    switch (mode)
    {
       case 0:
          /* Crop mode init */
-         crop_id_prev        = 0;
+         crop_id_prev        = -1;
          retrow_crop         = retrow;
          retroh_crop         = retroh;
          retroXS_crop_offset = 0;
@@ -7944,7 +7953,8 @@ void update_geometry(int mode)
          }
          else if (runstate == RUNSTATE_FIRST_START)
             return;
-         break;
+
+         /* Allow fall-through for cropping on the same run */
 
       case 1:
 #if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__) || defined(__XVIC__) || defined(__XPLUS4__)
@@ -7969,7 +7979,7 @@ void update_geometry(int mode)
          int crop_height_max       = CROP_HEIGHT_MAX;
 
 #if defined(__X128__)
-         if (is_vdc())
+         if (c128_vdc)
          {
             crop_width_max         = CROP_VDC_WIDTH_MAX;
             crop_height_max        = CROP_VDC_HEIGHT_MAX;
@@ -7993,18 +8003,14 @@ void update_geometry(int mode)
                      break;
                   case CROP_AUTO:
                   case CROP_AUTO_DISABLE:
-#if defined(__X128__)
-                     if (!is_vdc())
-                        crop_border_height = vice_raster.last_line - vice_raster.first_line - crop_height_max;
-#else
                      crop_border_height = vice_raster.last_line - vice_raster.first_line - crop_height_max;
-#endif
+
                      if (crop_border_height < 0)
                         crop_border_height = 0;
                      break;
                }
 
-               crop_width    = retrow - crop_width_max - crop_border_width;
+               crop_width    = retrow - crop_width_max  - crop_border_width;
                crop_height   = retroh - crop_height_max - crop_border_height;
                crop_height_o = crop_height;
 
@@ -8054,22 +8060,14 @@ void update_geometry(int mode)
                retrow_crop = retrow - crop_width;
                retroh_crop = retroh - crop_height;
 
+               retroXS_crop_offset  = (crop_width  > 1) ? (crop_width  / 2) : 0;
+               retroYS_crop_offset  = (crop_height > 1) ? (crop_height / 2) : 0;
 #if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__)
-               retroXS_crop_offset  = (crop_width > 1) ? (crop_width / 2) : 0;
-               retroYS_crop_offset  = (crop_height > 1) ? (crop_height / 2) : 0;
                retroYS_crop_offset -= (retro_region == RETRO_REGION_PAL) ? 1 : 0;
-#if defined(__X128__)
-               if (is_vdc())
-                  retroYS_crop_offset -= 4;
-#endif
 #elif defined(__XVIC__)
-               retroXS_crop_offset  = (crop_width > 1) ? (crop_width / 2) : 0;
                retroXS_crop_offset -= (retro_region == RETRO_REGION_PAL) ? 0 : -8;
-               retroYS_crop_offset  = (crop_height > 1) ? (crop_height / 2) : 0;
                retroYS_crop_offset -= (retro_region == RETRO_REGION_PAL) ? 2 : 3;
 #elif defined(__XPLUS4__)
-               retroXS_crop_offset  = (crop_width > 1) ? (crop_width / 2) : 0;
-               retroYS_crop_offset  = (crop_height > 1) ? (crop_height / 2) : 0;
                retroYS_crop_offset -= (retro_region == RETRO_REGION_PAL) ? 4 : 3;
 #endif
                switch (crop_id)
@@ -8099,7 +8097,7 @@ void update_geometry(int mode)
 
             case CROP_MANUAL:
                crop_width          = manual_crop_left + manual_crop_right;
-               crop_height         = manual_crop_top + manual_crop_bottom;
+               crop_height         = manual_crop_top  + manual_crop_bottom;
 
                retrow_crop         = retrow - crop_width;
                retroh_crop         = retroh - crop_height;
@@ -8388,6 +8386,19 @@ void retro_run(void)
          if (retro_key_state_internal[RETROK_SPACE])
             audio_is_ignored = true;
       }
+
+#if defined(__X128__)
+      /* VDC toggle key enforcing */
+      {
+         static unsigned column_key_state = 0;
+         unsigned toggle_state = retro_key_state_internal[RETROK_F7];
+
+         if (toggle_state && toggle_state != column_key_state)
+            set_vdc(!c128_vdc);
+
+         column_key_state = toggle_state;
+      }
+#endif
    }
 
    /* Input poll */

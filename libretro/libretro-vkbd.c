@@ -590,64 +590,59 @@ void print_vkbd(void)
    XOFFSET  = 0;
    YOFFSET  = 0;
    XPADDING = 116;
-   YPADDING = 118;
 
    if (retro_region == RETRO_REGION_NTSC)
    {
       XOFFSET  = 8;
       YOFFSET  = -1;
       XPADDING = 68;
-      YPADDING = 68;
    }
 #elif defined(__XPLUS4__)
    /* TED */
    XOFFSET  = 0;
-   YOFFSET  = -2;
    XPADDING = 74;
-   YPADDING = 108;
-
-   if (retro_region == RETRO_REGION_NTSC)
-   {
-      YPADDING = 64;
-   }
 #else
    /* VIC-II */
    XOFFSET  = 0;
    YOFFSET  = 1;
    XPADDING = 74;
-   YPADDING = 92;
-
-   if (retro_region == RETRO_REGION_NTSC)
-   {
-      YOFFSET  = -1;
-      YPADDING = 72;
-   }
 #if defined(__X128__)
    /* Difference due to VKBD height difference */
    if (retro_region == RETRO_REGION_NTSC)
-   {
       YOFFSET  = 2;
-      YPADDING = 64;
-   }
 
    /* VDC */
    if (retrow > 704)
    {
       XOFFSET     = 2;
-      YOFFSET     = 1;
       XPADDING    = 120;
       XPADDING   *= 2;
-      YPADDING    = 108;
       FONT_WIDTH *= 2;
 
       if (retro_region == RETRO_REGION_NTSC || retroh == 240)
-      {
          YOFFSET  = 7;
-         YPADDING = 64;
-      }
    }
 #endif
 #endif
+
+   /* Vertical centering calculations */
+   {
+      int crop_top_border = (retroh - CROP_HEIGHT_MAX) / 2;
+#if defined(__X128__)
+      if (c128_vdc)
+         crop_top_border = (retroh - CROP_VDC_HEIGHT_MAX) / 2;
+#endif
+      /* Bonus 10 for statusbar */
+      YPADDING = (crop_top_border + 10) * 2;
+
+      /* Vertical centering offset required if both borders are not used */
+      if (retroYS_offset && retroYS_offset < crop_top_border)
+      {
+         int leftover = retroh - retroh_crop - crop_top_border - retroYS_offset;
+         if (leftover > 0)
+            YOFFSET -= (crop_top_border - retroYS_offset) / 2;
+      }
+   }
 
    int XSIDE     = (retrow - XPADDING) / VKBDX;
    int YSIDE     = (retroh - YPADDING) / VKBDY;

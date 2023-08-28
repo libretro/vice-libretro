@@ -23,6 +23,10 @@
 #include "libretro-core.h"
 #include "libretro-vkbd.h"
 
+#if defined(__X128__)
+extern int c128_vdc;
+#endif
+
 int machine_ui_done = 0;
 int num_screens = 0;
 
@@ -130,13 +134,13 @@ static void video_canvas_crop(struct video_canvas_s *canvas)
    crop_left_border = CROP_LEFT_BORDER;
    crop_height_max  = CROP_HEIGHT_MAX;
 
-#ifdef __X128__
+#if defined(__X128__)
    switch (canvas->videoconfig->rendermode)
    {
       case VIDEO_RENDER_RGBI_1X1:
          crop_top_border     = CROP_VDC_TOP_BORDER;
          crop_left_border    = CROP_VDC_LEFT_BORDER;
-         crop_height_max     = vice_raster.first_line + CROP_VDC_HEIGHT_MAX;
+         crop_height_max     = CROP_VDC_HEIGHT_MAX;
 
          vice_raster.blanked = 0;
          break;
@@ -152,7 +156,7 @@ static void video_canvas_crop(struct video_canvas_s *canvas)
    switch (crop_id)
    {
       case CROP_AUTO:
-#ifdef __X64SC__
+#if defined(__X64SC__)
       /* Accurate VIC-II requires different method for Auto-Disable */
       case CROP_AUTO_DISABLE:
 #endif
@@ -198,6 +202,14 @@ static void video_canvas_crop(struct video_canvas_s *canvas)
           * For oddly shifted cases: Alien Syndrome, Out Run Europa */
          if (vice_raster.first_line > 20)
             crop_bottom_border -= 5;
+
+#if defined(__X128__)
+         if (c128_vdc)
+         {
+            if (vice_raster.first_line < crop_top_border)
+               vice_raster.last_line -= crop_top_border - vice_raster.first_line;
+         }
+#endif
 
          /* Bottom border, start from bottom, almost */
          for (i = retroh - 2; i > crop_bottom_border && !vice_raster.blanked; i--)
@@ -281,7 +293,7 @@ static void video_canvas_crop(struct video_canvas_s *canvas)
 #endif
          break;
 
-#ifndef __X64SC__
+#if !defined(__X64SC__)
       /* Quick line 'blanking' only works with fast core */
       case CROP_AUTO_DISABLE:
          if (!vice_raster.blanked)
@@ -375,9 +387,8 @@ void fullscreen_capability(struct cap_fullscreen_s *cap_fullscreen)
 }
 
 #if defined(__X128__)
-extern int is_vdc(void);
 int video_arch_get_active_chip(void)
 {
-   return is_vdc() ? VIDEO_CHIP_VDC : VIDEO_CHIP_VICII;
+   return c128_vdc ? VIDEO_CHIP_VDC : VIDEO_CHIP_VICII;
 }
 #endif
