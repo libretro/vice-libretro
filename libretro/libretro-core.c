@@ -4093,26 +4093,6 @@ static void retro_set_core_options()
          {{ NULL, NULL }},
          "---"
       },
-      {
-         "vice_mapper_reset",
-         "Hotkey > Reset",
-         "Reset",
-         "Press the mapped key to trigger the selected 'Reset Type'.",
-         NULL,
-         "hotkey",
-         {{ NULL, NULL }},
-         "RETROK_END"
-      },
-      {
-         "vice_mapper_warp_mode",
-         "Hotkey > Hold Warp Mode",
-         "Hold Warp Mode",
-         "Hold the mapped key for warp mode.",
-         NULL,
-         "hotkey",
-         {{ NULL, NULL }},
-         ""
-      },
 #if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__) || defined(__XVIC__) || defined(__XPLUS4__)
       {
          "vice_mapper_aspect_ratio_toggle",
@@ -4208,6 +4188,26 @@ static void retro_set_core_options()
          "---"
       },
 #endif
+      {
+         "vice_mapper_reset",
+         "Hotkey > Reset",
+         "Reset",
+         "Press the mapped key to trigger the selected 'Reset Type'.",
+         NULL,
+         "hotkey",
+         {{ NULL, NULL }},
+         "RETROK_END"
+      },
+      {
+         "vice_mapper_warp_mode",
+         "Hotkey > Hold Warp Mode",
+         "Hold Warp Mode",
+         "Hold the mapped key for warp mode.",
+         NULL,
+         "hotkey",
+         {{ NULL, NULL }},
+         ""
+      },
       /* Button mappings */
       {
          "vice_mapper_up",
