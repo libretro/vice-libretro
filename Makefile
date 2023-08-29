@@ -416,7 +416,6 @@ COMMONFLAGS += -DCORE_NAME=\"$(EMUTYPE)\"
 include Makefile.common
 
 OBJECTS     += $(patsubst %.cpp,%.o,$(SOURCES_CXX:.cc=.o)) $(SOURCES_C:.c=.o)
-OBJECT_DEPS  = $(OBJECTS:.o=.d)
 PLATFLAGS   := $(CFLAGS)
 CXXFLAGS    += $(fpic) $(INCFLAGS) $(COMMONFLAGS)
 CFLAGS      += $(fpic) $(INCFLAGS) $(COMMONFLAGS)
@@ -424,7 +423,6 @@ LDFLAGS     += -lm $(fpic)
 
 OBJDIR      := build
 OBJECTS     := $(addprefix $(OBJDIR)/,$(OBJECTS))
-OBJECT_DEPS := $(addprefix $(OBJDIR)/,$(OBJECT_DEPS))
 
 # Ensure only a language version supported by all compilers is used
 # Do not enforce C99 as some gcc-versions appear to not handle system-headers
@@ -446,10 +444,13 @@ default:
 	$(MAKE) $(TARGET)
 
 all: $(TARGET)
+
+-include $(OBJECTS:.o=.d))
+
 $(TARGET): $(OBJECTS)
 ifeq ($(platform), emscripten)
 	$(CXX) -r $(SHARED) -o $@ $(OBJECTS) $(LDFLAGS)
-else  ifeq ($(STATIC_LINKING), 1)
+else ifeq ($(STATIC_LINKING), 1)
 	$(AR) rcs $@ $(OBJECTS)
 #STATIC_LINKING=1 and additional Makefile.common sources are incompatible for PS3 environment
 else ifeq ($(platform), ps3)
@@ -478,8 +479,6 @@ $(OBJDIR)/%.o: %.cc
 		$(if $@, $(shell echo echo CXX $<),);\
 	fi
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
-
--include $(OBJECT_DEPS)
 
 clean:
 	rm -rf $(OBJDIR)
