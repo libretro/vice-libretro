@@ -121,32 +121,32 @@ static void video_canvas_crop(struct video_canvas_s *canvas)
    unsigned i                  = 0;
    unsigned j                  = 0;
    unsigned color_diff         = 0;
-   unsigned crop_height_max    = 0;
-   unsigned crop_top_border    = 0;
-   unsigned crop_bottom_border = 0;
-   unsigned crop_left_border   = 0;
+   unsigned crop_height_max    = CROP_HEIGHT_MAX;
+   unsigned crop_top_border    = CROP_TOP_BORDER;
+   unsigned crop_bottom_border = CROP_TOP_BORDER + CROP_HEIGHT_MAX;
+   unsigned crop_left_border   = CROP_LEFT_BORDER;
    unsigned crop_pad           = 10;
 
-   if (!retrow || !retroh)
+   if (!retrow_crop || !retroh_crop)
       return;
 
-   crop_top_border  = CROP_TOP_BORDER;
-   crop_left_border = CROP_LEFT_BORDER;
-   crop_height_max  = CROP_HEIGHT_MAX;
-
 #if defined(__X128__)
-   switch (canvas->videoconfig->rendermode)
+   if (canvas->videoconfig->rendermode == VIDEO_RENDER_RGBI_1X1)
    {
-      case VIDEO_RENDER_RGBI_1X1:
-         crop_top_border     = CROP_VDC_TOP_BORDER;
-         crop_left_border    = CROP_VDC_LEFT_BORDER;
-         crop_height_max     = CROP_VDC_HEIGHT_MAX;
+      crop_top_border     = CROP_VDC_TOP_BORDER;
+      crop_left_border    = CROP_VDC_LEFT_BORDER;
 
-         vice_raster.blanked = 0;
-         break;
-      default:
-         break;
+      vice_raster.blanked = 0;
    }
+#elif defined(__XPET__)
+   if (retrow > 384)
+      crop_top_border       -= 13;
+#elif defined(__XPLUS4__)
+   if (retroh == 242)
+      crop_top_border = CROP_TOP_BORDER_NTSC;
+#elif defined(__XVIC__)
+   if (retroh == 234)
+      crop_top_border = CROP_TOP_BORDER_NTSC;
 #endif
 
    /* Reset to maximum crop */
@@ -156,7 +156,7 @@ static void video_canvas_crop(struct video_canvas_s *canvas)
    switch (crop_id)
    {
       case CROP_AUTO:
-#if defined(__X64SC__)
+#if !defined(__X64__)
       /* Accurate VIC-II requires different method for Auto-Disable */
       case CROP_AUTO_DISABLE:
 #endif
@@ -279,10 +279,12 @@ static void video_canvas_crop(struct video_canvas_s *canvas)
 
             if (vice_raster.counter > 3)
             {
-               crop_id_prev                  = -1;
                vice_raster.counter           = 0;
                vice_raster.first_line_active = vice_raster.first_line;
                vice_raster.last_line_active  = vice_raster.last_line;
+
+               if (retroh_crop != vice_raster.last_line - vice_raster.first_line)
+                  crop_id_prev               = -1;
             }
          }
 #if 0
@@ -293,7 +295,7 @@ static void video_canvas_crop(struct video_canvas_s *canvas)
 #endif
          break;
 
-#if !defined(__X64SC__)
+#if defined(__X64__)
       /* Quick line 'blanking' only works with fast core */
       case CROP_AUTO_DISABLE:
          if (!vice_raster.blanked)
@@ -320,10 +322,12 @@ static void video_canvas_crop(struct video_canvas_s *canvas)
 
             if (vice_raster.counter > 1)
             {
-               crop_id_prev                  = -1;
                vice_raster.counter           = 0;
                vice_raster.first_line_active = vice_raster.first_line;
                vice_raster.last_line_active  = vice_raster.last_line;
+
+               if (retroh_crop != vice_raster.last_line - vice_raster.first_line)
+                  crop_id_prev               = -1;
             }
          }
          break;

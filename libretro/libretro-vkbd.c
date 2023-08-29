@@ -628,10 +628,7 @@ void print_vkbd(void)
    /* Vertical centering calculations */
    {
       int crop_top_border = (retroh - CROP_HEIGHT_MAX) / 2;
-#if defined(__X128__)
-      if (c128_vdc)
-         crop_top_border = (retroh - CROP_VDC_HEIGHT_MAX) / 2;
-#endif
+
       /* Bonus 10 for statusbar */
       YPADDING = (crop_top_border + 10) * 2;
 

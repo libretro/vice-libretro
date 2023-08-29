@@ -53,7 +53,7 @@ typedef uint8_t uint8;
 #define WINDOW_HEIGHT 288
 #elif defined(__XCBM2__)
 #define WINDOW_WIDTH  704
-#define WINDOW_HEIGHT 366
+#define WINDOW_HEIGHT 266
 #elif defined(__XVIC__)
 #define WINDOW_WIDTH  448
 #define WINDOW_HEIGHT 288
@@ -147,7 +147,7 @@ extern int request_model_set;
 
 extern unsigned int retro_warpmode;
 extern bool audio_playing(void);
-extern unsigned int crop_id;
+extern int crop_id;
 extern int crop_id_prev;
 
 #define CROP_NONE            0
@@ -182,15 +182,28 @@ extern int crop_id_prev;
 #endif
 #elif defined(__XVIC__)
 /* PAL: 448x284, NTSC: 400x234, VIC: 352x184 */
+#include "victypes.h"
+#include "vic-timing.h"
 #define CROP_WIDTH_MAX   352
 #define CROP_HEIGHT_MAX  184
-#define CROP_TOP_BORDER  48
-#define CROP_LEFT_BORDER 48
-#else /*#elif defined(__XPLUS4__)*/
+#define CROP_TOP_BORDER_PAL  VIC_PAL_NO_BORDER_FIRST_DISPLAYED_LINE  - vic.first_displayed_line
+#define CROP_TOP_BORDER_NTSC VIC_NTSC_NO_BORDER_FIRST_DISPLAYED_LINE - vic.first_displayed_line
+#define CROP_TOP_BORDER  CROP_TOP_BORDER_PAL
+#define CROP_LEFT_BORDER vic.screen_leftborderwidth
+#elif defined(__XPLUS4__)
 /* PAL: 384x288, NTSC: 384x242, TED: 320x200 */
+#include "tedtypes.h"
+#include "ted-timing.h"
 #define CROP_WIDTH_MAX   320
 #define CROP_HEIGHT_MAX  200
-#define CROP_TOP_BORDER  40
+#define CROP_TOP_BORDER_PAL  TED_PAL_NO_BORDER_FIRST_DISPLAYED_LINE  - ted.first_displayed_line
+#define CROP_TOP_BORDER_NTSC TED_NTSC_NO_BORDER_FIRST_DISPLAYED_LINE - ted.first_displayed_line
+#define CROP_TOP_BORDER  CROP_TOP_BORDER_PAL
+#define CROP_LEFT_BORDER ted.screen_leftborderwidth
+#else /* CRTC */
+#define CROP_WIDTH_MAX   320
+#define CROP_HEIGHT_MAX  200
+#define CROP_TOP_BORDER  33
 #define CROP_LEFT_BORDER 32
 #endif
 

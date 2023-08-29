@@ -114,7 +114,7 @@ static bool pix_bytes_initialized = false;
 unsigned short int retro_bmp[RETRO_BMP_SIZE] = {0};
 unsigned int retro_bmp_offset = 0;
 
-unsigned int crop_id = 0;
+int crop_id = -1;
 int crop_id_prev = -1;
 unsigned int opt_crop_id = 0;
 unsigned int crop_mode_id = 0;
@@ -170,7 +170,7 @@ static bool request_update_work_disk = false;
 int request_model_set = -1;
 int request_model_auto_set = -1;
 static int request_model_prev = -1;
-static bool opt_model_auto = true;
+bool opt_model_auto = true;
 static bool opt_model_auto_locked = false;
 unsigned int opt_autostart = 1;
 unsigned int opt_autoloadwarp = 0;
@@ -220,14 +220,8 @@ extern int tape_control;
 #if defined(__XVIC__)
 void cartridge_trigger_freeze(void) {}
 #elif defined(__XCBM2__) || defined(__XCBM5x0__)
-//void cartridge_trigger_freeze(void) {}
-//char *cartridge_get_filename(int type) { return NULL; }
 #elif defined(__XPET__)
-//void cartridge_trigger_freeze(void) {}
-//char *cartridge_get_filename(int type) { return NULL; }
 #elif defined(__XPLUS4__)
-//void cartridge_trigger_freeze(void) {}
-//char *cartridge_get_filename(int type) { return NULL; }
 #else
 extern int cart_getid_slotmain(void);
 #endif
@@ -1552,48 +1546,6 @@ void update_from_vice()
    else
       log_cb(RETRO_LOG_INFO, "No image for autostart\n");
 
-#if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__) || defined(__XVIC__)
-   /* Automatic model request */
-   if (opt_model_auto && !string_is_empty(full_path))
-   {
-      if (strstr(full_path, "NTSC") ||
-          strstr(full_path, "(USA)") ||
-          strstr(full_path, "(Japan)") ||
-          strstr(full_path, "(Japan, USA)"))
-      {
-#if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__)
-         request_model_auto_set = C64MODEL_C64_NTSC;
-#elif defined(__XVIC__)
-         request_model_auto_set = VIC20MODEL_VIC20_NTSC;
-#endif
-      }
-
-      if (strstr(full_path, "PAL") ||
-          strstr(full_path, "(Europe)") ||
-          strstr(full_path, "(Finland)") ||
-          strstr(full_path, "(France)") ||
-          strstr(full_path, "(Germany)") ||
-          strstr(full_path, "(Netherlands)") ||
-          strstr(full_path, "(Sweden)"))
-      {
-#if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__)
-         request_model_auto_set = C64MODEL_C64_PAL;
-#elif defined(__XVIC__)
-         request_model_auto_set = VIC20MODEL_VIC20_PAL;
-#endif
-      }
-
-#if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__)
-      if (strstr(full_path, "(GS)"))
-         request_model_auto_set = C64MODEL_C64_GS;
-      else if (strstr(full_path, "(MAX)"))
-         request_model_auto_set = C64MODEL_ULTIMAX;
-#endif
-   }
-   else
-      request_model_auto_set = -1;
-#endif
-
    /* If flip list is empty, get current tape or floppy image name and add to the list */
    if (dc->count == 0)
    {
@@ -1845,7 +1797,7 @@ int pre_main()
    return 0;
 }
 
-static bool log_resource_set = true;
+bool log_resource_set = false;
 static void update_variables(void);
 extern int ui_init_finalize(void);
 bool retro_disk_set_eject_state(bool ejected);
@@ -1927,6 +1879,89 @@ void reload_restart(void)
    }
 #endif
 
+#if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__) || defined(__XVIC__)
+   /* Automatic model detection */
+   if (!opt_model_auto_locked && !string_is_empty(full_path))
+   {
+      if (strstr(full_path, "NTSC") ||
+          strstr(full_path, "(USA)") ||
+          strstr(full_path, "(Japan)") ||
+          strstr(full_path, "(Japan, USA)"))
+      {
+#if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__)
+         request_model_auto_set = C64MODEL_C64_NTSC;
+#elif defined(__XVIC__)
+         request_model_auto_set = VIC20MODEL_VIC20_NTSC;
+#endif
+      }
+
+      if (strstr(full_path, "PAL") ||
+          strstr(full_path, "(Europe)") ||
+          strstr(full_path, "(Finland)") ||
+          strstr(full_path, "(France)") ||
+          strstr(full_path, "(Germany)") ||
+          strstr(full_path, "(Netherlands)") ||
+          strstr(full_path, "(Sweden)"))
+      {
+#if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__)
+         request_model_auto_set = C64MODEL_C64_PAL;
+#elif defined(__XVIC__)
+         request_model_auto_set = VIC20MODEL_VIC20_PAL;
+#endif
+      }
+
+#if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__)
+      if (strstr(full_path, "(GS)"))
+         request_model_auto_set = C64MODEL_C64_GS;
+      else if (strstr(full_path, "(MAX)"))
+         request_model_auto_set = C64MODEL_ULTIMAX;
+#endif
+
+#if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__)
+      /* Respect the revision */
+      switch (request_model_auto_set)
+      {
+         case C64MODEL_C64_PAL:
+         case C64MODEL_C64C_PAL:
+            if (vice_opt.Model == C64MODEL_C64_NTSC || vice_opt.Model == C64MODEL_C64_PAL)
+               request_model_auto_set = C64MODEL_C64_PAL;
+            else if (vice_opt.Model == C64MODEL_C64C_NTSC || vice_opt.Model == C64MODEL_C64C_PAL)
+               request_model_auto_set = C64MODEL_C64C_PAL;
+            break;
+         case C64MODEL_C64_NTSC:
+         case C64MODEL_C64C_NTSC:
+            if (vice_opt.Model == C64MODEL_C64_NTSC || vice_opt.Model == C64MODEL_C64_PAL)
+               request_model_auto_set = C64MODEL_C64_NTSC;
+            else if (vice_opt.Model == C64MODEL_C64C_NTSC || vice_opt.Model == C64MODEL_C64C_PAL)
+               request_model_auto_set = C64MODEL_C64C_NTSC;
+            break;
+      }
+
+      if (request_model_auto_set == C64MODEL_C64_NTSC)
+         log_cb(RETRO_LOG_INFO, "Requesting C64 NTSC mode\n");
+      else if (request_model_auto_set == C64MODEL_C64C_NTSC)
+         log_cb(RETRO_LOG_INFO, "Requesting C64C NTSC mode\n");
+      else if (request_model_auto_set == C64MODEL_C64_PAL)
+         log_cb(RETRO_LOG_INFO, "Requesting C64 PAL mode\n");
+      else if (request_model_auto_set == C64MODEL_C64C_PAL)
+         log_cb(RETRO_LOG_INFO, "Requesting C64C PAL mode\n");
+      else if (request_model_auto_set == C64MODEL_C64_GS)
+         log_cb(RETRO_LOG_INFO, "Requesting C64GS mode\n");
+      else if (request_model_auto_set == C64MODEL_ULTIMAX)
+         log_cb(RETRO_LOG_INFO, "Requesting ULTIMAX mode\n");
+#elif defined(__XVIC__)
+      if (request_model_auto_set == VIC20MODEL_VIC20_NTSC)
+         log_cb(RETRO_LOG_INFO, "Requesting NTSC mode\n");
+      else if (request_model_auto_set == VIC20MODEL_VIC20_PAL)
+         log_cb(RETRO_LOG_INFO, "Requesting PAL mode\n");
+#endif
+
+      /* Lock automatic model when requested */
+      if (request_model_auto_set > -1)
+         opt_model_auto_locked = true;
+   }
+#endif
+
    /* Reset file path tag model force */
    request_model_prev = -1;
 
@@ -1973,7 +2008,6 @@ void reload_restart(void)
    }
 
    /* Some resources are not set until we call this */
-   log_resource_set = true;
    ui_init_finalize();
 
    /* And process command line */
@@ -2107,7 +2141,9 @@ bool audio_playing(void)
                audio_timer_playing = 0;
                audio_timer_stopped = 0;
                audio_is_playing = true;
-               //printf("%s: PLAYING %02d i=%08d tar=%08d delta=%08d\n", __func__, i, audio_buffer[i], audio_buffer[target], abs(audio_buffer[i] - audio_buffer[target]));
+#if 0
+               printf("%s: PLAYING %02d i=%08d tar=%08d delta=%08d\n", __func__, i, audio_buffer[i], audio_buffer[target], abs(audio_buffer[i] - audio_buffer[target]));
+#endif
                return audio_is_playing;
             }
          }
@@ -2125,7 +2161,9 @@ bool audio_playing(void)
       audio_timer_playing = 0;
       audio_timer_stopped = 0;
       audio_is_playing = false;
-      //printf("%s: NOT PLAYING\n", __func__);
+#if 0
+      printf("%s: NOT PLAYING\n", __func__);
+#endif
    }
 
    return audio_is_playing;
@@ -2809,6 +2847,7 @@ static void retro_set_core_options()
          },
          "auto"
       },
+#endif
       {
          "vice_crop",
          "Video > Crop",
@@ -2821,11 +2860,8 @@ static void retro_set_core_options()
             { "small", "Small" },
             { "medium", "Medium" },
             { "maximum", "Maximum" },
-#if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__)
-            /* Automatic only for VIC-II */
             { "auto", "Automatic" },
             { "auto_disable", "Auto-Disable" },
-#endif
             { "manual", "Manual" },
             { NULL, NULL },
          },
@@ -2844,11 +2880,8 @@ static void retro_set_core_options()
             { "small", "Small" },
             { "medium", "Medium" },
             { "maximum", "Maximum" },
-#if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__)
-            /* Automatic only for VIC-II */
             { "auto", "Automatic" },
             { "auto_disable", "Auto-Disable" },
-#endif
             { "manual", "Manual" },
             { NULL, NULL },
          },
@@ -2903,6 +2936,8 @@ static void retro_set_core_options()
          "VIC top border height:\n- 48px PAL\n- 22px NTSC",
 #elif defined(__XPLUS4__)
          "TED top border height:\n- 40px PAL\n- 18px NTSC",
+#else
+         "",
 #endif
          NULL,
          "video",
@@ -2919,6 +2954,8 @@ static void retro_set_core_options()
          "VIC bottom border height:\n- 52px PAL\n- 28px NTSC",
 #elif defined(__XPLUS4__)
          "TED bottom border height:\n- 48px PAL\n- 24px NTSC",
+#else
+         "",
 #endif
          NULL,
          "video",
@@ -2935,6 +2972,8 @@ static void retro_set_core_options()
          "VIC left border width:\n- 48px PAL\n- 32px NTSC",
 #elif defined(__XPLUS4__)
          "TED left border width:\n- 32px",
+#else
+         "",
 #endif
          NULL,
          "video",
@@ -2951,13 +2990,14 @@ static void retro_set_core_options()
          "VIC right border width:\n- 48px PAL\n- 16px NTSC",
 #elif defined(__XPLUS4__)
          "TED right border width:\n- 32px",
+#else
+         "",
 #endif
          NULL,
          "video",
          MANUAL_CROP_OPTIONS,
          "0",
       },
-#endif
 #if defined(__X128__)
       {
          "vice_vdc_filter",
@@ -4084,6 +4124,7 @@ static void retro_set_core_options()
          {{ NULL, NULL }},
          "---"
       },
+#endif
       {
          "vice_mapper_crop_toggle",
          "Hotkey > Toggle Crop",
@@ -4104,7 +4145,6 @@ static void retro_set_core_options()
          {{ NULL, NULL }},
          "---"
       },
-#endif
 #if !defined(__XSCPU64__) && !defined(__X64DTV__)
       /* Datasette controls */
       {
@@ -5034,7 +5074,6 @@ void retro_set_options_display(void)
    option_display.key = "vice_crop_mode";
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 
-#if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__) || defined(__XVIC__) || defined(__XPLUS4__)
    /* Legacy zoom always hidden */
    option_display.visible = false;
    option_display.key = "vice_zoom_mode";
@@ -5043,7 +5082,6 @@ void retro_set_options_display(void)
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
    option_display.key = "vice_mapper_zoom_mode_toggle";
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
-#endif
 
    /*** Options display ***/
    if (libretro_supports_option_categories)
@@ -5123,9 +5161,9 @@ void retro_set_options_display(void)
 #if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__) || defined(__XVIC__) || defined(__XPLUS4__)
    option_display.key = "vice_mapper_aspect_ratio_toggle";
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+#endif
    option_display.key = "vice_mapper_crop_toggle";
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
-#endif
    option_display.key = "vice_mapper_reset";
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
    option_display.key = "vice_mapper_warp_mode";
@@ -5206,9 +5244,10 @@ void retro_set_options_display(void)
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
    option_display.key = "vice_gfx_colors";
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+#if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__) || defined(__XVIC__) || defined(__XPLUS4__)
    option_display.key = "vice_aspect_ratio";
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
-#if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__) || defined(__XVIC__) || defined(__XPLUS4__)
+#endif
    option_display.key = "vice_crop";
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
    if (manual_crop)
@@ -5227,7 +5266,6 @@ void retro_set_options_display(void)
       option_display.key = "vice_crop_mode";
       environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
    }
-#endif
 #if defined(__XVIC__)
    option_display.key = "vice_vic20_external_palette";
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
@@ -6004,6 +6042,7 @@ static void update_variables(void)
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
    {
       int model = 0;
+      bool opt_model_auto_prev = opt_model_auto;
 
       if (strstr(var.value, "auto")) opt_model_auto = true;
       else                           opt_model_auto = false;
@@ -6026,7 +6065,7 @@ static void update_variables(void)
       else if (!strcmp(var.value, "C64 OLD PAL"))    model = C64MODEL_C64_OLD_PAL;
       else if (!strcmp(var.value, "C64 OLD NTSC"))   model = C64MODEL_C64_OLD_NTSC;
 
-      if (retro_ui_finalized && vice_opt.Model != model)
+      if (retro_ui_finalized && vice_opt.Model != model || opt_model_auto != opt_model_auto_prev)
       {
          request_model_set = model;
          request_restart = true;
@@ -6247,7 +6286,6 @@ static void update_variables(void)
    }
 #endif
 
-#if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__) || defined(__XVIC__) || defined(__XPLUS4__)
    var.key = "vice_crop";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -6338,7 +6376,6 @@ static void update_variables(void)
       if (manual_crop_right != manual_crop_right_prev)
          crop_id_prev = -1;
    }
-#endif
 
    var.key = "vice_gfx_colors";
    var.value = NULL;
@@ -7244,6 +7281,7 @@ static void update_variables(void)
    {
       mapper_keys[RETRO_MAPPER_ASPECT_RATIO] = retro_keymap_id(var.value);
    }
+#endif
 
    var.key = "vice_mapper_crop_toggle";
    var.value = NULL;
@@ -7251,7 +7289,6 @@ static void update_variables(void)
    {
       mapper_keys[RETRO_MAPPER_CROP] = retro_keymap_id(var.value);
    }
-#endif
 
    var.key = "vice_mapper_warp_mode";
    var.value = NULL;
@@ -7904,6 +7941,12 @@ float retro_get_aspect_ratio(unsigned int width, unsigned int height, bool pixel
          break;
    }
    ar = ((float)width / (float)height) * par;
+#elif defined(__XPET__) || defined(__XCBM2__)
+   if (retrow > 384)
+      par = 1.0f / 2.0f;
+   else
+      par = 1.0f;
+   ar = ((float)width / (float)height) * par;
 #else
    ar = (float)4 / (float)3;
 #endif
@@ -7918,12 +7961,13 @@ float retro_get_aspect_ratio(unsigned int width, unsigned int height, bool pixel
 void update_geometry(int mode)
 {
    struct retro_system_av_info system_av_info;
+   bool update_av_info = false;
 
    defaultw = retrow;
    defaulth = retroh;
 
 #if defined(__X128__)
-   /* Refresh VDC output */
+   /* Refresh VDC output state */
    is_vdc();
 #endif
 
@@ -7931,7 +7975,8 @@ void update_geometry(int mode)
    {
       case 0:
          /* Crop mode init */
-         crop_id_prev        = -1;
+         if (crop_id)
+            crop_id_prev     = -1;
          retrow_crop         = retrow;
          retroh_crop         = retroh;
          retroXS_crop_offset = 0;
@@ -7944,24 +7989,15 @@ void update_geometry(int mode)
          system_av_info.geometry.base_height  = retroh;
          system_av_info.geometry.aspect_ratio = retro_get_aspect_ratio(retrow, retroh, false);
 
-         /* Update av_info only when PAL/NTSC change occurs */
+         /* Update av_info when PAL/NTSC change occurs */
          if (retro_region != retro_get_region())
-         {
-            retro_get_system_av_info(&system_av_info);
-            environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &system_av_info);
-            return;
-         }
-         else if (runstate == RUNSTATE_FIRST_START)
-            return;
+            update_av_info = true;
 
          /* Allow fall-through for cropping on the same run */
 
       case 1:
-#if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__) || defined(__XVIC__) || defined(__XPLUS4__)
          if (crop_id == crop_id_prev)
             return;
-
-         crop_id_prev              = crop_id;
 
          int crop_width            = 0;
          int crop_height           = 0;
@@ -7980,9 +8016,12 @@ void update_geometry(int mode)
 
 #if defined(__X128__)
          if (c128_vdc)
+            crop_width_max         *= 2;
+#elif defined(__XPET__)
+         if (retrow > 384)
          {
-            crop_width_max         = CROP_VDC_WIDTH_MAX;
-            crop_height_max        = CROP_VDC_HEIGHT_MAX;
+            crop_width_max         *= 2;
+            crop_height_max        += CROP_TOP_BORDER - 8;
          }
 #endif
 
@@ -8074,7 +8113,7 @@ void update_geometry(int mode)
                {
                   case CROP_AUTO:
                      /* Reset autocentering depending on mode */
-                     if (crop_height > 0)
+                     if (crop_height > 0 && vice_raster.first_line > 0)
                         retroYS_crop_offset = vice_raster.first_line + (crop_height - crop_height_o) / 2;
                      break;
                }
@@ -8120,11 +8159,23 @@ void update_geometry(int mode)
          system_av_info.geometry.base_width   = retrow_crop;
          system_av_info.geometry.base_height  = retroh_crop;
          system_av_info.geometry.aspect_ratio = retro_get_aspect_ratio(retrow_crop, retroh_crop, false);
-#endif
          break;
    }
 
-   environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &system_av_info);
+   crop_id_prev = crop_id;
+
+   if (runstate > RUNSTATE_FIRST_START)
+   {
+      if (update_av_info)
+      {
+         retro_get_system_av_info(&system_av_info);
+         environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &system_av_info);
+      }
+      else
+      {
+         environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &system_av_info);
+      }
+   }
 }
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
@@ -8145,20 +8196,20 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 
 #if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__)
    retro_refresh = (retro_region == RETRO_REGION_PAL) ? C64_PAL_RFSH_PER_SEC : C64_NTSC_RFSH_PER_SEC;
-#elif defined(__X128__)
-   retro_refresh = (retro_region == RETRO_REGION_PAL) ? C128_PAL_RFSH_PER_SEC : C128_NTSC_RFSH_PER_SEC;
-#elif defined(__XCBM2__)
-   retro_refresh = (retro_region == RETRO_REGION_PAL) ? C610_PAL_RFSH_PER_SEC : C610_NTSC_RFSH_PER_SEC;
-#elif defined(__XCBM5x0__)
-   retro_refresh = (retro_region == RETRO_REGION_PAL) ? C500_PAL_RFSH_PER_SEC : C500_NTSC_RFSH_PER_SEC;
-#elif defined(__XPET__)
-   retro_refresh = (retro_region == RETRO_REGION_PAL) ? PET_PAL_RFSH_PER_SEC : PET_NTSC_RFSH_PER_SEC;
-#elif defined(__XPLUS4__)
-   retro_refresh = (retro_region == RETRO_REGION_PAL) ? PLUS4_PAL_RFSH_PER_SEC : PLUS4_NTSC_RFSH_PER_SEC;
 #elif defined(__XSCPU64__)
    retro_refresh = (retro_region == RETRO_REGION_PAL) ? SCPU64_PAL_RFSH_PER_SEC : SCPU64_NTSC_RFSH_PER_SEC;
+#elif defined(__X128__)
+   retro_refresh = (retro_region == RETRO_REGION_PAL) ? C128_PAL_RFSH_PER_SEC : C128_NTSC_RFSH_PER_SEC;
+#elif defined(__XPLUS4__)
+   retro_refresh = (retro_region == RETRO_REGION_PAL) ? PLUS4_PAL_RFSH_PER_SEC : PLUS4_NTSC_RFSH_PER_SEC;
 #elif defined(__XVIC__)
    retro_refresh = (retro_region == RETRO_REGION_PAL) ? VIC20_PAL_RFSH_PER_SEC : VIC20_NTSC_RFSH_PER_SEC;
+#elif defined(__XCBM5x0__)
+   retro_refresh = (retro_region == RETRO_REGION_PAL) ? C500_PAL_RFSH_PER_SEC : C500_NTSC_RFSH_PER_SEC;
+#elif defined(__XCBM2__)
+   retro_refresh = (retro_region == RETRO_REGION_PAL) ? C610_PAL_RFSH_PER_SEC : C610_NTSC_RFSH_PER_SEC;
+#elif defined(__XPET__)
+   retro_refresh = (retro_region == RETRO_REGION_PAL) ? PET_PAL_RFSH_PER_SEC : PET_NTSC_RFSH_PER_SEC;
 #endif
    info->timing.fps = retro_refresh;
 
@@ -8203,6 +8254,7 @@ void retro_audio_queue(const int16_t *data, int32_t samples)
 
 void emu_model_set(int model)
 {
+   request_model_set = -1;
 #if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__) || defined(__XVIC__)
    if (opt_model_auto && opt_model_auto_locked)
       model = request_model_auto_set;
@@ -8229,8 +8281,11 @@ void emu_model_set(int model)
    cbm2model_set(model);
 #elif defined(__XCBM2__)
    cbm2model_set(model);
+   /* PAL & NTSC use the same resolution, thus force-trigger av_info */
+   defaulth = 0;
 #elif defined(__XPET__)
    petmodel_set(model);
+   defaulth = 0;
 #endif
 
    sound_resume();
@@ -8247,58 +8302,30 @@ void retro_run(void)
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
       update_variables();
 
-   if (retro_ui_finalized)
+   if (retro_message)
    {
-#if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__) || defined(__XVIC__)
-      /* Set automatic model when requested */
-      if (opt_model_auto && !opt_model_auto_locked && request_model_auto_set > -1)
-      {
-         if (request_model_prev != request_model_auto_set)
-         {
-#if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__)
-            switch (request_model_auto_set)
-            {
-               case C64MODEL_C64_PAL:
-               case C64MODEL_C64C_PAL:
-                  if (vice_opt.Model == C64MODEL_C64_NTSC || vice_opt.Model == C64MODEL_C64_PAL)
-                     request_model_auto_set = C64MODEL_C64_PAL;
-                  else if (vice_opt.Model == C64MODEL_C64C_NTSC || vice_opt.Model == C64MODEL_C64C_PAL)
-                     request_model_auto_set = C64MODEL_C64C_PAL;
-                  break;
-               case C64MODEL_C64_NTSC:
-               case C64MODEL_C64C_NTSC:
-                  if (vice_opt.Model == C64MODEL_C64_NTSC || vice_opt.Model == C64MODEL_C64_PAL)
-                     request_model_auto_set = C64MODEL_C64_NTSC;
-                  else if (vice_opt.Model == C64MODEL_C64C_NTSC || vice_opt.Model == C64MODEL_C64C_PAL)
-                     request_model_auto_set = C64MODEL_C64C_NTSC;
-                  break;
-            }
+      struct retro_message msg;
+      msg.msg = retro_message_msg;
+      msg.frames = 500;
+      environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, &msg);
+      retro_message = false;
+   }
 
-            if (request_model_auto_set == C64MODEL_C64_NTSC)
-               log_cb(RETRO_LOG_INFO, "Forcing C64 NTSC mode\n");
-            else if (request_model_auto_set == C64MODEL_C64C_NTSC)
-               log_cb(RETRO_LOG_INFO, "Forcing C64C NTSC mode\n");
-            else if (request_model_auto_set == C64MODEL_C64_PAL)
-               log_cb(RETRO_LOG_INFO, "Forcing C64 PAL mode\n");
-            else if (request_model_auto_set == C64MODEL_C64C_PAL)
-               log_cb(RETRO_LOG_INFO, "Forcing C64C PAL mode\n");
-            else if (request_model_auto_set == C64MODEL_C64_GS)
-               log_cb(RETRO_LOG_INFO, "Forcing C64GS mode\n");
-            else if (request_model_auto_set == C64MODEL_ULTIMAX)
-               log_cb(RETRO_LOG_INFO, "Forcing ULTIMAX mode\n");
-#elif defined(__XVIC__)
-            if (request_model_auto_set == VIC20MODEL_VIC20_NTSC)
-               log_cb(RETRO_LOG_INFO, "Forcing NTSC mode\n");
-            else if (request_model_auto_set == VIC20MODEL_VIC20_PAL)
-               log_cb(RETRO_LOG_INFO, "Forcing PAL mode\n");
-#endif
-            request_model_set  = request_model_auto_set;
-         }
-
-         opt_model_auto_locked = true;
-      }
-#endif
-
+   if (runstate == RUNSTATE_FIRST_START)
+   {
+      /* This is only done once after loading the core from scratch and starting it */
+      runstate = RUNSTATE_RUNNING;
+   } 
+   else if (runstate == RUNSTATE_LOADED_CONTENT)
+   {
+      /* Load content was called while core was already running, just do a reset with autostart */
+      runstate = RUNSTATE_RUNNING;
+      reload_restart();
+      /* Autostart reset */
+      request_restart = true;
+   }
+   else if (runstate == RUNSTATE_RUNNING)
+   {
       /* Set model */
       if (request_model_set > -1)
          emu_model_set(request_model_set);
@@ -8315,35 +8342,7 @@ void retro_run(void)
          retro_get_system_av_info(&system_av_info);
          environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &system_av_info);
       }
-   }
 
-   if (retro_message)
-   {
-      struct retro_message msg;
-      msg.msg = retro_message_msg;
-      msg.frames = 500;
-      environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, &msg);
-      retro_message = false;
-   }
-
-   if (runstate == RUNSTATE_FIRST_START)
-   {
-      /* Initial geometry set */
-      update_geometry(0);
-
-      /* This is only done once after loading the core from scratch and starting it */
-      runstate = RUNSTATE_RUNNING;
-   } 
-   else if (runstate == RUNSTATE_LOADED_CONTENT)
-   {
-      /* Load content was called while core was already running, just do a reset with autostart */
-      runstate = RUNSTATE_RUNNING;
-      reload_restart();
-      /* Autostart reset */
-      request_restart = true;
-   }
-   else if (runstate == RUNSTATE_RUNNING)
-   {
       /* Update work disk */
       if (request_update_work_disk)
          update_work_disk();
@@ -8527,6 +8526,7 @@ bool retro_load_game(const struct retro_game_info *info)
    {
       pre_main();
       reload_restart();
+      update_geometry(0);
    }
    else if (runstate == RUNSTATE_RUNNING)
    {

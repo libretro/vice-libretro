@@ -91,7 +91,6 @@ extern float opt_analogmouse_speed;
 bool datasette_hotkeys = false;
 
 extern unsigned int opt_reset_type;
-extern unsigned int crop_id;
 extern unsigned int opt_crop_id;
 extern bool opt_keyboard_pass_through;
 extern unsigned int opt_aspect_ratio;
