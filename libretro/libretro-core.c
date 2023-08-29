@@ -811,6 +811,13 @@ static int process_cmdline(const char* argv)
       if (!path_is_valid(argv))
          argv = "";
 
+      /* Disable floppy drive with tapes */
+      if (dc_get_image_type(argv) == DC_IMAGE_TYPE_TAPE)
+      {
+         Add_Option("-drive8type");
+         Add_Option("0");
+      }
+
 #if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
       /* Do not allow JiffyDOS with non-floppies */
       if (dc_get_image_type(argv) == DC_IMAGE_TYPE_TAPE
@@ -1097,6 +1104,14 @@ static int process_cmdline(const char* argv)
          /* Parse the m3u file */
          dc_parse_m3u(dc, argv);
          is_fliplist = true;
+
+         /* Disable floppy drive with tapes */
+         if (dc_get_image_type(dc->files[0]) == DC_IMAGE_TYPE_TAPE)
+         {
+            Add_Option("-drive8type");
+            Add_Option("0");
+         }
+
 #if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
          /* Do not allow JiffyDOS with non-floppies */
          if (!string_is_empty(dc->files[0]))
