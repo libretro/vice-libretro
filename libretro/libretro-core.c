@@ -2641,6 +2641,20 @@ static void retro_set_core_options()
       },
 #endif
       {
+         "vice_printer",
+         "System > Printer",
+         "Printer",
+         "Output is written to 'saves/" ARCHDEP_PRINTER_DEFAULT_DEV1 "'.",
+         NULL,
+         "system",
+         {
+            { "disabled", NULL },
+            { "enabled", NULL },
+            { NULL, NULL },
+         },
+         "disabled"
+      },
+      {
          "vice_read_vicerc",
          "System > Read 'vicerc'",
          "Read 'vicerc'",
@@ -7072,6 +7086,14 @@ static void update_variables(void)
          request_reload_restart = (opt_jiffydos != opt_jiffydos_prev || request_restart) ? true : request_reload_restart;
    }
 #endif
+
+   var.key = "vice_printer";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (!strcmp(var.value, "disabled")) vice_opt.Printer = 0;
+      else                                vice_opt.Printer = 1;
+   }
 
    /* Mapper */
    /* RetroPad */

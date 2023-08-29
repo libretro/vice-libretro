@@ -272,6 +272,7 @@ struct vice_core_options
    int AutostartWarp;
    int AttachDevice8Readonly;
    int EasyFlashWriteCRT;
+   int Printer;
    int VirtualDevices;
    int DriveTrueEmulation;
    int DriveSoundEmulation;

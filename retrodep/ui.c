@@ -334,7 +334,6 @@ int ui_init_finalize(void)
    log_resources_set_int("AutostartHandleTrueDriveEmulation", 0);
    log_resources_set_int("FSDeviceLongNames", 1);
    log_resources_set_int("Mouse", 1);
-   log_resources_set_int("Printer4", 1);
 
    /* Machine specific defaults */
 #if defined(__X64DTV__)
@@ -564,6 +563,9 @@ int ui_init_finalize(void)
    if (strcmp(vice_opt.CartridgeFile, ""))
       log_resources_set_string("CartridgeFile", vice_opt.CartridgeFile);
 #endif
+
+   /* Printer */
+   log_resources_set_int("Printer4", vice_opt.Printer);
 
    retro_ui_finalized = true;
    log_resource_set = true;
