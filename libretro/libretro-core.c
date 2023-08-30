@@ -3144,7 +3144,7 @@ static void retro_set_core_options()
             { "vice", "VICE" },
             { NULL, NULL },
          },
-         "colodore_vic"
+         "default"
       },
 #elif defined(__XPLUS4__)
       {
@@ -3161,7 +3161,7 @@ static void retro_set_core_options()
             { "yape-ntsc", "Yape (NTSC)" },
             { NULL, NULL },
          },
-         "colodore_ted"
+         "default"
       },
 #elif defined(__XPET__)
       {
@@ -3207,30 +3207,30 @@ static void retro_set_core_options()
          "video",
          {
             { "default", "Internal" },
-            { "colodore", "Colodore" },
-            { "pepto-pal", "Pepto (PAL)" },
-#if 0
-            { "pepto-palold", "Pepto (old PAL)" },
-#endif
-            { "pepto-ntsc", "Pepto (NTSC)" },
-            { "pepto-ntsc-sony", "Pepto (NTSC, Sony)" },
             { "cjam", "ChristopherJam" },
             { "c64hq", "C64HQ" },
             { "c64s", "C64S" },
             { "ccs64", "CCS64" },
+            { "colodore", "Colodore" },
             { "community-colors", "Community Colors" },
             { "deekay", "Deekay" },
             { "frodo", "Frodo" },
             { "godot", "Godot" },
             { "palette", "PALette" },
             { "pc64", "PC64" },
+            { "pepto-pal", "Pepto (PAL)" },
+#if 0
+            { "pepto-palold", "Pepto (old PAL)" },
+#endif
+            { "pepto-ntsc", "Pepto (NTSC)" },
+            { "pepto-ntsc-sony", "Pepto (NTSC, Sony)" },
             { "pixcen", "Pixcen" },
             { "ptoing", "Ptoing" },
             { "rgb", "RGB" },
             { "vice", "VICE" },
             { NULL, NULL },
          },
-         "colodore"
+         "default"
       },
 #endif
 #if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__) || defined(__XVIC__) || defined(__XPLUS4__)
