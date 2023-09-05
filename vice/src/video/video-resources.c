@@ -652,9 +652,9 @@ int video_resources_chip_init(const char *chipname,
     /* Set single size render as default.  */
     (*canvas)->videoconfig->rendermode = video_chip_cap->single_mode.rmode;
     (*canvas)->videoconfig->scalex
-        = video_chip_cap->single_mode.sizex > 1 ? 2 : 1;
+        = (video_chip_cap->single_mode.sizex > 1) ? 2 : 1;
     (*canvas)->videoconfig->scaley
-        = video_chip_cap->single_mode.sizey > 1 ? 2 : 1;
+        = (video_chip_cap->single_mode.sizey > 1) ? 2 : 1;
 
     /* ${CHIP}DoubleScan (bool) */
     if (video_chip_cap->dscan_allowed != 0) {

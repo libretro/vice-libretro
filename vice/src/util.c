@@ -510,8 +510,8 @@ void util_fname_split(const char *path, char **directory_return,
 #if 0
         printf("%s:%d:%s(): dir = '%s', name = '%s' (didn't find DIRSEP)\n",
                 __FILE__, __LINE__, __func__,
-                directory_return != NULL ? *directory_return : "NULL",
-                name_return != NULL ? *name_return : "NULL");
+                (directory_return != NULL) ? *directory_return : "NULL",
+                (name_return != NULL) ? *name_return : "NULL");
 #endif
         return;
     }
@@ -545,8 +545,8 @@ void util_fname_split(const char *path, char **directory_return,
 #if 0
         printf("%s:%d:%s(): dir = '%s', name = '%s' (didn't find DIRSEP)\n",
                 __FILE__, __LINE__, __func__,
-                directory_return != NULL ? *directory_return : "NULL",
-                name_return != NULL ? *name_return : "NULL");
+                (directory_return != NULL) ? *directory_return : "NULL",
+                (name_return != NULL) ? *name_return : "NULL");
 #endif
         return;
     }
@@ -563,8 +563,8 @@ void util_fname_split(const char *path, char **directory_return,
 #if 0
     printf("%s:%d:%s(): dir = '%s', name = '%s' (didn't find DIRSEP)\n",
             __FILE__, __LINE__, __func__,
-            directory_return != NULL ? *directory_return : "NULL",
-            name_return != NULL ? *name_return : "NULL");
+            (directory_return != NULL) ? *directory_return : "NULL",
+            (name_return != NULL) ? *name_return : "NULL");
 #endif
     return;
 }
@@ -731,7 +731,7 @@ char *util_find_next_line(const char *pos)
 {
     char *p = strchr(pos, '\n');
 
-    return (char *)(p == NULL ? pos : p + 1);
+    return (char *)((p == NULL) ? pos : p + 1);
 }
 
 char *util_find_prev_line(const char *text, const char *pos)

@@ -684,14 +684,14 @@ static int check_modifiers(const char *filename)
     if (n) {
         log_warning(keyboard_log, "%s: %s%s%s%s%s%s%s%snot defined.",
             filename,
-            n & (1 << 0) ? ms[0] : "",
-            n & (1 << 1) ? ms[1] : "",
-            n & (1 << 2) ? ms[2] : "",
-            n & (1 << 3) ? ms[3] : "",
-            n & (1 << 4) ? ms[4] : "",
-            n & (1 << 5) ? ms[5] : "",
-            n & (1 << 6) ? ms[6] : "",
-            n & (1 << 7) ? ms[7] : ""
+            (n & (1 << 0)) ? ms[0] : "",
+            (n & (1 << 1)) ? ms[1] : "",
+            (n & (1 << 2)) ? ms[2] : "",
+            (n & (1 << 3)) ? ms[3] : "",
+            (n & (1 << 4)) ? ms[4] : "",
+            (n & (1 << 5)) ? ms[5] : "",
+            (n & (1 << 6)) ? ms[6] : "",
+            (n & (1 << 7)) ? ms[7] : ""
         );
         return -1;
     }

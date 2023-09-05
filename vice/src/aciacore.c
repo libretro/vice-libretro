@@ -576,11 +576,11 @@ static int acia_get_status(void)
     if (acia.status != oldstatus) {
         printf("acia_get_status(fd:%d): modem_status:%02x dcd:%d dsr:%d status:%02x dcd:%d dsr:%d\n",
                acia.fd, modem_status,
-               modem_status & RS232_HSI_DCD ? 1 : 0,
-               modem_status & RS232_HSI_DSR ? 1 : 0,
+               (modem_status & RS232_HSI_DCD) ? 1 : 0,
+               (modem_status & RS232_HSI_DSR) ? 1 : 0,
                acia.status,
-               acia.status & ACIA_SR_BITS_DCD ? 1 : 0,
-               acia.status & ACIA_SR_BITS_DSR ? 1 : 0
+               (acia.status & ACIA_SR_BITS_DCD) ? 1 : 0,
+               (acia.status & ACIA_SR_BITS_DSR) ? 1 : 0
         );
         oldstatus = acia.status;
     }
@@ -648,8 +648,8 @@ static void acia_set_handshake_lines(void)
         printf("acia_set_handshake_lines(fd:%d): rs232 status:%02x dtr:%d rts:%d\n",
                acia.fd,
                acia.rs232_status_lines,
-               acia.rs232_status_lines & RS232_HSO_DTR ? 1 : 0,
-               acia.rs232_status_lines & RS232_HSO_RTS ? 1 : 0
+               (acia.rs232_status_lines & RS232_HSO_DTR) ? 1 : 0,
+               (acia.rs232_status_lines & RS232_HSO_RTS) ? 1 : 0
         );
         oldstatus = acia.rs232_status_lines;
     }

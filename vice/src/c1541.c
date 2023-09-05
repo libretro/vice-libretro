@@ -1786,7 +1786,7 @@ static int block_cmd(int nargs, char **args)
         for (cnt = 0; cnt < BLOCK_CMD_WIDTH && offset < RAW_BLOCK_SIZE;
                 cnt++, offset++) {
             printf(" %02X", buf[offset]);
-            chrbuf[cnt] = (buf[offset] < ' ' ?
+            chrbuf[cnt] = ((buf[offset] < ' ') ?
                         '.' : charset_p_toascii(buf[offset], CONVERT_WITHOUT_CTRLCODES));
         }
         /* fix indentation in case the last line is less than the max width */
@@ -3974,7 +3974,7 @@ int internal_read_geos_file(int unit, FILE* outf, char* src_name_ascii)
             }
             aktTrk = block[0];
             aktSec = block[1];
-            BytesInLastSector = aktTrk != 0 ? 256 : aktSec + 1;
+            BytesInLastSector = (aktTrk != 0) ? 256 : aktSec + 1;
             for (n = 2; n < BytesInLastSector; n++) {
                 fputc(block[n], outf);
             }
@@ -4491,8 +4491,8 @@ static int internal_write_geos_file(int unit, FILE* f)
                      * index block at the correct offset.
                      */
                     if (!fix_ts(unit, lastTrk, lastSec, aktTrk, aktSec,
-                                (unsigned int)(lastTrk == vlirTrk
-                                    && lastSec == vlirSec
+                                (unsigned int)(((lastTrk == vlirTrk
+                                    && lastSec == vlirSec)
                                     ? vlirIdx : 0))) {
                         fprintf(stderr, "internal error\n");
                         return FD_WRTERR;
@@ -5785,7 +5785,7 @@ static int p00save_cmd(int nargs, char **args)
  */
 static int cd_cmd(int nargs, char **args)
 {
-    return archdep_chdir(args[1]) == 0 ? FD_OK : FD_BADNAME;
+    return (archdep_chdir(args[1]) == 0) ? FD_OK : FD_BADNAME;
 }
 
 

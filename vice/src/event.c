@@ -1112,7 +1112,7 @@ int event_snapshot_read_module(struct snapshot_s *s, int event_mode)
         curr->type = type;
         curr->clk = clk;
         curr->size = size;
-        curr->data = (size > 0 ? data : NULL);
+        curr->data = ((size > 0) ? data : NULL);
 
         if (type == EVENT_LIST_END) {
             break;

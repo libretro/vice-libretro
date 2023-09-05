@@ -212,7 +212,7 @@ inline static void store_sprite_x_position_lsb(const uint16_t addr, uint8_t valu
 
     VICII_DEBUG_REGISTER(("Sprite #%d X position LSB: $%02X", n, value));
 
-    new_x = (value | (vicii.regs[0x10] & (1 << n) ? 0x100 : 0));
+    new_x = (value | ((vicii.regs[0x10] & (1 << n)) ? 0x100 : 0));
     vicii_sprites_set_x_position(n, new_x, VICII_RASTER_X(VICII_RASTER_CYCLE(maincpu_clk)));
 }
 
@@ -259,7 +259,7 @@ static inline void store_sprite_x_position_msb(const uint16_t addr, uint8_t valu
     for (i = 0, b = 0x01; i < 8; b <<= 1, i++) {
         int new_x;
 
-        new_x = (vicii.regs[2 * i] | (value & b ? 0x100 : 0));
+        new_x = (vicii.regs[2 * i] | ((value & b) ? 0x100 : 0));
         vicii_sprites_set_x_position(i, new_x, raster_x);
     }
 }
@@ -581,7 +581,7 @@ inline static void d017_store(const uint8_t value)
 
         sprite = sprite_status->sprites + i;
 
-        sprite->y_expanded = value & b ? 1 : 0;
+        sprite->y_expanded = (value & b) ? 1 : 0;
 
         if (!sprite->y_expanded && !sprite->exp_flag) {
             /* Sprite crunch!  */
@@ -673,9 +673,9 @@ inline static void d01b_store(const uint8_t value)
         if (sprite->x < raster_x) {
             raster_changes_next_line_add_int(&vicii.raster,
                                              &sprite->in_background,
-                                             value & b ? 1 : 0);
+                                             (value & b) ? 1 : 0);
         } else {
-            sprite->in_background = value & b ? 1 : 0;
+            sprite->in_background = (value & b) ? 1 : 0;
         }
     }
 
@@ -706,7 +706,7 @@ inline static void d01c_store(const uint8_t value)
 
         if ((vicii.regs[0x1c] & b) != (value & b)) {
             /* Test for MC bug condition */
-            sprite_x = (vicii.regs[2 * i] | (vicii.regs[0x10] & b ? 0x100 : 0)) + vicii.screen_leftborderwidth - 0x20;
+            sprite_x = (vicii.regs[2 * i] | ((vicii.regs[0x10] & b) ? 0x100 : 0)) + vicii.screen_leftborderwidth - 0x20;
             x_exp = vicii.regs[0x1d] & b;
             delayed_pixel = 6;
 
@@ -726,7 +726,7 @@ inline static void d01c_store(const uint8_t value)
                     delayed_shift = 0;
                     delayed_load = 0;
                     if (x_exp) {
-                        delayed_pixel = (sprite_x & 1 ? 7 : 8 - (sprite_x & 2));
+                        delayed_pixel = ((sprite_x & 1) ? 7 : 8 - (sprite_x & 2));
                     } else {
                         delayed_pixel = 6 + (sprite_x & 1);
                     }
@@ -738,7 +738,7 @@ inline static void d01c_store(const uint8_t value)
 
             raster_changes_sprites_add_int(&vicii.raster,
                                            raster_x + delayed_pixel,
-                                           &sprite->multicolor, value & b ? 1 : 0);
+                                           &sprite->multicolor, (value & b) ? 1 : 0);
         }
     }
 
@@ -769,7 +769,7 @@ inline static void d01d_store(const uint8_t value)
             raster_changes_sprites_add_int(&vicii.raster,
                                            raster_x,
                                            &sprite->x_expanded,
-                                           value & b ? 1 : 0);
+                                           (value & b) ? 1 : 0);
 
             /* We have to shift the sprite virtually for the drawing code */
             if (raster_x > sprite->x) {
@@ -1058,11 +1058,11 @@ static void d03c_store(const uint8_t value)
     cycle = VICII_RASTER_CYCLE(maincpu_clk);
     old_overscan = vicii.overscan;
     vicii.regs[0x3c] = value;
-    vicii.badline_disable = value & 0x20 ? 1 : 0;
-    vicii.colorfetch_disable = value & 0x10 ? 1 : 0;
-    vicii.overscan = value & 0x08 ? 1 : 0;
-    vicii.high_color = value & 0x04 ? 1 : 0;
-    vicii.border_off = value & 0x02 ? 1 : 0;
+    vicii.badline_disable = (value & 0x20) ? 1 : 0;
+    vicii.colorfetch_disable = (value & 0x10) ? 1 : 0;
+    vicii.overscan = (value & 0x08) ? 1 : 0;
+    vicii.high_color = (value & 0x04) ? 1 : 0;
+    vicii.border_off = (value & 0x02) ? 1 : 0;
 
     /* make some of those constants below into defines */
     raster_changes_border_add_int(&vicii.raster,
@@ -1113,8 +1113,8 @@ inline static void d03f_store(const uint8_t value)
         return;
     }
 
-    vicii.extended_enable = value & 0x01 ? 1 : 0;
-    vicii.extended_lockout = value & 0x02 ? 1 : 0;
+    vicii.extended_enable = (value & 0x01) ? 1 : 0;
+    vicii.extended_lockout = (value & 0x02) ? 1 : 0;
 
     vicii.regs[0x3f] = value;
 
@@ -1584,7 +1584,7 @@ inline static uint8_t d01112_read(uint16_t addr)
     unsigned int tmp = read_raster_y();
 
     VICII_DEBUG_REGISTER(("Raster Line register %svalue = $%04X",
-                          (addr == 0x11 ? "(highest bit) " : ""), tmp));
+                          ((addr == 0x11) ? "(highest bit) " : ""), tmp));
     if (addr == 0x11) {
         vicii.last_read = (vicii.regs[addr] & 0x7f) | ((tmp & 0x100) >> 1);
     } else {

@@ -130,11 +130,11 @@ void vic20model_set(int model)
 
     resources_set_int("MachineVideoStandard", vic20models[model].video);
     blocks = vic20models[model].ramblocks;
-    resources_set_int("RamBlock0", blocks & BLOCK_0 ? 1 : 0);
-    resources_set_int("RamBlock1", blocks & BLOCK_1 ? 1 : 0);
-    resources_set_int("RamBlock2", blocks & BLOCK_2 ? 1 : 0);
-    resources_set_int("RamBlock3", blocks & BLOCK_3 ? 1 : 0);
-    resources_set_int("RamBlock5", blocks & BLOCK_5 ? 1 : 0);
+    resources_set_int("RamBlock0", (blocks & BLOCK_0) ? 1 : 0);
+    resources_set_int("RamBlock1", (blocks & BLOCK_1) ? 1 : 0);
+    resources_set_int("RamBlock2", (blocks & BLOCK_2) ? 1 : 0);
+    resources_set_int("RamBlock3", (blocks & BLOCK_3) ? 1 : 0);
+    resources_set_int("RamBlock5", (blocks & BLOCK_5) ? 1 : 0);
     resources_set_string("ChargenName", vic20models[model].chargenname);
     resources_set_string("KernalName", vic20models[model].kernalname);
 }

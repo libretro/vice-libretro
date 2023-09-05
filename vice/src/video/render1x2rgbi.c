@@ -168,7 +168,7 @@ void render_generic_1x2_rgbi(video_render_color_tables_t *color_tab,
              * otherwise we dump it to the scratch region... We must never
              * render the scanline for the first row, because prevlinergb is not
              * yet initialized and scanline data would be bogus! */
-            tmptrgscanline = y != yys && y > (unsigned int)first_line && y <= (unsigned int)last_line
+            tmptrgscanline = (y != yys && y > (unsigned int)first_line && y <= (unsigned int)last_line)
                              ? trg - pitcht
                              : &color_tab->rgbscratchbuffer[0];
         }

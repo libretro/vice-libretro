@@ -660,10 +660,10 @@ int vdc_dump(void)
     mon_out("\nBlockCopySource: $%04x",
             (unsigned int)(((vdc.regs[32] << 8) + vdc.regs[33]) & vdc.vdc_address_mask));
     mon_out("\nDisplay Mode   : ");
-    mon_out(vdc.regs[25] & 0x80 ? "Bitmap" : "Text");
-    mon_out(vdc.regs[25] & 0x40 ? " & Attributes" : ", no Attributes");
-    mon_out(vdc.regs[25] & 0x20 ? ", Semigraphic" : "");
-    mon_out(vdc.regs[24] & 0x40 ? ", Reverse" : "");
+    mon_out((vdc.regs[25] & 0x80) ? "Bitmap" : "Text");
+    mon_out((vdc.regs[25] & 0x40) ? " & Attributes" : ", no Attributes");
+    mon_out((vdc.regs[25] & 0x20) ? ", Semigraphic" : "");
+    mon_out((vdc.regs[24] & 0x40) ? ", Reverse" : "");
     if ((vdc.regs[8] & 0x03) == 3)  {   /* interlace sync and video */
         mon_out(", Interlaced Sync & Video");
     } else if ((vdc.regs[8] & 0x03) == 1)  {   /* interlace sync */

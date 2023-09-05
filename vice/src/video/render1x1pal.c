@@ -118,7 +118,7 @@ render_generic_1x1_pal(video_render_color_tables_t *color_tab, const uint8_t *sr
     trg = trg + pitcht * yt + (xt >> 1) * pixelstride;
 
     line = color_tab->line_yuv_0;
-    tmpsrc = ys > 0 ? src - pitchs : src;
+    tmpsrc = (ys > 0) ? src - pitchs : src;
 
     /* is the previous line odd or even? (inverted condition!) */
     if (ys & 1) {

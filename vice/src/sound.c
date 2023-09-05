@@ -1022,7 +1022,7 @@ int sound_open(void)
                     speed,
                     (1000.0 * fragsize / speed),
                     (1000.0 * snddata.bufsize / speed),
-                    snddata.sound_output_channels > 1 ? ", stereo" : "");
+                    (snddata.sound_output_channels > 1) ? ", stereo" : "");
         sample_rate = speed;
 
         if (sid_open() != 0 || sid_init() != 0) {

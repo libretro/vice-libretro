@@ -295,7 +295,7 @@ void vic_um_blk1_store(uint16_t addr, uint8_t value)
 /* read 0x4000-0x7fff */
 uint8_t vic_um_blk23_read(uint16_t addr)
 {
-    unsigned b = addr & 0x2000 ? 3 : 2;
+    unsigned b = (addr & 0x2000) ? 3 : 2;
     switch (CART_CFG_BLK(b)) {
         case BLK_STATE_DISABLED:
             return vic20_v_bus_last_data;
@@ -314,7 +314,7 @@ uint8_t vic_um_blk23_read(uint16_t addr)
 /* store 0x4000-0x7fff */
 void vic_um_blk23_store(uint16_t addr, uint8_t value)
 {
-    unsigned b = addr & 0x2000 ? 3 : 2;
+    unsigned b = (addr & 0x2000) ? 3 : 2;
     switch (CART_CFG_BLK(b)) {
         case BLK_STATE_DISABLED:
         case BLK_STATE_RAM_RO:

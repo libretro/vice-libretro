@@ -510,7 +510,7 @@ static unsigned int asciidate_to_int(const char *p, unsigned int def) {
     year = (p[6]-'0') * 10 + p[7]-'0';
     hour = (p[9]-'0') * 10 + p[10]-'0';
     minute = (p[12]-'0') * 10 + p[13]-'0';
-    ap = p[15]=='P' ? 1 : 0;
+    ap = (p[15]=='P') ? 1 : 0;
 
     /* allow zero inputs */
     if ( month > 12 || day > 31 || hour > 12 || minute > 59 ) {

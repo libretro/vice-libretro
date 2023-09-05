@@ -188,7 +188,7 @@ void vicii_irq_check_state(uint8_t value, unsigned int high)
 
         trigger_irq = 0;
 
-        if (old_raster_irq_clk == VICII_LINE_START_CLK(maincpu_clk) + (line == 0 ? 1 : 0)) {
+        if (old_raster_irq_clk == VICII_LINE_START_CLK(maincpu_clk) + ((line == 0) ? 1 : 0)) {
             trigger_irq = 2;
         }
 

@@ -51,15 +51,15 @@
 
 #define X_OFFSET vicii.screen_leftborderwidth
 
-#define SPRITE_EXPANDED_REPEAT_PIXELS_START(n) (vicii.sprite_wrap_x < 0x200 ? \
+#define SPRITE_EXPANDED_REPEAT_PIXELS_START(n) ((vicii.sprite_wrap_x < 0x200) ? \
                                                 (0x11a + X_OFFSET + n * 0x10) : \
                                                 (0x122 + X_OFFSET + n * 0x10))
 
-#define SPRITE_NORMAL_REPEAT_PIXELS_START(n) (vicii.sprite_wrap_x < 0x200 ? \
+#define SPRITE_NORMAL_REPEAT_PIXELS_START(n) ((vicii.sprite_wrap_x < 0x200) ? \
                                               (0x132 + X_OFFSET + n * 0x10) : \
                                               (0x13a + X_OFFSET + n * 0x10))
 
-#define SPRITE_REPEAT_PIXELS_END(n) (vicii.sprite_wrap_x < 0x200 ? \
+#define SPRITE_REPEAT_PIXELS_END(n) ((vicii.sprite_wrap_x < 0x200) ? \
                                      (0x157 + X_OFFSET + n * 0x10) :  \
                                      (0x15f + X_OFFSET + n * 0x10))
 /* where the sprite pixels start repeating */

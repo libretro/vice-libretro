@@ -861,7 +861,7 @@ void dc_parse_list(dc_storage* dc, const char* list_file, bool is_vfl, const cha
             size_t len = (size_t)(1 + delim_ptr - string);
             if (len > 0)
                strncpy(file_name, string,
-                     ((len < RETRO_PATH_MAX ? len : RETRO_PATH_MAX) * sizeof(char)) - 1);
+                     (((len < RETRO_PATH_MAX) ? len : RETRO_PATH_MAX) * sizeof(char)) - 1);
 
             /* Get FILE_LABEL segment */
             delim_ptr++;

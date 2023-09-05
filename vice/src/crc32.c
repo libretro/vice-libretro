@@ -70,7 +70,7 @@ uint32_t crc32_buf(const char *buffer, unsigned int len)
         for (i = 0; i < 256; i++) {
             c = (uint32_t)i;
             for (j = 0; j < 8; j++) {
-                c = c & 1 ? CRC32_POLY ^ (c >> 1) : c >> 1;
+                c = (c & 1) ? CRC32_POLY ^ (c >> 1) : c >> 1;
             }
             crc32_table[i] = c;
         }

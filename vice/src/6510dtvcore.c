@@ -801,10 +801,10 @@ static int ane_log_level = 1; /* 0: none, 1: unstable only 2: all */
             } else {                                                                        \
                 log_warning(LOG_DEFAULT, "%04x ANE #$%02x ; A=$%02x X=$%02x -> A=$%02x (unstable bits: %c%c%c%c%c%c%c%c)%s", \
                     reg_pc, p1, reg_a_read, reg_x, result,                                  \
-                    unstablebits & 0x80 ? '*' : '.', unstablebits & 0x40 ? '*' : '.',       \
-                    unstablebits & 0x20 ? '*' : '.', unstablebits & 0x10 ? '*' : '.',       \
-                    unstablebits & 0x08 ? '*' : '.', unstablebits & 0x04 ? '*' : '.',       \
-                    unstablebits & 0x02 ? '*' : '.', unstablebits & 0x01 ? '*' : '.',       \
+                    (unstablebits & 0x80) ? '*' : '.', (unstablebits & 0x40) ? '*' : '.',       \
+                    (unstablebits & 0x20) ? '*' : '.', (unstablebits & 0x10) ? '*' : '.',       \
+                    (unstablebits & 0x08) ? '*' : '.', (unstablebits & 0x04) ? '*' : '.',       \
+                    (unstablebits & 0x02) ? '*' : '.', (unstablebits & 0x01) ? '*' : '.',       \
                     rdy ? " (RDY cycle)" : ""                                               \
                     );                                                                      \
             }                                                                               \
@@ -1247,10 +1247,10 @@ static int lxa_log_level = 1; /* 0: none, 1: unstable only 2: all */
             } else {                                                                        \
                 log_warning(LOG_DEFAULT, "%04x LAX #$%02x ; A=$%02x -> A=X=$%02x (unstable bits: %c%c%c%c%c%c%c%c)%s", \
                     reg_pc, p1, reg_a_read, result,                                         \
-                    unstablebits & 0x80 ? '*' : '.', unstablebits & 0x40 ? '*' : '.',       \
-                    unstablebits & 0x20 ? '*' : '.', unstablebits & 0x10 ? '*' : '.',       \
-                    unstablebits & 0x08 ? '*' : '.', unstablebits & 0x04 ? '*' : '.',       \
-                    unstablebits & 0x02 ? '*' : '.', unstablebits & 0x01 ? '*' : '.',       \
+                    (unstablebits & 0x80) ? '*' : '.', (unstablebits & 0x40) ? '*' : '.',       \
+                    (unstablebits & 0x20) ? '*' : '.', (unstablebits & 0x10) ? '*' : '.',       \
+                    (unstablebits & 0x08) ? '*' : '.', (unstablebits & 0x04) ? '*' : '.',       \
+                    (unstablebits & 0x02) ? '*' : '.', (unstablebits & 0x01) ? '*' : '.',       \
                     rdy ? " (RDY cycle)" : ""                                               \
                     );                                                                      \
             }                                                                               \

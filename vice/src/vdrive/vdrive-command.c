@@ -676,7 +676,7 @@ static int vdrive_command_block(vdrive_t *vdrive, cbmdos_cmd_parse_plus_t *cmd)
 #endif
                     /* Update length of block based on the buffer pointer. */
                     l = vdrive->buffers[channel].bufptr - 1;
-                    vdrive->buffers[channel].buffer[0] = ( l < 1 ? 1 : l );
+                    vdrive->buffers[channel].buffer[0] = ( (l < 1) ? 1 : l );
                     status = vdrive_write_sector(vdrive, vdrive->buffers[channel].buffer, track, sector);
                     if (status < 0) {
                         status = CBMDOS_IPE_NOT_READY;
@@ -3279,7 +3279,7 @@ static int vdrive_command_format_internal(vdrive_t *vdrive, cbmdos_cmd_parse_plu
             if (longname) {
                 longname[15] = '1' + i;
             }
-            status = vdrive_command_format_worker(vdrive, i == 0 ? name : longname, id);
+            status = vdrive_command_format_worker(vdrive, (i == 0) ? name : longname, id);
             if (status) {
                 goto out;
             }

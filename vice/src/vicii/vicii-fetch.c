@@ -477,7 +477,7 @@ phi2noultimax:
         dtvclockneg += num_cycles;
     }
 
-    *write_offset = sub == 0 ? num_cycles : 0;
+    *write_offset = (sub == 0) ? num_cycles : 0;
 
     next_cycle = (sf + 1)->cycle;
     vicii.sprite_fetch_idx++;

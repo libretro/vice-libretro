@@ -119,7 +119,7 @@ void render_generic_2x2_pal(video_render_color_tables_t *color_tab,
 
     line = color_tab->line_yuv_0;
     /* get previous line into buffer. */
-    tmpsrc = ys > 0 ? src - pitchs : src;
+    tmpsrc = (ys > 0) ? src - pitchs : src;
 
     if (ys & 1) {
         cbtable = write_interpolated_pixels ? color_tab->cbtable : color_tab->cutable;
@@ -178,7 +178,7 @@ void render_generic_2x2_pal(video_render_color_tables_t *color_tab,
              * otherwise we dump it to the scratch region... We must never
              * render the scanline for the first row, because prevlinergb is not
              * yet initialized and scanline data would be bogus! */
-            tmptrgscanline = y != yys && y > (unsigned int)first_line && y <= (unsigned int)last_line
+            tmptrgscanline = (y != yys && y > (unsigned int)first_line && y <= (unsigned int)last_line)
                              ? trg - pitcht
                              : &color_tab->rgbscratchbuffer[0];
         }

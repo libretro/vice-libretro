@@ -2229,10 +2229,10 @@ static void init_drawing_tables(void)
                 offset = (f << 8) | (b << 4);
                 p = (uint8_t *)(hr_table + offset + i);
 
-                *p = i & 0x8 ? fp : bp;
-                *(p + 1) = i & 0x4 ? fp : bp;
-                *(p + 2) = i & 0x2 ? fp : bp;
-                *(p + 3) = i & 0x1 ? fp : bp;
+                *p = (i & 0x8) ? fp : bp;
+                *(p + 1) = (i & 0x4) ? fp : bp;
+                *(p + 2) = (i & 0x2) ? fp : bp;
+                *(p + 3) = (i & 0x1) ? fp : bp;
             }
         }
     }

@@ -39,7 +39,7 @@ static uint32_t scale2x(const uint32_t *colortab, const uint8_t **srcx1,
 
     colx1 = **srcx1;
     coly1 = **srcy1;
-    cole = colortab[colx1 == coly1 && **srcx2 != coly1 && colx1 != **srcy2 ? colx1 : **srce];
+    cole = colortab[(colx1 == coly1 && **srcx2 != coly1 && colx1 != **srcy2) ? colx1 : **srce];
 
     if (*srcx1 < *srcx2) {
         *srcx1 += 2;
@@ -75,10 +75,10 @@ void render_32_scale2x(const video_render_color_tables_t *color_tab,
     for (y = yys; y < (yys + height); y++) {
         tmpsrc = src;
         tmptrg = (uint32_t *)trg;
-        srcx1 = (xt & 1 ? tmpsrc + 1 : tmpsrc - 1);
-        srcx2 = (xt & 1 ? tmpsrc - 1 : tmpsrc + 1);
-        srcy1 = (y & 1 ? tmpsrc + pitchs : tmpsrc - pitchs);
-        srcy2 = (y & 1 ? tmpsrc - pitchs : tmpsrc + pitchs);
+        srcx1 = ((xt & 1) ? tmpsrc + 1 : tmpsrc - 1);
+        srcx2 = ((xt & 1) ? tmpsrc - 1 : tmpsrc + 1);
+        srcy1 = ((y & 1) ? tmpsrc + pitchs : tmpsrc - pitchs);
+        srcy2 = ((y & 1) ? tmpsrc - pitchs : tmpsrc + pitchs);
 
         for (x = 0; x < width; x++) {
             *tmptrg++ = scale2x(colortab, &srcx1, &srcx2, &srcy1, &srcy2, &tmpsrc);

@@ -221,7 +221,7 @@ int kbdbuf_is_empty(void)
 /* Return nonzero if there are keys in the buffer queue */
 int kbdbuf_queue_is_empty(void)
 {
-    return num_pending > 0 ? 0 : 1;
+    return (num_pending > 0) ? 0 : 1;
 }
 
 /* Feed `string' into the incoming queue.  */
@@ -356,7 +356,7 @@ void kbdbuf_flush(void)
         prevent_recursion = false;
         return;
     }
-    n = num_pending > buffer_size ? buffer_size : num_pending;
+    n = (num_pending > buffer_size) ? buffer_size : num_pending;
     /* printf("kbdbuf_flush pending: %d n: %d head_idx: %d\n", num_pending, n, head_idx); */
     for (i = 0; i < n; i++) {
         /* printf("kbdbuf_flush i:%d head_idx:%d queue[head_idx]: %d use_kbdbuf_flush_alarm: %d\n",i,head_idx,queue[head_idx],use_kbdbuf_flush_alarm); */

@@ -352,7 +352,7 @@ static int keyboard_set_latch_keyarr(int row, int col, int pressed)
         int r, c;
         for (r = 7; r >= 0; r--) {
             for (c = 7; c >= 0; c--) {
-                printf("%c", latch_keyarr[r] & (1 << c) ? '*' : '.');
+                printf("%c", (latch_keyarr[r] & (1 << c)) ? '*' : '.');
             }
             printf("\n");
         }

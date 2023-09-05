@@ -101,7 +101,7 @@ inline static void store_sprite_x_position_lsb(const uint16_t addr, uint8_t valu
 
     VICII_DEBUG_REGISTER(("Sprite #%d X position LSB: $%02X", n, value));
 
-    vicii.sprite[n].x = (value | (vicii.regs[0x10] & (1 << n) ? 0x100 : 0));
+    vicii.sprite[n].x = (value | ((vicii.regs[0x10] & (1 << n)) ? 0x100 : 0));
 }
 
 inline static void store_sprite_y_position(const uint16_t addr, uint8_t value)
@@ -124,7 +124,7 @@ static inline void store_sprite_x_position_msb(const uint16_t addr, uint8_t valu
 
     /* Recalculate the sprite X coordinates.  */
     for (i = 0, b = 0x01; i < 8; b <<= 1, i++) {
-        vicii.sprite[i].x = (vicii.regs[2 * i] | (value & b ? 0x100 : 0));
+        vicii.sprite[i].x = (vicii.regs[2 * i] | ((value & b) ? 0x100 : 0));
     }
 }
 
@@ -502,7 +502,7 @@ inline static uint8_t d01112_read(uint16_t addr)
     unsigned int tmp = read_raster_y();
 
     VICII_DEBUG_REGISTER(("Raster Line register %svalue = $%04X",
-                          (addr == 0x11 ? "(highest bit) " : ""), tmp));
+                          ((addr == 0x11) ? "(highest bit) " : ""), tmp));
     if (addr == 0x11) {
         return (vicii.regs[addr] & 0x7f) | ((tmp & 0x100) >> 1);
     } else {

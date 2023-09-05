@@ -2275,47 +2275,47 @@
       JUMP(reg_pc);              \
   } while (0)
 
-#define SBC(load_func)                                                      \
-  do {                                                                      \
-      unsigned int tmp_value;                                               \
-      unsigned int tmp, tmp2;                                               \
-                                                                            \
-      tmp = LOCAL_CARRY();                                                  \
-      if (LOCAL_65816_M()) {                                                \
-          load_func(tmp_value, 1);                                          \
-          tmp += (tmp_value ^ 0xff) + reg_a;                                \
-          LOCAL_SET_OVERFLOW((reg_a ^ tmp_value) & (reg_a ^ tmp) & 0x80);   \
-          if (LOCAL_DECIMAL()) {                                            \
-              tmp2 = (reg_a & 0x0f) + (0x0f & ~tmp_value) + LOCAL_CARRY();  \
-              tmp = (tmp2 < 0x10 ? (tmp2 - 0x6) : tmp2) & 0xf;              \
-              tmp2 = (reg_a & 0xff) + (0xff & ~tmp_value) + LOCAL_CARRY();  \
-              tmp |= (tmp2 < 0x100 ? (tmp2 - 0x60) : tmp2) & 0xf0;          \
-              LOCAL_SET_CARRY(tmp2 > 0xff);                                 \
-          } else {                                                          \
-              LOCAL_SET_CARRY(tmp > 0xff);                                  \
-          }                                                                 \
-          LOCAL_SET_NZ(tmp, 1);                                             \
-          reg_a = tmp;                                                      \
-      } else {                                                              \
-          load_func(tmp_value, 0);                                          \
-          tmp += (tmp_value ^ 0xffff) + reg_c;                              \
-          LOCAL_SET_OVERFLOW((reg_c ^ tmp_value) & (reg_c ^ tmp) & 0x8000); \
-          if (LOCAL_DECIMAL()) {                                            \
-              tmp2 = (reg_a & 0x0f) + (0x0f & ~tmp_value) + LOCAL_CARRY();  \
-              tmp = (tmp2 < 0x10 ? (tmp2 - 0x6) : tmp2) & 0xf;              \
-              tmp2 = (reg_a & 0xff) + (0xff & ~tmp_value) + LOCAL_CARRY();  \
-              tmp |= (tmp2 < 0x100 ? (tmp2 - 0x60) : tmp2) & 0xf0;          \
-              tmp2 = (reg_a & 0xfff) + (0xfff & ~tmp_value) + LOCAL_CARRY();\
-              tmp |= (tmp2 < 0x1000 ? (tmp2 - 0x600) : tmp2) & 0xf00;       \
-              tmp2 = (reg_a & 0xffff) + (0xffff & ~tmp_value) + LOCAL_CARRY();\
-              tmp |= (tmp2 < 0x10000 ? (tmp2 - 0x6000) : tmp2) & 0xf000;    \
-              LOCAL_SET_CARRY(tmp2 > 0xffff);                               \
-          } else {                                                          \
-              LOCAL_SET_CARRY(tmp > 0xffff);                                \
-          }                                                                 \
-          LOCAL_SET_NZ(tmp, 0);                                             \
-          reg_c = tmp;                                                      \
-      }                                                                     \
+#define SBC(load_func)                                                         \
+  do {                                                                         \
+      unsigned int tmp_value;                                                  \
+      unsigned int tmp, tmp2;                                                  \
+                                                                               \
+      tmp = LOCAL_CARRY();                                                     \
+      if (LOCAL_65816_M()) {                                                   \
+          load_func(tmp_value, 1);                                             \
+          tmp += (tmp_value ^ 0xff) + reg_a;                                   \
+          LOCAL_SET_OVERFLOW((reg_a ^ tmp_value) & (reg_a ^ tmp) & 0x80);      \
+          if (LOCAL_DECIMAL()) {                                               \
+              tmp2 = (reg_a & 0x0f) + (0x0f & ~tmp_value) + LOCAL_CARRY();     \
+              tmp = ((tmp2 < 0x10) ? (tmp2 - 0x6) : tmp2) & 0xf;               \
+              tmp2 = (reg_a & 0xff) + (0xff & ~tmp_value) + LOCAL_CARRY();     \
+              tmp |= ((tmp2 < 0x100) ? (tmp2 - 0x60) : tmp2) & 0xf0;           \
+              LOCAL_SET_CARRY(tmp2 > 0xff);                                    \
+          } else {                                                             \
+              LOCAL_SET_CARRY(tmp > 0xff);                                     \
+          }                                                                    \
+          LOCAL_SET_NZ(tmp, 1);                                                \
+          reg_a = tmp;                                                         \
+      } else {                                                                 \
+          load_func(tmp_value, 0);                                             \
+          tmp += (tmp_value ^ 0xffff) + reg_c;                                 \
+          LOCAL_SET_OVERFLOW((reg_c ^ tmp_value) & (reg_c ^ tmp) & 0x8000);    \
+          if (LOCAL_DECIMAL()) {                                               \
+              tmp2 = (reg_a & 0x0f) + (0x0f & ~tmp_value) + LOCAL_CARRY();     \
+              tmp = ((tmp2 < 0x10) ? (tmp2 - 0x6) : tmp2) & 0xf;               \
+              tmp2 = (reg_a & 0xff) + (0xff & ~tmp_value) + LOCAL_CARRY();     \
+              tmp |= ((tmp2 < 0x100) ? (tmp2 - 0x60) : tmp2) & 0xf0;           \
+              tmp2 = (reg_a & 0xfff) + (0xfff & ~tmp_value) + LOCAL_CARRY();   \
+              tmp |= ((tmp2 < 0x1000) ? (tmp2 - 0x600) : tmp2) & 0xf00;        \
+              tmp2 = (reg_a & 0xffff) + (0xffff & ~tmp_value) + LOCAL_CARRY(); \
+              tmp |= ((tmp2 < 0x10000) ? (tmp2 - 0x6000) : tmp2) & 0xf000;     \
+              LOCAL_SET_CARRY(tmp2 > 0xffff);                                  \
+          } else {                                                             \
+              LOCAL_SET_CARRY(tmp > 0xffff);                                   \
+          }                                                                    \
+          LOCAL_SET_NZ(tmp, 0);                                                \
+          reg_c = tmp;                                                         \
+      }                                                                        \
   } while (0)
 
 #undef SEC    /* defined in time.h on SunOS. */

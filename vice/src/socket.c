@@ -477,7 +477,7 @@ vice_network_socket_t *vice_network_server(
         sockfd = INVALID_SOCKET;
     }
 
-    return sockfd == INVALID_SOCKET ? NULL : vice_network_alloc_new_socket(sockfd);
+    return (sockfd == INVALID_SOCKET) ? NULL : vice_network_alloc_new_socket(sockfd);
 }
 
 /*! \brief Open a socket and initialise it for client operation
@@ -528,7 +528,7 @@ vice_network_socket_t * vice_network_client(const vice_network_socket_address_t 
         sockfd = INVALID_SOCKET;
     }
 
-    return sockfd == INVALID_SOCKET ? NULL : vice_network_alloc_new_socket(sockfd);
+    return (sockfd == INVALID_SOCKET) ? NULL : vice_network_alloc_new_socket(sockfd);
 }
 
 /*! \internal \brief Generate an IPv4 socket address
@@ -937,7 +937,7 @@ vice_network_socket_t * vice_network_accept(vice_network_socket_t * sockfd)
 
     newsocket = accept(sockfd->sockfd, &sockfd->address.address.generic, &sockfd->address.len);
 
-    return newsocket == INVALID_SOCKET ? NULL : vice_network_alloc_new_socket(newsocket);
+    return (newsocket == INVALID_SOCKET) ? NULL : vice_network_alloc_new_socket(newsocket);
 }
 
 /*! \brief Close a socket

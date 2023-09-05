@@ -408,11 +408,11 @@
 #define LOAD_ABS(addr) LOAD(addr)
 
 #ifndef LOAD_ABS_X
-#define LOAD_ABS_X(addr)              \
-    ((((addr) & 0xff) + reg_x) > 0xff \
-     ? (LOAD(reg_pc + 2),             \
-        CLK_ADD(CLK, CYCLES_1),       \
-        LOAD((addr) + reg_x))         \
+#define LOAD_ABS_X(addr)                \
+    (((((addr) & 0xff) + reg_x) > 0xff) \
+     ? (LOAD(reg_pc + 2),               \
+        CLK_ADD(CLK, CYCLES_1),         \
+        LOAD((addr) + reg_x))           \
      : LOAD((addr) + reg_x))
 #endif
 
@@ -424,11 +424,11 @@
 #endif
 
 #ifndef LOAD_ABS_Y
-#define LOAD_ABS_Y(addr)              \
-    ((((addr) & 0xff) + reg_y) > 0xff \
-     ? (LOAD(reg_pc + 2),             \
-        CLK_ADD(CLK, CYCLES_1),       \
-        LOAD((addr) + reg_y))         \
+#define LOAD_ABS_Y(addr)                \
+    (((((addr) & 0xff) + reg_y) > 0xff) \
+     ? (LOAD(reg_pc + 2),               \
+        CLK_ADD(CLK, CYCLES_1),         \
+        LOAD((addr) + reg_y))           \
      : LOAD((addr) + reg_y))
 #endif
 
@@ -441,11 +441,11 @@
 #endif
 
 #ifndef LOAD_IND_Y
-#define LOAD_IND_Y(addr)                                                      \
-    (CLK_ADD(CLK, CYCLES_2), ((LOAD_ZERO_ADDR((addr)) & 0xff) + reg_y) > 0xff \
-     ? (LOAD(reg_pc + 1),                                                     \
-        CLK_ADD(CLK, CYCLES_1),                                               \
-        LOAD(LOAD_ZERO_ADDR((addr)) + reg_y))                                 \
+#define LOAD_IND_Y(addr)                                                        \
+    ((CLK_ADD(CLK, CYCLES_2), ((LOAD_ZERO_ADDR((addr)) & 0xff) + reg_y) > 0xff) \
+     ? (LOAD(reg_pc + 1),                                                       \
+        CLK_ADD(CLK, CYCLES_1),                                                 \
+        LOAD(LOAD_ZERO_ADDR((addr)) + reg_y))                                   \
      : LOAD(LOAD_ZERO_ADDR((addr)) + reg_y))
 #endif
 
@@ -458,11 +458,11 @@
 #endif
 
 #ifndef LOAD_IND_Y_BANK
-#define LOAD_IND_Y_BANK(addr)                                                 \
-    (CLK_ADD(CLK, CYCLES_2), ((LOAD_ZERO_ADDR((addr)) & 0xff) + reg_y) > 0xff \
-     ? (LOAD(reg_pc + 1),                                                     \
-        CLK_ADD(CLK, CYCLES_1),                                               \
-        LOAD_IND(LOAD_ZERO_ADDR((addr)) + reg_y))                             \
+#define LOAD_IND_Y_BANK(addr)                                                   \
+    ((CLK_ADD(CLK, CYCLES_2), ((LOAD_ZERO_ADDR((addr)) & 0xff) + reg_y) > 0xff) \
+     ? (LOAD(reg_pc + 1),                                                       \
+        CLK_ADD(CLK, CYCLES_1),                                                 \
+        LOAD_IND(LOAD_ZERO_ADDR((addr)) + reg_y))                               \
      : LOAD_IND(LOAD_ZERO_ADDR((addr)) + reg_y))
 #endif
 

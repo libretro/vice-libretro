@@ -149,7 +149,7 @@ void cmdline_shutdown(void)
     for (i = 0; i < num_options; i++) {
         printf("CMDLINE\t%s\t%s\n",
                 (options + i)->name,
-                (options + i)->type == SET_RESOURCE ? (options + i)->resource_name : "(call-function)");
+                ((options + i)->type == SET_RESOURCE) ? (options + i)->resource_name : "(call-function)");
 
     }
 #endif

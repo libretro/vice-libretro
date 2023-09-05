@@ -1526,8 +1526,8 @@ static int resource_item_isdefault(int num)
             break;
         case RES_STRING:
             v = *resources[num].value_ptr;
-            s1 = (char *)v == NULL ? "" : (char *)v;
-            s2 = (char *)resources[num].factory_value == NULL ? "" : (char *)resources[num].factory_value;
+            s1 = ((char *)v == NULL) ? "" : (char *)v;
+            s2 = ((char *)resources[num].factory_value == NULL) ? "" : (char *)resources[num].factory_value;
             if (!strcmp(s1, s2)) {
                 return 1;
             }

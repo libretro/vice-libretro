@@ -377,7 +377,7 @@ void vic_sound_clock(CLOCK cycles)
                         noise_LFSR0_old = noise_LFSR & 1;
                         noise_LFSR = (noise_LFSR << 1) | gate4;
                     }
-                    snd.ch[j].out = snd.ch[j].shift & (j == 3 ? enabled : 1);
+                    snd.ch[j].out = snd.ch[j].shift & ((j == 3) ? enabled : 1);
                 }
                 snd.accum += snd.ch[j].out; /* FIXME: doesn't take DC offset into account */
             }
