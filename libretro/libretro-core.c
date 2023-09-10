@@ -2635,6 +2635,20 @@ static void retro_set_core_options()
          "0"
       },
 #endif
+      {
+         "vice_printer",
+         "System > Printer",
+         "Printer",
+         "Output is written to 'saves/" ARCHDEP_PRINTER_DEFAULT_DEV1 "'.",
+         NULL,
+         "system",
+         {
+            { "disabled", NULL },
+            { "enabled", NULL },
+            { NULL, NULL },
+         },
+         "disabled"
+      },
 #if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
       {
          "vice_jiffydos",
@@ -2656,20 +2670,6 @@ static void retro_set_core_options()
       },
 #endif
       {
-         "vice_printer",
-         "System > Printer",
-         "Printer",
-         "Output is written to 'saves/" ARCHDEP_PRINTER_DEFAULT_DEV1 "'.",
-         NULL,
-         "system",
-         {
-            { "disabled", NULL },
-            { "enabled", NULL },
-            { NULL, NULL },
-         },
-         "disabled"
-      },
-      {
          "vice_read_vicerc",
          "System > Read 'vicerc'",
          "Read 'vicerc'",
@@ -2688,7 +2688,7 @@ static void retro_set_core_options()
          "vice_reset",
          "System > Reset Type",
          "Reset Type",
-         "- 'Autostart' hard resets and reruns content.\n- 'Soft' keeps some code in memory.\n- 'Hard' erases all memory.\n- 'Freeze' is for cartridges.",
+         "Reset hotkey action. Core restart will autostart.\n- 'Autostart' hard resets and reruns content.\n- 'Soft' keeps some code in memory.\n- 'Hard' erases all memory.\n- 'Freeze' is for cartridges.",
          NULL,
          "system",
          {
