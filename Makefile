@@ -4,6 +4,8 @@ SOURCES_C   :=
 SOURCES_CC  :=
 SOURCES_CXX :=
 OBJECTS     :=
+# bash is required by SILENT's usage of [[
+SHELL       := /bin/bash
 SILENT      := 0
 
 ifeq ($(platform),)
