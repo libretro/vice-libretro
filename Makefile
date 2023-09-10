@@ -461,21 +461,21 @@ endif
 
 $(OBJDIR)/%.o: %.c
 	@mkdir -p $(dir $@)
-	@if [[ $(SILENT) -ne 1 ]]; then\
+	@if [ $(SILENT) -ne 1 ]; then\
 		$(if $@, $(shell echo echo CC $<),);\
 	fi
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OBJDIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
-	@if [[ $(SILENT) -ne 1 ]]; then\
+	@if [ $(SILENT) -ne 1 ]; then\
 		$(if $@, $(shell echo echo CXX $<),);\
 	fi
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 $(OBJDIR)/%.o: %.cc
 	@mkdir -p $(dir $@)
-	@if [[ $(SILENT) -ne 1 ]]; then\
+	@if [ $(SILENT) -ne 1 ]; then\
 		$(if $@, $(shell echo echo CXX $<),);\
 	fi
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
