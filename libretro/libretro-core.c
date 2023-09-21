@@ -4235,7 +4235,7 @@ static void retro_set_core_options()
          NULL,
          "hotkey",
          {{ NULL, NULL }},
-         ""
+         "---"
       },
       /* Button mappings */
       {
