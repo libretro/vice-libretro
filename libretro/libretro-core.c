@@ -182,6 +182,7 @@ unsigned int opt_work_disk_unit = 8;
 static unsigned int opt_jiffydos_allow = 1;
 unsigned int opt_jiffydos = 0;
 unsigned int opt_jiffydos_kernal_skip = 0;
+static bool opt_reu_allow = 1;
 #endif
 #if defined(__XSCPU64__)
 unsigned int opt_supercpu_kernal = 0;
@@ -436,6 +437,27 @@ void sound_volume_counter_reset()
    resources_set_int("SoundVolume", 0);
    sound_volume_counter = 5;
 }
+
+#if defined(__X64__) || defined(__X64SC__) || defined(__X128__)
+static bool reu_allow(const char *string)
+{
+   /* Do not allow REU with cartridges */
+   if ((!string_is_empty(string) && string_ends_with(string, "crt")) || !opt_reu_allow)
+   {
+      if (vice_opt.REUsize)
+      {
+         log_cb(RETRO_LOG_INFO, "REU is not compatible with cartridges, disabling..\n");
+         if (retro_ui_finalized)
+            log_resources_set_int("REU", 0);
+      }
+      vice_opt.REUsize = 0;
+
+      return false;
+   }
+
+   return true;
+}
+#endif
 
 #if defined(__XVIC__)
 
@@ -811,12 +833,6 @@ static int process_cmdline(const char* argv)
       if (!path_is_valid(argv))
          argv = "";
 
-      /* Disable floppy drive with tapes */
-      if (dc_get_image_type(argv) == DC_IMAGE_TYPE_TAPE)
-      {
-         Add_Option("-drive8type");
-         Add_Option("0");
-      }
 
 #if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
       /* Do not allow JiffyDOS with non-floppies */
@@ -825,6 +841,11 @@ static int process_cmdline(const char* argv)
          opt_jiffydos_allow = 0;
       else
          opt_jiffydos_allow = 1;
+
+#if defined(__X64__) || defined(__X64SC__) || defined(__X128__)
+      /* Do not allow REU with cartridges */
+      opt_reu_allow = reu_allow(argv);
+#endif
 
       /* REU image check */
       if (path_is_valid(argv))
@@ -1120,6 +1141,10 @@ static int process_cmdline(const char* argv)
              || dc_get_image_type(dc->files[0]) == DC_IMAGE_TYPE_MEM)
                opt_jiffydos_allow = 0;
          }
+#if defined(__X64__) || defined(__X64SC__) || defined(__X128__)
+         /* Do not allow REU with cartridges */
+         opt_reu_allow = reu_allow(dc->files[0]);
+#endif
 #endif
 #if defined(__XVIC__)
          /* Memory expansion force */
@@ -2390,7 +2415,7 @@ static void retro_set_core_options()
          "vice_c128_ram_expansion_unit",
          "System > RAM Expansion Unit",
          "RAM Expansion Unit",
-         "Changing while running resets the system!",
+         "Not allowed with cartridges. Changing while running resets the system!",
          NULL,
          "system",
          {
@@ -2585,7 +2610,7 @@ static void retro_set_core_options()
          "vice_ram_expansion_unit",
          "System > RAM Expansion Unit",
          "RAM Expansion Unit",
-         "Changing while running resets the system!",
+         "Not allowed with cartridges. Changing while running resets the system!",
          NULL,
          "system",
          {
@@ -5911,7 +5936,7 @@ static void update_variables(void)
       if (strcmp(var.value, "none"))
          reusize = atoi(var.value);
 
-      if (retro_ui_finalized && vice_opt.REUsize != reusize)
+      if (retro_ui_finalized && vice_opt.REUsize != reusize && opt_reu_allow)
       {
          if (!reusize)
             log_resources_set_int("REU", 0);
@@ -5924,6 +5949,8 @@ static void update_variables(void)
       }
 
       vice_opt.REUsize = reusize;
+
+      opt_reu_allow = reu_allow(full_path);
    }
 
    var.key = "vice_c128_video_output";
@@ -6136,7 +6163,7 @@ static void update_variables(void)
       if (strcmp(var.value, "none"))
          reusize = atoi(var.value);
 
-      if (retro_ui_finalized && vice_opt.REUsize != reusize)
+      if (retro_ui_finalized && vice_opt.REUsize != reusize && opt_reu_allow)
       {
          if (!reusize)
             log_resources_set_int("REU", 0);
@@ -6149,6 +6176,8 @@ static void update_variables(void)
       }
 
       vice_opt.REUsize = reusize;
+
+      opt_reu_allow = reu_allow(full_path);
    }
 #endif
 #endif
