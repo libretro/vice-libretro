@@ -118,6 +118,7 @@ int crop_id = -1;
 int crop_id_prev = -1;
 unsigned int opt_crop_id = 0;
 unsigned int crop_mode_id = 0;
+bool crop_delay = true;
 unsigned int retrow_crop = 0;
 unsigned int retroh_crop = 0;
 int retroXS_crop_offset = 0;
@@ -2922,6 +2923,20 @@ static void retro_set_core_options()
          "disabled"
       },
       {
+         "vice_crop_delay",
+         "Video > Automatic Crop Delay",
+         "Automatic Crop Delay",
+         "Patient or instant geometry change.",
+         NULL,
+         "video",
+         {
+            { "disabled", NULL },
+            { "enabled", NULL },
+            { NULL, NULL },
+         },
+         "enabled"
+      },
+      {
          "vice_zoom_mode",
          "Video > Zoom Mode",
          "Zoom Mode",
@@ -5132,6 +5147,10 @@ void retro_set_options_display(void)
    option_display.key = "vice_crop_mode";
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 
+   option_display.visible = (crop_id == CROP_AUTO || crop_id == CROP_AUTO_DISABLE);
+   option_display.key = "vice_crop_delay";
+   environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
+
    /* Legacy zoom always hidden */
    option_display.visible = false;
    option_display.key = "vice_zoom_mode";
@@ -5324,6 +5343,8 @@ void retro_set_options_display(void)
       option_display.key = "vice_crop_mode";
       environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
    }
+   option_display.key = "vice_crop_delay";
+   environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 #if defined(__XVIC__)
    option_display.key = "vice_vic20_external_palette";
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
@@ -6384,6 +6405,14 @@ static void update_variables(void)
       /* Crop reset */
       if (crop_mode_id != crop_mode_id_prev)
          crop_id_prev = -1;
+   }
+
+   var.key = "vice_crop_delay";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (!strcmp(var.value, "disabled")) crop_delay = false;
+      else                                crop_delay = true;
    }
 
    var.key = "vice_aspect_ratio";

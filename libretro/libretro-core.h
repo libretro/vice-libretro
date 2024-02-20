@@ -149,6 +149,7 @@ extern unsigned int retro_warpmode;
 extern bool audio_playing(void);
 extern int crop_id;
 extern int crop_id_prev;
+extern bool crop_delay;
 
 #define CROP_NONE            0
 #define CROP_SMALL           1
