@@ -41,6 +41,7 @@
 #include "vsyncapi.h"
 #include "joystick.h"
 #include "archdep.h"
+#include "drive.h"
 #include "keyboard.h"
 #include "keymap.h"
 
@@ -69,9 +70,9 @@ extern int vic20mem_forced;
 #define STATUSBAR_TAPE_POS          55
 #define STATUSBAR_DRIVE_POS         59
 #define STATUSBAR_DRIVE8_TRACK_POS  59
-#define STATUSBAR_DRIVE9_TRACK_POS  59
-#define STATUSBAR_DRIVE10_TRACK_POS 59
-#define STATUSBAR_DRIVE11_TRACK_POS 59
+#define STATUSBAR_DRIVE9_TRACK_POS  57
+#define STATUSBAR_DRIVE10_TRACK_POS 55
+#define STATUSBAR_DRIVE11_TRACK_POS 55
 #define STATUSBAR_PAUSE_POS         61
 #define STATUSBAR_SPEED_POS         61
 #define MAX_STATUSBAR_LEN           64
@@ -132,9 +133,34 @@ static void display_speed(void)
 }
 
 unsigned int statusbar_message_timer = 0;
-static int drive_enabled = 0;
-static int drive_empty = 0;
-static int drive_pwm = 0;
+static int drive_enabled[NUM_DISK_UNITS] = {0};
+static int drive_empty[NUM_DISK_UNITS] = {0};
+static int drive_pwm[NUM_DISK_UNITS] = {0};
+
+static void clear_drive_statusbar_chars(void)
+{
+    if (drive_empty[0])
+    {
+        statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS] = ' ';
+        statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS + 1] = ' ';
+    }
+    else if (drive_enabled[0])
+    {
+        statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS] = '0';
+        statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS + 1] = '0';
+    }
+
+    if (drive_empty[1])
+    {
+        statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS] = ' ';
+        statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS + 1] = ' ';
+    }
+    else if (drive_enabled[1])
+    {
+        statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS] = '0';
+        statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS + 1] = '0';
+    }
+}
 
 void display_current_image(const char *image, bool inserted)
 {
@@ -144,13 +170,11 @@ void display_current_image(const char *image, bool inserted)
 
     if (strcmp(image, ""))
     {
-        drive_empty = (inserted) ? 0 : 1;
         snprintf(imagename, sizeof(imagename), "%.100s", image);
         snprintf(imagename_prev, sizeof(imagename_prev), "%.100s", imagename);
     }
     else
     {
-        drive_empty = 1;
         if (strcmp(imagename_prev, ""))
             snprintf(imagename, sizeof(imagename), "%.100s", imagename_prev);
     }
@@ -174,18 +198,9 @@ void display_current_image(const char *image, bool inserted)
     }
 
     if (dc_get_image_type(dc->files[dc->index]) != DC_IMAGE_TYPE_FLOPPY)
-       drive_empty = true;
+       drive_empty[0] = true;
 
-    if (drive_empty)
-    {
-        statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS] = ' ';
-        statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS + 1] = ' ';
-    }
-    else if (drive_enabled)
-    {
-        statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS] = '0';
-        statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS + 1] = '0';
-    }
+    clear_drive_statusbar_chars();
 }
 
 /* ----------------------------------------------------------------- */
@@ -248,9 +263,9 @@ void ui_enable_drive_status(ui_drive_enable_t state, int *drive_led_color)
 {
     int drive_number;
     int drive_state = (int)state;
-    drive_enabled = drive_state;
 
     for (drive_number = 0; drive_number < 4; ++drive_number) {
+        drive_enabled[drive_number] = state & (1 << drive_number);
         if (drive_state & 1) {
             ui_display_drive_led(drive_number, 0, 0, 0);
         } else {
@@ -267,7 +282,7 @@ void ui_enable_drive_status(ui_drive_enable_t state, int *drive_led_color)
 void ui_display_drive_track(
       unsigned int drive_number, unsigned int drive_base, unsigned int half_track_number, unsigned int disk_side)
 {
-    if (drive_empty)
+    if (drive_empty[drive_number])
         return;
 
     unsigned int track_number = half_track_number / 2;
@@ -304,8 +319,8 @@ void ui_display_drive_track(
 /* The pwm value will vary between 0 and 1000.  */
 void ui_display_drive_led(unsigned int drive_number, unsigned int drive_base, unsigned int pwm1, unsigned int led_pwm2)
 {
-    drive_pwm = pwm1;
-    vice_led_state[RETRO_LED_DRIVE] = (drive_pwm > 1) ? 1 : 0;
+    drive_pwm[drive_number] = pwm1;
+    vice_led_state[RETRO_LED_DRIVE] = (drive_pwm[drive_number] > 1) ? 1 : 0;
     return;
 
     char c;
@@ -324,6 +339,13 @@ void ui_display_drive_led(unsigned int drive_number, unsigned int drive_base, un
 
 void ui_display_drive_current_image(unsigned int unit_number, unsigned int drive_number, const char *image)
 {
+    drive_empty[unit_number] = !image[0];
+
+    if (dc_get_image_type(image) != DC_IMAGE_TYPE_FLOPPY)
+        drive_empty[unit_number] = true;
+
+    clear_drive_statusbar_chars();
+
 #ifdef SDL_DEBUG
     fprintf(stderr, "%s\n", __func__);
 #endif
@@ -827,13 +849,32 @@ void uistatusbar_draw(void)
         }
 
         /* Drive loading */
-        if ((i == STATUSBAR_DRIVE8_TRACK_POS || i == STATUSBAR_DRIVE8_TRACK_POS + 1) && drive_enabled)
+        if (   ((i == STATUSBAR_DRIVE8_TRACK_POS || i == STATUSBAR_DRIVE8_TRACK_POS + 1) && drive_enabled[0])
+            || ((i == STATUSBAR_DRIVE9_TRACK_POS || i == STATUSBAR_DRIVE9_TRACK_POS + 1) && drive_enabled[1])
+           )
         {
+            unsigned char unit = (i == STATUSBAR_DRIVE8_TRACK_POS || i == STATUSBAR_DRIVE8_TRACK_POS + 1) ? 0 : 1;
             color_b = color_green;
 
-            if (drive_pwm > 1)
+            /* Switch drives 8 and 9 around if 9 is enabled */
+            if (drive_enabled[1])
+            {
+                if (i == STATUSBAR_DRIVE8_TRACK_POS)
+                    c = statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS];
+                else if (i == STATUSBAR_DRIVE8_TRACK_POS + 1)
+                    c = statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS + 1];
+
+                if (i == STATUSBAR_DRIVE9_TRACK_POS)
+                    c = statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS];
+                else if (i == STATUSBAR_DRIVE9_TRACK_POS + 1)
+                    c = statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS + 1];
+
+                unit = !unit;
+            }
+
+            if (drive_pwm[unit] > 1)
                 color_b = color_greenb;
-            else if (drive_empty)
+            else if (drive_empty[unit])
                 color_b = color_greend;
 
             if (opt_statusbar & STATUSBAR_MINIMAL)
@@ -859,10 +900,12 @@ void uistatusbar_draw(void)
         if (i >= STATUSBAR_TAPE_POS)
             x_align += x_align_offset + retrow_crop - (MAX_STATUSBAR_LEN * char_width);
 
-        if (drive_enabled)
+        if (drive_enabled[0] || drive_enabled[1])
         {
             if (i == STATUSBAR_DRIVE8_TRACK_POS || i == STATUSBAR_DRIVE8_TRACK_POS + 1)
                 x_align -= 2 * char_scale_x;
+            else if (i == STATUSBAR_DRIVE9_TRACK_POS || i == STATUSBAR_DRIVE9_TRACK_POS + 1)
+                x_align -= 3 * char_scale_x;
 
             if (tape_enabled)
             {
