@@ -378,14 +378,21 @@ static int adjust_analog_deadzone(int analog_axis, int analog_deadzone)
    return analog_adjusted;
 }
 
-static int process_analogmouse(int analog_axis, int analog_deadzone, int mouse_multiplier)
+static int process_analogmouse(int analog_axis, int analog_deadzone, float mouse_multiplier, float *sub_pixel_remainder)
 {
-   int analog_adjusted = adjust_analog_deadzone(analog_axis, analog_deadzone);
-   int mouse_axis      = 0;
+   int mouse_axis = 0;
 
-   mouse_axis = analog_adjusted * 10 * opt_analogmouse_speed / (32768.0f / mouse_multiplier);
-   if (!mouse_axis && abs(analog_axis) > analog_deadzone)
-      mouse_axis = (analog_axis > 0) ? 1 : -1;
+   if (abs(analog_axis) > 0)
+   {
+      int analog_adjusted = adjust_analog_deadzone(analog_axis, analog_deadzone);
+      float delta = *sub_pixel_remainder + analog_adjusted * 10.0f * opt_analogmouse_speed / (32768.0f / mouse_multiplier);
+      mouse_axis = delta;
+      *sub_pixel_remainder = delta - mouse_axis;
+   }
+   else
+   {
+      *sub_pixel_remainder = 0;
+   }
 
    return mouse_axis;
 }
@@ -1370,6 +1377,12 @@ void retro_poll_event()
       unsigned int retro_mouse_l[4] = {0}, retro_mouse_r[4] = {0}, retro_mouse_m[4] = {0};
       static unsigned int vice_mouse_l[4] = {0}, vice_mouse_r[4] = {0}, vice_mouse_m[4] = {0};
 
+      /* keep track of analog mouse motion with high precision, to allow fine-grained speed changes */
+      static float sub_pixel_remainder_leftstick_x[4] = {0, 0};
+      static float sub_pixel_remainder_leftstick_y[4] = {0, 0};
+      static float sub_pixel_remainder_rightstick_x[4] = {0, 0};
+      static float sub_pixel_remainder_rightstick_y[4] = {0, 0};
+
       int analog_stick[2] = {0};
       int analog_deadzone = opt_analogmouse_deadzone * 32768.0f / 100.0f;
 
@@ -1492,11 +1505,8 @@ void retro_poll_event()
             if (mouse_speed[retro_j] & MOUSE_SPEED_SLOWER)
                mouse_multiplier = mouse_multiplier / MOUSE_SPEED_SLOW;
 
-            if (abs(analog_stick[0]) > 0)
-               retro_mouse_x[retro_j] = process_analogmouse(analog_stick[0], analog_deadzone, mouse_multiplier);
-
-            if (abs(analog_stick[1]) > 0)
-               retro_mouse_y[retro_j] = process_analogmouse(analog_stick[1], analog_deadzone, mouse_multiplier);
+            retro_mouse_x[retro_j] = process_analogmouse(analog_stick[0], analog_deadzone, mouse_multiplier, &(sub_pixel_remainder_leftstick_x[retro_j]));
+            retro_mouse_y[retro_j] = process_analogmouse(analog_stick[1], analog_deadzone, mouse_multiplier, &(sub_pixel_remainder_leftstick_y[retro_j]));
          }
 
          if (!retro_mouse_x[retro_j] && !retro_mouse_y[retro_j]
@@ -1519,11 +1529,8 @@ void retro_poll_event()
             if (mouse_speed[retro_j] & MOUSE_SPEED_SLOWER)
                mouse_multiplier = mouse_multiplier / MOUSE_SPEED_SLOW;
 
-            if (abs(analog_stick[0]) > 0)
-               retro_mouse_x[retro_j] = process_analogmouse(analog_stick[0], analog_deadzone, mouse_multiplier);
-
-            if (abs(analog_stick[1]) > 0)
-               retro_mouse_y[retro_j] = process_analogmouse(analog_stick[1], analog_deadzone, mouse_multiplier);
+            retro_mouse_x[retro_j] = process_analogmouse(analog_stick[0], analog_deadzone, mouse_multiplier, &(sub_pixel_remainder_rightstick_x[retro_j]));
+            retro_mouse_y[retro_j] = process_analogmouse(analog_stick[1], analog_deadzone, mouse_multiplier, &(sub_pixel_remainder_rightstick_y[retro_j]));
          }
       }
 
