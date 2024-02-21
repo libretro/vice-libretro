@@ -179,6 +179,7 @@ unsigned int opt_warp_boost = 1;
 unsigned int opt_read_vicerc = 0;
 unsigned int opt_work_disk_type = 0;
 unsigned int opt_work_disk_unit = 8;
+bool opt_floppy_multidrive = false;
 #if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
 static unsigned int opt_jiffydos_allow = 1;
 unsigned int opt_jiffydos = 0;
@@ -1307,7 +1308,7 @@ static int process_cmdline(const char* argv)
    return 0;
 }
 
-static void autodetect_drivetype(int unit)
+void autodetect_drivetype(int unit)
 {
    int drive_type = 0;
    int set_drive_type = 0;
@@ -1659,7 +1660,7 @@ void update_from_vice()
 
    /* If flip list is not empty, but there is no image attached to drive, attach the first one from list.
     * This can only happen if flip list was loaded via cmd file or from m3u with #COMMAND */
-   if (dc->count != 0)
+   if (dc->count)
    {
       if (dc->unit == 1)
       {
@@ -1686,6 +1687,29 @@ void update_from_vice()
             {
                log_cb(RETRO_LOG_INFO, "Attaching first disk '%s' to drive #%d\n", attachedImage, dc->unit);
                file_system_attach_disk(dc->unit, 0, attachedImage);
+            }
+         }
+
+         /* Append rest of the disks to the config if M3U is a MultiDrive-M3U */
+         if (strstr(full_path, "(MD)") != NULL || opt_floppy_multidrive)
+         {
+            for (unsigned i = 1; i < dc->count; i++)
+            {
+               if (i < NUM_DISK_UNITS)
+               {
+                  if (strstr(dc->labels[i], M3U_SAVEDISK_LABEL))
+                     continue;
+
+                  log_cb(RETRO_LOG_INFO, "Attaching disk '%s' to drive #%d\n", dc->files[i], dc->unit + i);
+                  file_system_attach_disk(dc->unit + i, 0, dc->files[i]);
+                  autodetect_drivetype(dc->unit + i);
+                  tick_sleep(5);
+               }
+               else
+               {
+                  log_cb(RETRO_LOG_WARN, "Too many disks for MultiDrive!\n");
+                  break;
+               }
             }
          }
       }
@@ -2795,6 +2819,20 @@ static void retro_set_core_options()
          "Media > Virtual Device Traps",
          "Virtual Device Traps",
          "Required for printer device, but causes loading issues on rare cases.",
+         NULL,
+         "media",
+         {
+            { "disabled", NULL },
+            { "enabled", NULL },
+            { NULL, NULL },
+         },
+         "disabled"
+      },
+      {
+         "vice_floppy_multidrive",
+         "Media > Floppy MultiDrive",
+         "Floppy MultiDrive",
+         "Insert each disk in different drives. Can be forced with '(MD)' file path tag. Maximum is 4 disks due to external drive limit!\nCore restart required.",
          NULL,
          "media",
          {
@@ -5601,6 +5639,14 @@ static void update_variables(void)
           (!opt_autoloadwarp || opt_autoloadwarp & AUTOLOADWARP_MUTE))
          resources_set_int(AUDIOLEAK_RESOURCE, vice_opt.AudioLeak);
 #endif
+   }
+
+   var.key = "vice_floppy_multidrive";
+   var.value = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (!strcmp(var.value, "disabled")) opt_floppy_multidrive = false;
+      else                                opt_floppy_multidrive = true;
    }
 
    var.key = "vice_floppy_write_protection";

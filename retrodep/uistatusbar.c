@@ -67,12 +67,12 @@ extern int vic20mem_forced;
 /* static functions/variables */
 
 #define STATUSBAR_JOY_POS           0
-#define STATUSBAR_TAPE_POS          55
+#define STATUSBAR_TAPE_POS          53
 #define STATUSBAR_DRIVE_POS         59
 #define STATUSBAR_DRIVE8_TRACK_POS  59
 #define STATUSBAR_DRIVE9_TRACK_POS  57
 #define STATUSBAR_DRIVE10_TRACK_POS 55
-#define STATUSBAR_DRIVE11_TRACK_POS 55
+#define STATUSBAR_DRIVE11_TRACK_POS 53
 #define STATUSBAR_PAUSE_POS         61
 #define STATUSBAR_SPEED_POS         61
 #define MAX_STATUSBAR_LEN           64
@@ -137,28 +137,62 @@ static int drive_enabled[NUM_DISK_UNITS] = {0};
 static int drive_empty[NUM_DISK_UNITS] = {0};
 static int drive_pwm[NUM_DISK_UNITS] = {0};
 
-static void clear_drive_statusbar_chars(void)
+static void clear_drive_statusbar_chars(signed char unit)
 {
-    if (drive_empty[0])
-    {
-        statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS] = ' ';
-        statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS + 1] = ' ';
-    }
-    else if (drive_enabled[0])
-    {
-        statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS] = '0';
-        statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS + 1] = '0';
-    }
+    unsigned char i;
+    unsigned char i_max = (unit < 0) ? NUM_DISK_UNITS : unit + 1;
 
-    if (drive_empty[1])
+    if (unit > -1)
+        i = unit;
+
+    for (i = i; i < i_max; i++)
     {
-        statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS] = ' ';
-        statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS + 1] = ' ';
-    }
-    else if (drive_enabled[1])
-    {
-        statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS] = '0';
-        statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS + 1] = '0';
+        if (drive_enabled[i] && drive_empty[i])
+        {
+            switch (i)
+            {
+                case 1:
+                    statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS] = '#';
+                    statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS + 1] = '9';
+                    break;
+                case 2:
+                    statusbar_chars[STATUSBAR_DRIVE10_TRACK_POS] = '#';
+                    statusbar_chars[STATUSBAR_DRIVE10_TRACK_POS + 1] = '0';
+                    break;
+                case 3:
+                    statusbar_chars[STATUSBAR_DRIVE11_TRACK_POS] = '#';
+                    statusbar_chars[STATUSBAR_DRIVE11_TRACK_POS + 1] = '1';
+                    break;
+                default:
+                case 0:
+                    statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS] = '#';
+                    statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS + 1] = '8';
+                    break;
+            }
+        }
+        else if (drive_enabled[i] && !drive_empty[i])
+        {
+            switch (i)
+            {
+                case 1:
+                    statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS] = '0';
+                    statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS + 1] = '0';
+                    break;
+                case 2:
+                    statusbar_chars[STATUSBAR_DRIVE10_TRACK_POS] = '0';
+                    statusbar_chars[STATUSBAR_DRIVE10_TRACK_POS + 1] = '0';
+                    break;
+                case 3:
+                    statusbar_chars[STATUSBAR_DRIVE11_TRACK_POS] = '0';
+                    statusbar_chars[STATUSBAR_DRIVE11_TRACK_POS + 1] = '0';
+                    break;
+                default:
+                case 0:
+                    statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS] = '0';
+                    statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS + 1] = '0';
+                    break;
+            }
+        }
     }
 }
 
@@ -198,9 +232,9 @@ void display_current_image(const char *image, bool inserted)
     }
 
     if (dc_get_image_type(dc->files[dc->index]) != DC_IMAGE_TYPE_FLOPPY)
-       drive_empty[0] = true;
+        drive_empty[0] = true;
 
-    clear_drive_statusbar_chars();
+    clear_drive_statusbar_chars(0);
 }
 
 /* ----------------------------------------------------------------- */
@@ -268,11 +302,12 @@ void ui_enable_drive_status(ui_drive_enable_t state, int *drive_led_color)
         drive_enabled[drive_number] = state & (1 << drive_number);
         if (drive_state & 1) {
             ui_display_drive_led(drive_number, 0, 0, 0);
-        } else {
-            statusbar_chars[STATUSBAR_DRIVE_POS + drive_number] = ' ';
         }
         drive_state >>= 1;
     }
+
+    /* Never disable #8 */
+    drive_enabled[0] = 1;
 
     if (uistatusbar_state & UISTATUSBAR_ACTIVE) {
         uistatusbar_state |= UISTATUSBAR_REPAINT;
@@ -282,7 +317,7 @@ void ui_enable_drive_status(ui_drive_enable_t state, int *drive_led_color)
 void ui_display_drive_track(
       unsigned int drive_number, unsigned int drive_base, unsigned int half_track_number, unsigned int disk_side)
 {
-    if (drive_empty[drive_number])
+    if (drive_empty[drive_number] || !drive_enabled[drive_number])
         return;
 
     unsigned int track_number = half_track_number / 2;
@@ -342,9 +377,9 @@ void ui_display_drive_current_image(unsigned int unit_number, unsigned int drive
     drive_empty[unit_number] = !image[0];
 
     if (dc_get_image_type(image) != DC_IMAGE_TYPE_FLOPPY)
-        drive_empty[unit_number] = true;
+        drive_empty[unit_number] = 1;
 
-    clear_drive_statusbar_chars();
+    clear_drive_statusbar_chars(unit_number);
 
 #ifdef SDL_DEBUG
     fprintf(stderr, "%s\n", __func__);
@@ -390,11 +425,10 @@ static void display_tape(void)
 
     if (tape_enabled)
         snprintf(tmpstr, sizeof(tmpstr), "%c%03d", tape_chars[tape_control], tape_counter);
-    else
-        snprintf(tmpstr, sizeof(tmpstr), "    ");
 
     /* Skip null terminator */
-    strncpy(&statusbar_chars[STATUSBAR_TAPE_POS], tmpstr, sizeof(tmpstr)-1);
+    if (tmpstr[0])
+        strncpy(&statusbar_chars[STATUSBAR_TAPE_POS], tmpstr, sizeof(tmpstr)-1);
 
     if (uistatusbar_state & UISTATUSBAR_ACTIVE) {
         uistatusbar_state |= UISTATUSBAR_REPAINT;
@@ -603,7 +637,7 @@ static void display_joyport(void)
     if (opt_statusbar & STATUSBAR_BASIC)
         snprintf(tmpstr, sizeof(tmpstr), "%24s", "");
 
-    snprintf(&statusbar_chars[STATUSBAR_JOY_POS], sizeof(statusbar_chars), "%-54s", tmpstr);
+    snprintf(&statusbar_chars[STATUSBAR_JOY_POS], sizeof(statusbar_chars), "%-51s", tmpstr);
 
     if (opt_statusbar & STATUSBAR_BASIC)
         return;
@@ -776,9 +810,16 @@ void uistatusbar_draw(void)
     /* LED section position */
     int led_x     = 0;
     int led_width = 0;
-    if (drive_enabled)
+    if (drive_enabled[0])
     {
+        unsigned char drive_i;
+
         led_width = (char_width * 5) - x_align_offset + 2;
+        for (drive_i = 1; drive_i < NUM_DISK_UNITS; drive_i++)
+        {
+            if (drive_enabled[drive_i])
+                led_width += (char_width * 3) - x_align_offset - 1;
+        }
         if (tape_enabled)
             led_width += (char_width * 5) - x_align_offset;
     }
@@ -814,8 +855,8 @@ void uistatusbar_draw(void)
     else if (!(opt_statusbar & STATUSBAR_BASIC))
     {
         draw_text(bkg_x + (max_width / 2) - (20 * char_scale_x), y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, char_scale_x, 1, 10, statusbar_resolution);
-        draw_text(bkg_x + (max_width / 2) + (30 * char_scale_x), y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, char_scale_x, 1, 10, statusbar_memory);
-        draw_text(bkg_x + (max_width / 2) + (70 * char_scale_x), y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, char_scale_x, 1, 10, statusbar_model);
+        draw_text(bkg_x + (max_width / 2) + (24 * char_scale_x), y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, char_scale_x, 1, 10, statusbar_memory);
+        draw_text(bkg_x + (max_width / 2) + (58 * char_scale_x), y, color_f, color_b, GRAPH_ALPHA_100, GRAPH_BG_ALL, char_scale_x, 1, 10, statusbar_model);
     }
 
     /* Tape indicator + drive & power LEDs */
@@ -835,11 +876,11 @@ void uistatusbar_draw(void)
         color_b = color_black;
 
         /* Drive/tape LED color */
-        if (i >= STATUSBAR_TAPE_POS && i < STATUSBAR_SPEED_POS)
+        if (i >= STATUSBAR_TAPE_POS)
         {
             color_f = color_black;
 
-            if (tape_enabled)
+            if (tape_enabled && i < STATUSBAR_TAPE_POS + 4)
             {
                 if (tape_motor)
                     color_b = color_brown;
@@ -849,33 +890,114 @@ void uistatusbar_draw(void)
         }
 
         /* Drive loading */
-        if (   ((i == STATUSBAR_DRIVE8_TRACK_POS || i == STATUSBAR_DRIVE8_TRACK_POS + 1) && drive_enabled[0])
-            || ((i == STATUSBAR_DRIVE9_TRACK_POS || i == STATUSBAR_DRIVE9_TRACK_POS + 1) && drive_enabled[1])
+        if (   ((i == STATUSBAR_DRIVE8_TRACK_POS  || i == STATUSBAR_DRIVE8_TRACK_POS  + 1) && drive_enabled[0])
+            || ((i == STATUSBAR_DRIVE9_TRACK_POS  || i == STATUSBAR_DRIVE9_TRACK_POS  + 1) && drive_enabled[1])
+            || ((i == STATUSBAR_DRIVE10_TRACK_POS || i == STATUSBAR_DRIVE10_TRACK_POS + 1) && drive_enabled[2])
+            || ((i == STATUSBAR_DRIVE11_TRACK_POS || i == STATUSBAR_DRIVE11_TRACK_POS + 1) && drive_enabled[3])
            )
         {
-            unsigned char unit = (i == STATUSBAR_DRIVE8_TRACK_POS || i == STATUSBAR_DRIVE8_TRACK_POS + 1) ? 0 : 1;
+            unsigned char unit = 0;
+
+            if (i == STATUSBAR_DRIVE9_TRACK_POS || i == STATUSBAR_DRIVE9_TRACK_POS + 1)
+                unit = 1;
+            else if (i == STATUSBAR_DRIVE10_TRACK_POS || i == STATUSBAR_DRIVE10_TRACK_POS + 1)
+                unit = 2;
+            else if (i == STATUSBAR_DRIVE11_TRACK_POS || i == STATUSBAR_DRIVE11_TRACK_POS + 1)
+                unit = 3;
+
             color_b = color_green;
 
-            /* Switch drives 8 and 9 around if 9 is enabled */
-            if (drive_enabled[1])
+            /* Switch drives around left-to-right */
+            if (drive_enabled[3])
             {
-                if (i == STATUSBAR_DRIVE8_TRACK_POS)
-                    c = statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS];
-                else if (i == STATUSBAR_DRIVE8_TRACK_POS + 1)
-                    c = statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS + 1];
+                switch (unit)
+                {
+                    case 0:
+                        unit = 3;
+                        if (i == STATUSBAR_DRIVE8_TRACK_POS)
+                            c = statusbar_chars[STATUSBAR_DRIVE11_TRACK_POS];
+                        else if (i == STATUSBAR_DRIVE8_TRACK_POS + 1)
+                            c = statusbar_chars[STATUSBAR_DRIVE11_TRACK_POS + 1];
+                        break;
+                    case 1:
+                        unit = 2;
+                        if (i == STATUSBAR_DRIVE9_TRACK_POS)
+                            c = statusbar_chars[STATUSBAR_DRIVE10_TRACK_POS];
+                        else if (i == STATUSBAR_DRIVE9_TRACK_POS + 1)
+                            c = statusbar_chars[STATUSBAR_DRIVE10_TRACK_POS + 1];
+                        break;
+                    case 2:
+                        unit = 1;
+                        if (i == STATUSBAR_DRIVE10_TRACK_POS)
+                            c = statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS];
+                        else if (i == STATUSBAR_DRIVE10_TRACK_POS + 1)
+                            c = statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS + 1];
+                        break;
+                    case 3:
+                        unit = 0;
+                        if (i == STATUSBAR_DRIVE11_TRACK_POS)
+                            c = statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS];
+                        else if (i == STATUSBAR_DRIVE11_TRACK_POS + 1)
+                            c = statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS + 1];
+                        break;
+                }
+            }
+            else if (drive_enabled[2])
+            {
+                switch (unit)
+                {
+                    case 0:
+                        unit = 2;
+                        if (i == STATUSBAR_DRIVE8_TRACK_POS)
+                            c = statusbar_chars[STATUSBAR_DRIVE10_TRACK_POS];
+                        else if (i == STATUSBAR_DRIVE8_TRACK_POS + 1)
+                            c = statusbar_chars[STATUSBAR_DRIVE10_TRACK_POS + 1];
+                        break;
+                    case 1:
+                        unit = 1;
+                        if (i == STATUSBAR_DRIVE9_TRACK_POS)
+                            c = statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS];
+                        else if (i == STATUSBAR_DRIVE9_TRACK_POS + 1)
+                            c = statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS + 1];
+                        break;
+                    case 2:
+                        unit = 0;
+                        if (i == STATUSBAR_DRIVE10_TRACK_POS)
+                            c = statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS];
+                        else if (i == STATUSBAR_DRIVE10_TRACK_POS + 1)
+                            c = statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS + 1];
+                        break;
+                }
+            }
+            else if (drive_enabled[1])
+            {
+                switch (unit)
+                {
+                    case 0:
+                        unit = 1;
+                        if (i == STATUSBAR_DRIVE8_TRACK_POS)
+                            c = statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS];
+                        else if (i == STATUSBAR_DRIVE8_TRACK_POS + 1)
+                            c = statusbar_chars[STATUSBAR_DRIVE9_TRACK_POS + 1];
+                        break;
+                    case 1:
+                        unit = 0;
+                        if (i == STATUSBAR_DRIVE9_TRACK_POS)
+                            c = statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS];
+                        else if (i == STATUSBAR_DRIVE9_TRACK_POS + 1)
+                            c = statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS + 1];
+                        break;
+                }
+            }
 
-                if (i == STATUSBAR_DRIVE9_TRACK_POS)
-                    c = statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS];
-                else if (i == STATUSBAR_DRIVE9_TRACK_POS + 1)
-                    c = statusbar_chars[STATUSBAR_DRIVE8_TRACK_POS + 1];
-
-                unit = !unit;
+            if (drive_empty[unit])
+            {
+                color_f = color_green;
+                color_b = color_greend;
             }
 
             if (drive_pwm[unit] > 1)
                 color_b = color_greenb;
-            else if (drive_empty[unit])
-                color_b = color_greend;
 
             if (opt_statusbar & STATUSBAR_MINIMAL)
                 c = ' ';
@@ -900,30 +1022,53 @@ void uistatusbar_draw(void)
         if (i >= STATUSBAR_TAPE_POS)
             x_align += x_align_offset + retrow_crop - (MAX_STATUSBAR_LEN * char_width);
 
-        if (drive_enabled[0] || drive_enabled[1])
+        if (drive_enabled[0])
         {
             if (i == STATUSBAR_DRIVE8_TRACK_POS || i == STATUSBAR_DRIVE8_TRACK_POS + 1)
                 x_align -= 2 * char_scale_x;
-            else if (i == STATUSBAR_DRIVE9_TRACK_POS || i == STATUSBAR_DRIVE9_TRACK_POS + 1)
-                x_align -= 3 * char_scale_x;
 
-            if (tape_enabled)
+            if (drive_enabled[1])
             {
+                if (i == STATUSBAR_DRIVE9_TRACK_POS || i == STATUSBAR_DRIVE9_TRACK_POS + 1)
+                    x_align -= 4 * char_scale_x;
+            }
+
+            /* Drives 10 & 11 only shown if tape is not in use */
+            if (!tape_enabled)
+            {
+                if (drive_enabled[2])
+                {
+                    if (i == STATUSBAR_DRIVE10_TRACK_POS || i == STATUSBAR_DRIVE10_TRACK_POS + 1)
+                        x_align -= 6 * char_scale_x;
+                }
+                if (drive_enabled[3])
+                {
+                    if (i == STATUSBAR_DRIVE11_TRACK_POS || i == STATUSBAR_DRIVE11_TRACK_POS + 1)
+                        x_align -= 8 * char_scale_x;
+                }
+            }
+            else if (tape_enabled)
+            {
+                signed char x_extra = 4;
+
+                if (drive_enabled[1])
+                    x_extra += 2;
+                else
+                    x_extra -= char_width * 2;
+
                 if (i == STATUSBAR_TAPE_POS)
-                    x_align -= ((char_width + 5) * char_scale_x) - char_width;
+                    x_align -= ((char_width + x_extra + 1) * char_scale_x) - char_width;
                 else if (i >= STATUSBAR_TAPE_POS && i < STATUSBAR_TAPE_POS + 4)
-                    x_align -= ((char_width + 4) * char_scale_x) - char_width;
+                    x_align -= ((char_width + x_extra) * char_scale_x) - char_width;
             }
         }
-        else if (tape_enabled)
+        else
+        if (tape_enabled)
         {
             if (i == STATUSBAR_TAPE_POS)
-                x_align -= (3 * char_scale_x) - (char_width * 2);
+                x_align -= (3 * char_scale_x) - (char_width * 4);
             else if (i >= STATUSBAR_TAPE_POS && i < STATUSBAR_TAPE_POS + 4)
-                x_align -= (2 * char_scale_x) - (char_width * 2);
-
-            if (i == STATUSBAR_DRIVE8_TRACK_POS || i == STATUSBAR_DRIVE8_TRACK_POS + 1)
-                c = '\0';
+                x_align -= (2 * char_scale_x) - (char_width * 4);
         }
 
         int x_char = x + char_offset + x_align + (i * char_width);

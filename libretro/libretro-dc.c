@@ -49,7 +49,10 @@ extern char retro_save_directory[RETRO_PATH_MAX];
 extern char retro_temp_directory[RETRO_PATH_MAX];
 extern bool retro_disk_set_image_index(unsigned index);
 extern bool retro_disk_set_eject_state(bool ejected);
+extern bool opt_floppy_multidrive;
 extern char full_path[RETRO_PATH_MAX];
+extern void display_current_image(const char *image, bool inserted);
+extern void autodetect_drivetype(int unit);
 extern int runstate;
 
 extern retro_log_printf_t log_cb;
@@ -425,6 +428,10 @@ bool dc_replace_file(dc_storage* dc, int index, const char* filename)
    {
       dc->replace = false;
 
+      /* Eject all floppy drives */
+      for (unsigned i = 0; i < NUM_DISK_UNITS; i++)
+         file_system_detach_disk(8 + i, 0);
+
       char full_path_replace[RETRO_PATH_MAX] = {0};
       strlcpy(full_path_replace, (char*)filename, sizeof(full_path_replace));
 
@@ -485,6 +492,7 @@ bool dc_replace_file(dc_storage* dc, int index, const char* filename)
          {
             case 0: /* Extracted path */
                dc_reset(dc);
+               display_current_image(filename, true);
                return true;
                break;
             case 1: /* Generated playlist */
@@ -495,11 +503,14 @@ bool dc_replace_file(dc_storage* dc, int index, const char* filename)
                }
                else
                {
-                  zip_m3u = fopen(zip_m3u_list.path, "w");
                   qsort(zip_m3u_list.list, zip_m3u_list.num, RETRO_PATH_MAX, qstrcmp);
-                  for (int l = 0; l < zip_m3u_list.num; l++)
-                     fprintf(zip_m3u, "%s\n", zip_m3u_list.list[l]);
-                  fclose(zip_m3u);
+                  zip_m3u = fopen(zip_m3u_list.path, "w");
+                  if (zip_m3u)
+                  {
+                     for (unsigned l = 0; l < zip_m3u_list.num; l++)
+                        fprintf(zip_m3u, "%s\n", zip_m3u_list.list[l]);
+                     fclose(zip_m3u);
+                  }
                   snprintf(full_path_replace, sizeof(full_path_replace), "%s", zip_m3u_list.path);
                   log_cb(RETRO_LOG_INFO, "->M3U: %s\n", zip_m3u_list.path);
                }
@@ -515,19 +526,44 @@ bool dc_replace_file(dc_storage* dc, int index, const char* filename)
 
          /* Some debugging */
          log_cb(RETRO_LOG_INFO, "M3U/VFL parsed, %d file(s) found\n", dc->count);
+         for (unsigned i = 0; i < dc->count; i++)
+            log_cb(RETRO_LOG_DEBUG, "File %d: %s\n", i+1, dc->files[i]);
 
          /* Insert first disk */
          retro_disk_set_image_index(0);
 
          /* Trick frontend to return to index 0 after successful "append" does +1 */
          dc->replace = true;
+
+         /* Append rest of the disks to the config if M3U is a MultiDrive-M3U */
+         if (strstr(full_path_replace, "(MD)") != NULL || opt_floppy_multidrive)
+         {
+            for (unsigned i = 1; i < dc->count; i++)
+            {
+               if (i < NUM_DISK_UNITS)
+               {
+                  if (strstr(dc->labels[i], M3U_SAVEDISK_LABEL))
+                     continue;
+
+                  log_cb(RETRO_LOG_INFO, "Attaching disk '%s' to drive #%d\n", dc->files[i], dc->unit + i);
+                  file_system_attach_disk(dc->unit + i, 0, dc->files[i]);
+                  autodetect_drivetype(dc->unit + i);
+                  tick_sleep(5);
+               }
+               else
+               {
+                  log_cb(RETRO_LOG_WARN, "Too many disks for MultiDrive!\n");
+                  break;
+               }
+            }
+         }
       }
       /* Single append */
       else
       {
          char image_label[RETRO_PATH_MAX];
          image_label[0] = '\0';
-	 fill_pathname(image_label, path_basename(full_path_replace), "", sizeof(image_label));
+         fill_pathname(image_label, path_basename(full_path_replace), "", sizeof(image_label));
 
          /* Dupecheck */
          for (unsigned i = 0; i < dc->count - 1; i++)
