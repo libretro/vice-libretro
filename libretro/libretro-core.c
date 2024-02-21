@@ -139,8 +139,9 @@ static struct {
 
 /* Audio buffer copy for auto warp detection */
 int16_t *audio_buffer;
-static bool audio_is_playing = false;
+bool audio_is_playing = false;
 static bool audio_is_ignored = false;
+static uint8_t audio_ignore_count = 0;
 
 /* Core options */
 struct vice_core_options vice_opt;
@@ -217,8 +218,6 @@ extern unsigned int turbo_fire_button;
 extern unsigned int turbo_pulse;
 
 extern char *fsdevice_get_path(unsigned int unit);
-extern int tape_enabled;
-extern int tape_control;
 
 #if defined(__XVIC__)
 void cartridge_trigger_freeze(void) {}
@@ -249,7 +248,6 @@ static bool libretro_supports_ff_override = false;
 bool libretro_ff_enabled = false;
 static bool libretro_supports_option_categories = false;
 #define HAVE_NO_LANGEXTRA
-
 
 char retro_save_directory[RETRO_PATH_MAX] = {0};
 char retro_temp_directory[RETRO_PATH_MAX] = {0};
@@ -8462,6 +8460,8 @@ void emu_model_set(int model)
    request_restart = true;
 }
 
+#define AUTOLOADWARP_TAPE_DEBUG 0
+
 void retro_run(void)
 {
    /* Core options */
@@ -8543,14 +8543,53 @@ void retro_run(void)
          }
       }
 
-      /* Allow re-enabling warp during tape loading music playback by pressing Space */
-      if (     opt_autoloadwarp
-            && !audio_is_ignored && audio_is_playing
-            && tape_enabled && tape_control == 1
-            && !vsync_get_warp_mode())
+      /* Autoloadwarp audio detection */
+      if (opt_autoloadwarp && !(opt_autoloadwarp & AUTOLOADWARP_MUTE))
+         audio_is_playing = audio_playing();
+
+      /* Frame-based tape autoloadwarping for fast audio detection */
+      if (tape_enabled && (opt_autoloadwarp & AUTOLOADWARP_TAPE || vsync_get_warp_mode()) && !retro_warpmode)
       {
-         if (retro_key_state_internal[RETROK_SPACE])
-            audio_is_ignored = true;
+         bool audio = false;
+
+         audio = !(opt_autoloadwarp & AUTOLOADWARP_MUTE) && opt_autoloadwarp & AUTOLOADWARP_TAPE ? audio_is_playing : false;
+
+         if (tape_control == 1 && tape_motor && !audio && !vsync_get_warp_mode())
+         {
+            vsync_set_warp_mode(1);
+#if AUTOLOADWARP_TAPE_DEBUG
+            printf("Tape Warp  ON, control:%d motor:%d audio:%d\n", tape_control, tape_motor, audio);
+#endif
+         }
+         else if ((tape_control != 1 || !tape_motor || audio) && vsync_get_warp_mode() || !(opt_autoloadwarp & AUTOLOADWARP_TAPE))
+         {
+            vsync_set_warp_mode(0);
+#if AUTOLOADWARP_TAPE_DEBUG
+            printf("Tape Warp OFF, control:%d motor:%d audio:%d\n", tape_control, tape_motor, audio);
+#endif
+         }
+      }
+
+      /* Allow re-enabling warp during tape loading music playback by pressing Space */
+      if (     opt_autoloadwarp & AUTOLOADWARP_TAPE
+            && tape_enabled && tape_motor && tape_control == 1
+            && !audio_is_ignored && audio_is_playing
+            && !vsync_get_warp_mode()
+            && retro_key_state_internal[RETROK_SPACE])
+      {
+         audio_is_ignored = true;
+         statusbar_message_show(9, "%s", "Resuming warp..");
+      }
+      else if (opt_autoloadwarp & AUTOLOADWARP_TAPE
+            && tape_enabled && !tape_motor
+            && audio_is_ignored)
+      {
+         audio_ignore_count++;
+         if (audio_ignore_count > 10)
+         {
+            audio_is_ignored = false;
+            audio_ignore_count = 0;
+         }
       }
 
 #if defined(__X128__)

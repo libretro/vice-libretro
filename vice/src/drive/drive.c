@@ -87,6 +87,7 @@ extern dc_storage *dc;
 extern unsigned int opt_autoloadwarp;
 extern unsigned int vice_led_state[RETRO_LED_NUM];
 extern bool retro_disk_get_eject_state(void);
+extern bool audio_is_playing;
 extern long retro_now;
 extern int tape_control;
 static int warpmode_counter_ledon = 0;
@@ -985,26 +986,25 @@ void drive_update_ui_status(void)
                 int drive_half_track = drive0->current_half_track;
                 int drive_led_status = vice_led_state[RETRO_LED_DRIVE];
                 int warp_mode        = vsync_get_warp_mode();
-                bool audio           = !(opt_autoloadwarp & AUTOLOADWARP_MUTE) ? audio_playing() : false;
                 bool drive_image     = dc_get_image_type(dc->files[dc->index]) == DC_IMAGE_TYPE_FLOPPY;
                 /* Determine drive active status based on BRA when available, otherwise rely on LED status only */
                 bool drive_active    =
                            ( drive0->image && drive0->byte_ready_active == (BRA_BYTE_READY | BRA_MOTOR_ON))
                         || (!drive0->image && drive_led_status);
 
-                if (drive_half_track != drive_half_track_prev && drive_image && !warp_mode && !audio)
+                if (drive_half_track != drive_half_track_prev && drive_image && !warp_mode && !audio_is_playing)
                 {
                     warpmode_counter_ledon  = 0;
                     warpmode_counter_ledoff = 0;
                     warp = 1;
                 }
-                else if (drive_half_track == drive_half_track_prev && drive_image && (drive_led_status && drive_active) && !warp_mode && !audio)
+                else if (drive_half_track == drive_half_track_prev && drive_image && (drive_led_status && drive_active) && !warp_mode && !audio_is_playing)
                 {
                     warpmode_counter_ledon  = 0;
                     warpmode_counter_ledoff = 0;
                     warp = 1;
                 }
-                else if (drive_half_track == drive_half_track_prev && (!drive_led_status || !drive_active) && warp_mode && !audio)
+                else if (drive_half_track == drive_half_track_prev && (!drive_led_status || !drive_active) && warp_mode && !audio_is_playing)
                 {
                     warpmode_counter_ledon  = 0;
                     warpmode_counter_ledoff++;
@@ -1013,14 +1013,14 @@ void drive_update_ui_status(void)
                             || (!drive_active && warpmode_counter_ledoff > 43))
                         warp = 0;
                 }
-                else if (drive_half_track == drive_half_track_prev && drive_led_status && warp_mode && !audio)
+                else if (drive_half_track == drive_half_track_prev && drive_led_status && warp_mode && !audio_is_playing)
                 {
                     warpmode_counter_ledon++;
                     warpmode_counter_ledoff = 0;
                     if (warpmode_counter_ledon > 998)
                         warp = 2;
                 }
-                else if (warp_mode && audio)
+                else if (warp_mode && audio_is_playing)
                 {
                     warpmode_counter_ledon  = 0;
                     warpmode_counter_ledoff = 0;
@@ -1043,7 +1043,7 @@ void drive_update_ui_status(void)
 #if 0
                     printf("Disk Warp:%2d track:%3d prev:%3d led:%d audio:%d active:%d timer: on=%2d,off=%2d\n",
                             warp, drive_half_track, drive_half_track_prev, drive_led_status,
-                            audio, drive0->byte_ready_active, warpmode_counter_ledon, warpmode_counter_ledoff);
+                            audio_is_playing, drive0->byte_ready_active, warpmode_counter_ledon, warpmode_counter_ledoff);
 #endif
                 }
                 drive_half_track_prev = drive_half_track;

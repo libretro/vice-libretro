@@ -391,7 +391,7 @@ void ui_display_drive_current_image(unsigned int unit_number, unsigned int drive
 int tape_enabled = 0;
 int tape_control = 0;
 int tape_counter = 0;
-static int tape_motor = 0;
+int tape_motor = 0;
 
 static void display_tape(void)
 {
@@ -402,26 +402,6 @@ static void display_tape(void)
         vice_led_state[RETRO_LED_TAPE] = (tape_control == 1 && tape_motor) ? 1 : 0;
     else
         tape_control = 0;
-
-    if (tape_enabled && (opt_autoloadwarp & AUTOLOADWARP_TAPE || vsync_get_warp_mode()) && !retro_warpmode)
-    {
-        bool audio = !(opt_autoloadwarp & AUTOLOADWARP_MUTE) && opt_autoloadwarp & AUTOLOADWARP_TAPE ? audio_playing() : false;
-
-        if (tape_control == 1 && tape_motor == 2 && !audio && !vsync_get_warp_mode())
-        {
-            vsync_set_warp_mode(1);
-#if 0
-            printf("Tape Warp  ON, control:%d motor:%d audio:%d\n", tape_control, tape_motor, audio);
-#endif
-        }
-        else if ((tape_control != 1 || !tape_motor || audio) && vsync_get_warp_mode() || !(opt_autoloadwarp & AUTOLOADWARP_TAPE))
-        {
-            vsync_set_warp_mode(0);
-#if 0
-            printf("Tape Warp OFF, control:%d motor:%d audio:%d\n", tape_control, tape_motor, audio);
-#endif
-        }
-    }
 
     if (tape_enabled)
         snprintf(tmpstr, sizeof(tmpstr), "%c%03d", tape_chars[tape_control], tape_counter);

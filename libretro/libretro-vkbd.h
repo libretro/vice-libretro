@@ -15,13 +15,6 @@ extern unsigned int opt_vkbd_theme;
 extern libretro_graph_alpha_t opt_vkbd_alpha;
 extern libretro_graph_alpha_t opt_vkbd_dim_alpha;
 
-extern retro_input_state_t input_state_cb;
-extern void statusbar_message_show(signed char icon, const char *format, ...);
-
-extern int tape_enabled;
-extern int tape_counter;
-extern int tape_control;
-
 #define VKBDX 11
 #ifdef __X128__
 #define VKBDY 8

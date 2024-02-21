@@ -145,8 +145,12 @@ extern unsigned int cur_port;
 extern unsigned int retro_region;
 extern int request_model_set;
 
+extern int tape_enabled;
+extern int tape_counter;
+extern int tape_control;
+extern int tape_motor;
+
 extern unsigned int retro_warpmode;
-extern bool audio_playing(void);
 extern int crop_id;
 extern int crop_id_prev;
 extern bool crop_delay;
@@ -240,6 +244,7 @@ extern void reload_restart(void);
 extern void emu_reset(int type);
 extern int RGBc(int r, int g, int b);
 extern void display_retro_message(const char *message);
+extern void statusbar_message_show(signed char icon, const char *format, ...);
 extern void set_variable(const char *key, const char *value);
 extern char* get_variable(const char *key);
 

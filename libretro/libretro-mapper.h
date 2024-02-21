@@ -72,6 +72,7 @@
 #define SHORT_PRESS 400
 #define LONG_PRESS 800
 
+extern retro_input_state_t input_state_cb;
 extern int retro_keymap_id(const char *val);
 extern char *retro_keymap_value(const int id);
 extern char *retro_keymap_label(const int id);
