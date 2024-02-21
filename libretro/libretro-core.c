@@ -835,7 +835,6 @@ static int process_cmdline(const char* argv)
       if (!path_is_valid(argv))
          argv = "";
 
-
 #if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
       /* Do not allow JiffyDOS with non-floppies */
       if (dc_get_image_type(argv) == DC_IMAGE_TYPE_TAPE
@@ -1127,13 +1126,6 @@ static int process_cmdline(const char* argv)
          /* Parse the m3u file */
          dc_parse_m3u(dc, argv);
          is_fliplist = true;
-
-         /* Disable floppy drive with tapes */
-         if (dc_get_image_type(dc->files[0]) == DC_IMAGE_TYPE_TAPE)
-         {
-            Add_Option("-drive8type");
-            Add_Option("0");
-         }
 
 #if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
          /* Do not allow JiffyDOS with non-floppies */
@@ -1650,14 +1642,6 @@ void update_from_vice()
          log_cb(RETRO_LOG_DEBUG, "File %d: %s\n", i+1, dc->files[i]);
    }
 
-   /* Scan for save disk 0, append if exists */
-   if (dc->count && dc->unit == 8)
-   {
-      bool file_check = dc_save_disk_toggle(dc, true, false);
-      if (file_check)
-         dc_save_disk_toggle(dc, false, false);
-   }
-
    /* If flip list is not empty, but there is no image attached to drive, attach the first one from list.
     * This can only happen if flip list was loaded via cmd file or from m3u with #COMMAND */
    if (dc->count)
@@ -1740,6 +1724,15 @@ void update_from_vice()
              * launched via cmdline, but continue with reset and subsequent attaches.. */
             request_restart = true;
       }
+   }
+
+   /* Scan for save disk 0, append if exists */
+   if (dc)
+   {
+      bool file_check = dc_save_disk_toggle(dc, true, false);
+      /* Insert save disk only if not booting from floppies */
+      if (file_check)
+         dc_save_disk_toggle(dc, false, (dc_get_image_type(dc->files[0]) == DC_IMAGE_TYPE_FLOPPY) ? false : true);
    }
 
    /* Disable autostart only with disks or tapes */
@@ -7647,11 +7640,36 @@ void emu_reset(int type)
          /* Allow autostarting with a different disk */
          if (dc->count > 1)
          {
-            free(autostartString);
-            autostartString = x_strdup(dc->files[dc->index]);
+            /* Only if first image has the same image type */
+            if (dc_get_image_type(dc->files[0]) == dc_get_image_type(dc->files[dc->index]))
+            {
+               free(autostartString);
+               autostartString = x_strdup(dc->files[dc->index]);
+            }
          }
          if (autostartString != NULL && autostartString[0] != '\0' && !noautostart)
             autostart_autodetect(autostartString, autostartProgram, 0, AUTOSTART_MODE_RUN);
+
+         /* Scan for save disk index */
+         signed char save_disk_index = -1;
+         for (unsigned index = 0; index < dc->count; index++)
+            if (strstr(dc->labels[index], M3U_SAVEDISK_LABEL))
+               save_disk_index = index;
+
+         /* Scan for save disk 0, insert it silently if exists and not booting from floppy */
+         if (save_disk_index > -1 && dc_get_image_type(dc->files[0]) != DC_IMAGE_TYPE_FLOPPY)
+         {
+            int index_cur = dc->index;
+
+            dc->unit  = 8;
+            dc->index = save_disk_index;
+
+            /* Cycle disk tray */
+            retro_disk_set_eject_state(true);
+            retro_disk_set_eject_state(false);
+
+            dc->index = index_cur;
+         }
          break;
       case 1:
          machine_trigger_reset(MACHINE_RESET_MODE_SOFT);

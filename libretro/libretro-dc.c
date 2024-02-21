@@ -601,9 +601,9 @@ void dc_save_disk_compress(dc_storage* dc)
 {
    if (dc)
    {
-      char save_disk_label[64] = {0};
-      unsigned save_disk_index = 0;
-      unsigned index           = 0;
+      char save_disk_label[64]    = {0};
+      signed char save_disk_index = -1;
+      unsigned char index         = 0;
 
       snprintf(save_disk_label, 64, "%s %u",
             M3U_SAVEDISK_LABEL, 0);
@@ -614,12 +614,13 @@ void dc_save_disk_compress(dc_storage* dc)
             save_disk_index = index;
       }
 
-      if (save_disk_index)
+      if (save_disk_index > -1)
       {
          char gz_saveimagepath[RETRO_PATH_MAX];
          snprintf(gz_saveimagepath, sizeof(gz_saveimagepath), "%s%s",
                dc->files[save_disk_index], ".gz");
 
+         file_system_detach_disk(8, 0);
          retro_disk_set_eject_state(true);
 
          gz_compress(dc->files[save_disk_index], gz_saveimagepath);
@@ -687,6 +688,8 @@ static bool dc_add_m3u_save_disk(
       save_disk_exists = path_is_valid(save_disk_path);
    }
 
+   dc->unit = 8;
+
    if (file_check)
       return save_disk_exists;
 
@@ -744,9 +747,6 @@ static bool dc_add_m3u_save_disk(
 bool dc_save_disk_toggle(dc_storage* dc, bool file_check, bool select)
 {
    if (!dc)
-      return false;
-
-   if (dc->unit != 8)
       return false;
 
    if (file_check)
