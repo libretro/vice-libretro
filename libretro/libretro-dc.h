@@ -91,6 +91,7 @@ bool dc_replace_file(dc_storage* dc, int index, const char* filename);
 bool dc_remove_file(dc_storage* dc, int index);
 enum dc_image_type dc_get_image_type(const char* filename);
 bool dc_save_disk_toggle(dc_storage* dc, bool file_check, bool select);
+void dc_save_disk_compress(dc_storage* dc);
 
 typedef struct zip_m3u_t
 {

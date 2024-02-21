@@ -5,6 +5,8 @@
 /* zlib */
 #include "deps/libz/zlib.h"
 #include "deps/libz/unzip.h"
+void gz_compress(const char *in, const char *out);
+void gz_uncompress(const char *in, const char *out);
 void zip_uncompress(char *in, char *out, char *lastfile);
 
 /* 7z */
@@ -20,6 +22,7 @@ int nib_convert(char *in, char *out);
 
 /* Misc */
 int qstrcmp(const void *a, const void *b);
+int retro_remove(const char *path);
 void remove_recurse(const char *path);
 void m3u_scan_recurse(const char *path, zip_m3u_t *list);
 

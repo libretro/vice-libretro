@@ -33,6 +33,50 @@ int qstrcmp(const void *a, const void *b)
    return sensible_strcmp(pa, pb);
 }
 
+int retro_remove(const char *path)
+{
+#if defined(_WIN32) && !defined(LEGACY_WIN32)
+   wchar_t *pathW = utf8_to_utf16_string_alloc(path);
+
+   if (pathW)
+   {
+      if (DeleteFileW(pathW))
+      {
+         free(pathW);
+         return 0;
+      }
+      free(pathW);
+      return -1;
+   }
+
+   return DeleteFile(path);
+#else
+   return remove(path);
+#endif
+}
+
+int retro_rmdir(const char *path)
+{
+#if defined(_WIN32) && !defined(LEGACY_WIN32)
+   wchar_t *pathW = utf8_to_utf16_string_alloc(path);
+
+   if (pathW)
+   {
+      if (RemoveDirectoryW(pathW))
+      {
+         free(pathW);
+         return 0;
+      }
+      free(pathW);
+      return -1;
+   }
+
+   return RemoveDirectory(path);
+#else
+   return rmdir(path);
+#endif
+}
+
 void remove_recurse(const char *path)
 {
    struct dirent *dirp;
@@ -207,6 +251,80 @@ char *first_file_in_dir(char *path)
 }
 
 /* zlib */
+#define BUFLEN 16384
+
+void gz_compress(const char *in, const char *out)
+{
+   char buf[BUFLEN];
+   size_t len;
+   int err;
+   FILE *in_fp;
+   gzFile out_fp;
+
+   out_fp = gzopen(out, "wb");
+   if (out_fp == NULL)
+      return;
+
+   in_fp = fopen(in, "rb");
+   if (in_fp == NULL)
+      return;
+
+   for (;;)
+   {
+      len = fread(buf, 1, sizeof(buf), in_fp);
+      int buflen;
+
+      if (len <= 0)
+      {
+         if (len < 0)
+            log_cb(RETRO_LOG_ERROR, "GZip: Read error\n");
+         break;
+      }
+
+      buflen = gzwrite(out_fp, buf, len);
+      if (buflen != len)
+         log_cb(RETRO_LOG_ERROR, "GZip: %s\n", gzerror(out_fp, &err));
+   }
+   fclose(in_fp);
+
+   if (gzclose(out_fp) == Z_OK)
+      log_cb(RETRO_LOG_INFO, "GZip: %s\n", out);
+}
+
+void gz_uncompress(const char *in, const char *out)
+{
+   char gzbuf[BUFLEN];
+   int len;
+   int err;
+
+   struct gzFile_s *in_fp;
+   if ((in_fp = gzopen(in, "r")))
+   {
+      FILE *out_fp;
+      if ((out_fp = fopen(out, "wb")))
+      {
+         for (;;)
+         {
+            len = gzread(in_fp, gzbuf, sizeof(gzbuf));
+            if (len <= 0)
+            {
+               if (len < 0)
+                  log_cb(RETRO_LOG_ERROR, "GUnzip: %s\n", gzerror(in_fp, &err));
+               break;
+            }
+
+            if (fwrite(gzbuf, 1, len, out_fp) != len)
+               log_cb(RETRO_LOG_ERROR, "GUnzip: Write error\n");
+         }
+         fclose(out_fp);
+
+         if (!len)
+            log_cb(RETRO_LOG_INFO, "GUnzip: %s\n", out);
+      }
+      gzclose(in_fp);
+   }
+}
+
 void zip_uncompress(char *in, char *out, char *lastfile)
 {
    uLong i;
