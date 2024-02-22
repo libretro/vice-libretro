@@ -208,7 +208,10 @@ static void video_canvas_crop(struct video_canvas_s *canvas)
          if (c128_vdc)
          {
             if (vice_raster.first_line < crop_top_border)
+            {
                vice_raster.last_line -= crop_top_border - vice_raster.first_line;
+               crop_bottom_border    -= crop_top_border - vice_raster.first_line;
+            }
          }
 #endif
 
@@ -244,6 +247,25 @@ static void video_canvas_crop(struct video_canvas_s *canvas)
             if (vice_raster.last_line > crop_top_border + crop_height_max)
                break;
          }
+
+#if defined(__X128__)
+         if (c128_vdc)
+         {
+            /* Center vertically if the whole area is not used */
+            if (vice_raster.first_line < crop_top_border)
+            {
+               if (i == crop_bottom_border)
+               {
+                  int center = (vice_raster.last_line - i + 1) / 2;
+                  if (center > 1)
+                  {
+                     vice_raster.first_line -= center;
+                     vice_raster.last_line  -= center;
+                  }
+               }
+            }
+         }
+#endif
 
          /* Align the resulting screen height to even number */
          if ((vice_raster.last_line - vice_raster.first_line) % 2)
@@ -281,12 +303,14 @@ static void video_canvas_crop(struct video_canvas_s *canvas)
 
          if (vice_raster.counter > crop_counter)
          {
+            if (     (retroh_crop != vice_raster.last_line - vice_raster.first_line)
+                  || vice_raster.first_line != vice_raster.first_line_active
+                  || vice_raster.last_line  != vice_raster.last_line_active)
+               crop_id_prev               = -1;
+
             vice_raster.counter           = 0;
             vice_raster.first_line_active = vice_raster.first_line;
             vice_raster.last_line_active  = vice_raster.last_line;
-
-            if (retroh_crop != vice_raster.last_line - vice_raster.first_line)
-               crop_id_prev               = -1;
          }
 
 #if 0
@@ -327,12 +351,12 @@ static void video_canvas_crop(struct video_canvas_s *canvas)
 
          if (vice_raster.counter > crop_counter)
          {
+            if (retroh_crop != vice_raster.last_line - vice_raster.first_line)
+               crop_id_prev               = -1;
+
             vice_raster.counter           = 0;
             vice_raster.first_line_active = vice_raster.first_line;
             vice_raster.last_line_active  = vice_raster.last_line;
-
-            if (retroh_crop != vice_raster.last_line - vice_raster.first_line)
-               crop_id_prev               = -1;
          }
          break;
 #endif
