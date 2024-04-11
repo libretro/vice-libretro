@@ -438,10 +438,11 @@ ifeq ($(platform), theos_ios)
 	include $(THEOS_MAKE_PATH)/library.mk
 else
 
-default:
+default: info all
+
+info:
 	$(info CFLAGS: $(PLATFLAGS) $(COMMONFLAGS))
 	$(info -------)
-	$(MAKE) $(TARGET)
 
 all: $(TARGET)
 
