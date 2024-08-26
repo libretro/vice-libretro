@@ -1393,23 +1393,24 @@ void retro_poll_event()
       if (opt_joyport_type == 2)
          retro_j_max = 4;
 
-      /* No Joypad and real mouse analog control when VKBD is open */
+      /* Joypad and mouse control only when VKBD is closed */
       if (!retro_vkbd)
       {
          for (retro_j = 0; retro_j < retro_j_max; retro_j++)
          {
-            /* Joypad buttons */
+            /* Button rotation only with joypad, and buttons only when no keyboard mappings */
+            uint8_t button_l = RETRO_DEVICE_ID_JOYPAD_B;
+            uint8_t button_r = RETRO_DEVICE_ID_JOYPAD_A;
+
             if (retro_devices[retro_j] == RETRO_DEVICE_JOYPAD
                   && (opt_retropad_options == RETROPAD_OPTIONS_ROTATE || opt_retropad_options == RETROPAD_OPTIONS_ROTATE_JUMP))
             {
-               retro_mouse_l[retro_j] = (joypad_bits[retro_j] & (1 << RETRO_DEVICE_ID_JOYPAD_Y));
-               retro_mouse_r[retro_j] = (joypad_bits[retro_j] & (1 << RETRO_DEVICE_ID_JOYPAD_B));
+               button_l = RETRO_DEVICE_ID_JOYPAD_Y;
+               button_r = RETRO_DEVICE_ID_JOYPAD_B;
             }
-            else
-            {
-               retro_mouse_l[retro_j] = (joypad_bits[retro_j] & (1 << RETRO_DEVICE_ID_JOYPAD_B));
-               retro_mouse_r[retro_j] = (joypad_bits[retro_j] & (1 << RETRO_DEVICE_ID_JOYPAD_A));
-            }
+
+            retro_mouse_l[retro_j] = !mapper_keys[button_l] && (joypad_bits[retro_j] & (1 << button_l)) ? 1 : 0;
+            retro_mouse_r[retro_j] = !mapper_keys[button_r] && (joypad_bits[retro_j] & (1 << button_r)) ? 1 : 0;
 
             /* Real mouse buttons */
             if (!retro_mouse_l[retro_j] && !retro_mouse_r[retro_j] && !retro_mouse_m[retro_j])
