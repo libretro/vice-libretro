@@ -1429,6 +1429,13 @@ void retro_poll_event()
          /* Joypad movement */
          for (retro_j = 0; retro_j < retro_j_max; retro_j++)
          {
+            /* No digital mouse if any D-Pad buttons are pressing keyboard keys */
+            if (     mapper_keys[RETRO_DEVICE_ID_JOYPAD_UP]
+                  || mapper_keys[RETRO_DEVICE_ID_JOYPAD_DOWN]
+                  || mapper_keys[RETRO_DEVICE_ID_JOYPAD_LEFT]
+                  || mapper_keys[RETRO_DEVICE_ID_JOYPAD_RIGHT])
+               continue;
+
             /* Digital mouse speed modifiers */
             if (!dpadmouse_pressed[retro_j])
 #ifdef MOUSE_DPAD_ACCEL
