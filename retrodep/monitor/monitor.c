@@ -873,3 +873,8 @@ void monitor_reset_hook(void)
 void monitor_resources_shutdown(void)
 {
 }
+
+/* 3.8 -> */
+void monitor_cpu_type_set_value(int searchcpu)
+{
+}

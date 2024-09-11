@@ -72,10 +72,7 @@ SOURCES_CXX += $(EMU)/sid/resid-33.cc
 endif
 
 SOURCES_C += \
-    $(EMU)/alarm.c \
-    $(EMU)/attach.c \
-    $(EMU)/autostart-prg.c \
-    $(EMU)/autostart.c \
+    $(SOURCES_C_COMMON) \
     $(EMU)/c64/c64bus.c \
     $(EMU)/c64/c64cia2.c \
     $(EMU)/c64/c64datasette.c \
@@ -85,6 +82,7 @@ SOURCES_C += \
     $(EMU)/c64/c64io.c \
     $(EMU)/c64/c64keyboard.c \
     $(EMU)/c64/c64meminit.c \
+    $(EMU)/c64/c64memlimit.c \
     $(EMU)/c64/c64memrom.c \
     $(EMU)/c64/c64parallel.c \
     $(EMU)/c64/c64pla.c \
@@ -101,7 +99,6 @@ SOURCES_C += \
     $(EMU)/c128/c128fastiec.c \
     $(EMU)/c128/c128mem.c \
     $(EMU)/c128/c128meminit.c \
-    $(EMU)/c128/c128memlimit.c \
     $(EMU)/c128/c128memrom.c \
     $(EMU)/c128/c128memsnapshot.c \
     $(EMU)/c128/c128mmu.c \
@@ -119,55 +116,9 @@ SOURCES_C += \
     $(EMU)/c128/cart/magicdesk128.c \
     $(EMU)/c128/cart/partner128.c \
     $(EMU)/c128/cart/warpspeed128.c \
-    $(EMU)/cbmdos.c \
-    $(EMU)/cbmimage.c \
-    $(EMU)/charset.c \
-    $(EMU)/clipboard.c \
-    $(EMU)/cmdline.c \
-    $(EMU)/color.c \
-    $(EMU)/core/ata.c \
-    $(EMU)/core/ciacore.c \
-    $(EMU)/core/ciatimer.c \
-    $(EMU)/core/cs8900.c \
-    $(EMU)/core/flash040core.c \
-    $(EMU)/core/fmopl.c \
-    $(EMU)/core/i8255a.c \
-    $(EMU)/core/m93c86.c \
-    $(EMU)/core/mc6821core.c \
-    $(EMU)/core/riotcore.c \
-    $(EMU)/core/scsi.c \
-    $(EMU)/core/ser-eeprom.c \
-    $(EMU)/core/spi-flash.c \
-    $(EMU)/core/spi-sdcard.c \
-    $(EMU)/core/t6721.c \
-    $(EMU)/core/tpicore.c \
-    $(EMU)/core/viacore.c \
-    $(EMU)/core/rtc/bq4830y.c \
-    $(EMU)/core/rtc/ds12c887.c \
-    $(EMU)/core/rtc/ds1202_1302.c \
-    $(EMU)/core/rtc/ds1216e.c \
-    $(EMU)/core/rtc/ds1307.c \
-    $(EMU)/core/rtc/ds1602.c \
-    $(EMU)/core/rtc/pcf8583.c \
-    $(EMU)/core/rtc/rtc-58321a.c \
-    $(EMU)/core/rtc/rtc-72421.c \
-    $(EMU)/core/rtc/rtc.c \
-    $(EMU)/crc32.c \
-    $(EMU)/crt.c \
     $(EMU)/datasette/datasette.c \
     $(EMU)/datasette/datasette-sound.c \
-    $(EMU)/debug.c \
     $(EMU)/diag/c64_diag_586220_harness.c \
-    $(EMU)/diskimage/diskimage.c \
-    $(EMU)/diskimage/fsimage-check.c \
-    $(EMU)/diskimage/fsimage-create.c \
-    $(EMU)/diskimage/fsimage-dxx.c \
-    $(EMU)/diskimage/fsimage-gcr.c \
-    $(EMU)/diskimage/fsimage-p64.c \
-    $(EMU)/diskimage/fsimage-probe.c \
-    $(EMU)/diskimage/fsimage.c \
-    $(EMU)/diskimage/realimage.c \
-    $(EMU)/dma.c \
     $(EMU)/drive/drive-check.c \
     $(EMU)/drive/drive-cmdline-options.c \
     $(EMU)/drive/drive-resources.c \
@@ -208,64 +159,7 @@ SOURCES_C += \
     $(EMU)/drive/iec/wd1770.c \
     $(EMU)/drive/iecieee/iecieee.c \
     $(EMU)/drive/iecieee/via2d.c \
-    $(EMU)/drive/ieee/fdc.c \
-    $(EMU)/drive/ieee/ieee-cmdline-options.c \
-    $(EMU)/drive/ieee/ieee-resources.c \
-    $(EMU)/drive/ieee/ieee.c \
-    $(EMU)/drive/ieee/ieeerom.c \
-    $(EMU)/drive/ieee/memieee.c \
-    $(EMU)/drive/ieee/riot1d.c \
-    $(EMU)/drive/ieee/riot2d.c \
-    $(EMU)/drive/ieee/via1d2031.c \
-    $(EMU)/drive/rotation.c \
-    $(EMU)/drive/tcbm/glue1551.c \
-    $(EMU)/drive/tcbm/mem1551.c \
-    $(EMU)/drive/tcbm/tcbm-cmdline-options.c \
-    $(EMU)/drive/tcbm/tcbm-resources.c \
-    $(EMU)/drive/tcbm/tcbm.c \
-    $(EMU)/drive/tcbm/tcbmrom.c \
-    $(EMU)/drive/tcbm/tpid.c \
-    $(EMU)/event.c \
-    $(EMU)/fileio/cbmfile.c \
-    $(EMU)/fileio/fileio.c \
-    $(EMU)/fileio/p00.c \
-    $(EMU)/findpath.c \
-    $(EMU)/fliplist.c \
-    $(EMU)/fsdevice/fsdevice-close.c \
-    $(EMU)/fsdevice/fsdevice-cmdline-options.c \
-    $(EMU)/fsdevice/fsdevice-filename.c \
-    $(EMU)/fsdevice/fsdevice-flush.c \
-    $(EMU)/fsdevice/fsdevice-open.c \
-    $(EMU)/fsdevice/fsdevice-read.c \
-    $(EMU)/fsdevice/fsdevice-resources.c \
-    $(EMU)/fsdevice/fsdevice-write.c \
-    $(EMU)/fsdevice/fsdevice.c \
-    $(EMU)/gcr.c \
-    $(EMU)/iecbus/iecbus.c \
-    $(EMU)/imagecontents/diskcontents-block.c \
-    $(EMU)/imagecontents/diskcontents-iec.c \
-    $(EMU)/imagecontents/diskcontents.c \
-    $(EMU)/imagecontents/imagecontents.c \
-    $(EMU)/imagecontents/tapecontents.c \
-    $(EMU)/init.c \
-    $(EMU)/initcmdline.c \
-    $(EMU)/interrupt.c \
     $(SOURCES_C_JOYPORT) \
-    $(EMU)/kbdbuf.c \
-    $(EMU)/keyboard.c \
-    $(EMU)/keymap.c \
-    $(EMU)/lib.c \
-    $(EMU)/lib/p64/p64.c \
-    $(EMU)/log.c \
-    $(EMU)/machine-bus.c \
-    $(EMU)/machine.c \
-    $(EMU)/main.c \
-    $(EMU)/midi.c \
-    $(EMU)/network.c \
-    $(EMU)/opencbmlib.c \
-    $(EMU)/palette.c \
-    $(EMU)/parallel/parallel-trap.c \
-    $(EMU)/parallel/parallel.c \
     $(EMU)/printerdrv/driver-select.c \
     $(EMU)/printerdrv/drv-ascii.c \
     $(EMU)/printerdrv/drv-raw.c \
@@ -277,30 +171,6 @@ SOURCES_C += \
     $(EMU)/printerdrv/printer-serial.c \
     $(EMU)/printerdrv/printer-userport.c \
     $(EMU)/printerdrv/printer.c \
-    $(EMU)/ram.c \
-    $(EMU)/raster/raster-cache.c \
-    $(EMU)/raster/raster-canvas.c \
-    $(EMU)/raster/raster-changes.c \
-    $(EMU)/raster/raster-cmdline-options.c \
-    $(EMU)/raster/raster-line-changes-sprite.c \
-    $(EMU)/raster/raster-line-changes.c \
-    $(EMU)/raster/raster-line.c \
-    $(EMU)/raster/raster-modes.c \
-    $(EMU)/raster/raster-resources.c \
-    $(EMU)/raster/raster-snapshot.c \
-    $(EMU)/raster/raster-sprite-cache.c \
-    $(EMU)/raster/raster-sprite-status.c \
-    $(EMU)/raster/raster-sprite.c \
-    $(EMU)/raster/raster.c \
-    $(EMU)/rawfile.c \
-    $(EMU)/rawnet.c \
-    $(EMU)/resources.c \
-    $(EMU)/romset.c \
-    $(EMU)/rs232drv/rs232.c \
-    $(EMU)/rs232drv/rs232drv.c \
-    $(EMU)/rs232drv/rs232net.c \
-    $(EMU)/rs232drv/rsuser.c \
-    $(EMU)/screenshot.c \
     $(EMU)/serial/fsdrive.c \
     $(EMU)/serial/realdevice.c \
     $(EMU)/serial/serial-device.c \
@@ -320,10 +190,6 @@ SOURCES_C += \
     $(EMU)/sid/sid-snapshot.c \
     $(EMU)/sid/sid.c \
     $(EMU)/sid/ssi2001.c \
-    $(EMU)/snapshot.c \
-    $(EMU)/socket.c \
-    $(EMU)/sound.c \
-    $(EMU)/sysfile.c \
     $(EMU)/tape/t64.c \
     $(EMU)/tape/tap.c \
     $(EMU)/tape/tape-internal.c \
@@ -336,9 +202,7 @@ SOURCES_C += \
     $(EMU)/tapeport/tapecart.c \
     $(EMU)/tapeport/tapeport.c \
     $(EMU)/tapeport/tape_diag_586220_harness.c \
-    $(EMU)/traps.c \
     $(SOURCES_C_USERPORT) \
-    $(EMU)/util.c \
     $(EMU)/vdc/vdc-cmdline-options.c \
     $(EMU)/vdc/vdc-color.c \
     $(EMU)/vdc/vdc-draw.c \
@@ -346,15 +210,6 @@ SOURCES_C += \
     $(EMU)/vdc/vdc-resources.c \
     $(EMU)/vdc/vdc-snapshot.c \
     $(EMU)/vdc/vdc.c \
-    $(EMU)/vdrive/vdrive-bam.c \
-    $(EMU)/vdrive/vdrive-command.c \
-    $(EMU)/vdrive/vdrive-dir.c \
-    $(EMU)/vdrive/vdrive-iec.c \
-    $(EMU)/vdrive/vdrive-internal.c \
-    $(EMU)/vdrive/vdrive-rel.c \
-    $(EMU)/vdrive/vdrive-snapshot.c \
-    $(EMU)/vdrive/vdrive.c \
-    $(EMU)/vicefeatures.c \
     $(EMU)/vicii/vicii-badline.c \
     $(EMU)/vicii/vicii-clock-stretch.c \
     $(EMU)/vicii/vicii-cmdline-options.c \
@@ -369,24 +224,7 @@ SOURCES_C += \
     $(EMU)/vicii/vicii-sprites.c \
     $(EMU)/vicii/vicii-stubs.c \
     $(EMU)/vicii/vicii-timing.c \
-    $(EMU)/vicii/vicii.c \
-    $(EMU)/video/render1x1.c \
-    $(EMU)/video/render1x1ntsc.c \
-    $(EMU)/video/render1x1pal.c \
-    $(EMU)/video/render1x1rgbi.c \
-    $(EMU)/video/video-canvas.c \
-    $(EMU)/video/video-cmdline-options.c \
-    $(EMU)/video/video-color.c \
-    $(EMU)/video/video-render.c \
-    $(EMU)/video/video-render-crtmono.c \
-    $(EMU)/video/video-render-palntsc.c \
-    $(EMU)/video/video-render-rgbi.c \
-    $(EMU)/video/video-resources.c \
-    $(EMU)/video/video-sound.c \
-    $(EMU)/video/video-viewport.c \
-    $(EMU)/vsync.c \
-    $(EMU)/zfile.c \
-    $(EMU)/zipcode.c
+    $(EMU)/vicii/vicii.c
 
 # arch
 SOURCES_C += \

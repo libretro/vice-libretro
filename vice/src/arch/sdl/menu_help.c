@@ -37,6 +37,7 @@
 #include "menu_common.h"
 #include "menu_help.h"
 #include "ui.h"
+#include "uiactions.h"
 #include "uimenu.h"
 #include "util.h"
 #include "version.h"
@@ -44,22 +45,6 @@
 
 #ifdef USE_SVN_REVISION
 #include "svnversion.h"
-#endif
-
-#ifdef WINMIPS
-static char *concat_all(char **text)
-{
-    int i;
-    char *new_text;
-    char *old_text = lib_strdup("\n");
-
-    for (i = 0; text[i] != NULL; i++) {
-        new_text = util_concat(old_text, text[i], NULL);
-        lib_free(old_text);
-        old_text = new_text;
-    }
-    return new_text;
-}
 #endif
 
 static void make_n_cols(char *text, int len, int cols)
@@ -426,6 +411,7 @@ static UI_MENU_CALLBACK(about_callback)
                     break;
             }
         }
+        ui_action_finish(ACTION_HELP_ABOUT);
     }
     return NULL;
 }
@@ -479,6 +465,7 @@ static UI_MENU_CALLBACK(cmdline_callback)
         lib_free(options);
         show_text((const char *)options_n);
         lib_free(options_n);
+        ui_action_finish(ACTION_HELP_COMMAND_LINE);
     }
     return NULL;
 }
@@ -487,19 +474,10 @@ static UI_MENU_CALLBACK(contributors_callback)
 {
     menu_draw_t *menu_draw;
     char *info_contrib_text_n;
-#ifdef WINMIPS
-    char *new_text = NULL;
-#endif
 
     if (activated) {
         menu_draw = sdl_ui_get_menu_param();
-#ifdef WINMIPS
-        new_text = concat_all(info_contrib_text);
-        info_contrib_text_n = contrib_convert(new_text, menu_draw->max_text_x);
-        lib_free(new_text);
-#else
         info_contrib_text_n = contrib_convert(info_contrib_text, menu_draw->max_text_x);
-#endif
         show_text((const char *)info_contrib_text_n);
         lib_free(info_contrib_text_n);
     }
@@ -509,28 +487,13 @@ static UI_MENU_CALLBACK(contributors_callback)
 static UI_MENU_CALLBACK(license_callback)
 {
     menu_draw_t *menu_draw;
-#ifdef WINMIPS
-    char *new_text = NULL;
-#endif
 
     if (activated) {
         menu_draw = sdl_ui_get_menu_param();
         if (menu_draw->max_text_x > 60) {
-#ifdef WINMIPS
-            new_text = concat_all(info_license_text);
-            show_text(new_text);
-            lib_free(new_text);
-#else
             show_text(info_license_text);
-#endif
         } else {
-#ifdef WINMIPS
-            new_text = concat_all(info_license_text40);
-            show_text(new_text);
-            lib_free(new_text);
-#else
             show_text(info_license_text40);
-#endif
         }
     }
     return NULL;
@@ -552,29 +515,32 @@ static UI_MENU_CALLBACK(warranty_callback)
 }
 
 const ui_menu_entry_t help_menu[] = {
-    { "About",
-      MENU_ENTRY_DIALOG,
-      about_callback,
-      NULL },
-    { "Command-line options",
-      MENU_ENTRY_DIALOG,
-      cmdline_callback,
-      NULL },
-    { "Compile time features",
-      MENU_ENTRY_DIALOG,
-      features_callback,
-      NULL },
-    { "Contributors",
-      MENU_ENTRY_DIALOG,
-      contributors_callback,
-      NULL },
-    { "License",
-      MENU_ENTRY_DIALOG,
-      license_callback,
-      NULL },
-    { "Warranty",
-      MENU_ENTRY_DIALOG,
-      warranty_callback,
-      NULL },
+    {   .action   = ACTION_HELP_ABOUT,
+        .string   = "About",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = about_callback
+    },
+    {   .action   = ACTION_HELP_COMMAND_LINE,
+        .string   = "Command-line options",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = cmdline_callback
+    },
+    {   .action   = ACTION_HELP_COMPILE_TIME,
+        .string   = "Compile time features",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = features_callback
+    },
+    {   .string   = "Contributors",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = contributors_callback
+    },
+    {   .string   = "License",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = license_callback
+    },
+    {   .string   = "Warranty",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = warranty_callback
+    },
     SDL_MENU_LIST_END
 };

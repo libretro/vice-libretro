@@ -35,6 +35,16 @@
 #include "vice.h"
 #include "types.h"
 #include <stddef.h>
+#include <stdbool.h>
+
+#include "uiactions.h"
+#include "videoarch.h"
+
+/* not sure these belong here, might have to move them to generic code to share
+ * with the same macros for Gtk3 */
+#define UNIT_DRIVE_TO_PTR(U, D) (int_to_void_ptr(((U) << 8) | ((D) & 0xff)))
+#define UNIT_FROM_PTR(P)        ((vice_ptr_to_int(P) >> 8) & 0xff)
+#define DRIVE_FROM_PTR(P)       (vice_ptr_to_int(P) & 0xff)
 
 extern int sdl_menu_state;
 extern int sdl_pause_state;
@@ -86,9 +96,23 @@ typedef struct ui_menu_entry_s {
     ui_callback_t callback;
     ui_callback_data_t data;
     ui_menu_status_type_t status;
+
+    /* extra members for the UI actions */
+    int          action;        /**< UI action ID */
+    const char  *resource;      /**< resource name for toggle buttons */
+    const char  *activated;     /**< text to return when the item is activated */
+    /** \brief   Function to call for custom display values */
+    const char *(*displayed)(struct ui_menu_entry_s *item);
+    /** \brief  Function to test if radio button should be checked
+     *
+     * When a radio button submenu's selection is required to print the single,
+     * activatable, value and the items are of type `MENU_ENTRY_OTHER_TOGGLE`
+     * there's no resource to test so we need a custom callback.
+     */
+    bool        (*checked)(struct ui_menu_entry_s *item);
 } ui_menu_entry_t;
 
-#define SDL_MENU_LIST_END { NULL, MENU_ENTRY_TEXT, NULL, NULL }
+#define SDL_MENU_LIST_END { .string = NULL, .type = MENU_ENTRY_TEXT }
 
 typedef enum {
     MENU_RETVAL_DEFAULT,
@@ -125,6 +149,7 @@ struct menu_draw_s {
 
     uint8_t color_active_grey;
     uint8_t color_inactive_grey;
+    uint8_t color_disabled_grey;
 };
 typedef struct menu_draw_s menu_draw_t;
 
@@ -161,46 +186,53 @@ typedef enum {
     MENU_ACTION_END_RELEASE,
 } ui_menu_action_t;
 
-extern void sdl_ui_set_main_menu(const ui_menu_entry_t *menu);
-extern ui_menu_entry_t *sdl_ui_get_main_menu(void);
-extern menu_draw_t *sdl_ui_get_menu_param(void);
-extern menufont_t *sdl_ui_get_menu_font(void);
+void sdl_ui_set_main_menu(const ui_menu_entry_t *menu);
+ui_menu_entry_t *sdl_ui_get_main_menu(void);
+menu_draw_t *sdl_ui_get_menu_param(void);
+menufont_t *sdl_ui_get_menu_font(void);
 extern void (*sdl_ui_set_menu_params)(int index, menu_draw_t *menu_draw);
 
-extern uint8_t *sdl_ui_get_draw_buffer(void);
-extern void sdl_ui_activate_pre_action(void);
-extern void sdl_ui_activate_post_action(void);
-extern void sdl_ui_init_draw_params(void);
-extern void sdl_ui_reverse_colors(void);
-extern void sdl_ui_refresh(void);
-extern ui_menu_action_t sdl_ui_menu_poll_input(void);
-extern void sdl_ui_display_cursor(int pos, int old_pos);
-extern int sdl_ui_print(const char *text, int pos_x, int pos_y);
-extern int sdl_ui_print_center(const char *text, int pos_y);
-extern int sdl_ui_print_eol(int pos_x, int pos_y);
-extern int sdl_ui_display_title(const char *title);
-extern void sdl_ui_clear(void);
-extern void sdl_ui_activate(void);
-extern ui_menu_retval_t sdl_ui_external_menu_activate(ui_menu_entry_t *item);
-extern char* sdl_ui_readline(const char* previous, int pos_x, int pos_y);
-extern char* sdl_ui_text_input_dialog(const char* title, const char* previous);
-extern int sdl_ui_slider_input_dialog(const char* title, const int cur, const int min, const int max);
-extern void sdl_ui_invert_char(int pos_x, int pos_y);
-extern void sdl_ui_scroll_screen_up(void);
+uint8_t *sdl_ui_get_draw_buffer(void);
+void sdl_ui_activate_pre_action(void);
+void sdl_ui_activate_post_action(void);
+void sdl_ui_init_draw_params(video_canvas_t *canvas);
+void sdl_ui_reverse_colors(void);
+void sdl_ui_refresh(void);
+ui_menu_action_t sdl_ui_menu_poll_input(void);
+void sdl_ui_display_cursor(int pos, int old_pos);
+int sdl_ui_print(const char *text, int pos_x, int pos_y);
+int sdl_ui_print_center(const char *text, int pos_y);
+int sdl_ui_print_eol(int pos_x, int pos_y);
+int sdl_ui_display_title(const char *title);
+void sdl_ui_clear(void);
+void sdl_ui_activate(void);
+ui_menu_retval_t sdl_ui_external_menu_activate(ui_menu_entry_t *item);
+char* sdl_ui_readline(const char* previous, int pos_x, int pos_y);
+char* sdl_ui_text_input_dialog(const char* title, const char* previous);
+int sdl_ui_slider_input_dialog(const char* title, const int cur, const int min, const int max);
+void sdl_ui_invert_char(int pos_x, int pos_y);
+void sdl_ui_scroll_screen_up(void);
 
-extern int sdl_ui_set_cursor_colors(void);
-extern int sdl_ui_reset_cursor_colors(uint8_t color);
+int sdl_ui_set_cursor_colors(void);
+int sdl_ui_reset_cursor_colors(uint8_t color);
 
-extern int sdl_ui_set_tickmark_colors(int state);
-extern int sdl_ui_reset_tickmark_colors(uint8_t color);
-extern int sdl_ui_set_toggle_colors(int state);
-extern int sdl_ui_set_default_colors(void);
-extern void sdl_ui_menu_shutdown(void);
+int sdl_ui_set_tickmark_colors(int state);
+int sdl_ui_reset_tickmark_colors(uint8_t color);
+int sdl_ui_set_toggle_colors(int state);
+int sdl_ui_set_default_colors(void);
+void sdl_ui_menu_shutdown(void);
 
-extern const char *sdl_ui_menu_video_slider_helper(int activated, ui_callback_data_t param, const char *resource_name, const int min, const int max);
+const char *sdl_ui_menu_video_slider_helper(int activated, ui_callback_data_t param, const char *resource_name, const int min, const int max);
 
-extern void sdl_ui_create_draw_buffer_backup(void);
-extern void sdl_ui_restore_draw_buffer_backup(void);
-extern void sdl_ui_destroy_draw_buffer_backup(void);
+void sdl_ui_create_draw_buffer_backup(void);
+void sdl_ui_restore_draw_buffer_backup(void);
+void sdl_ui_destroy_draw_buffer_backup(void);
+
+void sdl_ui_menu_item_activate_by_action  (int action);
+void sdl_ui_menu_item_set_status_by_action(int action, ui_menu_status_type_t status);
+
+/* Public UI action handlers */
+void sdl_ui_activate_item_action  (ui_action_map_t *map);
+void sdl_ui_toggle_resource_action(ui_action_map_t *map);
 
 #endif

@@ -27,9 +27,9 @@
 #ifndef VICE_SETTINGS_KEYBOARD_H
 #define VICE_SETTINGS_KEYBOARD_H
 
-#include "vice.h"
 #include <gtk/gtk.h>
 
 GtkWidget *settings_keyboard_widget_create(GtkWidget *widget);
+void       settings_keyboard_widget_shutdown(void);
 
 #endif

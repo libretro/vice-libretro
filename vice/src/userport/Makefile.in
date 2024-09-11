@@ -113,11 +113,13 @@ libuserport_a_LIBADD =
 am_libuserport_a_OBJECTS = userport.$(OBJEXT) \
 	userport_4bit_sampler.$(OBJEXT) userport_8bss.$(OBJEXT) \
 	userport_dac.$(OBJEXT) userport_diag_586220_harness.$(OBJEXT) \
-	userport_digimax.$(OBJEXT) userport_io_sim.$(OBJEXT) \
+	userport_digimax.$(OBJEXT) userport_hks_joystick.$(OBJEXT) \
+	userport_hummer_joystick.$(OBJEXT) userport_io_sim.$(OBJEXT) \
 	userport_joystick.$(OBJEXT) userport_petscii_snespad.$(OBJEXT) \
 	userport_rtc_58321a.$(OBJEXT) userport_rtc_ds1307.$(OBJEXT) \
 	userport_spt_joystick.$(OBJEXT) userport_superpad64.$(OBJEXT) \
-	userport_wic64.$(OBJEXT)
+	userport_synergy_joystick.$(OBJEXT) userport_wic64.$(OBJEXT) \
+	userport_woj_joystick.$(OBJEXT)
 libuserport_a_OBJECTS = $(am_libuserport_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -138,14 +140,19 @@ am__depfiles_remade = ./$(DEPDIR)/userport.Po \
 	./$(DEPDIR)/userport_4bit_sampler.Po \
 	./$(DEPDIR)/userport_8bss.Po ./$(DEPDIR)/userport_dac.Po \
 	./$(DEPDIR)/userport_diag_586220_harness.Po \
-	./$(DEPDIR)/userport_digimax.Po ./$(DEPDIR)/userport_io_sim.Po \
+	./$(DEPDIR)/userport_digimax.Po \
+	./$(DEPDIR)/userport_hks_joystick.Po \
+	./$(DEPDIR)/userport_hummer_joystick.Po \
+	./$(DEPDIR)/userport_io_sim.Po \
 	./$(DEPDIR)/userport_joystick.Po \
 	./$(DEPDIR)/userport_petscii_snespad.Po \
 	./$(DEPDIR)/userport_rtc_58321a.Po \
 	./$(DEPDIR)/userport_rtc_ds1307.Po \
 	./$(DEPDIR)/userport_spt_joystick.Po \
 	./$(DEPDIR)/userport_superpad64.Po \
-	./$(DEPDIR)/userport_wic64.Po
+	./$(DEPDIR)/userport_synergy_joystick.Po \
+	./$(DEPDIR)/userport_wic64.Po \
+	./$(DEPDIR)/userport_woj_joystick.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -253,7 +260,6 @@ GLIB_LIBS = @GLIB_LIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 HAVE_CXX11 = @HAVE_CXX11@
-HAVE_READLINE = @HAVE_READLINE@
 ICONV = @ICONV@
 ICOTOOL = @ICOTOOL@
 INLINE_UNIT_GROWTH = @INLINE_UNIT_GROWTH@
@@ -300,8 +306,6 @@ PNG_LIBS = @PNG_LIBS@
 PROGRAM_PREFIX = @PROGRAM_PREFIX@
 PROGRAM_SUFFIX = @PROGRAM_SUFFIX@
 RANLIB = @RANLIB@
-READLINE = @READLINE@
-READLINE_LIBS = @READLINE_LIBS@
 RESIDDTVSUB = @RESIDDTVSUB@
 RESIDSUB = @RESIDSUB@
 RESID_DEP = @RESID_DEP@
@@ -326,7 +330,6 @@ SOUND_DRIVERS = @SOUND_DRIVERS@
 SOUND_LIBS = @SOUND_LIBS@
 SOUND_MIDAS_OBJ = @SOUND_MIDAS_OBJ@
 SOUND_SDL_OBJ = @SOUND_SDL_OBJ@
-SOUND_USS_OBJ = @SOUND_USS_OBJ@
 STRIP = @STRIP@
 SVN = @SVN@
 SVNVERSION = @SVNVERSION@
@@ -335,6 +338,7 @@ TAR = @TAR@
 TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
+UNZIPBIN = @UNZIPBIN@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -433,7 +437,8 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src/core/rtc \
 	-I$(top_srcdir)/src/joyport \
 	-I$(top_srcdir)/src/samplerdrv \
-	-I$(top_srcdir)/src/diag
+	-I$(top_srcdir)/src/diag \
+	-I$(top_srcdir)/src/drive
 
 AM_CFLAGS = @VICE_CFLAGS@
 AM_CXXFLAGS = @VICE_CXXFLAGS@
@@ -452,6 +457,10 @@ libuserport_a_SOURCES = \
 	userport_diag_586220_harness.h \
 	userport_digimax.c \
 	userport_digimax.h \
+	userport_hks_joystick.c \
+	userport_hks_joystick.h \
+	userport_hummer_joystick.c \
+	userport_hummer_joystick.h \
 	userport_io_sim.c \
 	userport_io_sim.h \
 	userport_joystick.c \
@@ -466,8 +475,12 @@ libuserport_a_SOURCES = \
 	userport_spt_joystick.h \
 	userport_superpad64.c \
 	userport_superpad64.h \
+	userport_synergy_joystick.c \
+	userport_synergy_joystick.h \
 	userport_wic64.c \
-	userport_wic64.h
+	userport_wic64.h \
+	userport_woj_joystick.c \
+	userport_woj_joystick.h
 
 all: all-am
 
@@ -523,6 +536,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_dac.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_diag_586220_harness.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_digimax.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_hks_joystick.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_hummer_joystick.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_io_sim.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_joystick.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_petscii_snespad.Po@am__quote@ # am--include-marker
@@ -530,7 +545,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_rtc_ds1307.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_spt_joystick.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_superpad64.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_synergy_joystick.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_wic64.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_woj_joystick.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -681,6 +698,8 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/userport_dac.Po
 	-rm -f ./$(DEPDIR)/userport_diag_586220_harness.Po
 	-rm -f ./$(DEPDIR)/userport_digimax.Po
+	-rm -f ./$(DEPDIR)/userport_hks_joystick.Po
+	-rm -f ./$(DEPDIR)/userport_hummer_joystick.Po
 	-rm -f ./$(DEPDIR)/userport_io_sim.Po
 	-rm -f ./$(DEPDIR)/userport_joystick.Po
 	-rm -f ./$(DEPDIR)/userport_petscii_snespad.Po
@@ -688,7 +707,9 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/userport_rtc_ds1307.Po
 	-rm -f ./$(DEPDIR)/userport_spt_joystick.Po
 	-rm -f ./$(DEPDIR)/userport_superpad64.Po
+	-rm -f ./$(DEPDIR)/userport_synergy_joystick.Po
 	-rm -f ./$(DEPDIR)/userport_wic64.Po
+	-rm -f ./$(DEPDIR)/userport_woj_joystick.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -740,6 +761,8 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/userport_dac.Po
 	-rm -f ./$(DEPDIR)/userport_diag_586220_harness.Po
 	-rm -f ./$(DEPDIR)/userport_digimax.Po
+	-rm -f ./$(DEPDIR)/userport_hks_joystick.Po
+	-rm -f ./$(DEPDIR)/userport_hummer_joystick.Po
 	-rm -f ./$(DEPDIR)/userport_io_sim.Po
 	-rm -f ./$(DEPDIR)/userport_joystick.Po
 	-rm -f ./$(DEPDIR)/userport_petscii_snespad.Po
@@ -747,7 +770,9 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/userport_rtc_ds1307.Po
 	-rm -f ./$(DEPDIR)/userport_spt_joystick.Po
 	-rm -f ./$(DEPDIR)/userport_superpad64.Po
+	-rm -f ./$(DEPDIR)/userport_synergy_joystick.Po
 	-rm -f ./$(DEPDIR)/userport_wic64.Po
+	-rm -f ./$(DEPDIR)/userport_woj_joystick.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

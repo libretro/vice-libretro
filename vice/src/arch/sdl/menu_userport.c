@@ -28,14 +28,21 @@
 
 #include <stdio.h>
 
-#include "types.h"
 
 #include "lib.h"
+#include "machine.h"
 #include "menu_common.h"
+#include "types.h"
+#include "ui.h"
+#include "uiactions.h"
 #include "uimenu.h"
 #include "userport.h"
 
 #include "menu_userport.h"
+#ifdef HAVE_LIBCURL
+#include "userport_wic64.h"
+#include "menu_wic64.h"
+#endif
 
 UI_MENU_DEFINE_RADIO(UserportDevice)
 
@@ -65,23 +72,20 @@ static UI_MENU_CALLBACK(UserportDevice_dynmenu_callback)
     }
 
     for (i = 0; devices[i].name; ++i) {
-        userport_dyn_menu[i].string = (char *)lib_strdup(devices[i].name);
-        userport_dyn_menu[i].type = MENU_ENTRY_RESOURCE_RADIO;
+        userport_dyn_menu[i].action   = ACTION_NONE;
+        userport_dyn_menu[i].string   = lib_strdup(devices[i].name);
+        userport_dyn_menu[i].type     = MENU_ENTRY_RESOURCE_RADIO;
         userport_dyn_menu[i].callback = radio_UserportDevice_callback;
-        userport_dyn_menu[i].data = (ui_callback_data_t)int_to_void_ptr(devices[i].id);
+        userport_dyn_menu[i].data     = (ui_callback_data_t)int_to_void_ptr(devices[i].id);
     }
-
     userport_dyn_menu[i].string = NULL;
-    userport_dyn_menu[i].type = 0;
-    userport_dyn_menu[i].callback = NULL;
-    userport_dyn_menu[i].data = NULL;
 
     lib_free(devices);
 
     return MENU_SUBMENU_STRING;
 }
 
-ui_menu_entry_t userport_menu[4];
+ui_menu_entry_t userport_menu[6];
 
 UI_MENU_DEFINE_TOGGLE(UserportRTCDS1307Save)
 UI_MENU_DEFINE_TOGGLE(UserportRTC58321aSave)
@@ -91,37 +95,63 @@ void uiuserport_menu_create(int rtc)
     int j = 0;
 
     if (rtc) {
-        userport_menu[j].string = "Save DS1307 RTC data when changed";
-        userport_menu[j].type = MENU_ENTRY_RESOURCE_TOGGLE;
+        userport_menu[j].action   = ACTION_NONE;
+        userport_menu[j].string   = "Save DS1307 RTC data when changed";
+        userport_menu[j].type     = MENU_ENTRY_RESOURCE_TOGGLE;
         userport_menu[j].callback = toggle_UserportRTCDS1307Save_callback;
-        userport_menu[j].data = NULL;
+        userport_menu[j].data     = NULL;
         j++;
 
-        userport_menu[j].string = "Save 58321a RTC data when changed";
-        userport_menu[j].type = MENU_ENTRY_RESOURCE_TOGGLE;
+        userport_menu[j].action   = ACTION_NONE;
+        userport_menu[j].string   = "Save 58321a RTC data when changed";
+        userport_menu[j].type     = MENU_ENTRY_RESOURCE_TOGGLE;
         userport_menu[j].callback = toggle_UserportRTC58321aSave_callback;
-        userport_menu[j].data = NULL;
+        userport_menu[j].data     = NULL;
         j++;
     }
 
-    userport_menu[j].string = "Userport devices";
-    userport_menu[j].type = MENU_ENTRY_DYNAMIC_SUBMENU;
+#ifdef HAVE_LIBCURL
+    if (machine_class == VICE_MACHINE_C64 ||
+        machine_class == VICE_MACHINE_C64SC ||
+        machine_class == VICE_MACHINE_C128 ||
+        machine_class == VICE_MACHINE_VIC20 ||
+        machine_class == VICE_MACHINE_SCPU64) {
+
+        userport_menu[j].action   = ACTION_NONE;
+        userport_menu[j].string   = "WiC64 Settings";
+        userport_menu[j].type     = MENU_ENTRY_SUBMENU;
+        userport_menu[j].callback = submenu_callback;
+        userport_menu[j].data     = uiwic64_menu_create();
+        j++;
+    }
+#endif
+
+    userport_menu[j].action   = ACTION_NONE;
+    userport_menu[j].string   = "";
+    userport_menu[j].type     = MENU_ENTRY_TEXT;
+    userport_menu[j].callback = seperator_callback;
+    userport_menu[j].data     = NULL;
+    j++;
+
+    userport_menu[j].action   = ACTION_NONE;
+    userport_menu[j].string   = "Userport devices";
+    userport_menu[j].type     = MENU_ENTRY_DYNAMIC_SUBMENU;
     userport_menu[j].callback = UserportDevice_dynmenu_callback;
-    userport_menu[j].data = (ui_callback_data_t)userport_dyn_menu;
+    userport_menu[j].data     = (ui_callback_data_t)userport_dyn_menu;
     j++;
 
     userport_menu[j].string = NULL;
-    userport_menu[j].type = MENU_ENTRY_TEXT;
-    userport_menu[j].callback = NULL;
-    userport_menu[j].data = NULL;
 }
 
 
-/** \brief  Clean up memory used by the dynamically created joyport menus
+/** \brief  Clean up memory used by the dynamically created userport menus
  */
 void uiuserport_menu_shutdown(void)
 {
     if (userport_dyn_menu_init) {
         sdl_menu_userport_free();
     }
+#ifdef HAVE_LIBCURL
+    wic64_timezones_menu_free();
+#endif
 }

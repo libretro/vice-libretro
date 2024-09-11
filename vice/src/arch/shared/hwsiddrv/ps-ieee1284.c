@@ -31,7 +31,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
+#if !defined(WINDOWS_COMPILE)
 #include <sys/ioctl.h>
+#endif
 #include <errno.h>
 
 #undef HAVE_IEEE1284_H
@@ -42,6 +44,12 @@
 #include "parsid.h"
 #include "sid-resources.h"
 #include "types.h"
+
+#if defined(WINDOWS_COMPILE)
+#include "ps-win32.h"
+#else
+#include "ps-unix.h"
+#endif
 
 #define MAXSID 3
 

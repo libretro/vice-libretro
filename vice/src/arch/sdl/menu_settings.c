@@ -30,7 +30,7 @@
 #include "vice_sdl.h"
 #include <stdlib.h>
 
-#include "joy.h"
+#include "joystick.h"
 #include "kbd.h"
 #include "keyboard.h"
 #include "keymap.h"
@@ -41,10 +41,12 @@
 #include "resources.h"
 #include "ui.h"
 #include "uifilereq.h"
+#include "uihotkeys.h"
 #include "uimenu.h"
 #include "uipoll.h"
 #include "uistatusbar.h"
 
+#if 0
 static UI_MENU_CALLBACK(save_settings_callback)
 {
     if (activated) {
@@ -60,6 +62,7 @@ static UI_MENU_CALLBACK(save_settings_callback)
     }
     return NULL;
 }
+#endif
 
 static UI_MENU_CALLBACK(save_settings_to_callback)
 {
@@ -76,10 +79,12 @@ static UI_MENU_CALLBACK(save_settings_to_callback)
             }
             lib_free(name);
         }
+        ui_action_finish(ACTION_SETTINGS_SAVE_TO);
     }
     return NULL;
 }
 
+#if 0
 static UI_MENU_CALLBACK(load_settings_callback)
 {
     if (activated) {
@@ -91,6 +96,7 @@ static UI_MENU_CALLBACK(load_settings_callback)
     }
     return NULL;
 }
+#endif
 
 static UI_MENU_CALLBACK(load_settings_from_callback)
 {
@@ -107,6 +113,7 @@ static UI_MENU_CALLBACK(load_settings_from_callback)
             }
             lib_free(name);
         }
+        ui_action_finish(ACTION_SETTINGS_LOAD_FROM);
     }
     return NULL;
 }
@@ -126,10 +133,12 @@ static UI_MENU_CALLBACK(load_extra_settings_from_callback)
             }
             lib_free(name);
         }
+        ui_action_finish(ACTION_SETTINGS_LOAD_EXTRA);
     }
     return NULL;
 }
 
+#if 0
 static UI_MENU_CALLBACK(default_settings_callback)
 {
     if (activated) {
@@ -138,6 +147,7 @@ static UI_MENU_CALLBACK(default_settings_callback)
     }
     return NULL;
 }
+#endif
 
 static UI_MENU_CALLBACK(save_keymap_callback)
 {
@@ -173,22 +183,26 @@ static UI_MENU_CALLBACK(radio_KeymapIndex_callback)
 static ui_menu_entry_t *keymap_index_submenu;
 
 static const ui_menu_entry_t keymap_index_submenu_entries[] = {
-    { "Symbolic",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_KeymapIndex_callback,
-      (ui_callback_data_t)KBD_INDEX_SYM },
-    { "Positional",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_KeymapIndex_callback,
-      (ui_callback_data_t)KBD_INDEX_POS },
-    { "Symbolic (user)",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_KeymapIndex_callback,
-      (ui_callback_data_t)KBD_INDEX_USERSYM },
-    { "Positional (user)",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_KeymapIndex_callback,
-      (ui_callback_data_t)KBD_INDEX_USERPOS },
+    {   .string   = "Symbolic",
+        .type     = MENU_ENTRY_RESOURCE_RADIO,
+        .callback = radio_KeymapIndex_callback,
+        .data     = (ui_callback_data_t)KBD_INDEX_SYM
+    },
+    {   .string   = "Positional",
+        .type     = MENU_ENTRY_RESOURCE_RADIO,
+        .callback = radio_KeymapIndex_callback,
+        .data     = (ui_callback_data_t)KBD_INDEX_POS
+    },
+    {   .string   = "Symbolic (user)",
+        .type     = MENU_ENTRY_RESOURCE_RADIO,
+        .callback = radio_KeymapIndex_callback,
+        .data     = (ui_callback_data_t)KBD_INDEX_USERSYM
+    },
+    {   .string   = "Positional (user)",
+        .type     = MENU_ENTRY_RESOURCE_RADIO,
+        .callback = radio_KeymapIndex_callback,
+        .data     = (ui_callback_data_t)KBD_INDEX_USERPOS
+    },
     SDL_MENU_LIST_END
 };
 
@@ -236,8 +250,8 @@ static UI_MENU_CALLBACK(radio_KeyboardMapping_callback)
 /* host language/layout */
 static ui_menu_entry_t *keyboard_mapping_submenu;
 ui_menu_entry_t ui_keyboard_mapping_entry = {
-    NULL, MENU_ENTRY_RESOURCE_RADIO, (ui_callback_t)radio_KeyboardMapping_callback,
-    (ui_callback_data_t)0
+    .type     = MENU_ENTRY_RESOURCE_RADIO,
+    .callback = (ui_callback_t)radio_KeyboardMapping_callback
 };
 
 /* update keymap selection (host language/layout, "KeyboardMapping") */
@@ -326,24 +340,6 @@ static UI_MENU_CALLBACK(load_pos_keymap_callback)
     return NULL;
 }
 
-static UI_MENU_CALLBACK(save_hotkeys_callback)
-{
-    const char *file = NULL;
-    if (activated) {
-        if (resources_get_string("HotkeyFile", &file)) {
-            ui_error("Cannot find resource.");
-            return NULL;
-        }
-
-        if (sdlkbd_hotkeys_dump(file)) {
-            ui_error("Cannot save hotkeys.");
-        } else {
-            ui_message("Hotkeys saved.");
-        }
-    }
-    return NULL;
-}
-
 static UI_MENU_CALLBACK(save_hotkeys_to_callback)
 {
     if (activated) {
@@ -352,35 +348,21 @@ static UI_MENU_CALLBACK(save_hotkeys_to_callback)
         name = sdl_ui_file_selection_dialog("Choose hotkey file", FILEREQ_MODE_SAVE_FILE);
 
         if (name != NULL) {
-            if (sdlkbd_hotkeys_dump(name) < 0) {
-                ui_error("Cannot save current hotkeys.");
+            if (ui_hotkeys_save_as(name)) {
+                ui_message("Hotkeys saved to '%s'.", name);
             } else {
-                ui_message("Hotkeys saved.");
+                ui_error("Failed to save hotkeys to '%s.", name);
             }
             lib_free(name);
         }
+        ui_action_finish(ACTION_HOTKEYS_SAVE_TO);
     }
     return NULL;
 }
 
-static UI_MENU_CALLBACK(load_hotkeys_callback)
-{
-    const char *file = NULL;
-    if (activated) {
-        if (resources_get_string("HotkeyFile", &file)) {
-            ui_error("Cannot find resource.");
-            return NULL;
-        }
-
-        if (sdlkbd_hotkeys_load(file)) {
-            ui_error("Cannot load hotkeys.");
-        } else {
-            ui_message("Hotkeys loaded.");
-        }
-    }
-    return NULL;
-}
-
+/* Load hotkeys file by setting "HotkeyFile" resource, and mark UI action
+ * finished.
+ */
 static UI_MENU_CALLBACK(load_hotkeys_from_callback)
 {
     if (activated) {
@@ -396,6 +378,7 @@ static UI_MENU_CALLBACK(load_hotkeys_from_callback)
             }
             lib_free(name);
         }
+        ui_action_finish(ACTION_HOTKEYS_LOAD_FROM);
     }
     return NULL;
 }
@@ -489,7 +472,7 @@ static UI_MENU_CALLBACK(custom_ui_keyset_callback)
     }
 
     if (activated) {
-        e = sdl_ui_poll_event("key", (const char *)param, SDL_POLL_KEYBOARD | SDL_POLL_MODIFIER, 5);
+        e = sdl_ui_poll_event("key", (const char *)param, -1, 0, 1, 1, 5);
 
         if (e.type == SDL_KEYDOWN) {
             resources_set_int((const char *)param, (int)SDL2x_to_SDL1x_Keys(e.key.keysym.sym));
@@ -501,225 +484,276 @@ static UI_MENU_CALLBACK(custom_ui_keyset_callback)
 }
 
 static const ui_menu_entry_t define_ui_keyset_menu[] = {
-    { "Activate menu",
-      MENU_ENTRY_DIALOG,
-      custom_ui_keyset_callback,
-      (ui_callback_data_t)"MenuKey" },
-    { "Menu up",
-      MENU_ENTRY_DIALOG,
-      custom_ui_keyset_callback,
-      (ui_callback_data_t)"MenuKeyUp" },
-    { "Menu down",
-      MENU_ENTRY_DIALOG,
-      custom_ui_keyset_callback,
-      (ui_callback_data_t)"MenuKeyDown" },
-    { "Menu left",
-      MENU_ENTRY_DIALOG,
-      custom_ui_keyset_callback,
-      (ui_callback_data_t)"MenuKeyLeft" },
-    { "Menu right",
-      MENU_ENTRY_DIALOG,
-      custom_ui_keyset_callback,
-      (ui_callback_data_t)"MenuKeyRight" },
-    { "Menu page up",
-      MENU_ENTRY_DIALOG,
-      custom_ui_keyset_callback,
-      (ui_callback_data_t)"MenuKeyPageUp" },
-    { "Menu page down",
-      MENU_ENTRY_DIALOG,
-      custom_ui_keyset_callback,
-      (ui_callback_data_t)"MenuKeyPageDown" },
-    { "Menu home",
-      MENU_ENTRY_DIALOG,
-      custom_ui_keyset_callback,
-      (ui_callback_data_t)"MenuKeyHome" },
-    { "Menu end",
-      MENU_ENTRY_DIALOG,
-      custom_ui_keyset_callback,
-      (ui_callback_data_t)"MenuKeyEnd" },
-    { "Menu select",
-      MENU_ENTRY_DIALOG,
-      custom_ui_keyset_callback,
-      (ui_callback_data_t)"MenuKeySelect" },
-    { "Menu cancel",
-      MENU_ENTRY_DIALOG,
-      custom_ui_keyset_callback,
-      (ui_callback_data_t)"MenuKeyCancel" },
-    { "Menu exit",
-      MENU_ENTRY_DIALOG,
-      custom_ui_keyset_callback,
-      (ui_callback_data_t)"MenuKeyExit" },
-    { "Menu map",
-      MENU_ENTRY_DIALOG,
-      custom_ui_keyset_callback,
-      (ui_callback_data_t)"MenuKeyMap" },
+    {   .string   = "Activate menu",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = custom_ui_keyset_callback,
+        .data     = (ui_callback_data_t)"MenuKey"
+    },
+    {   .string   = "Menu up",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = custom_ui_keyset_callback,
+        .data     = (ui_callback_data_t)"MenuKeyUp"
+    },
+    {   .string   = "Menu down",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = custom_ui_keyset_callback,
+        .data     = (ui_callback_data_t)"MenuKeyDown"
+    },
+    {   .string   = "Menu left",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = custom_ui_keyset_callback,
+        .data     = (ui_callback_data_t)"MenuKeyLeft"
+    },
+    {   .string   ="Menu right",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = custom_ui_keyset_callback,
+        .data     = (ui_callback_data_t)"MenuKeyRight"
+    },
+    {   .string   = "Menu page up",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = custom_ui_keyset_callback,
+        .data     = (ui_callback_data_t)"MenuKeyPageUp"
+    },
+    {   .string   = "Menu page down",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = custom_ui_keyset_callback,
+        .data     = (ui_callback_data_t)"MenuKeyPageDown"
+    },
+    {   .string   = "Menu home",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = custom_ui_keyset_callback,
+        .data     = (ui_callback_data_t)"MenuKeyHome"
+    },
+    {   .string   = "Menu end",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = custom_ui_keyset_callback,
+        .data     = (ui_callback_data_t)"MenuKeyEnd"
+    },
+    {   .string   = "Menu select",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = custom_ui_keyset_callback,
+        .data     = (ui_callback_data_t)"MenuKeySelect"
+    },
+    {   .string   = "Menu cancel",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = custom_ui_keyset_callback,
+        .data     = (ui_callback_data_t)"MenuKeyCancel"
+    },
+    {   .string   = "Menu exit",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = custom_ui_keyset_callback,
+        .data     = (ui_callback_data_t)"MenuKeyExit"
+    },
+    {   .string   = "Menu map",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = custom_ui_keyset_callback,
+        .data     = (ui_callback_data_t)"MenuKeyMap"
+    },
     SDL_MENU_LIST_END
 };
 
 UI_MENU_DEFINE_TOGGLE(KbdStatusbar)
 
 ui_menu_entry_t settings_manager_menu[] = {
-    { "Save current settings",
-      MENU_ENTRY_OTHER,
-      save_settings_callback,
-      NULL },
-    { "Load settings",
-      MENU_ENTRY_OTHER,
-      load_settings_callback,
-      NULL },
-    { "Save current settings to",
-      MENU_ENTRY_OTHER,
-      save_settings_to_callback,
-      NULL },
-    { "Load settings from",
-      MENU_ENTRY_OTHER,
-      load_settings_from_callback,
-      NULL },
-    { "Load extra settings from",
-      MENU_ENTRY_OTHER,
-      load_extra_settings_from_callback,
-      NULL },
-    { "Restore default settings",
-      MENU_ENTRY_OTHER,
-      default_settings_callback,
-      NULL },
-    { "Save settings on exit",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_SaveResourcesOnExit_callback,
-      NULL },
+    {   .action   = ACTION_SETTINGS_SAVE,
+        .string   = "Save current settings",
+        .type     = MENU_ENTRY_OTHER
+    },
+    {   .action   = ACTION_SETTINGS_LOAD,
+        .string   = "Load settings",
+        .type     = MENU_ENTRY_OTHER,
+    },
+    {   .action   = ACTION_SETTINGS_SAVE_TO,
+        .string   = "Save current settings to",
+        .type     = MENU_ENTRY_OTHER,
+        .callback = save_settings_to_callback
+    },
+    {   .action   = ACTION_SETTINGS_LOAD_FROM,
+        .string   = "Load settings from",
+        .type     = MENU_ENTRY_OTHER,
+        .callback = load_settings_from_callback
+    },
+    {   .action   = ACTION_SETTINGS_LOAD_EXTRA,
+        .string   = "Load extra settings from",
+        .type     = MENU_ENTRY_OTHER,
+        .callback = load_extra_settings_from_callback
+    },
+    {   .action   = ACTION_SETTINGS_DEFAULT,
+        .string   = "Restore default settings",
+        .type     = MENU_ENTRY_OTHER
+    },
+    {   .string   = "Save settings on exit",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_SaveResourcesOnExit_callback
+    },
     SDL_MENU_ITEM_SEPARATOR,
-    { "Confirm on exit",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_ConfirmOnExit_callback,
-      NULL },
+
+    {   .string   = "Confirm on exit",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_ConfirmOnExit_callback
+    },
     SDL_MENU_ITEM_SEPARATOR,
+
     /* CAUTION: the position of this item is hardcoded above */
-    { "Keyboard mapping",
-      MENU_ENTRY_SUBMENU,
-      submenu_radio_callback,
-      (ui_callback_data_t)NULL },
+    {   .string   = "Keyboard mapping",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_radio_callback,
+        .data     = NULL    /* set in uikeyboard_update_index_menu() */
+    },
     /* CAUTION: the position of this item is hardcoded above */
-    { "Active keymap",
-      MENU_ENTRY_SUBMENU,
-      submenu_radio_callback,
-      (ui_callback_data_t)NULL },
-    { "Load symbolic user keymap",
-      MENU_ENTRY_OTHER,
-      load_sym_keymap_callback,
-      NULL },
-    { "Load positional user keymap",
-      MENU_ENTRY_OTHER,
-      load_pos_keymap_callback,
-      NULL },
-    { "Show keyboard status in statusbar",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_KbdStatusbar_callback,
-      NULL },
-    { "Save current keymap to",
-      MENU_ENTRY_OTHER,
-      save_keymap_callback,
-      NULL },
+    {   .string   = "Active keymap",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_radio_callback,
+        .data     = NULL    /* set in uikeyboard_update_index_menu() */
+    },
+    {   .string   = "Load symbolic user keymap",
+        .type     = MENU_ENTRY_OTHER,
+        .callback = load_sym_keymap_callback
+    },
+    {   .string   = "Load positional user keymap",
+        .type     = MENU_ENTRY_OTHER,
+        .callback = load_pos_keymap_callback
+    },
+    {   .string   = "Show keyboard status in statusbar",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_KbdStatusbar_callback,
+    },
+    {   .string   = "Save current keymap to",
+        .type     = MENU_ENTRY_OTHER,
+        .callback = save_keymap_callback,
+    },
     SDL_MENU_ITEM_SEPARATOR,
-    { "Save hotkeys",
-      MENU_ENTRY_OTHER,
-      save_hotkeys_callback,
-      NULL },
-    { "Save hotkeys to",
-      MENU_ENTRY_OTHER,
-      save_hotkeys_to_callback,
-      NULL },
-    { "Load hotkeys from",
-      MENU_ENTRY_OTHER,
-      load_hotkeys_from_callback,
-      NULL },
-    { "Load hotkeys",
-      MENU_ENTRY_OTHER,
-      load_hotkeys_callback,
-      NULL },
+
+    {   .action   = ACTION_HOTKEYS_SAVE,
+        .string   = "Save hotkeys",
+        .type     = MENU_ENTRY_OTHER,
+    },
+    {   .action   = ACTION_HOTKEYS_SAVE_TO,
+        .string   = "Save hotkeys to",
+        .type     = MENU_ENTRY_OTHER,
+        .callback = save_hotkeys_to_callback
+    },
+    {   .action   = ACTION_HOTKEYS_LOAD,
+        .string   = "Load hotkeys",
+        .type     = MENU_ENTRY_OTHER,
+    },
+    {   .action   = ACTION_HOTKEYS_LOAD_FROM,
+        .string   = "Load hotkeys from",
+        .type     = MENU_ENTRY_OTHER,
+        .callback = load_hotkeys_from_callback
+    },
+    {   .action   = ACTION_HOTKEYS_DEFAULT,
+        .string   = "Load default hotkeys",
+        .type     = MENU_ENTRY_OTHER
+    },
+    {   .action   = ACTION_HOTKEYS_CLEAR,
+        .string   = "Clear hotkeys",
+        .type     = MENU_ENTRY_OTHER
+    },
+
 #ifdef HAVE_SDL_NUMJOYSTICKS
     SDL_MENU_ITEM_SEPARATOR,
-    { "Save joystick map",
-      MENU_ENTRY_OTHER,
-      save_joymap_callback,
-      NULL },
-    { "Save joystick map to",
-      MENU_ENTRY_OTHER,
-      save_joymap_to_callback,
-      NULL },
-    { "Load joystick map from",
-      MENU_ENTRY_OTHER,
-      load_joymap_from_callback,
-      NULL },
-    { "Load joystick map",
-      MENU_ENTRY_OTHER,
-      load_joymap_callback,
-      NULL },
+
+    {   .string   = "Save joystick map",
+        .type     = MENU_ENTRY_OTHER,
+        .callback = save_joymap_callback,
+    },
+    {   .string   = "Save joystick map to",
+        .type     = MENU_ENTRY_OTHER,
+        .callback = save_joymap_to_callback
+    },
+    {   .string   = "Load joystick map from",
+        .type     = MENU_ENTRY_OTHER,
+        .callback = load_joymap_from_callback
+    },
+    {   .string   = "Load joystick map",
+        .type     = MENU_ENTRY_OTHER,
+        .callback = load_joymap_callback
+    },
 #endif
     SDL_MENU_ITEM_SEPARATOR,
-    { "Define UI keys",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)define_ui_keyset_menu },
+
+    {   .string   = "Define UI keys",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)define_ui_keyset_menu
+    },
     SDL_MENU_LIST_END
 };
 
 
 /* vsid setting menu */
 ui_menu_entry_t settings_manager_menu_vsid[] = {
-    { "Save current settings",
-      MENU_ENTRY_OTHER,
-      save_settings_callback,
-      NULL },
-    { "Load settings",
-      MENU_ENTRY_OTHER,
-      load_settings_callback,
-      NULL },
-    { "Save current settings to",
-      MENU_ENTRY_OTHER,
-      save_settings_to_callback,
-      NULL },
-    { "Load settings from",
-      MENU_ENTRY_OTHER,
-      load_settings_from_callback,
-      NULL },
-    { "Load extra settings from",
-      MENU_ENTRY_OTHER,
-      load_extra_settings_from_callback,
-      NULL },
-    { "Restore default settings",
-      MENU_ENTRY_OTHER,
-      default_settings_callback,
-      NULL },
-    { "Save settings on exit",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_SaveResourcesOnExit_callback,
-      NULL },
+    {   .action   = ACTION_SETTINGS_SAVE,
+        .string   = "Save current settings",
+        .type     = MENU_ENTRY_OTHER
+    },
+    {   .action   = ACTION_SETTINGS_LOAD,
+        .string   = "Load settings",
+        .type     = MENU_ENTRY_OTHER
+    },
+    {   .action   = ACTION_SETTINGS_SAVE_TO,
+        .string   = "Save current settings to",
+        .type     = MENU_ENTRY_OTHER,
+        .callback = save_settings_to_callback
+    },
+    {   .action   = ACTION_SETTINGS_LOAD_FROM,
+        .string   = "Load settings from",
+        .type     = MENU_ENTRY_OTHER,
+        .callback = load_settings_from_callback
+    },
+    {   .action   = ACTION_SETTINGS_LOAD_EXTRA,
+        .string   = "Load extra settings from",
+        .type     = MENU_ENTRY_OTHER,
+        .callback = load_extra_settings_from_callback
+    },
+    {   .action   = ACTION_SETTINGS_DEFAULT,
+        .string   = "Restore default settings",
+        .type     = MENU_ENTRY_OTHER
+    },
+    {   .string   = "Save settings on exit",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_SaveResourcesOnExit_callback
+    },
     SDL_MENU_ITEM_SEPARATOR,
-    { "Confirm on exit",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_ConfirmOnExit_callback,
-      NULL },
+
+    {   .string   = "Confirm on exit",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_ConfirmOnExit_callback
+    },
     SDL_MENU_ITEM_SEPARATOR,
-    { "Save hotkeys",
-      MENU_ENTRY_OTHER,
-      save_hotkeys_callback,
-      NULL },
-    { "Save hotkeys to",
-      MENU_ENTRY_OTHER,
-      save_hotkeys_to_callback,
-      NULL },
-    { "Load hotkeys from",
-      MENU_ENTRY_OTHER,
-      load_hotkeys_from_callback,
-      NULL },
-    { "Load hotkeys",
-      MENU_ENTRY_OTHER,
-      load_hotkeys_callback,
-      NULL },
+
+    {   .action   = ACTION_HOTKEYS_SAVE,
+        .string   = "Save hotkeys",
+        .type     = MENU_ENTRY_OTHER,
+    },
+    {   .action   = ACTION_HOTKEYS_SAVE_TO,
+        .string   = "Save hotkeys to",
+        .type     = MENU_ENTRY_OTHER,
+        .callback = save_hotkeys_to_callback
+    },
+    {   .action   = ACTION_HOTKEYS_LOAD,
+        .string   = "Load hotkeys from",
+        .type     = MENU_ENTRY_OTHER,
+    },
+    {   .action   = ACTION_HOTKEYS_LOAD_FROM,
+        .string   = "Load hotkeys",
+        .type     = MENU_ENTRY_OTHER,
+    },
+    {   .action   = ACTION_HOTKEYS_DEFAULT,
+        .string   = "Load default hotkeys",
+        .type     = MENU_ENTRY_OTHER
+    },
+    {   .action   = ACTION_HOTKEYS_CLEAR,
+        .string   = "Clear hotkeys",
+        .type     = MENU_ENTRY_OTHER
+    },
     SDL_MENU_ITEM_SEPARATOR,
-    { "Define UI keys",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)define_ui_keyset_menu },
+
+    {   .string   = "Define UI keys",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)define_ui_keyset_menu
+    },
     SDL_MENU_LIST_END
 };

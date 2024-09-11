@@ -35,7 +35,6 @@
 #include "basewidgets.h"
 #include "widgethelpers.h"
 #include "basedialogs.h"
-#include "cartimagewidget.h"
 #include "filechooserhelpers.h"
 #include "lastdir.h"
 #include "log.h"
@@ -661,9 +660,8 @@ static int attach_cart_image(int type, int id, const char *path)
     /* printf("call cartridge_attach_image(id:%d path:%s)\n", id, path); */
     if ((cartridge_attach_image(id, path) == 0)) {
         /* check 'set default' */
-        if ((cart_set_default_widget != NULL)
-                & (gtk_toggle_button_get_active(
-                        GTK_TOGGLE_BUTTON(cart_set_default_widget)))) {
+        if ((cart_set_default_widget != NULL) &&
+                (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(cart_set_default_widget)))) {
             /* set cart as default, there's no return value, so let's assume
              * this works */
             cartridge_set_default();
@@ -945,7 +943,12 @@ static GtkWidget *create_preview_widget(void)
 {
     if ((machine_class != VICE_MACHINE_C64)
             && (machine_class != VICE_MACHINE_C64SC)
-            && (machine_class != VICE_MACHINE_C128)) {
+            && (machine_class != VICE_MACHINE_SCPU64)
+            && (machine_class != VICE_MACHINE_C128)
+            /*&& (machine_class != VICE_MACHINE_CBM5x0)
+            && (machine_class != VICE_MACHINE_CBM6x0)*/   /* TODO: enable once implemented */
+            && (machine_class != VICE_MACHINE_PLUS4)
+            && (machine_class != VICE_MACHINE_VIC20)) {
         GtkWidget *grid = NULL;
         GtkWidget *label;
         grid = gtk_grid_new();

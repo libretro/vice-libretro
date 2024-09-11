@@ -7,12 +7,14 @@ AM_CPPFLAGS = \
 	@ARCH_INCLUDES@ \
 	-I$(top_srcdir)/src/arch/shared \
 	$(extra_includes) \
+	-I$(top_srcdir)/src/arch/shared/hotkeys \
 	-I$(top_builddir)/src \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/src/crtc \
 	-I$(top_srcdir)/src/datasette \
 	-I$(top_srcdir)/src/drive \
 	-I$(top_srcdir)/src/joyport \
+	-I$(top_srcdir)/src/printerdrv \
 	-I$(top_srcdir)/src/lib/p64 \
 	-I$(top_srcdir)/src/raster \
 	-I$(top_srcdir)/src/rs232drv \
@@ -62,6 +64,7 @@ libarch_a_SOURCES = \
 	actions-joystick.c \
 	actions-machine.c \
 	actions-media.c \
+	actions-printer.c \
 	actions-settings.c \
 	actions-snapshot.c \
 	actions-speed.c \
@@ -75,7 +78,6 @@ libarch_a_SOURCES = \
 	cbm5x0ui.c \
 	debug_gtk3.c \
 	gtk3main.c \
-	hotkeymap.c \
 	hotkeys.c \
 	kbd.c \
 	linenoise.c \
@@ -138,6 +140,10 @@ endif
 libtoolarch_a_SOURCES = \
 	archdep.c
 
+if USE_GTK3UI
+libtoolarch_a_SOURCES += debug_gtk3.c
+endif
+
 EXTRA_DIST = \
 	Resources/VICE.icns \
 	actions-cartridge.h \
@@ -151,6 +157,7 @@ EXTRA_DIST = \
 	actions-joystick.h \
 	actions-machine.h \
 	actions-media.h \
+	actions-printer.h \
 	actions-settings.h \
 	actions-snapshot.h \
 	actions-speed.h \
@@ -159,7 +166,6 @@ EXTRA_DIST = \
 	debug_gtk3.h \
 	directx_renderer.h \
 	directx_renderer_impl.h \
-	hotkeymap.h \
 	hotkeys.h \
 	kbd.h \
 	linenoise.h \

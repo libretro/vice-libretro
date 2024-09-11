@@ -28,49 +28,38 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
  *  02111-1307  USA.
- *
- * TODO: fix up the layout a bit
  */
 
 #include "vice.h"
 #include <gtk/gtk.h>
-#include <stdlib.h>
 
 #include "archdep.h"
-#include "vice_gtk3.h"
-#include "cartridge.h"
+#include "c64cart.h"
+#include "log.h"
 #include "machine.h"
-#include "resources.h"
+#include "vice_gtk3.h"
 
 #include "settings_ethernetcart.h"
 
 
+#ifdef HAVE_RAWNET
+
 /** \brief  List of Ethernet Cartridge emulation modes
  */
 static const vice_gtk3_radiogroup_entry_t modes[] = {
-    { "ETFE",   0 },
-    { "RRNet",  1 },
+    { "ETFE",   ETHERNETCART_MODE_TFE },
+    { "RRNet",  ETHERNETCART_MODE_RRNET },
     { NULL,     -1 }
 };
 
-
-/** \brief  Handler for the "changed" event of the I/O base combo box
- *
- * \param[in]   widget      combo box
- * \param[in]   user_data   extra event data (unused)
- */
-static void on_base_changed(GtkWidget *widget, gpointer user_data)
-{
-    int base;
-    char *endptr;
-    const gchar *id;
-
-    id = gtk_combo_box_get_active_id(GTK_COMBO_BOX(widget));
-    base = (int)strtol(id, &endptr, 10);
-    if (*endptr == '\0') {
-        resources_set_int("ETHERNETCARTBase", base);
-    }
-}
+/** \brief  List of ethernet cart I/O base addresses for VIC-20 */
+static int eth_base_list_vic20[] = {
+    0x9800, 0x9810, 0x9820, 0x9830, 0x9840, 0x9850, 0x9860, 0x9870,
+    0x9880, 0x9890, 0x98a0, 0x98b0, 0x98c0, 0x98d0, 0x98e0, 0x98f0,
+    0x9c00, 0x9c10, 0x9c20, 0x9c30, 0x9c40, 0x9c50, 0x9c60, 0x9c70,
+    0x9c80, 0x9c90, 0x9ca0, 0x9cb0, 0x9cc0, 0x9cd0, 0x9ce0, 0x9cf0,
+    -1
+};
 
 
 /** \brief  Create widget to select the Ethernet Cartridge emulation mode
@@ -81,12 +70,12 @@ static GtkWidget *create_cartridge_mode_widget(void)
 {
     GtkWidget *group;
 
-    group = vice_gtk3_resource_radiogroup_new("ETHERNETCARTMode", modes,
-            GTK_ORIENTATION_HORIZONTAL);
+    group = vice_gtk3_resource_radiogroup_new("ETHERNETCARTMode",
+                                              modes,
+                                              GTK_ORIENTATION_HORIZONTAL);
     gtk_grid_set_column_spacing(GTK_GRID(group), 16);
     return group;
 }
-
 
 /** \brief  Create widget to create Ethernet Cartridge I/O base
  *
@@ -94,64 +83,25 @@ static GtkWidget *create_cartridge_mode_widget(void)
  */
 static GtkWidget *create_cartridge_base_widget(void)
 {
-    GtkWidget *combo;
-    unsigned int base;
-    char text[256];
-    char id[80];
-    int current;
-    int index;
+    GtkWidget *combo = NULL;
 
-    resources_get_int("ETHERNETCARTBase", &current);
-
-    combo = gtk_combo_box_text_new();
     switch (machine_class) {
         case VICE_MACHINE_C64:      /* fallthrough */
         case VICE_MACHINE_C64SC:    /* fallthrough */
         case VICE_MACHINE_C128:     /* fallthrough */
         case VICE_MACHINE_SCPU64:
-
-            index = 0;
-            for (base = 0xde00; base < 0xe000; base += 0x10) {
-                g_snprintf(text, sizeof(text), "$%04X", base);
-                g_snprintf(id, sizeof(id), "%u", base);
-                gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(combo), id, text);
-                if (current == base) {
-                    gtk_combo_box_set_active(GTK_COMBO_BOX(combo), index);
-                }
-                index++;
-            }
+            combo = vice_gtk3_resource_combo_hex_new_range("ETHERNETCARTBase",
+                                                           0xde00, 0xe000, 0x10);
             break;
 
         case VICE_MACHINE_VIC20:
-
-            index = 0;
-            /* add range $9800-$98f0 */
-            for (base = 0x9800; base < 0x9900; base += 0x10) {
-                g_snprintf(text, sizeof(text), "$%04X", base);
-                g_snprintf(id, sizeof(id), "%u", base);
-                gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(combo), id, text);
-                if (current == base) {
-                    gtk_combo_box_set_active(GTK_COMBO_BOX(combo), index);
-                }
-                index++;
-            }
-            /* add range $9c00-$9cf0 */
-            for (base = 0x9c00; base < 0x9d00; base += 0x10) {
-                g_snprintf(text, sizeof(text), "$%04X", base);
-                g_snprintf(id, sizeof(id), "%u", base);
-                gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(combo), id, text);
-                if (current == base) {
-                    gtk_combo_box_set_active(GTK_COMBO_BOX(combo), index);
-                }
-                index++;
-            }
-
+            combo = vice_gtk3_resource_combo_hex_new_list("ETHERNETCARTBase",
+                                                          eth_base_list_vic20);
             break;
         default:
+            log_error(LOG_ERR, "%s(): should never get here!", __func__);
             break;
     }
-    g_signal_connect(combo, "changed", G_CALLBACK(on_base_changed), NULL);
-
     return combo;
 }
 
@@ -170,45 +120,43 @@ GtkWidget *settings_ethernetcart_widget_create(GtkWidget *parent)
     GtkWidget *mode_label;
     GtkWidget *base_widget;
     GtkWidget *base_label;
-    int row;
+    int        row = 0;
 
-    grid = vice_gtk3_grid_new_spaced(8, 8);
+    grid = gtk_grid_new();
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 8);
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 8);
 
-    enable_widget = vice_gtk3_resource_check_button_new(
-            "ETHERNETCART_ACTIVE", "Enable ethernet cartridge");
-    gtk_grid_attach(GTK_GRID(grid), enable_widget, 0, 0, 1, 1);
-
-    row = 1;    /* next row in grid */
+    enable_widget = vice_gtk3_resource_check_button_new("ETHERNETCART_ACTIVE",
+                                                        "Enable ethernet cartridge");
+    gtk_widget_set_margin_bottom(enable_widget, 24);
+    gtk_grid_attach(GTK_GRID(grid), enable_widget, 0, row, 2, 1);
+    row++;
 
     switch (machine_class) {
         case VICE_MACHINE_C64:      /* fallthrough */
         case VICE_MACHINE_C64SC:    /* fallthrough */
         case VICE_MACHINE_C128:     /* fallthrough */
         case VICE_MACHINE_SCPU64:
+            mode_label  = gtk_label_new("Cartridge mode");
             mode_widget = create_cartridge_mode_widget();
-            mode_label = gtk_label_new("Ethernet Cartridge mode");
-            gtk_widget_set_margin_start(mode_label, 16);
             gtk_widget_set_halign(mode_label, GTK_ALIGN_START);
-            gtk_grid_attach(GTK_GRID(grid), mode_label, 0, row, 1, 1);
+            gtk_grid_attach(GTK_GRID(grid), mode_label,  0, row, 1, 1);
             gtk_grid_attach(GTK_GRID(grid), mode_widget, 1, row, 1, 1);
             row++;
             break;
 
-        case VICE_MACHINE_VIC20:
-            break;
         default:
             break;
     }
 
-    base_label = gtk_label_new("Cartridge I/O base");
-    gtk_widget_set_halign(base_label, GTK_ALIGN_START);
-    gtk_widget_set_margin_start(base_label, 16);
-
-    gtk_grid_attach(GTK_GRID(grid), base_label, 0, row, 1,1);
+    base_label  = gtk_label_new("Cartridge I/O base");
     base_widget = create_cartridge_base_widget();
+    gtk_widget_set_halign(base_label, GTK_ALIGN_START);
+    gtk_grid_attach(GTK_GRID(grid), base_label,  0, row, 1,1);
     gtk_grid_attach(GTK_GRID(grid), base_widget, 1, row, 1, 1);
 
-    gtk_widget_set_sensitive(grid, archdep_ethernet_available());
+    gtk_widget_set_sensitive(grid, (gboolean)archdep_ethernet_available());
     gtk_widget_show_all(grid);
     return grid;
 }
+#endif

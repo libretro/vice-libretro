@@ -155,22 +155,6 @@ int ui_init(void)
 }
 
 
-/** \brief  Finish initialization after loading the resources
- *
- * \note    This function exists for compatibility with other UIs.
- *
- * \return  0 on success, -1 on failure
- *
- * \sa      ui_init_finalize()
- */
-int ui_init_finish(void)
-{
-    /* printf("%s\n", __func__); */
-
-    return 0;
-}
-
-
 /** \brief  Finalize initialization after creating the main window(s)
  *
  * \note    This function exists for compatibility with other UIs,
@@ -178,8 +162,6 @@ int ui_init_finish(void)
  *          command-line or saved settings file (as it is in WinVICE.)
  *
  * \return  0 on success, -1 on failure
- *
- * \sa      ui_init_finish()
  */
 int ui_init_finalize(void)
 {
@@ -381,9 +363,24 @@ void ui_update_lightpen(void)
     /* printf("%s\n", __func__); */
 }
 
-
-/* FIXME: temporary hack to allow using ui_hotkeys_init() from src/main.c */
-void ui_hotkeys_init(void)
+void arch_ui_activate(void)
 {
-    /* NOP */
+}
+
+/* Temporary stubs for the UI action system, due to the joystick code being
+ * built with the headless UI
+ */
+
+const char *ui_action_get_name(int action)
+{
+    return "";
+}
+
+int ui_action_get_id(const char *name)
+{
+    return 0;
+}
+
+void ui_action_trigger(int action)
+{
 }

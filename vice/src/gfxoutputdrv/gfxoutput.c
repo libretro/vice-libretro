@@ -50,7 +50,9 @@
 #ifdef HAVE_FFMPEG
 #include "ffmpegdrv.h"
 #endif
+#include "ffmpegexedrv.h"
 
+#include "zmbvdrv.h"
 
 struct gfxoutputdrv_list_s {
     struct gfxoutputdrv_s *drv;
@@ -114,6 +116,9 @@ int gfxoutput_early_init(int help)
 #ifdef HAVE_FFMPEG
     gfxoutput_init_ffmpeg(help);
 #endif
+    gfxoutput_init_ffmpegexe(help);
+    gfxoutput_init_zmbv(help);
+
     /* C64 formats */
     gfxoutput_init_godot(help);
     gfxoutput_init_artstudio(help);

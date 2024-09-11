@@ -1,4 +1,4 @@
-SUBDIRS = p64 linenoise-ng
+SUBDIRS = p64 linenoise-ng libzmbv md5
 
 AM_CFLAGS = @VICE_CFLAGS@
 
@@ -11,3 +11,8 @@ noinst_HEADERS = \
 
 libp64:
 	(cd p64; $(MAKE))
+
+.PHONY: libzmbv
+
+libzmbv:
+	(cd libzmbv; $(MAKE))

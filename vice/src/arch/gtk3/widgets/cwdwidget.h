@@ -1,5 +1,5 @@
 /** \file   cwdwidget.h
- * \brief   Widget to set working directory - header
+ * \brief   Widget to set the current working directory - header
  *
  * \author  Bas Wassink <b.wassink@ziggo.nl>
  */
@@ -30,6 +30,6 @@
 
 #include <gtk/gtk.h>
 
-GtkWidget *cwd_widget_create(GtkWidget *parent);
+GtkWidget *cwd_widget_create(void);
 
 #endif

@@ -30,6 +30,9 @@
  * $VICERES VDCHideStatusbar    x128
  * $VICERES VICHideStatusbar    xvic
  * $VICERES VICIIHideStatusbar  x64 x64sc x64dtv xscpu64 x128 xcbm5x0
+ * $VICERES DiagPin             xpet
+ * $VICERES SpeedSwitch         xscpu64
+ * $VICERES JiffySwitch         xscpu64
  *
  */
 
@@ -63,6 +66,7 @@
 #include "attach.h"
 #include "autostart.h"
 #include "contentpreviewwidget.h"
+#include "crtcontrolwidget.h"
 #include "datasette.h"
 #include "dirmenupopup.h"
 #include "diskcontents.h"
@@ -73,7 +77,7 @@
 #include "drive.h"
 #include "drivetypes.h"
 #include "fliplist.h"
-#include "hotkeymap.h"
+#include "hotkeys.h"
 #include "joyport.h"
 #include "joystickmenupopup.h"
 #include "kbddebugwidget.h"
@@ -424,6 +428,15 @@ typedef struct ui_statusbar_s {
 
     /** \brief  capslock LED widget */
     GtkWidget *capslock_led;
+
+    /** \brief  Userport diagnostic pin widget (PET) */
+    GtkWidget *diagnosticpin_led;
+
+    /** \brief  Turbo LED widget (SCPU64) */
+    GtkWidget *supercpu_turbo_led;
+
+    /** \brief  JiffyDOS LED widget (SCPU64) */
+    GtkWidget *supercpu_jiffy_led;
 
     /** \brief  Widget displaying CPU speed and FPS
      *
@@ -887,11 +900,11 @@ static gboolean ui_do_datasette_popup(GtkWidget *widget,
             child = children = gtk_container_get_children(GTK_CONTAINER(tape_menu));
 
             action_id = port == 1 ? ACTION_TAPE_ATTACH_1 : ACTION_TAPE_ATTACH_2;
-            ui_set_menu_item_accel_label(GTK_WIDGET(child->data), action_id);
+            vhk_gtk_set_menu_item_accel_label(GTK_WIDGET(child->data), action_id);
 
             child = child->next;
             action_id = port == 1 ? ACTION_TAPE_DETACH_1 : ACTION_TAPE_DETACH_2;
-            ui_set_menu_item_accel_label(GTK_WIDGET(child->data), action_id);
+            vhk_gtk_set_menu_item_accel_label(GTK_WIDGET(child->data), action_id);
 
             g_list_free(children);
 
@@ -942,19 +955,9 @@ static gboolean ui_do_drive_popup(GtkWidget *widget, GdkEvent *event, gpointer d
     int action;
     int i = GPOINTER_TO_INT(data) & 0xff;
     int drive = GPOINTER_TO_INT(data) >> 8;
-
-    gint reset_ids[] = {
-        ACTION_RESET_DRIVE_8,
-        ACTION_RESET_DRIVE_9,
-        ACTION_RESET_DRIVE_10,
-        ACTION_RESET_DRIVE_11
-    };
-
+    int buttons;
 
     mainlock_assert_is_not_vice_thread();
-
-    debug_gtk3("Got drive menu popup for unit #%d, drive #%d.",
-               i + DRIVE_UNIT_MIN, drive);
 
     drive_menu = allocated_bars[0].drive_menu[i][drive];
 
@@ -978,7 +981,7 @@ static gboolean ui_do_drive_popup(GtkWidget *widget, GdkEvent *event, gpointer d
 
         /* set hotkey, if any */
         action = ui_action_id_drive_attach(i + DRIVE_UNIT_MIN, drive);
-        ui_set_menu_item_accel_label(drive_menu_item, action);
+        vhk_gtk_set_menu_item_accel_label(drive_menu_item, action);
     }
 
     /* set "Detach" item label based on dual-drive status */
@@ -1001,7 +1004,7 @@ static gboolean ui_do_drive_popup(GtkWidget *widget, GdkEvent *event, gpointer d
 
         /* set hotkey, if any */
         action = ui_action_id_drive_detach(i + DRIVE_UNIT_MIN, drive);
-        ui_set_menu_item_accel_label(drive_menu_item, action);
+        vhk_gtk_set_menu_item_accel_label(drive_menu_item, action);
     }
 
     g_list_free(children);
@@ -1021,30 +1024,33 @@ static gboolean ui_do_drive_popup(GtkWidget *widget, GdkEvent *event, gpointer d
      * Add drive reset item
      */
     g_snprintf(buffer, sizeof(buffer), "Reset drive #%d", i + DRIVE_UNIT_MIN);
-    drive_menu_item = popup_menu_item_action_new(buffer, reset_ids[i]);
+    drive_menu_item = popup_menu_item_action_new(buffer,
+                                                 ui_action_id_drive_reset(i + DRIVE_UNIT_MIN));
     gtk_container_add(GTK_CONTAINER(drive_menu), drive_menu_item);
 
+    buttons = drive_has_buttons(i);
+
     /* Add reset to configuration mode for CMD HDs */
-    if ((drive_has_buttons(i) & 1) == 1) {
+    if ((buttons & DRIVE_BUTTON_WRITE_PROTECT) == DRIVE_BUTTON_WRITE_PROTECT) {
         g_snprintf(buffer, sizeof(buffer),
                    "Reset drive #%d to Configuration Mode",
                    i + DRIVE_UNIT_MIN);
         drive_menu_item = gtk_menu_item_new_with_label(buffer);
         g_signal_connect(drive_menu_item, "activate",
                          G_CALLBACK(on_drive_reset_config_clicked),
-                         GINT_TO_POINTER((i << 4) + 1));
+                         GINT_TO_POINTER((i << 4) + DRIVE_BUTTON_WRITE_PROTECT));
         gtk_container_add(GTK_CONTAINER(drive_menu), drive_menu_item);
     }
 
     /* Add reset to installation mode for CMD HDs */
-    if ((drive_has_buttons(i) & 6) == 6) {
+    if ((buttons & (DRIVE_BUTTON_SWAP_8|DRIVE_BUTTON_SWAP_9)) == (DRIVE_BUTTON_SWAP_8|DRIVE_BUTTON_SWAP_9)) {
         g_snprintf(buffer, sizeof(buffer),
                    "Reset drive #%d to Installation Mode",
                    i + DRIVE_UNIT_MIN);
         drive_menu_item = gtk_menu_item_new_with_label(buffer);
         g_signal_connect(drive_menu_item, "activate",
                          G_CALLBACK(on_drive_reset_config_clicked),
-                         GINT_TO_POINTER((i << 4) + 6));
+                         GINT_TO_POINTER((i << 4) + (DRIVE_BUTTON_SWAP_8|DRIVE_BUTTON_SWAP_9)));
         gtk_container_add(GTK_CONTAINER(drive_menu), drive_menu_item);
     }
 
@@ -1242,6 +1248,10 @@ static void destroy_statusbar_cb(GtkWidget *sb, gpointer index)
     bar->pause_led = NULL;
     bar->shiftlock_led = NULL;
     bar->mode4080_led = NULL;
+    bar->capslock_led = NULL;
+    bar->diagnosticpin_led = NULL;
+    bar->supercpu_turbo_led = NULL;
+    bar->supercpu_jiffy_led = NULL;
     bar->speed = NULL;
     bar->msg = NULL;
     bar->record = NULL;
@@ -2147,6 +2157,132 @@ void capslock_led_set_active(int bar, gboolean active)
     }
 }
 
+/** \brief  Callback function for the PET diagnostic pin LED
+ *
+ * \param[in]   led     diagnostic pin LED
+ * \param[in]   active  new state of the LED
+ */
+static void diagnosticpin_led_callback(GtkWidget *widget, gboolean active)
+{
+    resources_set_int("DiagPin", active ? 1 : 0);
+}
+
+static GtkWidget *diagnosticpin_led_create(void)
+{
+    GtkWidget *led = statusbar_led_widget_create("diag-pin:", "#ffa500", "#000");
+
+    statusbar_led_widget_set_toggleable(led, TRUE);
+    statusbar_led_widget_set_toggle_callback(led, diagnosticpin_led_callback);
+    gtk_widget_show_all(led);
+    return led;
+}
+
+/** \brief  Set PET userport diagnostic pin led state
+ *
+ * \param[in]   bar     status bar index
+ * \param[in]   active  new state for led
+ */
+void diagnosticpin_led_set_active(int bar, gboolean active)
+{
+    GtkWidget *led = allocated_bars[bar].diagnosticpin_led;
+
+    if (led != NULL) {
+        statusbar_led_widget_set_active(led, active);
+    }
+}
+
+/** \brief  Callback for the SuperCPU turbo LED
+ *
+ * Set resource "SpeedSwitch" to \a active.
+ *
+ * \param[in]   self    turbo LED (ignored)
+ * \param[in]   active  new LED state
+ */
+static void supercpu_turbo_led_callback(GtkWidget *self, gboolean active)
+{
+    resources_set_int("SpeedSwitch", active ? 1 : 0);
+}
+
+/** \brief  Create SuperCPU "turbo" led widget
+ *
+ * \return  LED widget
+ */
+static GtkWidget *supercpu_turbo_led_create(void)
+{
+    GtkWidget *led;
+    int        speed = 0;
+
+    /* according to images of the actual SuperCPU it has a red LED to indicate
+     * turbo mode */
+    led = statusbar_led_widget_create("turbo:", "#ff0000", "#000");
+    resources_get_int("SpeedSwitch", &speed);
+    statusbar_led_widget_set_active(led, speed);
+    statusbar_led_widget_set_toggleable(led, TRUE);
+    statusbar_led_widget_set_toggle_callback(led, supercpu_turbo_led_callback);
+    gtk_widget_show_all(led);
+    return led;
+}
+
+/** \brief  Set SCPU64 turbo led state
+ *
+ * \param[in]   bar     status bar index
+ * \param[in]   active  new state for led
+ */
+void supercpu_turbo_led_set_active(int bar, gboolean active)
+{
+    GtkWidget *led = allocated_bars[bar].supercpu_turbo_led;
+
+    if (led != NULL) {
+        statusbar_led_widget_set_active(led, active);
+    }
+}
+
+/** \brief  Callback for the SuperCPU JiffyDOS LED
+ *
+ * Set resource "SpeedSwitch" to \a active.
+ *
+ * \param[in]   self    turbo LED (ignored)
+ * \param[in]   active  new LED state
+ */
+static void supercpu_jiffy_led_callback(GtkWidget *self, gboolean active)
+{
+    resources_set_int("JiffySwitch", active ? 1 : 0);
+}
+
+/** \brief  Create SuperCPU JiffyDOS LED widget
+ *
+ * \return  LED widget
+ */
+static GtkWidget *supercpu_jiffy_led_create(void)
+{
+    GtkWidget *led;
+    int        jiffy = 0;
+
+    /* according to images of the actual SuperCPU it has a red LED to indicate
+     * turbo mode */
+    led = statusbar_led_widget_create("JiffyDOS:", "#00ff00", "#000");
+    resources_get_int("JiffySwitch", &jiffy);
+    statusbar_led_widget_set_active(led, jiffy);
+    statusbar_led_widget_set_toggleable(led, TRUE);
+    statusbar_led_widget_set_toggle_callback(led, supercpu_jiffy_led_callback);
+    gtk_widget_show_all(led);
+    return led;
+}
+
+/** \brief  Set SCPU64 JiffyDOS LED state
+ *
+ * \param[in]   bar     status bar index
+ * \param[in]   active  new state for led
+ */
+void supercpu_jiffy_led_set_active(int bar, gboolean active)
+{
+    GtkWidget *led = allocated_bars[bar].supercpu_jiffy_led;
+
+    if (led != NULL) {
+        statusbar_led_widget_set_active(led, active);
+    }
+}
+
 
 /** \brief  Get status bar index for \a window
  *
@@ -2346,9 +2482,12 @@ GtkWidget *ui_statusbar_create(int window_identity)
     /* LEDs */
     GtkWidget *warp_led;
     GtkWidget *pause_led;
-    GtkWidget *shiftlock_led;
-    GtkWidget *mode4080_led;
-    GtkWidget *capslock_led;
+    GtkWidget *shiftlock_led = NULL;
+    GtkWidget *mode4080_led  = NULL;
+    GtkWidget *capslock_led  = NULL;
+    GtkWidget *diagpin_led   = NULL;
+    GtkWidget *turbo_led     = NULL;
+    GtkWidget *jiffy_led     = NULL;
 
     /* top row widgets/wrappers */
     GtkWidget *speed;
@@ -2461,20 +2600,38 @@ GtkWidget *ui_statusbar_create(int window_identity)
     if (machine_class != VICE_MACHINE_VSID) {
         /* shiftlock */
         shiftlock_led = shiftlock_led_create();
-        allocated_bars[i].shiftlock_led = shiftlock_led;
         statusbar_append_led(i, shiftlock_led, FALSE);  /* no separator, for now */
     }
+    allocated_bars[i].shiftlock_led = shiftlock_led;
 
     if (machine_class == VICE_MACHINE_C128) {
         /* 40/80 */
         mode4080_led = mode4080_led_create();
-        allocated_bars[i].mode4080_led = mode4080_led;
         statusbar_append_led(i, mode4080_led, FALSE);  /* no separator, for now */
         /* capslock */
         capslock_led = capslock_led_create();
-        allocated_bars[i].capslock_led = capslock_led;
         statusbar_append_led(i, capslock_led, FALSE);  /* no separator, for now */
     }
+    allocated_bars[i].mode4080_led = mode4080_led;
+    allocated_bars[i].capslock_led = capslock_led;
+
+    if (machine_class == VICE_MACHINE_PET) {
+        /* userport diagnostic pin */
+        diagpin_led = diagnosticpin_led_create();
+        statusbar_append_led(i, diagpin_led, FALSE);
+    }
+    allocated_bars[i].diagnosticpin_led = diagpin_led;
+
+    if (machine_class == VICE_MACHINE_SCPU64) {
+        /* SuperCPU SPEED switch (turbo/normal) */
+        turbo_led = supercpu_turbo_led_create();
+        statusbar_append_led(i, turbo_led, FALSE);
+        /* SuperCPU JiffyDOS switch */
+        jiffy_led = supercpu_jiffy_led_create();
+        statusbar_append_led(i, jiffy_led, FALSE);
+    }
+    allocated_bars[i].supercpu_turbo_led = turbo_led;
+    allocated_bars[i].supercpu_jiffy_led = jiffy_led;
 
     /*
      * Add widgets to the widgets row
@@ -3563,13 +3720,52 @@ gboolean ui_action_toggle_show_statusbar(void)
         resources_get_int_sprintf("%sShowStatusbar", &show, chip_name);
         show = !show;
         resources_set_int_sprintf("%sShowStatusbar", show, chip_name);
-        debug_gtk3("%sShowStatusbar => %s.", chip_name, show ? "True" : "False");
 
         window = ui_get_active_window();
         ui_statusbar_set_visible_for_window(GTK_WIDGET(window), show);
         /* update menu item's toggled state! */
-        ui_set_check_menu_item_blocked_by_action(ACTION_SHOW_STATUSBAR_TOGGLE,
+        vhk_gtk_set_check_item_blocked_by_action(ACTION_SHOW_STATUSBAR_TOGGLE,
                                                  show);
     }
     return TRUE;
+}
+
+
+/** \brief  Recreate CRT controls on the status bars
+ *
+ * Destroy the old CRT controls and create new ones. To be called whenever the
+ * video standard changes.
+ */
+void ui_statusbar_recreate_crt_controls(void)
+{
+    int i;
+
+    mainlock_assert_is_not_vice_thread();
+
+    for (i = PRIMARY_WINDOW; i <= SECONDARY_WINDOW; i++) {
+        GtkWidget      *window;
+        GtkWidget      *grid;
+        GtkWidget      *controls;
+        video_canvas_t *canvas;
+        const char     *chip;
+
+        window   = ui_get_window_by_index(i);
+        if (window == NULL) {
+            continue;
+        }
+        canvas   = ui_get_canvas_for_window(i);
+        chip     = canvas->videoconfig->chip_name;
+        grid     = gtk_bin_get_child(GTK_BIN(window));
+        controls = gtk_grid_get_child_at(GTK_GRID(grid), 0, 3);
+        gtk_widget_destroy(controls);
+
+        controls = crt_control_widget_create(NULL, chip, TRUE);
+        gtk_grid_attach(GTK_GRID(grid), controls, 0, 3, 1, 1);
+
+        if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(allocated_bars[i].crt))) {
+            gtk_widget_show(controls);
+        } else {
+            gtk_widget_hide(controls);
+        }
+    }
 }

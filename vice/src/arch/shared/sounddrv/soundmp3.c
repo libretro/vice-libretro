@@ -32,16 +32,17 @@
 #include "sound.h"
 #include "types.h"
 #include "archdep.h"
+#include "lib.h"
 #include "log.h"
 
 /* HACK: Massive fixed size buffer for now, as the sound.c buffer has been made dynamic in size there is no more constant to use here. */
-#define PCM_BUFFER_SIZE (SOUND_CHANNELS_MAX * 1024 * 1024)
+#define PCM_BUFFER_SIZE (SOUND_OUTPUT_CHANNELS_MAX * 1024 * 1024)
 #define MP3_BUFFER_SIZE (PCM_BUFFER_SIZE + (PCM_BUFFER_SIZE / 4) + 7200)
 
 static FILE *mp3_fd = NULL;
 static int stereo = 0;
-static int16_t pcm_buffer[PCM_BUFFER_SIZE];
-static unsigned char mp3_buffer[MP3_BUFFER_SIZE];
+static int16_t *pcm_buffer = NULL;
+static unsigned char *mp3_buffer = NULL;
 static lame_global_flags *gfp;
 
 static int mp3_init(const char *param, int *speed, int *fragsize, int *fragnr, int *channels)
@@ -63,6 +64,20 @@ static int mp3_init(const char *param, int *speed, int *fragsize, int *fragnr, i
         return 1;
     }
 
+    if (pcm_buffer == NULL) {
+        pcm_buffer = lib_malloc(sizeof(int16_t) * PCM_BUFFER_SIZE);
+        if (pcm_buffer == NULL) {
+            return 1;
+        }
+    }
+
+    if (mp3_buffer == NULL) {
+        mp3_buffer = lib_malloc(sizeof(int16_t) * MP3_BUFFER_SIZE);
+        if (mp3_buffer == NULL) {
+            return 1;
+        }
+    }
+
     if (*channels == 2) {
         stereo = 1;
     }
@@ -74,6 +89,14 @@ static int mp3_write(int16_t *pbuf, size_t nr)
 {
     int mp3_size;
     unsigned int i;
+
+    if (pcm_buffer == NULL) {
+        return 1;
+    }
+
+    if (mp3_buffer == NULL) {
+        return 1;
+    }
 
     for (i = 0; i < nr; i++) {
         if (stereo == 1) {
@@ -107,6 +130,16 @@ static void mp3_close(void)
     mp3_fd = NULL;
 
     vice_lame_close(gfp);
+
+    if (pcm_buffer != NULL) {
+        lib_free(pcm_buffer);
+        pcm_buffer = NULL;
+    }
+
+    if (mp3_buffer != NULL) {
+        lib_free(mp3_buffer);
+        mp3_buffer = NULL;
+    }
 }
 
 static const sound_device_t mp3_device =

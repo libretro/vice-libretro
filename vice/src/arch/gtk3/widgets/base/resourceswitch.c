@@ -12,11 +12,11 @@
  *  GtkWidget *sw;
  *
  *  // create a widget
- *  sw = vice_gtk3_resource_switch_create("SomeResource");
+ *  sw = vice_gtk3_resource_switch_new("SomeResource");
  *  // any state change of the widget will now update the resource
  *
  *  // restore widget & resource to their initial state
- *  vice_gtk3_resource_switch_reset(check);
+ *  vice_gtk3_resource_switch_reset(sw);
  *
  * \endcode
  */
@@ -43,109 +43,34 @@
  */
 
 #include "vice.h"
-
 #include <gtk/gtk.h>
 #include <stdarg.h>
 
 #include "debug_gtk3.h"
-#include "lib.h"
 #include "log.h"
 #include "resources.h"
 #include "resourcehelpers.h"
+#include "resourcewidgetmediator.h"
 
 #include "resourceswitch.h"
 
 
-/** \brief  Handler for the 'destroy' event of the switch
- *
- * Frees the heap-allocated copy of the resource name.
- *
- * \param[in,out]   widget      switch
- * \param[in]       user_data   extra event data (unused)
- */
-static void on_switch_destroy(GtkWidget *widget, gpointer user_data)
-{
-    resource_widget_free_resource_name(widget);
-}
-
-
 /** \brief  Handler for the 'state-set' event of the switch
  *
- * \param[in,out]   widget      switch
- * \param[in]       user_data   resource name
+ * \param[in]   widget  resource switch
+ * \param[in]   data    extra event data (unused)
  */
-static void on_switch_state_set(GtkWidget *widget, gpointer user_data)
+static void on_switch_notify_active(GtkWidget *self, gpointer data)
 {
-    const char *resource;
-    int state;
-    int current;
+    gboolean    active;
+    mediator_t *mediator;
 
-    resource = resource_widget_get_resource_name(widget);
-    state = gtk_switch_get_active(GTK_SWITCH(widget));
-    if (resources_get_int(resource, &current) < 0) {
-        /* invalid resource, exit */
-        log_error(LOG_ERR, "invalid resource name'%s'", resource);
-        return;
+    active   = gtk_switch_get_active(GTK_SWITCH(self));
+    mediator = mediator_for_widget(self);
+    if (!mediator_update_boolean(mediator, active)) {
+        gtk_switch_set_active(GTK_SWITCH(self),
+                              mediator_get_current_boolean(mediator));
     }
-
-    /* make sure we don't update a resource when the UI happens to be out of
-     * sync for some reason */
-    if (state != current) {
-        if (resources_set_int(resource, state ? 1 : 0) < 0) {
-            log_error(LOG_ERR,
-                    "setting %s to %s failed",
-                    resource, state ? "True": "False");
-            /* get current resource value (validity of the name has been
-             * checked already */
-            resources_get_int(resource, &current);
-            gtk_switch_set_active(GTK_SWITCH(widget), current ? TRUE : FALSE);
-        }
-    }
-}
-
-
-/** \brief  Switch setup helper
- *
- * Called by either vice_gtk3_resource_switch_create() or
- * vice_gtk3_resource_switch_create_printf() to finish setting up the resource
- * switch \a widget.
- *
- * \param[in,out]   widget  switch
- *
- * \return  GtkSwitch
- */
-static GtkWidget *resource_switch_new_helper(GtkWidget *widget)
-{
-    int state;
-    const char *resource;
-
-    /* get current resource value */
-    resource = resource_widget_get_resource_name(widget);
-    if (resources_get_int(resource, &state) < 0) {
-        /* invalid resource, set state to off */
-        log_error(LOG_ERR, "invalid resource name '%s'", resource);
-        state = 0;
-    }
-
-    /* remember original state for reset() */
-    resource_widget_set_int(widget, "ResourceOrig", state);
-
-    gtk_switch_set_active(GTK_SWITCH(widget),
-            state ? TRUE : FALSE);
-
-    /* register methods to be used by the resource widget manager */
-    resource_widget_register_methods(
-            widget,
-            vice_gtk3_resource_switch_reset,
-            vice_gtk3_resource_switch_factory,
-            vice_gtk3_resource_switch_sync);
-    g_signal_connect(widget, "state-set", G_CALLBACK(on_switch_state_set),
-            (gpointer)resource);
-    g_signal_connect_unlocked(widget, "destroy", G_CALLBACK(on_switch_destroy),
-            NULL);
-
-    gtk_widget_show(widget);
-    return widget;
 }
 
 
@@ -163,15 +88,26 @@ static GtkWidget *resource_switch_new_helper(GtkWidget *widget)
  */
 GtkWidget *vice_gtk3_resource_switch_new(const char *resource)
 {
-    GtkWidget *widget;
+    GtkWidget  *widget;
+    mediator_t *mediator;
+    gulong      handler;
 
     widget = gtk_switch_new();
+    gtk_widget_set_hexpand(widget, FALSE);
+    gtk_widget_set_vexpand(widget, FALSE);
 
-    /* make a copy of the resource name and store the pointer in the propery
-     * "ResourceName" */
-    resource_widget_set_resource_name(widget, resource);
+    mediator = mediator_new(widget, resource, G_TYPE_BOOLEAN);
+    gtk_switch_set_active(GTK_SWITCH(widget),
+                          mediator_get_current_boolean(mediator));
 
-    return resource_switch_new_helper(widget);
+    /* connect signal handler and store ID in mediator */
+    handler = g_signal_connect(widget,
+                               "notify::active",
+                               G_CALLBACK(on_switch_notify_active),
+                               NULL);
+    mediator_set_handler(mediator, handler);
+
+    return widget;
 }
 
 
@@ -190,18 +126,13 @@ GtkWidget *vice_gtk3_resource_switch_new(const char *resource)
  */
 GtkWidget *vice_gtk3_resource_switch_new_sprintf(const char *fmt, ...)
 {
-    GtkWidget *widget;
+    char    resource[256];
     va_list args;
-    char *resource;
-
-    widget = gtk_switch_new();
 
     va_start(args, fmt);
-    resource = lib_mvsprintf(fmt, args);
-    g_object_set_data(G_OBJECT(widget), "ResourceName", (gpointer)resource);
+    g_vsnprintf(resource, sizeof resource, fmt, args);
     va_end(args);
-
-    return resource_switch_new_helper(widget);
+    return vice_gtk3_resource_switch_new(resource);
 }
 
 
@@ -219,26 +150,6 @@ gboolean vice_gtk3_resource_switch_set(GtkWidget *widget, gboolean value)
 }
 
 
-/** \brief  Get value for \a widget
- *
- * \param[in,out]   widget  switch
- * \param[out]      value   object to store value
- *
- * \return  TRUE if \a value was set
- */
-gboolean vice_gtk3_resource_switch_get(GtkWidget *widget, gboolean *value)
-{
-    const char *resource = resource_widget_get_resource_name(widget);
-    int state;
-
-    if (resources_get_int(resource, &state) < 0) {
-        return FALSE;
-    }
-    *value = (gboolean)state;
-    return TRUE;
-}
-
-
 /** \brief  Reset state to the value during instanciation
  *
  * \param[in,out]   widget  resource switch
@@ -247,8 +158,12 @@ gboolean vice_gtk3_resource_switch_get(GtkWidget *widget, gboolean *value)
  */
 gboolean vice_gtk3_resource_switch_reset(GtkWidget *widget)
 {
-    int value = resource_widget_get_int(widget, "ResourceOrig");
-    return vice_gtk3_resource_switch_set(widget, value);
+    mediator_t *mediator;
+    gboolean    initial;
+
+    mediator = mediator_for_widget(widget);
+    initial  = mediator_get_initial_boolean(mediator);
+    return vice_gtk3_resource_switch_set(widget, initial);
 }
 
 
@@ -260,17 +175,12 @@ gboolean vice_gtk3_resource_switch_reset(GtkWidget *widget)
  */
 gboolean vice_gtk3_resource_switch_factory(GtkWidget *widget)
 {
-    const char *resource;
-    int value;
+    mediator_t *mediator;
+    gboolean    factory;
 
-    resource = resource_widget_get_resource_name(widget);
-    if (resources_get_default_value(resource, &value) < 0) {
-        log_error(LOG_ERR,
-                "failed to get factory value for resource '%s'.",
-                resource);
-        return FALSE;
-    }
-    return vice_gtk3_resource_switch_set(widget, (gboolean)value);
+    mediator = mediator_for_widget(widget);
+    factory  = mediator_get_factory_boolean(mediator);
+    return vice_gtk3_resource_switch_set(widget, factory);
 }
 
 
@@ -282,27 +192,30 @@ gboolean vice_gtk3_resource_switch_factory(GtkWidget *widget)
  */
 gboolean vice_gtk3_resource_switch_sync(GtkWidget *widget)
 {
-    const char *resource;
-    gboolean widget_val;
-    int resource_val;
+    mediator_t *mediator;
+    gboolean    value;
+    gboolean    active;
 
-    resource = resource_widget_get_resource_name(widget);
-    if (!vice_gtk3_resource_switch_get(widget, &widget_val)) {
-        log_error(LOG_ERR,
-                "failed to retrieve current widget state for resource '%s'",
-                resource);
-        return FALSE;
-    }
-    if (resources_get_int(resource, &resource_val) < 0) {
-        log_error(LOG_ERR,
-                "failed to retrieve current value for resource '%s'",
-                resource);
-        return FALSE;
-    }
-
-    /* update widget if required */
-    if (widget_val != (gboolean)resource_val) {
-        return vice_gtk3_resource_switch_set(widget, (gboolean)resource_val);
+    mediator = mediator_for_widget(widget);
+    value    = mediator_get_resource_boolean(mediator);
+    active   = gtk_switch_get_active(GTK_SWITCH(widget));
+    if (active != value) {
+        /* block signal handler to avoid triggering useless resource update */
+        mediator_handler_block(mediator);
+        gtk_switch_set_active(GTK_SWITCH(widget), value);
+        mediator_handler_unblock(mediator);
     }
     return TRUE;
+}
+
+
+/** \brief  Add user callback to resource switch
+ *
+ * \param[in]   widget      resource switch
+ * \param[in]   callback    function to call on succesfull resource changes
+ */
+void vice_gtk3_resource_switch_add_callback(GtkWidget *widget,
+                                            void (*callback)(GtkWidget*, gboolean))
+{
+    mediator_set_callback_boolean_w(widget, callback);
 }

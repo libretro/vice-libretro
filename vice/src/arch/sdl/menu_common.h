@@ -55,8 +55,16 @@ extern const char *sdl_menu_text_tick;
 extern const char *sdl_menu_text_unknown;
 extern const char *sdl_menu_text_exit_ui;
 
-#define SDL_MENU_ITEM_SEPARATOR { "", MENU_ENTRY_TEXT, seperator_callback, NULL }
-#define SDL_MENU_ITEM_TITLE(title) { title, MENU_ENTRY_TEXT, seperator_callback, (ui_callback_data_t)1 }
+#define SDL_MENU_ITEM_SEPARATOR          \
+    {   .string   = "",                  \
+        .type     = MENU_ENTRY_TEXT,     \
+        .callback = seperator_callback }
+
+#define SDL_MENU_ITEM_TITLE(title)      \
+    {   .string = title,                \
+        .type = MENU_ENTRY_TEXT,        \
+        .callback = seperator_callback, \
+        .data = (ui_callback_data_t)1 }
 
 #define UI_MENU_CALLBACK(name) \
     const char *name(int activated, ui_callback_data_t param)
@@ -98,22 +106,17 @@ extern const char *sdl_menu_text_exit_ui;
     }
 
 
-extern UI_MENU_CALLBACK(submenu_callback);
-extern UI_MENU_CALLBACK(submenu_radio_callback);
-extern UI_MENU_CALLBACK(seperator_callback);
+UI_MENU_CALLBACK(submenu_callback);
+UI_MENU_CALLBACK(submenu_radio_callback);
+UI_MENU_CALLBACK(seperator_callback);
 
-extern const char *sdl_ui_menu_toggle_helper(int activated, const char *resource_name);
-extern const char *sdl_ui_menu_radio_helper(int activated, ui_callback_data_t param, const char *resource_name);
-extern const char *sdl_ui_menu_string_helper(int activated, ui_callback_data_t param, const char *resource_name);
-extern const char *sdl_ui_menu_int_helper(int activated, ui_callback_data_t param, const char *resource_name);
-extern const char *sdl_ui_menu_file_string_helper(int activated, ui_callback_data_t param, const char *resource_name);
-extern const char *sdl_ui_menu_slider_helper(int activated, ui_callback_data_t param, const char *resource_name, const int min, const int max);
+const char *sdl_ui_menu_toggle_helper(int activated, const char *resource_name);
+const char *sdl_ui_menu_radio_helper(int activated, ui_callback_data_t param, const char *resource_name);
+const char *sdl_ui_menu_string_helper(int activated, ui_callback_data_t param, const char *resource_name);
+const char *sdl_ui_menu_int_helper(int activated, ui_callback_data_t param, const char *resource_name);
+const char *sdl_ui_menu_file_string_helper(int activated, ui_callback_data_t param, const char *resource_name);
+const char *sdl_ui_menu_slider_helper(int activated, ui_callback_data_t param, const char *resource_name, const int min, const int max);
 
-extern UI_MENU_CALLBACK(autostart_callback);
-extern UI_MENU_CALLBACK(pause_callback);
-extern UI_MENU_CALLBACK(advance_frame_callback);
-extern UI_MENU_CALLBACK(vkbd_callback);
-extern UI_MENU_CALLBACK(statusbar_callback);
-extern UI_MENU_CALLBACK(quit_callback);
+UI_MENU_CALLBACK(autostart_callback);
 
 #endif

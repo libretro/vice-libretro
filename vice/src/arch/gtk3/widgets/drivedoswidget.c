@@ -51,71 +51,6 @@
 #include "drivedoswidget.h"
 
 
-/** \brief  Create DOS expansion check button
- *
- * \param[in]   unit    unit number (8-11)
- * \param[in]   dos     final part of the resource name (ie 'ProfDOS')
- * \param[in]   label   label for the check button
- *
- * \return  GtkCheckButton
- */
-static GtkWidget *create_dos_check_button(int unit,
-                                          const char *dos,
-                                          const char *label)
-{
-    GtkWidget *check;
-
-    check = vice_gtk3_resource_check_button_new_sprintf(
-            "Drive%d%s", label, unit, dos);
-    gtk_widget_set_margin_start(check, 16);
-    return check;
-}
-
-
-/** \brief  Create drive DOS widget
- *
- * Create widget to select a DOS expansion for \a unit.
- *
- * \param[in]   unit    drive unit (8-11)
- *
- * \return  GtkGrid
- */
-GtkWidget *drive_dos_widget_create(int unit)
-{
-    GtkWidget *grid;
-    GtkWidget *profdos;
-    GtkWidget *stardos;
-    GtkWidget *supercard;
-    int model = drive_get_disk_drive_type(unit - DRIVE_UNIT_MIN);
-
-    grid = vice_gtk3_grid_new_spaced_with_label(-1, -1, "DOS expansions", 1);
-    g_object_set_data(G_OBJECT(grid), "UnitNumber", GINT_TO_POINTER(unit));
-
-    profdos = create_dos_check_button(unit, "ProfDos", "Professional DOS");
-    stardos = create_dos_check_button(unit, "StarDOS", "StarDOS");
-    supercard = create_dos_check_button(unit, "Supercard", "Supercard+");
-
-    /* enable/disable widgets based on drive model */
-    gtk_widget_set_sensitive(profdos, drive_check_profdos(model));
-    gtk_widget_set_sensitive(stardos, drive_check_stardos(model));
-    gtk_widget_set_sensitive(supercard, drive_check_supercard(model));
-
-    gtk_grid_attach(GTK_GRID(grid), profdos, 0, 1, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), stardos, 0, 2, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), supercard, 0, 3, 1, 1);
-
-    gtk_widget_show_all(grid);
-    return grid;
-}
-
-
-
-/*****************************************************************************
- * Reimplementation using a combo box. The model will be updated on drive    *
- * type change to only show the DOS expansions valid for the current drive   *
- * type.                                                                     *
- ****************************************************************************/
-
 /** \brief  Combo box model columns */
 enum {
     COL_NAME,   /**< expansion name */
@@ -137,7 +72,10 @@ typedef struct drive_dos_exp_s {
 /** \brief  List of possible expansions, terminated by .name == NULL */
 static const drive_dos_exp_t expansions[] = {
     { "None",               NULL,               NULL },
+    /* XXX: Emulation of ProDOS is broken, see bug #759 */
+#ifdef DRIVE_EXPERIMENTAL_DEVICES
     { "Professional DOS",   "Drive%dProfDOS",   drive_check_profdos },
+#endif
     { "StarDOS",            "Drive%dStarDOS",   drive_check_stardos },
     { "Supercard+",         "Drive%dSuperCard", drive_check_supercard },
     { NULL,                 NULL,               NULL }
@@ -151,8 +89,6 @@ static int get_drive_type(GtkWidget *self);
 
 static void on_combo_changed(GtkWidget *self, gpointer data)
 {
-    debug_gtk3("Called.");
-
     if (gtk_combo_box_get_active(GTK_COMBO_BOX(self)) >= 0) {
         GtkTreeModel *model;
         GtkTreeIter iter;
@@ -171,14 +107,12 @@ static void on_combo_changed(GtkWidget *self, gpointer data)
                                -1);
 
             if (expansions[index].resource != NULL) {
-                debug_gtk3("Enabling %s for unit #%d.", name, unit);
                 resources_set_int_sprintf(expansions[index].resource, 1, unit);
             }
 
             /* disable other expansions */
             for (int i = 0; expansions[i].name != NULL; i++) {
                 if (expansions[i].resource != NULL && i != index) {
-                    debug_gtk3("Disabling %s for unit #%d.", expansions[i].name, unit);
                     resources_set_int_sprintf(expansions[i].resource, 0, unit);
                 }
             }
@@ -302,11 +236,9 @@ static void disable_invalid_expansions(GtkWidget *self)
     int unit = get_unit_number(self);
     int type = get_drive_type(self);
 
-    debug_gtk3("Disabling invalid expansions for new drive type %d:", type);
     for (int i = 0; expansions[i].name != NULL; i++) {
         if (expansions[i].resource != NULL) {
             if (!expansions[i].valid(type)) {
-                debug_gtk3("Setting %s to disabled.", expansions[i].name);
                 resources_set_int_sprintf(expansions[i].resource, 0, unit);
             }
         }
@@ -338,7 +270,6 @@ void drive_dos_widget_sync_combo(GtkWidget *widget)
     if (curr_type != model_type) {
         GtkListStore *new_model;
 
-        debug_gtk3("New drive type %d doesn't match the model's type %d.", curr_type, model_type);
         disable_invalid_expansions(widget);
 
         new_model = create_combo_model(widget);
@@ -367,11 +298,9 @@ void drive_dos_widget_sync_combo(GtkWidget *widget)
                                COL_INDEX, &index,
                                -1);
 
-            debug_gtk3("Name '%s', Index %d.", name, index);
             if (expansions[index].resource != NULL) {
                 resources_get_int_sprintf(expansions[index].resource, &enabled, unit);
                 if (enabled) {
-                    debug_gtk3("Selecting DOS expansion '%s'.", name);
                     gtk_combo_box_set_active_iter(GTK_COMBO_BOX(widget), &iter);
                     g_free(name);
                     break;

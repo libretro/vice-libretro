@@ -9,8 +9,8 @@
 /* Are we compiling for *BSD? */
 #undef BSD_COMPILE
 
-/* Enable support for BSD style joysticks. */
-#undef BSD_JOYSTICK
+/* Flags passed to configure */
+#undef CONFIGURE_FLAGS
 
 /* Enable plain darwin compilation */
 #undef DARWIN_COMPILE
@@ -65,9 +65,6 @@
 
 /* Support for Catweasel MKIII. */
 #undef HAVE_CATWEASELMKIII
-
-/* Support for direct PCI I/O access Catweasel MKIII. */
-#undef HAVE_CATWEASELMKIII_IO
 
 /* Define to 1 if you have the <commctrl.h> header file. */
 #undef HAVE_COMMCTRL_H
@@ -134,6 +131,9 @@
 /* Define to 1 if you have the <execinfo.h> header file. */
 #undef HAVE_EXECINFO_H
 
+/* Enable experimental devices emulation. */
+#undef HAVE_EXPERIMENTAL_DEVICES
+
 /* External linking for lame libs */
 #undef HAVE_EXTERNAL_LAME
 
@@ -176,9 +176,6 @@
 /* Define to 1 if you have the `ftello' function. */
 #undef HAVE_FTELLO
 
-/* Enable Fullscreen support. */
-#undef HAVE_FULLSCREEN
-
 /* Define to 1 if you have the `getcwd' function. */
 #undef HAVE_GETCWD
 
@@ -208,9 +205,6 @@
 
 /* Support for HardSID. */
 #undef HAVE_HARDSID
-
-/* Support for PCI/ISA HardSID. */
-#undef HAVE_HARDSID_IO
 
 /* Define to 1 if you have the `htonl' function. */
 #undef HAVE_HTONL
@@ -332,9 +326,6 @@
 /* Define to 1 if you have the <machine/cpufunc.h> header file. */
 #undef HAVE_MACHINE_CPUFUNC_H
 
-/* Define to 1 if you have the <machine/joystick.h> header file. */
-#undef HAVE_MACHINE_JOYSTICK_H
-
 /* Define to 1 if you have the <machine/pio.h> header file. */
 #undef HAVE_MACHINE_PIO_H
 
@@ -434,12 +425,6 @@
 /* Support for CS8900A ethernet controller. */
 #undef HAVE_RAWNET
 
-/* Enable the readline library */
-#undef HAVE_READLINE
-
-/* Define to 1 if you have the <readline/readline.h> header file. */
-#undef HAVE_READLINE_READLINE_H
-
 /* Support for OpenCBM (former CBM4Linux). */
 #undef HAVE_REALDEVICE
 
@@ -457,9 +442,6 @@
 
 /* Define to 1 if you have the `rewinddir' function. */
 #undef HAVE_REWINDDIR
-
-/* Does the 'readline' library support 'rl_readline_name'? */
-#undef HAVE_RLNAME
 
 /* Enable RS232 device emulation. */
 #undef HAVE_RS232DEV
@@ -514,9 +496,6 @@
 
 /* Define to 1 if you have the <soundcard.h> header file. */
 #undef HAVE_SOUNDCARD_H
-
-/* Support for SSI2001 (ISA SID card). */
-#undef HAVE_SSI2001
 
 /* Static linking for lame libs */
 #undef HAVE_STATIC_LAME
@@ -588,9 +567,6 @@
 /* Define to 1 if you have the <sys/io.h> header file. */
 #undef HAVE_SYS_IO_H
 
-/* Define to 1 if you have the <sys/joystick.h> header file. */
-#undef HAVE_SYS_JOYSTICK_H
-
 /* Define to 1 if you have the <sys/ndir.h> header file, and it defines `DIR'.
    */
 #undef HAVE_SYS_NDIR_H
@@ -657,6 +633,9 @@
 
 /* Define to 1 if you have the <winioctl.h> header file. */
 #undef HAVE_WINIOCTL_H
+
+/* Define to 1 if you have the <winsock.h> header file. */
+#undef HAVE_WINSOCK_H
 
 /* Define to 1 if `fork' works. */
 #undef HAVE_WORKING_FORK
@@ -771,7 +750,7 @@
 /* Enable Headless UI support. */
 #undef USE_HEADLESSUI
 
-/* Enable lamemp3 support. */
+/* Use lame for MP3 encoding. */
 #undef USE_LAMEMP3
 
 /* Enable mpg123 mp3 decoding support. */

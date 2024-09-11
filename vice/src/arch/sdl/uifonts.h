@@ -33,8 +33,10 @@
 #ifndef VICE_UIFONTS_H
 #define VICE_UIFONTS_H
 
-extern int sdl_ui_font_init(const char *name, int initial_offset, int asc_offset, char load_every_second_char);
-extern void sdl_ui_font_shutdown(void);
+#include <stdint.h>
+
+int sdl_ui_font_init(const char *name, int initial_offset, int asc_offset, char load_every_second_char);
+void sdl_ui_font_shutdown(void);
 
 
 /* first charset:
@@ -81,6 +83,10 @@ extern void sdl_ui_font_shutdown(void);
 #define UIFONT_SLIDERACTIVE_CHAR '\x10'
 #define UIFONT_SLIDERHALFACTIVE_STRING "\x11"
 #define UIFONT_SLIDERHALFACTIVE_CHAR '\x11'
+/** \brief  Scroll bar up arrow */
+#define UIFONT_SCROLLBAR_UP_CHAR    '\x12'
+/** \brief  Scroll bar down arrow */
+#define UIFONT_SCROLLBAR_DOWN_CHAR  '\x13'
 
 typedef enum {
     MENU_FONT_IMAGES = 0,       /* uppercase petscii layout, used by image browser */
@@ -88,13 +94,13 @@ typedef enum {
     MENU_FONT_MONITOR = 2       /* lowercase petscii layout, used by the monitor */
 } ui_menu_active_font_t;
 
-extern void sdl_ui_set_active_font(ui_menu_active_font_t font);
+void sdl_ui_set_active_font(ui_menu_active_font_t font);
 
 /* internal */
-extern void sdl_ui_set_menu_font(uint8_t *font, int w, int h);
-extern void sdl_ui_set_image_font(uint8_t *font, int w, int h);
-extern void sdl_ui_set_monitor_font(uint8_t *font, int w, int h);
+void sdl_ui_set_menu_font(uint8_t *font, int w, int h);
+void sdl_ui_set_image_font(uint8_t *font, int w, int h);
+void sdl_ui_set_monitor_font(uint8_t *font, int w, int h);
 
-extern void sdl_ui_copy_ui_font(uint8_t *dest);
+void sdl_ui_copy_ui_font(uint8_t *dest);
 
 #endif

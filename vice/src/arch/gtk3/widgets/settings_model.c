@@ -46,20 +46,24 @@
 
 #include "archdep.h"
 #include "c128machinetypewidget.h"
+#include "c64dtvmodel.h"
+#include "c64model.h"
 #include "cbm2hardwiredswitcheswidget.h"
 #include "cbm2memorysizewidget.h"
 #include "cbm2rammappingwidget.h"
 #include "ciamodelwidget.h"
+#include "crtcontrolwidget.h"
 #include "debug_gtk3.h"
 #include "kernalrevisionwidget.h"
 #include "machine.h"
 #include "machinemodelwidget.h"
+#include "machinepowerfrequencywidget.h"
 #include "petiosizewidget.h"
-#include "petram9widget.h"
-#include "petramawidget.h"
 #include "petkeyboardtypewidget.h"
 #include "petmiscwidget.h"
 #include "petmodel.h"
+#include "petram9widget.h"
+#include "petramawidget.h"
 #include "petramsizewidget.h"
 #include "petvideosizewidget.h"
 #include "plus4aciawidget.h"
@@ -70,14 +74,12 @@
 #include "resources.h"
 #include "sidmodelwidget.h"
 #include "superpetwidget.h"
+#include "uistatusbar.h"
+#include "v364speechwidget.h"
 #include "vdcmodelwidget.h"
 #include "vic20memoryexpansionwidget.h"
 #include "vice_gtk3.h"
 #include "videomodelwidget.h"
-#include "v364speechwidget.h"
-
-#include "c64model.h"
-
 
 #include "settings_model.h"
 
@@ -86,14 +88,16 @@
  * Forward declarations
  */
 static void plus4_debug_dump_resources(void);
+static void machine_model_handler_pet(int model);
 
 
 /** \brief  List of C64DTV revisions
+ *
  */
 static const vice_gtk3_radiogroup_entry_t c64dtv_revisions[] = {
-    { "DTV2", 2 },
-    { "DTV3", 3 },
-    { NULL, -1 }
+    { "DTV2", DTVREV_2 },
+    { "DTV3", DTVREV_3 },
+    { NULL,   -1 }
 };
 
 
@@ -127,6 +131,9 @@ static GtkWidget *cia_widget = NULL;
 /** \brief  Video model widget
  */
 static GtkWidget *video_widget = NULL;
+
+/** \brief  Machine power frequency widget */
+static GtkWidget *power_frequency_widget;
 
 /** \brief  RAM widget */
 static GtkWidget *ram_widget = NULL;
@@ -194,6 +201,37 @@ static GtkWidget *c64_discrete_radio = NULL;
 /** \brief  C64 "custom glue logic" radio button */
 static GtkWidget *c64_custom_radio = NULL;
 
+/** \brief  Current value of MachineVideoStandard resource
+ *
+ * Is set in the constructor and checked and updated in update_crt_controls()
+ */
+static int mvs_current = 0;
+
+
+/** \brief  Update CRT controls
+ *
+ * Checks old and new values for the "MachineVideoStandard" resource and if the
+ * values switched from PAL to NTSC or vice versa the status bar CRT widgets
+ * are recreated.
+ */
+static void update_crt_controls(void)
+{
+    int  mvs_new = 0;
+    bool pal_cur;
+    bool pal_new;
+
+    resources_get_int("MachineVideoStandard", &mvs_new);
+    debug_gtk3("called: machine sync was %d, is now %d\n", mvs_current, mvs_new);
+
+    pal_cur = (mvs_current == MACHINE_SYNC_PAL || mvs_current == MACHINE_SYNC_PALN);
+    pal_new = (mvs_new == MACHINE_SYNC_PAL || mvs_new == MACHINE_SYNC_PALN);
+
+    if (pal_cur != pal_new) {
+        debug_gtk3("recreating CRT controls");
+        ui_statusbar_recreate_crt_controls();
+    }
+    mvs_current = mvs_new;
+}
 
 
 /** \brief  Function called video model changes
@@ -203,13 +241,13 @@ static GtkWidget *c64_custom_radio = NULL;
 static void video_model_callback(int model)
 {
     if (get_model_func != NULL) {
-        machine_model_widget_update(machine_widget);
+        machine_model_widget_update(machine_widget, false);
         if (machine_class == VICE_MACHINE_PLUS4) {
             plus4_debug_dump_resources();
         }
+        update_crt_controls();
     }
 }
-
 
 /* {{{ C128 glue logic
  *
@@ -224,7 +262,7 @@ static void video_model_callback(int model)
 static void vdc_revision_callback(int revision)
 {
     if (get_model_func != NULL) {
-        machine_model_widget_update(machine_widget);
+        machine_model_widget_update(machine_widget, false);
     }
 }
 
@@ -236,12 +274,11 @@ static void vdc_revision_callback(int revision)
 static void vdc_ram_callback(int state)
 {
     if (get_model_func != NULL) {
-        machine_model_widget_update(machine_widget);
+        machine_model_widget_update(machine_widget, false);
     }
 }
 
 /* }}} */
-
 
 /** \brief  Function called on SID model changes
  *
@@ -250,10 +287,9 @@ static void vdc_ram_callback(int state)
 static void sid_model_callback(int model)
 {
     if (get_model_func != NULL) {
-        machine_model_widget_update(machine_widget);
+        machine_model_widget_update(machine_widget, false);
     }
 }
-
 
 /** \brief  Custom callback for the Kernal Revision widget
  *
@@ -264,9 +300,8 @@ static void sid_model_callback(int model)
  */
 static void kernal_revision_callback(int rev)
 {
-    machine_model_widget_update(machine_widget);
+    machine_model_widget_update(machine_widget, false);
 }
-
 
 /** \brief  Function called on IEC checkbox toggles
  *
@@ -275,9 +310,8 @@ static void kernal_revision_callback(int rev)
  */
 static void iec_callback(GtkWidget *widget, gpointer data)
 {
-    machine_model_widget_update(machine_widget);
+    machine_model_widget_update(machine_widget, false);
 }
-
 
 /** \brief  Callback for CIA model changes
  *
@@ -287,10 +321,22 @@ static void iec_callback(GtkWidget *widget, gpointer data)
 static void cia_model_callback(int cia_num, int cia_model)
 {
     if (get_model_func != NULL) {
-        machine_model_widget_update(machine_widget);
+        machine_model_widget_update(machine_widget, false);
     }
 }
 
+/** \brief  Callback for machine power frequency changes
+ *
+ * \param[in]   self        radio group with the frequency radio buttons (ignored)
+ * \param[in]   frequency   new frequency of the "MachinePowerFrequency" resource (ignored)
+ */
+static void power_frequency_callback(GtkWidget *self, int frequency)
+{
+    debug_gtk3("called with frequency %d", frequency);
+    if (get_model_func != NULL) {
+        machine_model_widget_update(machine_widget, false);
+    }
+}
 
 /* {{{ PET glue logic */
 
@@ -301,7 +347,8 @@ static void cia_model_callback(int cia_num, int cia_model)
 static void pet_ram_size_callback(int size)
 {
     if (get_model_func != NULL) {
-        machine_model_widget_update(machine_widget);
+        /* resources may have changed; sync widgets */
+        machine_model_widget_update(machine_widget, true);
     }
 }
 
@@ -313,7 +360,8 @@ static void pet_ram_size_callback(int size)
 static void pet_video_size_callback(int size)
 {
     if (get_model_func != NULL) {
-        machine_model_widget_update(machine_widget);
+        /* resources may have changed; sync widgets */
+        machine_model_widget_update(machine_widget, true);
     }
 }
 
@@ -325,7 +373,8 @@ static void pet_video_size_callback(int size)
 static void pet_keyboard_type_callback(int type)
 {
     if (get_model_func != NULL) {
-        machine_model_widget_update(machine_widget);
+        /* resources may have changed; sync widgets */
+        machine_model_widget_update(machine_widget, true);
     }
 }
 
@@ -337,7 +386,8 @@ static void pet_keyboard_type_callback(int type)
 static void pet_crtc_callback(int state)
 {
     if (get_model_func != NULL) {
-        machine_model_widget_update(machine_widget);
+        /* resources may have changed; sync widgets */
+        machine_model_widget_update(machine_widget, true);
     }
 }
 
@@ -349,7 +399,8 @@ static void pet_crtc_callback(int state)
 static void pet_blank_callback(int state)
 {
     if (get_model_func != NULL) {
-        machine_model_widget_update(machine_widget);
+        /* resources may have changed; sync widgets */
+        machine_model_widget_update(machine_widget, true);
     }
 }
 
@@ -361,7 +412,21 @@ static void pet_blank_callback(int state)
 static void pet_screen2001_callback(int state)
 {
     if (get_model_func != NULL) {
-        machine_model_widget_update(machine_widget);
+        /* resources may have changed; sync widgets */
+        machine_model_widget_update(machine_widget, true);
+    }
+}
+
+
+/** \brief  Callback for SuperPET I/O changes
+ *
+ * \param[in]   state    enabled
+ */
+static void superpet_enable_callback(int state)
+{
+    if (get_model_func != NULL) {
+        /* resources may have changed; sync widgets */
+        machine_model_widget_update(machine_widget, true);
     }
 }
 
@@ -373,7 +438,8 @@ static void pet_screen2001_callback(int state)
 static void pet_io_callback(int state)
 {
     if (get_model_func != NULL) {
-        machine_model_widget_update(machine_widget);
+        /* resources may have changed; sync widgets */
+        machine_model_widget_update(machine_widget, true);
     }
 }
 
@@ -385,7 +451,8 @@ static void pet_io_callback(int state)
 static void pet_ram9_callback(int state)
 {
     if (get_model_func != NULL) {
-        machine_model_widget_update(machine_widget);
+        /* resources may have changed; sync widgets */
+        machine_model_widget_update(machine_widget, true);
     }
 }
 
@@ -397,11 +464,11 @@ static void pet_ram9_callback(int state)
 static void pet_rama_callback(int state)
 {
     if (get_model_func != NULL) {
-        machine_model_widget_update(machine_widget);
+        /* resources may have changed; sync widgets */
+        machine_model_widget_update(machine_widget, true);
     }
 }
 /* }}} */
-
 
 /* {{{ Plus4 glue logic and helpers */
 
@@ -481,7 +548,7 @@ static void plus4_mem_size_callback(GtkWidget *widget, int value)
     debug_gtk3("Calling plus4_memory_expansion_widget_sync(): ");
 #endif
     plus4_memory_expansion_widget_sync();
-    machine_model_widget_update(machine_widget);
+    machine_model_widget_update(machine_widget, false);
     plus4_debug_dump_resources();
 }
 
@@ -503,7 +570,7 @@ static void plus4_mem_hack_callback(GtkWidget *widget, int value)
     gtk_widget_set_sensitive(ram_widget, value == MEMORY_HACK_NONE);
     plus4_memory_size_widget_sync();
 
-    machine_model_widget_update(machine_widget);
+    machine_model_widget_update(machine_widget, false);
     plus4_debug_dump_resources();
 }
 
@@ -515,7 +582,7 @@ static void plus4_mem_hack_callback(GtkWidget *widget, int value)
  */
 static void plus4_acia_widget_callback(GtkWidget *widget, int value)
 {
-    machine_model_widget_update(machine_widget);
+    machine_model_widget_update(machine_widget, false);
 }
 
 
@@ -526,18 +593,16 @@ static void plus4_acia_widget_callback(GtkWidget *widget, int value)
  */
 static void v364_speech_widget_callback(GtkWidget *widget, int value)
 {
-    machine_model_widget_update(machine_widget);
+    machine_model_widget_update(machine_widget, false);
 }
 
 
 /* }}} */
 
-
 /*
  * C64(sc) model change handling
  */
 static void c64_misc_widget_sync(void);
-
 
 /** \brief  Callback triggered on changing machine model
  *
@@ -563,10 +628,15 @@ static void machine_model_handler_c64(int model)
     if (machine_class != VICE_MACHINE_SCPU64) {
         kernal_revision_widget_sync(kernal_widget);
     }
+
+    /* synchronize power frequency widget */
+    if (power_frequency_widget != NULL) {
+        machine_power_frequency_widget_sync(power_frequency_widget);
+    }
+
     /* synchronize misc widget */
     c64_misc_widget_sync();
 }
-
 
 /** \brief  Callback triggered on changing machine model
  *
@@ -621,8 +691,10 @@ static void machine_model_handler_c128(int model)
 
     /* synchronize CIA widget */
     cia_model_widget_sync(cia_widget);
-}
 
+    /* synchronize machine power frequency widget */
+    machine_power_frequency_widget_sync(power_frequency_widget);
+}
 
 /*
  * C64DTV widget glue logic
@@ -638,10 +710,9 @@ static void machine_model_handler_c128(int model)
 static void dtv_revision_callback(GtkWidget *widget, int revision)
 {
     if (get_model_func != NULL) {
-        machine_model_widget_update(machine_widget);
+        machine_model_widget_update(machine_widget, false);
     }
 }
-
 
 /** \brief  Callback for the DTV VIC-II model (sync factor)
  *
@@ -651,7 +722,7 @@ static void dtv_revision_callback(GtkWidget *widget, int revision)
  */
 static void dtv_video_callback(int model)
 {
-    machine_model_widget_update(machine_widget);
+    machine_model_widget_update(machine_widget, false);
 }
 
 /** \brief  Sync "Hummer ADC" widget with the associated resource
@@ -659,22 +730,22 @@ static void dtv_video_callback(int model)
  */
 static void c64dtv_hummer_adc_sync(void)
 {
-    int hummeradc = 0;
-    resources_get_int("HummerAdc", &hummeradc);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(c64dtv_hummer_adc_widget), hummeradc);
-}
+    int hummer_adc = 0;
 
+    resources_get_int("HummerAdc", &hummer_adc);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(c64dtv_hummer_adc_widget),
+                                                   (gboolean)hummer_adc);
+}
 
 /** \brief  Update DTV widget on 'Hummer ADC' toggle
  *
  * \param[in]   widget  check button
- * \param[in]   value   new value (bool)
+ * \param[in]   value   new value (ignored)
  */
-static void c64dtv_hummer_adc_callback(GtkWidget *widget, int value)
+static void c64dtv_hummer_adc_callback(GtkWidget *widget, gboolean value)
 {
-    machine_model_widget_update(machine_widget);
+    machine_model_widget_update(machine_widget, false);
 }
-
 
 /** \brief  Callback for DTV machine model changes
  *
@@ -684,22 +755,21 @@ static void c64dtv_hummer_adc_callback(GtkWidget *widget, int value)
  */
 static void machine_model_handler_c64dtv(int model)
 {
-    int rev = 3;
     GtkWidget *group;
+    int        rev;
 
     switch (model) {
-        case 0: /* V2 PAL */
-            rev = 2;
+        case DTVMODEL_V2_PAL:       /* fall through */
+        case DTVMODEL_V2_NTSC:
+            rev = DTVREV_2;
             break;
-        case 1: /* V2 NTSC */
-            rev = 2;
-            break;
-        case 3: /* V3 NTSC */
-            break;
-        case 4: /* Hummer */
+        case DTVMODEL_V3_PAL:       /* fall through */
+        case DTVMODEL_V3_NTSC:      /* fall through */
+        case DTVMODEL_HUMMER_NTSC:
+            rev = DTVREV_3;
             break;
         default:
-            /* 3: V3 PAL */
+            rev = -1;
             break;
     }
 
@@ -715,7 +785,6 @@ static void machine_model_handler_c64dtv(int model)
     c64dtv_hummer_adc_sync();
 }
 
-
 /*
  * VIC-20 glue logic
  */
@@ -729,9 +798,8 @@ static void machine_model_handler_c64dtv(int model)
  */
 static void vic20_video_callback(int model)
 {
-    machine_model_widget_update(machine_widget);
+    machine_model_widget_update(machine_widget, false);
 }
-
 
 /** \brief  Callback for VIC-20 machine model changes
  *
@@ -745,7 +813,6 @@ static void machine_model_handler_vic20(int model)
     /* FIXME: */
     /* vic20_memory_expansion_widget_sync(); */
 }
-
 
 /*
  * Plus4 glue logic
@@ -767,24 +834,9 @@ static void machine_model_handler_vic20(int model)
  */
 static void plus4_video_callback(int model)
 {
-    machine_model_widget_update(machine_widget);
+    machine_model_widget_update(machine_widget, false);
     plus4_debug_dump_resources();
 }
-
-#if 0
-/** \brief  Callback for the Plus4 memory size/hack
- *
- * Calls model widget update
- *
- * \param[in]   ram     ram size in KiB
- * \param[in]   hack    memory hack type
- */
-static void plus4_memory_callback(int ram, int hack)
-{
-    machine_model_widget_update(machine_widget);
-}
-#endif
-
 
 /** \brief  Handler for the model change for Plus4
  *
@@ -800,11 +852,9 @@ static void machine_model_handler_plus4(int model)
 }
 
 
-
 /*
  * CBM-II glue logic
  */
-
 
 /** \brief  Callback for the CBM-II 5x0 VIC-II model (sync factor)
  *
@@ -814,9 +864,8 @@ static void machine_model_handler_plus4(int model)
  */
 static void cbm5x0_video_callback(int model)
 {
-    machine_model_widget_update(machine_widget);
+    machine_model_widget_update(machine_widget, false);
 }
-
 
 /** \brief  Callback for the CBM-II 6x0/7x0 CRTC model (sync factor)
  *
@@ -826,9 +875,8 @@ static void cbm5x0_video_callback(int model)
  */
 static void cbm2_video_callback(int model)
 {
-    machine_model_widget_update(machine_widget);
+    machine_model_widget_update(machine_widget, false);
 }
-
 
 /** \brief  Callback for the CBM-II 6x0/7x0 ModelLine switches
  *
@@ -839,9 +887,8 @@ static void cbm2_video_callback(int model)
  */
 static void cbm2_switches_callback(GtkWidget *widget, int model_line)
 {
-    machine_model_widget_update(machine_widget);
+    machine_model_widget_update(machine_widget, false);
 }
-
 
 /** \brief  Callback for CBM-II 6x0/7x0 memory size changes
  *
@@ -852,9 +899,8 @@ static void cbm2_switches_callback(GtkWidget *widget, int model_line)
  */
 static void cbm2_memory_size_callback(GtkWidget *widget, int size)
 {
-    machine_model_widget_update(machine_widget);
+    machine_model_widget_update(machine_widget, false);
 }
-
 
 /** \brief  Callback for CBM 5x0 model changes
  *
@@ -866,7 +912,6 @@ static void machine_model_handler_cbm5x0(int model)
     cbm2_memory_size_widget_update(ram_widget);
 }
 
-
 /** \brief  Callback for CBM 6x0/7x0 model changes
  *
  * \param[in]   model   new model
@@ -877,26 +922,26 @@ static void machine_model_handler_cbm6x0(int model)
     cbm2_memory_size_widget_update(ram_widget);
 }
 
-
 /** \brief  Set sensitivity of PET Ram9 and RamA widgets
  *
- * Only the 8296 model has the Ram9 and RamA resources
+ * Only the 8296 memory mapping has the Ram9 and RamA resources.
+ * Use RamSize as a proxy to determine this.
  */
 static void pet_set_ram9a_sensitivity(void)
 {
+    int ramSize;
     gboolean model_is_8296;
 
-    if (get_model_func != NULL) {
-        int true_model = get_model_func();
-
-        model_is_8296 = true_model == PETMODEL_8296;
-        gtk_widget_set_sensitive(pet_ram9_widget, model_is_8296);
-        gtk_widget_set_sensitive(pet_rama_widget, model_is_8296);
-    }
+    resources_get_int("RamSize", &ramSize);
+    model_is_8296 = (ramSize == 128);
+    gtk_widget_set_sensitive(pet_ram9_widget, model_is_8296);
+    gtk_widget_set_sensitive(pet_rama_widget, model_is_8296);
 }
 
-
-/** \brief  Callback for PET model changes
+/** \brief  Callback for PET model changes.
+ *          Also called if the model doesn't apparently change;
+ *          one resource change may have triggered another so all widgets must
+ *          be synced.
  *
  * \param[in]   model   new model
  */
@@ -909,9 +954,9 @@ static void machine_model_handler_pet(int model)
     pet_io_size_widget_sync(pet_io_widget);
     pet_ram9_widget_sync(pet_ram9_widget);
     pet_rama_widget_sync(pet_rama_widget);
+    pet_superpet_enable_widget_sync(superpet_enable_widget);
     pet_set_ram9a_sensitivity();
 }
-
 
 /** \brief  Generic callback for machine model changes
  *
@@ -948,10 +993,10 @@ static void machine_model_callback(int model)
             break;
         default:
             debug_gtk3("unsupported machine_class %d.", machine_class);
-            break;
+            return;
     }
+    update_crt_controls();
 }
-
 
 /** \brief  Handler for the 'toggled' event of the C64 "Glue Logic" radio buttons
  *
@@ -964,10 +1009,9 @@ static void on_c64_glue_toggled(GtkWidget *widget, gpointer user_data)
 
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
         resources_set_int("GlueLogic", glue);
-        machine_model_widget_update(machine_widget);
+        machine_model_widget_update(machine_widget, false);
     }
 }
-
 
 /** \brief  Sync "Reset-to-IEC" widget with the associated resource
  *
@@ -978,7 +1022,6 @@ static void c64_reset_with_iec_sync(void)
     resources_get_int("IECReset", &iecreset);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(reset_with_iec_widget), iecreset);
 }
-
 
 /** \brief  Create widget to toggle "Reset-to-IEC"
  *
@@ -994,7 +1037,6 @@ static GtkWidget *create_reset_with_iec_widget(void)
     return reset_with_iec_widget;
 }
 
-
 /** \brief  Create widget to toggle "Go64Mode"
  *
  * \return  GtkGrid
@@ -1004,8 +1046,6 @@ static GtkWidget *create_go64_widget(void)
     return vice_gtk3_resource_check_button_new("Go64Mode",
             "Always switch to C64 mode on reset");
 }
-
-
 
 /** \brief  Sync "Glue Logic" widget with the associated resource
  *
@@ -1020,6 +1060,21 @@ static void c64_glue_widget_sync(void)
     if (radio) {
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(radio), TRUE);
     }
+}
+
+/** \brief  Create left-aligned label with Pango markup
+ *
+ * \param[in]   text    text for label using Pango markup
+ *
+ * \return  GtkLabel
+ */
+static GtkWidget *label_helper(const char *text)
+{
+    GtkWidget *label = gtk_label_new(NULL);
+
+    gtk_label_set_markup(GTK_LABEL(label), text);
+    gtk_widget_set_halign(label, GTK_ALIGN_START);
+    return label;
 }
 
 /** \brief  Create widget to select C64SC Glue Logic
@@ -1041,30 +1096,32 @@ static GtkWidget *create_c64_glue_widget(void)
     gtk_grid_set_column_spacing(GTK_GRID(grid), 8);
 
     label = gtk_label_new("Glue logic");
-    gtk_widget_set_margin_start(label, 16);
+    gtk_widget_set_margin_start(label, 8);
     gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 1, 1);
 
     c64_discrete_radio = gtk_radio_button_new_with_label(group, "Discrete");
     c64_custom_radio = gtk_radio_button_new_with_label(group, "Custom IC");
     gtk_radio_button_join_group(GTK_RADIO_BUTTON(c64_custom_radio),
-            GTK_RADIO_BUTTON(c64_discrete_radio));
+                                GTK_RADIO_BUTTON(c64_discrete_radio));
 
     radio = glue == 0 ? c64_discrete_radio : c64_custom_radio;
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(radio), TRUE);
 
-    g_signal_connect(c64_discrete_radio, "toggled",
-            G_CALLBACK(on_c64_glue_toggled), GINT_TO_POINTER(0));
-    g_signal_connect(c64_custom_radio, "toggled",
-            G_CALLBACK(on_c64_glue_toggled), GINT_TO_POINTER(1));
+    g_signal_connect(c64_discrete_radio,
+                     "toggled",
+                     G_CALLBACK(on_c64_glue_toggled),
+                     GINT_TO_POINTER(0));
+    g_signal_connect(c64_custom_radio,
+                     "toggled",
+                     G_CALLBACK(on_c64_glue_toggled),
+                     GINT_TO_POINTER(1));
 
     gtk_grid_attach(GTK_GRID(grid), c64_discrete_radio, 1, 0, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), c64_custom_radio, 2, 0, 1, 1);
-
+    gtk_grid_attach(GTK_GRID(grid), c64_custom_radio, 1, 1, 1, 1);
 
     gtk_widget_show_all(grid);
     return grid;
 }
-
 
 /** \brief  Create 'misc' widget for C64/C64SC/SCPU64
  *
@@ -1073,12 +1130,17 @@ static GtkWidget *create_c64_glue_widget(void)
 static GtkWidget *create_c64_misc_widget(void)
 {
     GtkWidget *grid;
+    GtkWidget *label;
     GtkWidget *iec_widget;
     GtkWidget *glue_widget = NULL;
 
-    grid = vice_gtk3_grid_new_spaced_with_label(-1, -1, "Miscellaneous", 1);
+    grid = gtk_grid_new();
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 8);
+
+    label = label_helper("<b>Miscellaneous</b>");
+    gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 1, 1);
+
     iec_widget = create_reset_with_iec_widget();
-    gtk_widget_set_margin_start(iec_widget, 16);
     gtk_grid_attach(GTK_GRID(grid), iec_widget, 0, 1, 1, 1);
 
     /*
@@ -1095,7 +1157,6 @@ static GtkWidget *create_c64_misc_widget(void)
     return grid;
 }
 
-
 /** \brief  Synchronize Glue logic and IEC widget with their resources
  */
 static void c64_misc_widget_sync(void)
@@ -1104,7 +1165,6 @@ static void c64_misc_widget_sync(void)
     c64_reset_with_iec_sync();
 }
 
-
 /** \brief  Create 'misc' widget for C128
  *
  * \return  GtkGrid
@@ -1112,18 +1172,25 @@ static void c64_misc_widget_sync(void)
 static GtkWidget *create_c128_misc_widget(void)
 {
     GtkWidget *grid;
+    GtkWidget *label;
     GtkWidget *go64_widget;
 
-    grid = vice_gtk3_grid_new_spaced_with_label(-1, -1, "Miscellaneous", 1);
+    /* no row spacing, we use a margin since more widgets might be added in
+     * the future for which we don't want extra row spacing */
+    grid = gtk_grid_new();
+
+    label = label_helper("<b>Miscellaneous</b>");
+    /* we do the extra spacing here */
+    gtk_widget_set_margin_bottom(label, 8);
 
     go64_widget = create_go64_widget();
-    gtk_widget_set_margin_start(go64_widget, 16);
+
+    gtk_grid_attach(GTK_GRID(grid), label,       0, 0, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), go64_widget, 0, 1, 1, 1);
 
     gtk_widget_show_all(grid);
     return grid;
 }
-
 
 /** \brief  Create widget to select DTV revision
  *
@@ -1137,17 +1204,17 @@ static GtkWidget *create_c64dtv_revision_widget(void)
     GtkWidget *group;
     GtkWidget *label;
 
-    grid = vice_gtk3_grid_new_spaced(8, 8);
-    gtk_widget_set_margin_start(grid, 8);
+    grid = gtk_grid_new();
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 8);
 
     label = gtk_label_new(NULL);
     gtk_label_set_markup(GTK_LABEL(label), "<b>DTV Revision</b>");
     gtk_widget_set_halign(label, GTK_ALIGN_START);
 
     group = vice_gtk3_resource_radiogroup_new("DtvRevision",
-            c64dtv_revisions, GTK_ORIENTATION_VERTICAL);
+                                              c64dtv_revisions,
+                                              GTK_ORIENTATION_VERTICAL);
     vice_gtk3_resource_radiogroup_add_callback(group, dtv_revision_callback);
-    gtk_widget_set_margin_start(group, 16);
 
     gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), group, 0, 1, 1, 1);
@@ -1155,7 +1222,6 @@ static GtkWidget *create_c64dtv_revision_widget(void)
     gtk_widget_show_all(grid);
     return grid;
 }
-
 
 /** \brief  Create widget layout for C64/C64SC
  *
@@ -1183,6 +1249,7 @@ static GtkWidget *create_c64_layout(GtkWidget *grid)
     /* CIA1 & CIA2 widget */
     cia_widget = cia_model_widget_create(2);
     cia_model_widget_set_callback(cia_widget, cia_model_callback);
+    gtk_widget_set_margin_top(cia_widget, 16);
     gtk_grid_attach(GTK_GRID(grid), cia_widget, 0, 2, 2, 1);
 
     /* Kernal revision widget */
@@ -1193,17 +1260,26 @@ static GtkWidget *create_c64_layout(GtkWidget *grid)
         kernal_revision_widget_add_callback(kernal_revision_callback);
     }
 
+    /* machine power frequency */
+    power_frequency_widget = machine_power_frequency_widget_new();
+    machine_power_frequency_widget_add_callback(power_frequency_widget,
+                                                power_frequency_callback);
+    if (machine_class == VICE_MACHINE_SCPU64) {
+        gtk_grid_attach(GTK_GRID(grid), power_frequency_widget, 2, 0, 1, 1);
+    } else {
+        gtk_grid_attach(GTK_GRID(grid), power_frequency_widget, 2, 1, 1, 1);
+    }
+
     /* C64 misc. model settings */
     misc_widget = create_c64_misc_widget();
-    gtk_widget_set_margin_top(misc_widget, 8);
-    gtk_widget_set_margin_start(misc_widget, 8);
-    gtk_widget_set_margin_end(misc_widget, 8);
-    gtk_widget_set_margin_bottom(misc_widget, 8);
-    gtk_grid_attach(GTK_GRID(grid), misc_widget, 2, 1, 1, 1);
+    if (machine_class == VICE_MACHINE_SCPU64) {
+        gtk_grid_attach(GTK_GRID(grid), misc_widget, 2, 1, 1, 1);
+    } else {
+        gtk_grid_attach(GTK_GRID(grid), misc_widget, 2, 2, 1, 1);
+    }
 
     return grid;
 }
-
 
 /** \brief  Create widget layout for C128
  *
@@ -1213,60 +1289,53 @@ static GtkWidget *create_c64_layout(GtkWidget *grid)
  */
 static GtkWidget *create_c128_layout(GtkWidget *grid)
 {
-    GtkWidget *col2_wrapper;
-    GtkWidget *machine_wrapper;
+    GtkWidget *machine_type_widget;
     GtkWidget *misc_widget;
 
     /* wrap machine model and machine type widgets in a single widget */
-    machine_wrapper = vice_gtk3_grid_new_spaced(0, 16);
+    /* machine_wrapper = vice_gtk3_grid_new_spaced(0, 16); */
 
-    /* add machine model widget */
-    gtk_grid_attach(GTK_GRID(machine_wrapper), machine_widget, 0, 0, 1, 1);
-    /* add machine type widget */
-    gtk_grid_attach(GTK_GRID(machine_wrapper),
-            c128_machine_type_widget_create(),
-            0 ,1, 1, 1);
-    gtk_widget_show_all(machine_wrapper);
-    gtk_grid_attach(GTK_GRID(grid), machine_wrapper, 0, 0, 1, 1);
+    /* add machine model widget (2 rows) */
+    gtk_grid_attach(GTK_GRID(grid), machine_widget, 0, 0, 1, 2);
 
-    /* wrap VIC-II, VDC and CIA1/2 in a single widget */
-    col2_wrapper = vice_gtk3_grid_new_spaced(0, 16);
+    /* add machine type widget (2 rows) */
+    machine_type_widget = c128_machine_type_widget_create();
+    gtk_widget_set_margin_top(machine_type_widget, 16);
+    gtk_grid_attach(GTK_GRID(grid), machine_type_widget, 0, 2, 1, 2);
 
     /* VIC-II model widget */
     video_widget = video_model_widget_create(machine_widget);
     video_model_widget_set_callback(video_widget, video_model_callback);
-    gtk_grid_attach(GTK_GRID(col2_wrapper), video_widget, 0, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), video_widget, 1, 0, 1, 1);
+
+    /* SID widget */
+    sid_widget = sid_model_widget_create(machine_widget);
+    sid_model_widget_set_callback(sid_widget, sid_model_callback);
+    gtk_grid_attach(GTK_GRID(grid), sid_widget, 1, 1, 1, 1);
 
     /* VDC model widget */
     vdc_widget = vdc_model_widget_create();
     vdc_model_widget_set_revision_callback(vdc_revision_callback);
     vdc_model_widget_set_ram_callback(vdc_ram_callback);
-    /* align with other widgets */
-    gtk_widget_set_margin_start(vdc_widget, 8);
-    gtk_grid_attach(GTK_GRID(col2_wrapper), vdc_widget, 0, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), vdc_widget, 2, 0, 1, 2);
 
     /* CIA1 & CIA2 widget */
     cia_widget = cia_model_widget_create(2);
+    gtk_widget_set_margin_top(cia_widget, 16);
     cia_model_widget_set_callback(cia_widget, cia_model_callback);
-    gtk_grid_attach(GTK_GRID(col2_wrapper), cia_widget, 0, 2, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), col2_wrapper, 1, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), cia_widget, 1, 2, 2, 1);
 
-    /* SID widget */
-    sid_widget = sid_model_widget_create(machine_widget);
-    sid_model_widget_set_callback(sid_widget, sid_model_callback);
-    gtk_grid_attach(GTK_GRID(col2_wrapper), sid_widget, 0, 3, 1, 1);
+    /* machine power frequency */
+    power_frequency_widget = machine_power_frequency_widget_new();
+    machine_power_frequency_widget_add_callback(power_frequency_widget,
+                                                power_frequency_callback);
+    gtk_grid_attach(GTK_GRID(grid), power_frequency_widget, 1, 3, 2, 1);
 
     /* Misc widget */
     misc_widget = create_c128_misc_widget();
-    gtk_widget_set_margin_top(misc_widget, 8);
-    gtk_widget_set_margin_start(misc_widget, 8);
-    gtk_widget_set_margin_end(misc_widget, 8);
-    gtk_widget_set_margin_bottom(misc_widget, 8);
-    gtk_grid_attach(GTK_GRID(grid), misc_widget, 0, 1, 3, 1);
+    gtk_grid_attach(GTK_GRID(grid), misc_widget, 1, 4, 2, 1);
     return grid;
 }
-
-
 
 /** \brief  Create C64DTV model settings widget layout
  *
@@ -1288,34 +1357,30 @@ static GtkWidget *create_c64dtv_layout(GtkWidget *grid)
 
     /* create revision widget */
     c64dtv_rev_widget = create_c64dtv_revision_widget();
+    gtk_widget_set_margin_top(c64dtv_rev_widget, 16);
     gtk_grid_attach(GTK_GRID(grid), c64dtv_rev_widget, 1, 1, 1, 1);
 
     /* SID widget */
     sid_widget = sid_model_widget_create(machine_widget);
     sid_model_widget_set_callback(sid_widget, sid_model_callback);
-    gtk_widget_set_margin_start(sid_widget, 8);
+    gtk_widget_set_margin_top(sid_widget, 16);
     gtk_grid_attach(GTK_GRID(grid), sid_widget, 0, 2, 1, 1);
 
     /* Luma fix widget */
     luma_widget = vice_gtk3_resource_check_button_new("VICIINewLuminances",
             "Enable LumaFix (use new VICII luminances)");
     gtk_widget_set_margin_top(luma_widget, 16);
-    gtk_widget_set_margin_start(luma_widget, 8);
     gtk_grid_attach(GTK_GRID(grid), luma_widget, 0, 3, 2, 1);
 
     /* Hummer ADC widget */
-    c64dtv_hummer_adc_widget = vice_gtk3_resource_check_button_new(
-            "HummerADC",
-            "Enable Hummer ADC");
+    c64dtv_hummer_adc_widget = vice_gtk3_resource_check_button_new("HummerADC",
+                                                                   "Enable Hummer ADC");
     vice_gtk3_resource_check_button_add_callback(c64dtv_hummer_adc_widget,
                                                  c64dtv_hummer_adc_callback);
-    gtk_widget_set_margin_top(c64dtv_hummer_adc_widget, 8);
-    gtk_widget_set_margin_start(c64dtv_hummer_adc_widget, 8);
     gtk_grid_attach(GTK_GRID(grid), c64dtv_hummer_adc_widget, 0, 4, 2, 1);
 
     return grid;
 }
-
 
 /** \brief  Create VIC20 model settings widget layout
  *
@@ -1331,15 +1396,14 @@ static GtkWidget *create_vic20_layout(GtkWidget *grid)
     /* VIC model widget */
     video_widget = video_model_widget_create(machine_widget);
     video_model_widget_set_callback(video_widget, vic20_video_callback);
-    gtk_grid_attach(GTK_GRID(grid), video_widget, 1, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), video_widget, 0, 1, 1, 1);
 
     ram_widget = vic20_memory_expansion_widget_create();
-    gtk_grid_attach(GTK_GRID(grid), ram_widget, 0, 1, 2, 1);
+    gtk_grid_attach(GTK_GRID(grid), ram_widget, 1, 0, 1, 2);
 
     gtk_widget_show_all(grid);
     return grid;
 }
-
 
 /** \brief  Create Plus4 model settings widget layout
  *
@@ -1349,43 +1413,52 @@ static GtkWidget *create_vic20_layout(GtkWidget *grid)
  */
 static GtkWidget *create_plus4_layout(GtkWidget *grid)
 {
-    int hack;
+    GtkWidget *checkboxes;
+    int hack = 0;
 
     /* add machine widget */
     gtk_grid_attach(GTK_GRID(grid), machine_widget, 0, 0, 1, 1);
 
-    /* Plus4 model widget */
+    /* Plus4 video widget */
     video_widget = video_model_widget_create(machine_widget);
     video_model_widget_set_callback(video_widget, plus4_video_callback);
-    gtk_grid_attach(GTK_GRID(grid), video_widget, 1, 0, 1, 1);
-
-    /* memory expansion hacks */
-    memhack_widget = plus4_memory_expansion_widget_create();
-    plus4_memory_expansion_widget_add_callback(plus4_mem_hack_callback);
-    gtk_grid_attach(GTK_GRID(grid), memhack_widget, 0, 1, 1, 1);
+    gtk_widget_set_margin_top(video_widget, 16);
+    gtk_grid_attach(GTK_GRID(grid), video_widget, 0, 1, 1, 1);
 
     /* memory size */
     ram_widget = plus4_memory_size_widget_create();
     plus4_memory_size_widget_add_callback(plus4_mem_size_callback);
-    gtk_grid_attach(GTK_GRID(grid), ram_widget, 1, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), ram_widget, 1, 0, 1, 1);
+
+    /* memory expansion hacks */
+    memhack_widget = plus4_memory_expansion_widget_create();
+    plus4_memory_expansion_widget_add_callback(plus4_mem_hack_callback);
+    gtk_grid_attach(GTK_GRID(grid), memhack_widget, 2, 0, 1, 1);
 
     resources_get_int("MemoryHack", &hack);
     gtk_widget_set_sensitive(ram_widget, hack == MEMORY_HACK_NONE);
 
+    /* Wrap the check boxes in a grid to get them vertically aligned properly.
+     * If we make the TED widget span two rows and add the check boxes next to
+     * it, the check boxes "spread out" */
+    checkboxes = gtk_grid_new();
+    gtk_widget_set_margin_top(checkboxes, 16);
+
     /* ACIA widget */
     acia_widget = plus4_acia_widget_create();
     plus4_acia_widget_add_callback(plus4_acia_widget_callback);
-    gtk_grid_attach(GTK_GRID(grid), acia_widget, 0, 2, 1, 1);
+    gtk_grid_attach(GTK_GRID(checkboxes), acia_widget, 0, 0, 1, 1);
 
     /* V364 speech widget */
     speech_widget = v364_speech_widget_create();
     v364_speech_widget_add_callback(v364_speech_widget_callback);
-    gtk_grid_attach(GTK_GRID(grid), speech_widget, 1, 2, 1, 1);
+    gtk_grid_attach(GTK_GRID(checkboxes), speech_widget, 0, 1, 1, 1);
+
+    gtk_grid_attach(GTK_GRID(grid), checkboxes, 1, 1, 2, 1);
 
     gtk_widget_show_all(grid);
     return grid;
 }
-
 
 /** \brief  Creat PET layout
  *
@@ -1401,13 +1474,12 @@ static GtkWidget *create_pet_layout(GtkWidget *grid)
     GtkWidget *switcher;
     GtkWidget *pet_grid;
     GtkWidget *superpet_grid;
+    GtkWidget *ramrom_grid;
 
     pet_grid = gtk_grid_new();
 
     /* PET model list */
-    gtk_grid_attach(GTK_GRID(pet_grid),
-            machine_widget,
-            0, 0, 1, 3);
+    gtk_grid_attach(GTK_GRID(pet_grid), machine_widget, 0, 0, 1, 3);
 
     pet_keyboard_widget = pet_keyboard_type_widget_create();
     pet_keyboard_type_widget_set_callback(pet_keyboard_widget,
@@ -1416,6 +1488,7 @@ static GtkWidget *create_pet_layout(GtkWidget *grid)
 
     pet_video_size_widget = pet_video_size_widget_create();
     pet_video_size_widget_set_callback(pet_video_size_callback);
+    gtk_widget_set_margin_top(pet_video_size_widget, 16);
     gtk_grid_attach(GTK_GRID(pet_grid), pet_video_size_widget, 1, 1, 1, 1);
 
     ram_widget = pet_ram_size_widget_create();
@@ -1424,41 +1497,49 @@ static GtkWidget *create_pet_layout(GtkWidget *grid)
 
     pet_io_widget = pet_io_size_widget_create();
     pet_io_size_widget_set_callback(pet_io_callback);
+    gtk_widget_set_margin_top(pet_io_widget, 16);
     gtk_grid_attach(GTK_GRID(pet_grid), pet_io_widget, 2, 1, 1, 1);
+
+    /* wrap RAM/ROM 9XXX/AXXX in a grid */
+    ramrom_grid = gtk_grid_new();
 
     pet_ram9_widget = pet_ram9_widget_create();
     pet_ram9_widget_set_callback(pet_ram9_callback);
-    gtk_grid_attach(GTK_GRID(pet_grid), pet_ram9_widget, 3, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(ramrom_grid), pet_ram9_widget, 0, 0, 1, 1);
 
     pet_rama_widget = pet_rama_widget_create();
     pet_rama_widget_set_callback(pet_rama_callback);
     pet_set_ram9a_sensitivity();
-    gtk_grid_attach(GTK_GRID(pet_grid), pet_rama_widget, 3, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(ramrom_grid), pet_rama_widget, 0, 1, 1, 1);
+
+    gtk_grid_attach(GTK_GRID(pet_grid), ramrom_grid, 3, 0, 1, 1);
 
     pet_misc_widget = pet_misc_widget_create();
     pet_misc_widget_set_crtc_callback(pet_crtc_callback);
     pet_misc_widget_set_blank_callback(pet_blank_callback);
     pet_misc_widget_set_screen2001_callback(pet_screen2001_callback);
-    gtk_grid_attach(GTK_GRID(pet_grid), pet_misc_widget, 1, 2, 2, 1);
+    gtk_widget_set_margin_top(pet_misc_widget, 16);
+    gtk_grid_attach(GTK_GRID(pet_grid), pet_misc_widget, 1, 2, 3, 1);
 
     /* SuperPET widgets */
     superpet_grid = superpet_widget_create();
+    pet_superpet_widget_set_superpet_enable_callback(superpet_enable_callback);
 
     stack = gtk_stack_new();
 
     gtk_stack_add_titled(GTK_STACK(stack), pet_grid, "PET", "PET");
     gtk_stack_add_titled(GTK_STACK(stack), superpet_grid, "SuperPET", "SuperPET");
     gtk_stack_set_transition_type(GTK_STACK(stack),
-            GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT_RIGHT);
-    gtk_stack_set_transition_duration(GTK_STACK(stack), 1000);
+                                  GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT_RIGHT);
+    gtk_stack_set_transition_duration(GTK_STACK(stack), 500);
     gtk_stack_set_homogeneous(GTK_STACK(stack), TRUE);
 
     switcher = gtk_stack_switcher_new();
     gtk_stack_switcher_set_stack(GTK_STACK_SWITCHER(switcher), GTK_STACK(stack));
     gtk_widget_set_halign(switcher, GTK_ALIGN_CENTER);
     gtk_orientable_set_orientation(GTK_ORIENTABLE(switcher),
-            GTK_ORIENTATION_HORIZONTAL);
-
+                                   GTK_ORIENTATION_HORIZONTAL);
+    gtk_widget_set_margin_bottom(switcher, 8);
     gtk_widget_show_all(stack);
     gtk_widget_show_all(switcher);
 
@@ -1469,7 +1550,6 @@ static GtkWidget *create_pet_layout(GtkWidget *grid)
     gtk_widget_show_all(grid);
     return grid;
 }
-
 
 /** \brief  Create CBM-II/5x0 model settings widget layout
  *
@@ -1483,42 +1563,45 @@ static GtkWidget *create_cbm5x0_layout(GtkWidget *grid)
     GtkWidget *bank15_widget;
 
     /* add machine widget */
-    gtk_grid_attach(GTK_GRID(grid), machine_widget, 0, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), machine_widget, 0, 0, 1, 3);
 
     /* add video widget */
     video_widget = video_model_widget_create(machine_widget);
     video_model_widget_set_callback(video_widget, cbm5x0_video_callback);
     gtk_grid_attach(GTK_GRID(grid), video_widget, 1, 0, 1, 1);
 
+    /* Hardwired I/O port model switches */
+    switches_widget = cbm2_hardwired_switches_widget_create();
+    cbm2_hardwired_switches_widget_set_callback(switches_widget,
+            cbm2_switches_callback);
+    gtk_grid_attach(GTK_GRID(grid), switches_widget, 2, 0, 1, 1);
+
     /* SID widget */
     sid_widget = sid_model_widget_create(machine_widget);
     sid_model_widget_set_callback(sid_widget, sid_model_callback);
+    gtk_widget_set_margin_top(sid_widget, 16);
     gtk_grid_attach(GTK_GRID(grid), sid_widget, 1, 1, 1, 1);
 
     /* CIA1 widget */
     cia_widget = cia_model_widget_create(1);
     cia_model_widget_set_callback(cia_widget, cia_model_callback);
-    gtk_grid_attach(GTK_GRID(grid), cia_widget, 2, 0, 1, 1);
+    gtk_widget_set_margin_top(cia_widget, 16);
+    gtk_grid_attach(GTK_GRID(grid), cia_widget, 1, 2, 2, 1);
 
     /* RAM size widget */
     ram_widget = cbm2_memory_size_widget_create();
     cbm2_memory_size_widget_set_callback(ram_widget, cbm2_memory_size_callback);
-    gtk_grid_attach(GTK_GRID(grid), ram_widget, 0, 1, 1, 1);
-
-    /* Hardwired I/O port model switches */
-    switches_widget = cbm2_hardwired_switches_widget_create();
-    cbm2_hardwired_switches_widget_set_callback(switches_widget,
-            cbm2_switches_callback);
-    gtk_grid_attach(GTK_GRID(grid), switches_widget, 2, 1, 1, 1);
+    gtk_widget_set_margin_top(ram_widget, 16);
+    gtk_grid_attach(GTK_GRID(grid), ram_widget, 0, 3, 1, 1);
 
     /* Mapping RAM into bank 15 */
     bank15_widget = cbm2_ram_mapping_widget_create();
-    gtk_grid_attach(GTK_GRID(grid), bank15_widget, 0, 2, 1, 1);
+    gtk_widget_set_margin_top(bank15_widget, 16);
+    gtk_grid_attach(GTK_GRID(grid), bank15_widget, 1, 3, 2, 1);
 
     gtk_widget_show_all(grid);
     return grid;
 }
-
 
 /** \brief  Create CBM-II/6x0-7x0 model settings widget layout
  *
@@ -1531,43 +1614,44 @@ static GtkWidget *create_cbm6x0_layout(GtkWidget *grid)
     GtkWidget *switches_widget;
     GtkWidget *bank15_widget;
 
+    /* add machine widget */
+    gtk_grid_attach(GTK_GRID(grid), machine_widget, 0, 0, 1, 3);
+
     /* add video widget */
     video_widget = video_model_widget_create(machine_widget);
     video_model_widget_set_callback(video_widget, cbm2_video_callback);
-    gtk_grid_attach(GTK_GRID(grid), video_widget, 0, 3, 1, 1);
-
-    /* add machine widget */
-    gtk_grid_attach(GTK_GRID(grid), machine_widget, 0, 0, 1, 2);
-
-    /* SID widget */
-    sid_widget = sid_model_widget_create(machine_widget);
-    sid_model_widget_set_callback(sid_widget, sid_model_callback);
-    gtk_grid_attach(GTK_GRID(grid), sid_widget, 1, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), video_widget, 1, 0, 1, 1);
 
     /* Hardwired I/O port model switches */
     switches_widget = cbm2_hardwired_switches_widget_create();
     cbm2_hardwired_switches_widget_set_callback(switches_widget,
-            cbm2_switches_callback);
+                                                cbm2_switches_callback);
     gtk_grid_attach(GTK_GRID(grid), switches_widget, 2, 0, 1, 1);
+
+    /* SID widget */
+    sid_widget = sid_model_widget_create(machine_widget);
+    sid_model_widget_set_callback(sid_widget, sid_model_callback);
+    gtk_grid_attach(GTK_GRID(grid), sid_widget, 1, 1, 1, 1);
 
     /* CIA1 widget */
     cia_widget = cia_model_widget_create(1);
     cia_model_widget_set_callback(cia_widget, cia_model_callback);
-    gtk_grid_attach(GTK_GRID(grid), cia_widget, 1, 1, 2, 1);
+    gtk_grid_attach(GTK_GRID(grid), cia_widget, 1, 2, 2, 1);
 
     /* RAM size widget */
     ram_widget = cbm2_memory_size_widget_create();
     cbm2_memory_size_widget_set_callback(ram_widget, cbm2_memory_size_callback);
-    gtk_grid_attach(GTK_GRID(grid), ram_widget, 0, 2, 1, 1);
+    gtk_widget_set_margin_top(ram_widget, 16);
+    gtk_grid_attach(GTK_GRID(grid), ram_widget, 0, 3, 1, 1);
 
     /* Mapping RAM into bank 15 */
     bank15_widget = cbm2_ram_mapping_widget_create();
-    gtk_grid_attach(GTK_GRID(grid), bank15_widget, 1, 2, 2, 1);
+    gtk_widget_set_margin_top(bank15_widget, 16);
+    gtk_grid_attach(GTK_GRID(grid), bank15_widget, 1, 3, 2, 1);
 
     gtk_widget_show_all(grid);
     return grid;
 }
-
 
 /** \brief  Create VSID layout
  *
@@ -1586,8 +1670,6 @@ static GtkWidget *create_vsid_layout(GtkWidget *grid)
     return grid;
 }
 
-
-
 /** \brief  Create machine-specific layout
  *
  * Creates a machine-specific layout, including creating the required widgets
@@ -1599,7 +1681,7 @@ static GtkWidget *create_layout(void)
     GtkWidget *grid = gtk_grid_new();
 
     gtk_grid_set_column_spacing(GTK_GRID(grid), 16);
-    gtk_grid_set_row_spacing(GTK_GRID(grid), 16);
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 0);
 
     /* Can't add the machine model widget here, since it differs a lot in size
      * depending on the machine, which may result in odd layouts. So we need
@@ -1647,12 +1729,11 @@ GtkWidget *settings_model_widget_create(GtkWidget *parent)
 {
     GtkWidget *layout;
 
-    machine_widget = NULL;
-    cia_widget = NULL;
-    video_widget = NULL;
-    vdc_widget = NULL;
-    sid_widget = NULL;
+    cia_widget    = NULL;
     kernal_widget = NULL;
+    sid_widget    = NULL;
+    vdc_widget    = NULL;
+    video_widget  = NULL;
 
     /* every machine has a machine model widget */
     machine_widget = machine_model_widget_create();
@@ -1660,10 +1741,7 @@ GtkWidget *settings_model_widget_create(GtkWidget *parent)
     /* create machine-specific layout */
     layout = create_layout();
 
-
-    /*
-     * Connect signal handlers
-     */
+    /* connect signal handlers */
     machine_model_widget_connect_signals(machine_widget);
     if ((machine_class != VICE_MACHINE_PET)) {
         /*
@@ -1676,58 +1754,9 @@ GtkWidget *settings_model_widget_create(GtkWidget *parent)
     /* add callback */
     machine_model_widget_set_callback(machine_model_callback);
 
-#if 0
+    /* get current video standard */
+    resources_get_int("MachineVideoStandard", &mvs_current);
 
-    /* create SID widget: every machine either has a SID built-in or can have
-     * one via an expansion card, so no need to check machine_class here: */
-    sid_widget = sid_model_widget_create(machine_widget);
-    gtk_grid_attach(GTK_GRID(layout), sid_widget, 2, 0, 1, 1);
-
-
-    /* CIA widget(s) */
-    switch (machine_class) {
-
-        /* 2x CIA */
-        case VICE_MACHINE_C64:      /* fall through */
-        case VICE_MACHINE_C64SC:    /* fall through */
-        case VICE_MACHINE_SCPU64:   /* fall through */
-        case VICE_MACHINE_C128:     /* fall through */
-        case VICE_MACHINE_VSID:
-            cia_widget = cia_model_widget_create(machine_widget, 2);
-            break;
-
-        /* 1x CIA */
-        case VICE_MACHINE_CBM5x0:   /* fall through */
-        case VICE_MACHINE_CBM6x0:
-            cia_widget = cia_model_widget_create(machine_widget, 1);
-            break;
-
-        /* no CIA */
-        default:
-            /* other models don't have CIA's */
-            cia_widget = NULL;
-    }
-
-    if (cia_widget != NULL) {
-        gtk_grid_attach(GTK_GRID(layout), cia_widget, 0, 1, 2, 1);
-    }
-
-    kernal_widget = kernal_revision_widget_create();
-    gtk_grid_attach(GTK_GRID(layout), kernal_widget, 2, 1, 1, 1);
-
-
-    /*
-     * Connect signals that were not connected in the previous calls
-     */
-    machine_model_widget_connect_signals(machine_widget);
-    if (machine_class != VICE_MACHINE_CBM6x0 &&
-            machine_class != VICE_MACHINE_PET) {
-        video_model_widget_connect_signals(video_widget);
-    }
-    if (machine_class == VICE_MACHINE_C128) {
-        vdc_model_widget_connect_signals(vdc_widget);
-    }
-#endif
     gtk_widget_show_all(layout);
     return layout;
 }

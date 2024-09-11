@@ -30,17 +30,10 @@
 
 
 #include "vice.h"
-
 #include <gtk/gtk.h>
 
-#include "basewidgets.h"
-#include "lib.h"
-#include "ui.h"
-#include "resources.h"
-#include "vsync.h"
 #include "sound.h"
-#include "widgethelpers.h"
-#include "debug_gtk3.h"
+#include "vice_gtk3.h"
 
 #include "soundfragmentsizewidget.h"
 
@@ -64,16 +57,22 @@ static const vice_gtk3_radiogroup_entry_t fragment_sizes[] = {
 GtkWidget *sound_fragment_size_widget_create(void)
 {
     GtkWidget *grid;
+    GtkWidget *label;
     GtkWidget *group;
 
-    grid = vice_gtk3_grid_new_spaced_with_label(
-            VICE_GTK3_DEFAULT, VICE_GTK3_DEFAULT,
-            "Fragment size", SOUND_FRAGMENT_SMALL);
-    group = vice_gtk3_resource_radiogroup_new(
-            "SoundFragmentSize", fragment_sizes, GTK_ORIENTATION_VERTICAL);
-    gtk_widget_set_margin_start(group, 16);
+    grid = gtk_grid_new();
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 8);
+
+    label = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(label), "<b>Fragment size</b>");
+    gtk_widget_set_halign(label, GTK_ALIGN_START);
+
+    group = vice_gtk3_resource_radiogroup_new("SoundFragmentSize",
+                                              fragment_sizes,
+                                              GTK_ORIENTATION_VERTICAL);
+
+    gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), group, 0, 1, 1, 1);
-    gtk_widget_show_all(grid);
     gtk_widget_show_all(grid);
     return grid;
 }

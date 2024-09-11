@@ -93,6 +93,7 @@ host_triplet = @host@
 @WINDOWS_COMPILE_FALSE@am__append_3 = opengl_renderer.c
 @MACOS_COMPILE_TRUE@@WINDOWS_COMPILE_FALSE@am__append_4 = opengl_renderer_macos.m
 @MACOS_COMPILE_FALSE@@WINDOWS_COMPILE_FALSE@am__append_5 = opengl_renderer_unix.c
+@USE_GTK3UI_TRUE@am__append_6 = debug_gtk3.c
 subdir = src/arch/gtk3
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cxx_compile_stdcxx.m4 \
@@ -119,9 +120,9 @@ am__libarch_a_SOURCES_DIST = actions-cartridge.c actions-clipboard.c \
 	actions-datasette.c actions-debug.c actions-display.c \
 	actions-drive.c actions-help.c actions-hotkeys.c \
 	actions-joystick.c actions-machine.c actions-media.c \
-	actions-settings.c actions-snapshot.c actions-speed.c \
-	actions-vsid.c archdep.c c128ui.c c64dtvui.c c64scui.c c64ui.c \
-	cbm2ui.c cbm5x0ui.c debug_gtk3.c gtk3main.c hotkeymap.c \
+	actions-printer.c actions-settings.c actions-snapshot.c \
+	actions-speed.c actions-vsid.c archdep.c c128ui.c c64dtvui.c \
+	c64scui.c c64ui.c cbm2ui.c cbm5x0ui.c debug_gtk3.c gtk3main.c \
 	hotkeys.c kbd.c linenoise.c mousedrv.c petui.c plus4ui.c \
 	render_queue.c render_thread.c scpu64ui.c ui.c uiabout.c \
 	uicart.c uicmdline.c uicompiletimefeatures.c uidata.c \
@@ -146,12 +147,12 @@ am_libarch_a_OBJECTS = actions-cartridge.$(OBJEXT) \
 	actions-drive.$(OBJEXT) actions-help.$(OBJEXT) \
 	actions-hotkeys.$(OBJEXT) actions-joystick.$(OBJEXT) \
 	actions-machine.$(OBJEXT) actions-media.$(OBJEXT) \
-	actions-settings.$(OBJEXT) actions-snapshot.$(OBJEXT) \
-	actions-speed.$(OBJEXT) actions-vsid.$(OBJEXT) \
-	archdep.$(OBJEXT) c128ui.$(OBJEXT) c64dtvui.$(OBJEXT) \
-	c64scui.$(OBJEXT) c64ui.$(OBJEXT) cbm2ui.$(OBJEXT) \
-	cbm5x0ui.$(OBJEXT) debug_gtk3.$(OBJEXT) gtk3main.$(OBJEXT) \
-	hotkeymap.$(OBJEXT) hotkeys.$(OBJEXT) kbd.$(OBJEXT) \
+	actions-printer.$(OBJEXT) actions-settings.$(OBJEXT) \
+	actions-snapshot.$(OBJEXT) actions-speed.$(OBJEXT) \
+	actions-vsid.$(OBJEXT) archdep.$(OBJEXT) c128ui.$(OBJEXT) \
+	c64dtvui.$(OBJEXT) c64scui.$(OBJEXT) c64ui.$(OBJEXT) \
+	cbm2ui.$(OBJEXT) cbm5x0ui.$(OBJEXT) debug_gtk3.$(OBJEXT) \
+	gtk3main.$(OBJEXT) hotkeys.$(OBJEXT) kbd.$(OBJEXT) \
 	linenoise.$(OBJEXT) mousedrv.$(OBJEXT) petui.$(OBJEXT) \
 	plus4ui.$(OBJEXT) render_queue.$(OBJEXT) \
 	render_thread.$(OBJEXT) scpu64ui.$(OBJEXT) ui.$(OBJEXT) \
@@ -173,7 +174,9 @@ am_libarch_a_OBJECTS = actions-cartridge.$(OBJEXT) \
 libarch_a_OBJECTS = $(am_libarch_a_OBJECTS)
 libtoolarch_a_AR = $(AR) $(ARFLAGS)
 libtoolarch_a_LIBADD =
-am_libtoolarch_a_OBJECTS = archdep.$(OBJEXT)
+am__libtoolarch_a_SOURCES_DIST = archdep.c debug_gtk3.c
+@USE_GTK3UI_TRUE@am__objects_6 = debug_gtk3.$(OBJEXT)
+am_libtoolarch_a_OBJECTS = archdep.$(OBJEXT) $(am__objects_6)
 libtoolarch_a_OBJECTS = $(am_libtoolarch_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -196,7 +199,8 @@ am__depfiles_remade = ./$(DEPDIR)/actions-cartridge.Po \
 	./$(DEPDIR)/actions-display.Po ./$(DEPDIR)/actions-drive.Po \
 	./$(DEPDIR)/actions-help.Po ./$(DEPDIR)/actions-hotkeys.Po \
 	./$(DEPDIR)/actions-joystick.Po ./$(DEPDIR)/actions-machine.Po \
-	./$(DEPDIR)/actions-media.Po ./$(DEPDIR)/actions-settings.Po \
+	./$(DEPDIR)/actions-media.Po ./$(DEPDIR)/actions-printer.Po \
+	./$(DEPDIR)/actions-settings.Po \
 	./$(DEPDIR)/actions-snapshot.Po ./$(DEPDIR)/actions-speed.Po \
 	./$(DEPDIR)/actions-vsid.Po ./$(DEPDIR)/archdep.Po \
 	./$(DEPDIR)/c128ui.Po ./$(DEPDIR)/c64dtvui.Po \
@@ -204,9 +208,9 @@ am__depfiles_remade = ./$(DEPDIR)/actions-cartridge.Po \
 	./$(DEPDIR)/cbm2ui.Po ./$(DEPDIR)/cbm5x0ui.Po \
 	./$(DEPDIR)/debug_gtk3.Po ./$(DEPDIR)/directx_renderer.Po \
 	./$(DEPDIR)/directx_renderer_impl.Po ./$(DEPDIR)/gtk3main.Po \
-	./$(DEPDIR)/hotkeymap.Po ./$(DEPDIR)/hotkeys.Po \
-	./$(DEPDIR)/kbd.Po ./$(DEPDIR)/linenoise.Po \
-	./$(DEPDIR)/mousedrv.Po ./$(DEPDIR)/opengl_renderer.Po \
+	./$(DEPDIR)/hotkeys.Po ./$(DEPDIR)/kbd.Po \
+	./$(DEPDIR)/linenoise.Po ./$(DEPDIR)/mousedrv.Po \
+	./$(DEPDIR)/opengl_renderer.Po \
 	./$(DEPDIR)/opengl_renderer_macos.Po \
 	./$(DEPDIR)/opengl_renderer_unix.Po ./$(DEPDIR)/petui.Po \
 	./$(DEPDIR)/plus4ui.Po ./$(DEPDIR)/render_queue.Po \
@@ -268,7 +272,8 @@ am__v_OBJCLD_ = $(am__v_OBJCLD_@AM_DEFAULT_V@)
 am__v_OBJCLD_0 = @echo "  OBJCLD  " $@;
 am__v_OBJCLD_1 = 
 SOURCES = $(libarch_a_SOURCES) $(libtoolarch_a_SOURCES)
-DIST_SOURCES = $(am__libarch_a_SOURCES_DIST) $(libtoolarch_a_SOURCES)
+DIST_SOURCES = $(am__libarch_a_SOURCES_DIST) \
+	$(am__libtoolarch_a_SOURCES_DIST)
 RECURSIVE_TARGETS = all-recursive check-recursive cscopelist-recursive \
 	ctags-recursive dvi-recursive html-recursive info-recursive \
 	install-data-recursive install-dvi-recursive \
@@ -403,7 +408,6 @@ GLIB_LIBS = @GLIB_LIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 HAVE_CXX11 = @HAVE_CXX11@
-HAVE_READLINE = @HAVE_READLINE@
 ICONV = @ICONV@
 ICOTOOL = @ICOTOOL@
 INLINE_UNIT_GROWTH = @INLINE_UNIT_GROWTH@
@@ -450,8 +454,6 @@ PNG_LIBS = @PNG_LIBS@
 PROGRAM_PREFIX = @PROGRAM_PREFIX@
 PROGRAM_SUFFIX = @PROGRAM_SUFFIX@
 RANLIB = @RANLIB@
-READLINE = @READLINE@
-READLINE_LIBS = @READLINE_LIBS@
 RESIDDTVSUB = @RESIDDTVSUB@
 RESIDSUB = @RESIDSUB@
 RESID_DEP = @RESID_DEP@
@@ -476,7 +478,6 @@ SOUND_DRIVERS = @SOUND_DRIVERS@
 SOUND_LIBS = @SOUND_LIBS@
 SOUND_MIDAS_OBJ = @SOUND_MIDAS_OBJ@
 SOUND_SDL_OBJ = @SOUND_SDL_OBJ@
-SOUND_USS_OBJ = @SOUND_USS_OBJ@
 STRIP = @STRIP@
 SVN = @SVN@
 SVNVERSION = @SVNVERSION@
@@ -485,6 +486,7 @@ TAR = @TAR@
 TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
+UNZIPBIN = @UNZIPBIN@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -579,12 +581,14 @@ AM_CPPFLAGS = \
 	@ARCH_INCLUDES@ \
 	-I$(top_srcdir)/src/arch/shared \
 	$(extra_includes) \
+	-I$(top_srcdir)/src/arch/shared/hotkeys \
 	-I$(top_builddir)/src \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/src/crtc \
 	-I$(top_srcdir)/src/datasette \
 	-I$(top_srcdir)/src/drive \
 	-I$(top_srcdir)/src/joyport \
+	-I$(top_srcdir)/src/printerdrv \
 	-I$(top_srcdir)/src/lib/p64 \
 	-I$(top_srcdir)/src/raster \
 	-I$(top_srcdir)/src/rs232drv \
@@ -620,9 +624,9 @@ libarch_a_SOURCES = actions-cartridge.c actions-clipboard.c \
 	actions-datasette.c actions-debug.c actions-display.c \
 	actions-drive.c actions-help.c actions-hotkeys.c \
 	actions-joystick.c actions-machine.c actions-media.c \
-	actions-settings.c actions-snapshot.c actions-speed.c \
-	actions-vsid.c archdep.c c128ui.c c64dtvui.c c64scui.c c64ui.c \
-	cbm2ui.c cbm5x0ui.c debug_gtk3.c gtk3main.c hotkeymap.c \
+	actions-printer.c actions-settings.c actions-snapshot.c \
+	actions-speed.c actions-vsid.c archdep.c c128ui.c c64dtvui.c \
+	c64scui.c c64ui.c cbm2ui.c cbm5x0ui.c debug_gtk3.c gtk3main.c \
 	hotkeys.c kbd.c linenoise.c mousedrv.c petui.c plus4ui.c \
 	render_queue.c render_thread.c scpu64ui.c ui.c uiabout.c \
 	uicart.c uicmdline.c uicompiletimefeatures.c uidata.c \
@@ -634,9 +638,7 @@ libarch_a_SOURCES = actions-cartridge.c actions-clipboard.c \
 	uivsidmenu.c uivsidwindow.c vic20ui.c video.c vsidstate.c \
 	vsidui.c vsyncarch.c $(am__append_1) $(am__append_2) \
 	$(am__append_3) $(am__append_4) $(am__append_5)
-libtoolarch_a_SOURCES = \
-	archdep.c
-
+libtoolarch_a_SOURCES = archdep.c $(am__append_6)
 EXTRA_DIST = \
 	Resources/VICE.icns \
 	actions-cartridge.h \
@@ -650,6 +652,7 @@ EXTRA_DIST = \
 	actions-joystick.h \
 	actions-machine.h \
 	actions-media.h \
+	actions-printer.h \
 	actions-settings.h \
 	actions-snapshot.h \
 	actions-speed.h \
@@ -658,7 +661,6 @@ EXTRA_DIST = \
 	debug_gtk3.h \
 	directx_renderer.h \
 	directx_renderer_impl.h \
-	hotkeymap.h \
 	hotkeys.h \
 	kbd.h \
 	linenoise.h \
@@ -769,6 +771,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-joystick.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-machine.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-media.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-printer.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-settings.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-snapshot.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-speed.Po@am__quote@ # am--include-marker
@@ -784,7 +787,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/directx_renderer.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/directx_renderer_impl.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gtk3main.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hotkeymap.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hotkeys.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/kbd.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/linenoise.Po@am__quote@ # am--include-marker
@@ -1088,6 +1090,7 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/actions-joystick.Po
 	-rm -f ./$(DEPDIR)/actions-machine.Po
 	-rm -f ./$(DEPDIR)/actions-media.Po
+	-rm -f ./$(DEPDIR)/actions-printer.Po
 	-rm -f ./$(DEPDIR)/actions-settings.Po
 	-rm -f ./$(DEPDIR)/actions-snapshot.Po
 	-rm -f ./$(DEPDIR)/actions-speed.Po
@@ -1103,7 +1106,6 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/directx_renderer.Po
 	-rm -f ./$(DEPDIR)/directx_renderer_impl.Po
 	-rm -f ./$(DEPDIR)/gtk3main.Po
-	-rm -f ./$(DEPDIR)/hotkeymap.Po
 	-rm -f ./$(DEPDIR)/hotkeys.Po
 	-rm -f ./$(DEPDIR)/kbd.Po
 	-rm -f ./$(DEPDIR)/linenoise.Po
@@ -1207,6 +1209,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/actions-joystick.Po
 	-rm -f ./$(DEPDIR)/actions-machine.Po
 	-rm -f ./$(DEPDIR)/actions-media.Po
+	-rm -f ./$(DEPDIR)/actions-printer.Po
 	-rm -f ./$(DEPDIR)/actions-settings.Po
 	-rm -f ./$(DEPDIR)/actions-snapshot.Po
 	-rm -f ./$(DEPDIR)/actions-speed.Po
@@ -1222,7 +1225,6 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/directx_renderer.Po
 	-rm -f ./$(DEPDIR)/directx_renderer_impl.Po
 	-rm -f ./$(DEPDIR)/gtk3main.Po
-	-rm -f ./$(DEPDIR)/hotkeymap.Po
 	-rm -f ./$(DEPDIR)/hotkeys.Po
 	-rm -f ./$(DEPDIR)/kbd.Po
 	-rm -f ./$(DEPDIR)/linenoise.Po

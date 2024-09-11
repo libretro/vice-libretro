@@ -1,5 +1,5 @@
 /** \file   settings_video.c
- * \brief   Widget to control video settings
+ * \brief   Settings widget to control video settings
  *
  * \author  Bas Wassink <b.wassink@ziggo.nl>
  */
@@ -25,8 +25,6 @@
  * $VICERES VICIICheckSbColl    x64 x64sc x64dtv xscpu64 x128 xcbm5x0
  * $VICERES VICIICheckSsColl    x64 x64sc x64dtv xscpu64 x128 xcbm5x0
  * $VICERES VICIIVSPBug         x64sc xscpu64
- * $VICERES KeepAspectRatio     -vsid
- * $VICERES TrueAspectRatio     -vsid
  * $VICERES C128HideVDC         x128
  *
  *  (see included widgets for more resources)
@@ -54,76 +52,28 @@
  */
 
 #include "vice.h"
-
 #include <gtk/gtk.h>
-#include <stdlib.h>
 #include <string.h>
 
-#include "ui.h"
-#include "basewidgets.h"
-#include "lib.h"
-#include "resourcecheckbutton.h"
-#include "widgethelpers.h"
+
 #include "debug_gtk3.h"
-#include "resources.h"
 #include "machine.h"
+#include "ui.h"
 #include "uivideo.h"
+#include "vice_gtk3.h"
+#include "videobordermodewidget.h"
 #include "videopalettewidget.h"
 #include "videorenderfilterwidget.h"
-#include "videobordermodewidget.h"
 
 #include "settings_video.h"
 
 
-/** \brief  Heap allocated titles for the sub-widgets
- */
-static char *widget_title[2] = { NULL, NULL };
-
-/** \brief  References to the chip names passed to create_layout()
- */
-static const char *chip_name[2] = { NULL, NULL };
-
-
-/* These are required for x128, since these resources are chip-independent, but
- * there's a TODO to make these resources chip-dependent. For now toggling a
- * checkbox in VICII settings should update the checkbox in VDC settings, and
- * vice-versa. Once the resources are chip-dependent, this can be removed.
- */
-
-/** \brief  keep-aspect-ratio widgets
- */
-static GtkWidget *keep_aspect_widget[2] = { NULL, NULL };
-
-/** \brief  true-aspect-ratio widgets
- */
-static GtkWidget *true_aspect_widget[2] = { NULL, NULL };
-
 /** \brief  double-size widgets
+ *
+ * Used in render_filter_callback() to synchronize the double size widgets'
+ * state.
  */
 static GtkWidget *double_size_widget[2] = { NULL, NULL };
-
-/** \brief  render-filter widgets
- */
-static GtkWidget *render_filter_widget[2] = { NULL, NULL };
-
-
-/** \brief  Handler for the "destroy" event of the main widget
- *
- * Cleans up heap-allocated resources
- *
- * \param[in]   widget  main widget
- */
-static void on_destroy(GtkWidget *widget)
-{
-    if (widget_title[0] != NULL) {
-        lib_free(widget_title[0]);
-        widget_title[0] = NULL;
-    }
-    if (widget_title[1] != NULL) {
-        lib_free(widget_title[1]);
-        widget_title[1] = NULL;
-    }
-}
 
 
 /** \brief  Callback for changes of the render-filter widgets
@@ -133,14 +83,13 @@ static void on_destroy(GtkWidget *widget)
  */
 static void render_filter_callback(GtkWidget *widget, int value)
 {
-    int index;
+    GtkWidget *parent;
+    int        index;
 
-    index = GPOINTER_TO_INT(g_object_get_data(
-                G_OBJECT(gtk_widget_get_parent(widget)),
-                "ChipIndex"));
+    parent = gtk_widget_get_parent(widget);
+    index  = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(parent), "ChipIndex"));
     vice_gtk3_resource_check_button_sync(double_size_widget[index]);
 }
-
 
 /** \brief  Callback for changes of the "Double Size" widget
  *
@@ -152,7 +101,7 @@ static void render_filter_callback(GtkWidget *widget, int value)
  * \param[in]   widget  check button (unused)
  * \param[in]   state   check button toggle state
  */
-static void double_size_callback(GtkWidget *widget, int state)
+static void double_size_callback(GtkWidget *widget, gboolean state)
 {
     if (!state && !ui_is_fullscreen()) {
 
@@ -180,162 +129,6 @@ static void double_size_callback(GtkWidget *widget, int state)
     }
 }
 
-
-
-/** \brief  Create "Double Size" checkbox
- *
- * \param[in]   index   chip index
- *
- * \return  GtkCheckButton
- */
-static GtkWidget *create_double_size_widget(int index)
-{
-    GtkWidget *widget;
-
-    widget = vice_gtk3_resource_check_button_new_sprintf("%sDoubleSize",
-                                                         "Double size",
-                                                         chip_name[index]);
-    vice_gtk3_resource_check_button_add_callback(widget,
-                                                 double_size_callback);
-    return widget;
-}
-
-
-/** \brief  Create "Double Scan" checkbox
- *
- * \param[in]   index   chip index
- *
- * \return  GtkCheckButton
- */
-static GtkWidget *create_double_scan_widget(int index)
-{
-    return vice_gtk3_resource_check_button_new_sprintf(
-            "%sDoubleScan", "Double scan",
-            chip_name[index]);
-}
-
-
-/** \brief  Create "Vertical Stretch" checkbox
- *
- * \param[in]   index   chip index
- *
- * \return  GtkCheckButton
- */
-static GtkWidget *create_vert_stretch_widget(int index)
-{
-    return vice_gtk3_resource_check_button_new_sprintf(
-            "%sStretchVertical","Stretch vertically",
-            chip_name[index]);
-}
-
-
-/** \brief  Create "Audio leak emulation" checkbox
- *
- * \param[in]   index   chip index
- *
- * \return  GtkCheckButton
- */
-static GtkWidget *create_audio_leak_widget(int index)
-{
-    return vice_gtk3_resource_check_button_new_sprintf(
-            "%sAudioLeak", "Audio leak emulation",
-            chip_name[index]);
-}
-
-
-/** \brief  Create "Sprite-sprite collisions" checkbox
- *
- * \param[in]   index   chip index
- *
- * \return  GtkCheckButton
- */
-static GtkWidget *create_sprite_sprite_widget(int index)
-{
-    return vice_gtk3_resource_check_button_new_sprintf(
-            "%sCheckSsColl", "Sprite-sprite collisions",
-            chip_name[index]);
-}
-
-/** \brief  Create "Sprite-background collisions" checkbox
- *
- * \param[in]   index   chip index
- *
- * \return  GtkCheckButton
- */
-static GtkWidget *create_sprite_background_widget(int index)
-{
-    return vice_gtk3_resource_check_button_new_sprintf(
-            "%sCheckSbColl", "Sprite-background collisions",
-            chip_name[index]);
-}
-
-
-/** \brief  Create "VSP bug emulation" checkbox
- *
- * \param[in]   index   chip index
- *
- * \return  GtkCheckButton
- */
-static GtkWidget *create_vsp_bug_widget(int index)
-{
-    return vice_gtk3_resource_check_button_new_sprintf(
-            "%sVSPBug", "VSP bug emulation",
-            chip_name[index]);
-}
-
-
-/** \brief  Create "Keep aspect ratio" checkbox
- *
- * \param[in]   index   chip index
- *
- * \return  GtkCheckButton
- */
-static GtkWidget *create_keep_aspect_widget(int index)
-{
-    return vice_gtk3_resource_check_button_new(
-            "KeepAspectRatio", "Keep aspect ratio");
-}
-
-
-/** \brief  Create "True aspect ratio" checkbox
- *
- * \param[in]   index   chip index
- *
- * \return  GtkCheckButton
- */
-static GtkWidget *create_true_aspect_widget(int index)
-{
-    return vice_gtk3_resource_check_button_new(
-            "TrueAspectRatio", "True aspect ratio");
-}
-
-#if 0
-/** \brief  Handler for the 'toggled' event of the keep-aspect-ratio checkbox
- *
- * \param[in]   check       checkbox
- * \param[in]   user_data   chip index (int)
- */
-static void on_keep_aspect_toggled(GtkWidget *check, gpointer user_data)
-{
-    int index = GPOINTER_TO_INT(user_data);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(keep_aspect_widget[index]),
-            gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check)));
-}
-
-
-/** \brief  Handler for the 'toggled' event of the true-aspect-ratio checkbox
- *
- * \param[in]   check       checkbox
- * \param[in]   user_data   chip index (int)
- */
-static void on_true_aspect_toggled(GtkWidget *check, gpointer user_data)
-{
-    int index = GPOINTER_TO_INT(user_data);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(true_aspect_widget[index]),
-            gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check)));
-}
-#endif
-
 /** \brief  Event handler for the 'Hide VDC Window' checkbox
  *
  * \param[in]   check   checkbutton triggering the event
@@ -343,8 +136,8 @@ static void on_true_aspect_toggled(GtkWidget *check, gpointer user_data)
  */
 static void on_hide_vdc_toggled(GtkWidget *check, gpointer data)
 {
-    int hide;
     GtkWidget *window;
+    gboolean   hide;
 
     hide = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check));
     window = ui_get_window_by_index(SECONDARY_WINDOW);  /* VDC */
@@ -365,7 +158,118 @@ static void on_hide_vdc_toggled(GtkWidget *check, gpointer data)
 }
 
 
-/** \brief  Create widget for double size/scan, video cache and vert stretch
+/** \brief  Create left-indented label with Pango markup
+ *
+ * \param[in]   text    text for label (Pango markup allowed)
+ *
+ * \return  GtkLabel
+ */
+static GtkWidget *label_helper(const char *text)
+{
+    GtkWidget *label = gtk_label_new(NULL);
+
+    gtk_label_set_markup(GTK_LABEL(label), text);
+    gtk_widget_set_halign(label, GTK_ALIGN_START);
+    return label;
+}
+
+/** \brief  Create "Double Size" checkbox
+ *
+ * \param[in]   chip    chip name
+ *
+ * \return  GtkCheckButton
+ */
+static GtkWidget *create_double_size_widget(const char *chip)
+{
+    GtkWidget *widget;
+
+    widget = vice_gtk3_resource_check_button_new_sprintf("%sDoubleSize",
+                                                         "Double size",
+                                                         chip);
+    vice_gtk3_resource_check_button_add_callback(widget,
+                                                 double_size_callback);
+    return widget;
+}
+
+/** \brief  Create "Double Scan" checkbox
+ *
+ * \param[in]   chip    chip name
+ *
+ * \return  GtkCheckButton
+ */
+static GtkWidget *create_double_scan_widget(const char *chip)
+{
+    return vice_gtk3_resource_check_button_new_sprintf("%sDoubleScan",
+                                                       "Double scan",
+                                                       chip);
+}
+
+/** \brief  Create "Vertical Stretch" checkbox
+ *
+ * \param[in]   chip    chip name
+ *
+ * \return  GtkCheckButton
+ */
+static GtkWidget *create_vert_stretch_widget(const char *chip)
+{
+    return vice_gtk3_resource_check_button_new_sprintf("%sStretchVertical",
+                                                       "Stretch vertically",
+                                                       chip);
+}
+
+/** \brief  Create "Audio leak emulation" checkbox
+ *
+ * \param[in]   chip    chip name
+ *
+ * \return  GtkCheckButton
+ */
+static GtkWidget *create_audio_leak_widget(const char *chip)
+{
+    return vice_gtk3_resource_check_button_new_sprintf("%sAudioLeak",
+                                                       "Audio leak emulation",
+                                                       chip);
+}
+
+/** \brief  Create "Sprite-sprite collisions" checkbox
+ *
+ * \param[in]   chip    chip name
+ *
+ * \return  GtkCheckButton
+ */
+static GtkWidget *create_sprite_sprite_widget(const char *chip)
+{
+    return vice_gtk3_resource_check_button_new_sprintf("%sCheckSsColl",
+                                                       "Sprite-sprite collisions",
+                                                       chip);
+}
+
+/** \brief  Create "Sprite-background collisions" checkbox
+ *
+ * \param[in]   chip    chip name
+ *
+ * \return  GtkCheckButton
+ */
+static GtkWidget *create_sprite_background_widget(const char *chip)
+{
+    return vice_gtk3_resource_check_button_new_sprintf("%sCheckSbColl",
+                                                       "Sprite-background collisions",
+                                                       chip);
+}
+
+/** \brief  Create "VSP bug emulation" checkbox
+ *
+ * \param[in]   chip    chip name
+ *
+ * \return  GtkCheckButton
+ */
+static GtkWidget *create_vsp_bug_widget(const char *chip)
+{
+    return vice_gtk3_resource_check_button_new_sprintf("%sVSPBug",
+                                                       "VSP bug emulation",
+                                                       chip);
+}
+
+/** \brief  Create widget for double size, double scan and vertical stretch
  *
  * \param[in]   index   chip index (using in x128)
  * \param[in]   chip    chip name
@@ -375,31 +279,32 @@ static void on_hide_vdc_toggled(GtkWidget *check, gpointer data)
 static GtkWidget *create_render_widget(int index, const char *chip)
 {
     GtkWidget *grid;
-    GtkWidget *double_scan_widget = NULL;
-    GtkWidget *vert_stretch_widget = NULL;
+    GtkWidget *double_scan = NULL;
+    GtkWidget *vert_stretch = NULL;
+    int        row = 0;
 
-    grid = vice_gtk3_grid_new_spaced(VICE_GTK3_DEFAULT, VICE_GTK3_DEFAULT);
+    grid = gtk_grid_new();
 
-    double_size_widget[index] = create_double_size_widget(index);
+    double_size_widget[index] = create_double_size_widget(chip);
     g_object_set_data(G_OBJECT(double_size_widget[index]),
                                "ChipIndex",
                                GINT_TO_POINTER(index));
-    gtk_widget_set_margin_start(double_size_widget[index], 16);
+    gtk_grid_attach(GTK_GRID(grid), double_size_widget[index], 0, row, 1, 1);
+    row++;
 
-    double_scan_widget = create_double_scan_widget(index);
-
-    gtk_grid_attach(GTK_GRID(grid), double_size_widget[index], 0, 0, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), double_scan_widget, 1, 0, 1, 1);
+    double_scan = create_double_scan_widget(chip);
+    gtk_grid_attach(GTK_GRID(grid), double_scan, 0, row, 1, 1);
+    row++;
 
     if (uivideo_chip_has_vert_stretch(chip)) {
-        vert_stretch_widget = create_vert_stretch_widget(index);
-        gtk_grid_attach(GTK_GRID(grid), vert_stretch_widget, 2, 0, 1, 1);
+        vert_stretch = create_vert_stretch_widget(chip);
+        gtk_widget_set_margin_start(vert_stretch, 8);
+        gtk_grid_attach(GTK_GRID(grid), vert_stretch, 0, row, 1, 1);
     }
 
     gtk_widget_show_all(grid);
     return grid;
 }
-
 
 /** \brief  Create widget for audio leak, sprite collisions and VSP bug
  *
@@ -411,88 +316,43 @@ static GtkWidget *create_render_widget(int index, const char *chip)
 static GtkWidget *create_misc_widget(int index, const char *chip)
 {
     GtkWidget *grid;
-    GtkWidget *audio_leak_widget;
-    GtkWidget *sprite_sprite_widget = NULL;
-    GtkWidget *sprite_background_widget = NULL;
-    GtkWidget *vsp_bug_widget = NULL;
-    int row = 2;
+    GtkWidget *label;
+    GtkWidget *audio_leak;
+    int        row = 0;
 
-    grid = vice_gtk3_grid_new_spaced_with_label(
-            VICE_GTK3_DEFAULT, VICE_GTK3_DEFAULT, "Miscellaneous", 1);
+    grid = gtk_grid_new();
 
-    audio_leak_widget = create_audio_leak_widget(index);
-    gtk_widget_set_margin_start(audio_leak_widget, 16);
-    gtk_grid_attach(GTK_GRID(grid), audio_leak_widget, 0, 1, 1, 1);
+    /* header */
+    label = label_helper("<b>Miscellaneous</b>");
+    gtk_widget_set_margin_bottom(label, 8);
+    gtk_grid_attach(GTK_GRID(grid), label, 0, row, 1, 1);
+    row++;
+
+    /* audio leak emluation */
+    audio_leak = create_audio_leak_widget(chip);
+    gtk_grid_attach(GTK_GRID(grid), audio_leak, 0, row, 1, 1);
+    row++;
 
     if (uivideo_chip_has_sprites(chip)) {
-        sprite_sprite_widget = create_sprite_sprite_widget(index);
-        sprite_background_widget = create_sprite_background_widget(index);
-        gtk_widget_set_margin_start(sprite_sprite_widget, 16);
-        gtk_widget_set_margin_start(sprite_background_widget, 16);
-        gtk_grid_attach(GTK_GRID(grid), sprite_sprite_widget, 0, 2, 1, 1);
-        gtk_grid_attach(GTK_GRID(grid), sprite_background_widget, 0, 3, 1, 1);
-        row = 4;
+        GtkWidget *ss_col;
+        GtkWidget *sb_col;
+
+        ss_col = create_sprite_sprite_widget(chip);
+        gtk_grid_attach(GTK_GRID(grid), ss_col, 0, row, 1, 1);
+        row++;
+
+        sb_col = create_sprite_background_widget(chip);
+        gtk_grid_attach(GTK_GRID(grid), sb_col, 0, row, 1, 1);
+        row++;
     }
     if (uivideo_chip_has_vsp_bug(chip)) {
-        vsp_bug_widget = create_vsp_bug_widget(index);
-        gtk_widget_set_margin_start(vsp_bug_widget, 16);
-        gtk_grid_attach(GTK_GRID(grid), vsp_bug_widget, 0, row, 1, 1);
+        GtkWidget *vsp_bug = create_vsp_bug_widget(chip);
 
+        gtk_grid_attach(GTK_GRID(grid), vsp_bug, 0, row, 1, 1);
     }
-    gtk_widget_show(grid);
-    return grid;
-}
-
-
-/** \brief  Create widget for HW scaling and keep/true aspect ratio
- *
- * \param[in]   index   chip index (used in x128)
- * \param[in]   chip    chip name
- *
- * \return  GtkGrid
- */
-static GtkWidget *create_scaling_widget(int index, const char *chip)
-{
-    GtkWidget *grid;
-
-    grid = vice_gtk3_grid_new_spaced_with_label(
-            VICE_GTK3_DEFAULT, VICE_GTK3_DEFAULT, "Scaling and fullscreen", 3);
-
-    keep_aspect_widget[index] = create_keep_aspect_widget(index);
-    gtk_widget_set_margin_start(keep_aspect_widget[index], 16);
-    /* until per-chip KeepAspectRatio is implemented, connect the VICII and
-     * VDC KeepAspectRatio checkboxes, so toggling the VICII checkbox also
-     * updates the VDC checkbox, and vice-versa */
-
-    /* No longer required: VICII and VDC have separate 'pages' now */
-#if 0
-    if (machine_class == VICE_MACHINE_C128) {
-        g_signal_connect(keep_aspect_widget[index], "toggled",
-                G_CALLBACK(on_keep_aspect_toggled),
-                GINT_TO_POINTER(index == 0 ? 1: 0));
-    }
-#endif
-    gtk_grid_attach(GTK_GRID(grid), keep_aspect_widget[index], 0, 1, 1, 1);
-
-    true_aspect_widget[index] = create_true_aspect_widget(index);
-    /* until per-chip TrueAspectRatio is implemented, connect the VICII and
-     * VDC TrueAspectRatio checkboxes, so toggling the VICII checkbox also
-     * updates the VDC checkbox, and vice-versa */
-
-    /* No longer required: VICII and VDC have separate 'pages' now */
-#if 0
-    if (machine_class == VICE_MACHINE_C128) {
-        g_signal_connect(true_aspect_widget[index], "toggled",
-                G_CALLBACK(on_true_aspect_toggled),
-                GINT_TO_POINTER(index == 0 ? 1: 0));
-    }
-#endif
-    gtk_grid_attach(GTK_GRID(grid), true_aspect_widget[index], 1, 1, 1, 1);
-
     gtk_widget_show_all(grid);
     return grid;
 }
-
 
 /** \brief  Create a per-chip video settings layout
  *
@@ -505,68 +365,64 @@ static GtkWidget *create_scaling_widget(int index, const char *chip)
 static GtkWidget *create_layout(GtkWidget *parent, const char *chip, int index)
 {
     GtkWidget *layout;
-    GtkWidget *wrapper;
+    GtkWidget *label;
+    GtkWidget *render;
+    GtkWidget *palette;
+    GtkWidget *filter;
+    GtkWidget *border;
+    GtkWidget *misc;
     GtkWidget *hide_vdc;
+    char       title[64];
+    int        row = 0;
 
-    widget_title[index] = lib_msprintf("%s Settings", chip);
-    chip_name[index] = chip;
+    layout = gtk_grid_new();
+    gtk_grid_set_column_spacing(GTK_GRID(layout), 8);
 
     /* row 0, col 0-2: title */
-    layout = vice_gtk3_grid_new_spaced_with_label(
-            VICE_GTK3_DEFAULT, VICE_GTK3_DEFAULT, widget_title[index], 3);
-    /* spread out the rows a bit more */
-    gtk_grid_set_row_spacing(GTK_GRID(layout),
-            VICE_GTK3_GRID_ROW_SPACING * 2);
+    g_snprintf(title, sizeof title, "<b>%s Settings</b>", chip);
+    label = label_helper(title);
+    gtk_widget_set_margin_bottom(label, 8);
+    gtk_grid_attach(GTK_GRID(layout), label, 0, row, 3, 1);
+    row++;
 
-    /* row 1, col 0-2: video output options */
-    wrapper = create_render_widget(index, chip);
-    gtk_grid_attach(GTK_GRID(layout), wrapper, 0, 1, 3, 1);
+    /* row 1, col 0-2: video rendering options */
+    render = create_render_widget(index, chip);
+    gtk_grid_attach(GTK_GRID(layout), render, 0, row, 3, 1);
+    row++;
 
     /* row 2, col 0-2: palette selection */
-    gtk_grid_attach(GTK_GRID(layout),
-            video_palette_widget_create(chip),
-            0, 2, 3, 1);
+    palette = video_palette_widget_create(chip);
+    gtk_widget_set_margin_top(palette, 16);
+    gtk_widget_set_margin_bottom(palette, 16);
+    gtk_grid_attach(GTK_GRID(layout), palette, 0, row, 3, 1);
+    row++;
 
     /* row 3, col 0: rendering filter */
-    render_filter_widget[index] = video_render_filter_widget_create(chip);
-    /* set chip index to use for the callback */
-    g_object_set_data(G_OBJECT(render_filter_widget[index]),
-                      "ChipIndex",
-                      GINT_TO_POINTER(index));
-    /* add callback to widget */
-    video_render_filter_widget_add_callback(render_filter_widget[index],
-                                            render_filter_callback);
-    gtk_grid_attach(GTK_GRID(layout),
-            render_filter_widget[index],
-            0, 3, 1, 1);
-    /* row 3, col 1: border-mode  */
+    filter = video_render_filter_widget_create(chip);
+    g_object_set_data(G_OBJECT(filter), "ChipIndex", GINT_TO_POINTER(index));
+    video_render_filter_widget_add_callback(filter, render_filter_callback);
+    gtk_grid_attach(GTK_GRID(layout), filter, 0, row, 1, 1);
+
+    /* row 3, col 1: border mode  */
     if (uivideo_chip_has_border_mode(chip)) {
-        /* add border mode widget */
-        gtk_grid_attach(GTK_GRID(layout),
-                video_border_mode_widget_create(chip),
-                1, 3, 1, 1);
+        border = video_border_mode_widget_create(chip);
+        gtk_grid_attach(GTK_GRID(layout), border, 1, row, 1, 1);
     }
     /* row 3, col 2: misc options */
-    wrapper = create_misc_widget(index, chip);
-    gtk_grid_attach(GTK_GRID(layout), wrapper, 2, 3, 1, 1);
+    misc = create_misc_widget(index, chip);
+    gtk_grid_attach(GTK_GRID(layout), misc, 2, row, 1, 1);
+    row++;
 
-    /* row 4, col 0-2: scaling and aspect ratio resources */
-    wrapper = create_scaling_widget(index, chip);
-    gtk_grid_attach(GTK_GRID(layout), wrapper, 0, 4, 3, 1);
-
-    /* Hide VDC checkbox
-     *
-     * Only show when VICII window, VICII settings
-     */
-    if (machine_class == VICE_MACHINE_C128) {
-        /* compare 4 bytes, so perhaps an int cmp is faster? */
-        if (strcmp(chip, "VDC") == 0) {
-            hide_vdc = vice_gtk3_resource_check_button_new(
-                    "C128HideVDC", "Hide VDC display");
-            g_signal_connect(hide_vdc, "toggled",
-                    G_CALLBACK(on_hide_vdc_toggled), parent);
-            gtk_grid_attach(GTK_GRID(layout), hide_vdc, 0, 5, 3, 1);
-        }
+    /* Hide VDC checkbox (x128 only) */
+    if (machine_class == VICE_MACHINE_C128 && g_strcmp0(chip, "VDC") == 0) {
+        hide_vdc = vice_gtk3_resource_check_button_new("C128HideVDC",
+                                                       "Hide VDC display");
+        gtk_widget_set_margin_top(hide_vdc, 16);
+        g_signal_connect_unlocked(G_OBJECT(hide_vdc),
+                                  "toggled",
+                                  G_CALLBACK(on_hide_vdc_toggled),
+                                  (gpointer)parent);
+        gtk_grid_attach(GTK_GRID(layout), hide_vdc, 0, row, 3, 1);
     }
     gtk_widget_show_all(layout);
     return layout;
@@ -578,38 +434,18 @@ static GtkWidget *create_layout(GtkWidget *parent, const char *chip, int index)
  * This will create the VICII widget for x128, for the VDC widget use
  * settings_video_create_vdc().
  *
- * \param[in]   parent  parent widget
+ * \param[in]   parent  settings dialog
  *
  * \return  GtkGrid
  */
-GtkWidget *settings_video_create(GtkWidget *parent)
+GtkWidget *settings_video_widget_create(GtkWidget *parent)
 {
-    GtkWidget *grid;
-    const char *chip;
+    const char *chip = uivideo_chip_name();
 
-    /* XXX: is this really required anymore? */
-    chip_name[0] = NULL;
-    chip_name[1] = NULL;
-    widget_title[0] = NULL;
-    widget_title[1] = NULL;
-    keep_aspect_widget[0] = NULL;
-    keep_aspect_widget[1] = NULL;
-    true_aspect_widget[0] = NULL;
-    true_aspect_widget[1] = NULL;
     double_size_widget[0] = NULL;
     double_size_widget[1] = NULL;
-    render_filter_widget[0] = NULL;
-    render_filter_widget[1] = NULL;
 
-    grid = vice_gtk3_grid_new_spaced(VICE_GTK3_DEFAULT, VICE_GTK3_DEFAULT);
-    chip = uivideo_chip_name();
-    gtk_grid_attach(GTK_GRID(grid),
-            create_layout(parent, chip, PRIMARY_WINDOW),
-            0, 0, 1, 1);
-
-    g_signal_connect_unlocked(grid, "destroy", G_CALLBACK(on_destroy), NULL);
-    gtk_widget_show_all(grid);
-    return grid;
+    return create_layout(parent, chip, PRIMARY_WINDOW);
 }
 
 
@@ -618,29 +454,11 @@ GtkWidget *settings_video_create(GtkWidget *parent)
  * This will create the VDC widget for x128, for the VICII widget use
  * settings_video_create().
  *
- * \param[in]   parent  parent widget
+ * \param[in]   parent  settings dialog
  *
  * \return  GtkGrid
  */
-GtkWidget *settings_video_create_vdc(GtkWidget *parent)
+GtkWidget *settings_video_widget_create_vdc(GtkWidget *parent)
 {
-    GtkWidget *grid;
-
-    chip_name[0] = NULL;
-    chip_name[1] = NULL;
-    widget_title[0] = NULL;
-    widget_title[1] = NULL;
-    keep_aspect_widget[0] = NULL;
-    keep_aspect_widget[1] = NULL;
-    true_aspect_widget[0] = NULL;
-    true_aspect_widget[1] = NULL;
-
-    grid = vice_gtk3_grid_new_spaced(VICE_GTK3_DEFAULT, VICE_GTK3_DEFAULT);
-    gtk_grid_attach(GTK_GRID(grid),
-            create_layout(parent, "VDC", SECONDARY_WINDOW),
-            0, 0, 1, 1);
-
-    g_signal_connect_unlocked(grid, "destroy", G_CALLBACK(on_destroy), NULL);
-    gtk_widget_show_all(grid);
-    return grid;
+    return create_layout(parent, "VDC", SECONDARY_WINDOW);
 }

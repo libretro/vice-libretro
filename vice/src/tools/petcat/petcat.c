@@ -586,7 +586,7 @@ static basic_list_t basic_list[] = {
     { B_EVE,      46, 0xF9, 0x0801, 0, 0xCC, evekwcc,           "eve",       0, 0, 0, "Basic v2.0 with Eve Basic (C64)" },
     { B_TT64,     26, 0xF4, 0x5b01, 0, 0xDB, tt64kwdb,          "tt64",      0, 0, 0, "Basic v2.0 with The Tool 64 (C64)" },
     { B_HANDY,    22, 0xE1, 0x1801, 0, 0xCC, handykwcc,         "handy",     0, 0, 0, "Basic v2.0 with Handy Basic v1.0 (VIC20)" },
-    { B_65,       73, 0x48, 0x2001, 2, 0,    NULL, /* fix */    "65",        0, 1, 1, "Basic v65.0 (Mega65)" },
+    { B_65,       85, 0x54, 0x2001, 2, 0,    NULL, /* fix */    "65",        0, 1, 1, "Basic v65.0 (Mega65)" },
     { 0,          0,  0,    0,     0 , 0,    NULL,              NULL,        0, 0, 0, NULL }
 };
 
@@ -861,7 +861,8 @@ static const char *kwce10[] = {
 
 static const char *kwce65[] = {
     "",    "",        "pot",     "bump", "lpen", "rsppos", "rsprite", "rspcolor",
-    "log10", "rwindow", "pointer", "mod", "pixel", "rpalette", "rspeed", "rplay"
+    "log10", "rwindow", "pointer", "mod", "pixel", "rpalette", "rspeed", "rplay",
+    "wpeek"
 };
 #define NUM_KWCE65 (sizeof(kwce65) / sizeof(kwce65[0]))
 
@@ -898,13 +899,14 @@ static const char *kwfe65[] = {
     "",         "",           "bank",     "filter",     "play",    "tempo",     "movspr",  "sprite",
     "sprcolor", "rreg",       "envelope", "sleep",      "catalog", "dopen",     "append",  "dclose",
     "bsave",    "bload",      "record",   "concat",     "dverify", "dclear",    "sprsav",  "collision",
-    "begin",    "bend",       "window",   "boot",       "fread#",  "sprdef",    "fwrite#", "dma",
+    "begin",    "bend",       "window",   "boot",       "fread#",  "wpoke",     "fwrite#", "dma",
     "",         "edma",       "",         "mem",        "off",     "fast",      "speed",   "type",
     "bverify",  "ectory",     "erase",    "find",       "change",  "set",       "screen",  "polygon",
     "ellipse",  "viewport",   "gcopy",    "pen",        "palette", "dmode",     "dpat",    "format",
     "genlock",  "foreground", "",         "background", "border",  "highlight", "mouse",   "rmouse",
     "disk",     "cursor",     "rcursor",  "loadiff",    "saveiff", "edit",      "font",    "fgoto",
-    "fgosub"
+    "fgosub",   "mount",      "freezer",  "chdir",      "dot",     "info",      "bit",     "unlock",
+    "lock",     "mkdir",      "<<",       ">>",         "vsync"
 };
 
 /* ------------------------------------------------------------------------- */
@@ -943,7 +945,11 @@ int main(int argc, char **argv)
     int wr_mode = 0, version = B_7;         /* best defaults */
     unsigned int load_addr = 0;
     int ctrls = -1, hdr = -1, show_words = 0;
-    int fil = 0, outf = 0, overwrt = 0, textmode = 0;
+    int fil = 0, outf = 0, textmode = 0;
+    /* temporarily commented out to avoid set-but-unused warning by clang */
+#if 0
+    int overwrt = 0;
+#endif
     int flg = 0;                            /* files on stdin */
 
     /* Parse arguments */
@@ -999,7 +1005,9 @@ int main(int argc, char **argv)
             hdr = 0;
             continue;
         } else if (!strcmp(argv[0], "-f")) {      /* force overwrite */
+#if 0
             ++overwrt;
+#endif
             continue;
         } else if (!strcmp(argv[0], "-o")) {
             if (argc > 1) {
@@ -1622,7 +1630,7 @@ static void _p_toascii(int c, int version, int ctrls, int quote)
                     break;
 
                 default:
-                    if ((c > 0x1f) && isprint(c)) {
+                    if ((c > 0x1f) && isprint((unsigned char)c)) {
                         _p_fputc(c, c, quote);
                     } else if (ctrls) {
                         if (version == B_35) {
@@ -1670,7 +1678,7 @@ static int scan_integer(const char *line, unsigned int *num, unsigned int *digit
 #ifdef GEMDOS
     *digits = 0;
     if (sscanf(line, "%u", num) == 1) {
-        while (isspace(*line) || isdigit(*line)) {
+        while (isspace((unsigned char)*line) || isdigit((unsigned char)*line)) {
             line++;
             (*digits)++;
         }
@@ -1912,7 +1920,7 @@ static void p_tokenize(int version, unsigned int addr, int ctrls)
 
         quote = 0;
         rem_data_mode = 0;
-        while (isspace(*p2)) {
+        while (isspace((unsigned char)*p2)) {
             p2++;
         }
 
@@ -2038,7 +2046,7 @@ static void p_tokenize(int version, unsigned int addr, int ctrls)
 
                 /* DO NOTHING! As we do not set "match", the if (!match) will be true,
                  * and this part will copy the char over to the new buffer */
-            } else if (isalpha(*p2) || strchr("+-*/^>=<", *p2)) {
+            } else if (isalpha((unsigned char)*p2) || strchr("+-*/^>=<", *p2)) {
                 /* FE and CE prefixes are checked first */
                 if (version == B_7 || version == B_71 || version == B_10 || version == B_65 || version == B_SXC || version == B_SIMON) {
                     switch (version) {
@@ -2414,7 +2422,7 @@ static int sstrcmp_codes(unsigned char *line, const char **wordlist, int token, 
 
         if (codesnocase) {
             for (p = wordlist[token], q = (char *)line, j = 0;
-                 *p && *q && (tolower(*p) == tolower(*q));
+                 *p && *q && (tolower((unsigned char)*p) == tolower((unsigned char)*q));
                  p++, q++, j++) {}
         } else {
             for (p = wordlist[token], q = (char *)line, j = 0;

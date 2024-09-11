@@ -1,7 +1,7 @@
 /** \file   uiactions.c
- * \brief   UI action names and descriptions
+ * \brief   UI actions interface
  *
- * Provides names and descriptions for UI actions.
+ * System to handle UI actions in an OS/UI-agnostic way.
  *
  * Used by menu structs, hotkeys and joystick mappings. There will be no Doxygen
  * docblocks for most of the defines, since they're self-explanatory. And
@@ -32,20 +32,25 @@
 
 #include "vice.h"
 
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
-#include <stdbool.h>
 
 #include "archdep.h"
+#include "drive.h"
 #include "lib.h"
 #include "log.h"
 #include "machine.h"
+#include "uiapi.h"
+#include "vhkkeysyms.h"
 
 #include "uiactions.h"
 
 /* Enable debugging */
 /* #define DEBUG_ACTIONS */
+
+#define ARRAY_LEN(arr)  (sizeof (arr) / sizeof (arr[0]) )
 
 
 /** \brief  Mapping of action names to descriptions and machine support
@@ -66,7 +71,7 @@ typedef struct ui_action_info_private_s {
  */
 static const ui_action_info_private_t action_info_list[] = {
     /* smart attach */
-    { ACTION_SMART_ATTACH,      "smart-attach",         "Attach a medium to the emulator inspecting its type", VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_SMART_ATTACH,      "smart-attach",         "Smart-attach a medium to the emulator", VICE_MACHINE_ALL^VICE_MACHINE_VSID },
 
     /* disk image attach */
     { ACTION_DRIVE_ATTACH_8_0,  "drive-attach-8:0",     "Attach disk to unit 8, drive 0",   VICE_MACHINE_ALL^VICE_MACHINE_VSID },
@@ -156,8 +161,6 @@ static const ui_action_info_private_t action_info_list[] = {
     { ACTION_FLIPLIST_SAVE_11_1,        "fliplist-save-11:1",       "Save fliplist of unit 11, drive 1",                        VICE_MACHINE_ALL^VICE_MACHINE_VSID },
     { ACTION_FLIPLIST_CLEAR_11_1,       "fliplist-clear-11:1",      "Clear fliplist of unit 11, drive 1",                       VICE_MACHINE_ALL^VICE_MACHINE_VSID },
 
-
-
     /* datasette image */
     { ACTION_TAPE_ATTACH_1,     "tape-attach-1",        "Attach tape to datasette 1",               VICE_MACHINE_ALL^VICE_MACHINE_C64DTV^VICE_MACHINE_SCPU64^VICE_MACHINE_VSID },
     { ACTION_TAPE_ATTACH_2,     "tape-attach-2",        "Attach tape to datasette 2",               VICE_MACHINE_PET },
@@ -183,23 +186,57 @@ static const ui_action_info_private_t action_info_list[] = {
     { ACTION_TAPE_RESET_COUNTER_2,  "tape-reset-counter-2", "Reset datasette 2 counter",    VICE_MACHINE_PET },
 
     /* cartridge items */
-    { ACTION_CART_ATTACH,   "cart-attach",  "Attach cartridge",                 (VICE_MACHINE_C64|VICE_MACHINE_C64SC|VICE_MACHINE_SCPU64|
-                                                                                 VICE_MACHINE_VIC20|VICE_MACHINE_PLUS4|VICE_MACHINE_CBM6x0) },
-    { ACTION_CART_DETACH,   "cart-detach",  "Detach cartridge",                 (VICE_MACHINE_C64|VICE_MACHINE_C64SC|VICE_MACHINE_SCPU64|
-                                                                                 VICE_MACHINE_VIC20|VICE_MACHINE_PLUS4|VICE_MACHINE_CBM6x0) },
-    { ACTION_CART_FREEZE,   "cart-freeze",  "Press cartridge freeze button",    (VICE_MACHINE_C64|VICE_MACHINE_C64SC|VICE_MACHINE_SCPU64|
-                                                                                 VICE_MACHINE_VIC20|VICE_MACHINE_PLUS4|VICE_MACHINE_CBM6x0) },
+    { ACTION_CART_ATTACH,               "cart-attach",              "Attach CRT cartridge image",           (VICE_MACHINE_C64|VICE_MACHINE_C64SC|VICE_MACHINE_SCPU64|VICE_MACHINE_C128|
+                                                                                                             VICE_MACHINE_VIC20|VICE_MACHINE_PLUS4|VICE_MACHINE_CBM6x0) },
+    { ACTION_CART_ATTACH_RAW,           "cart-attach-raw",          "Attach raw cartridge image",           (VICE_MACHINE_C64|VICE_MACHINE_C64SC|VICE_MACHINE_SCPU64|VICE_MACHINE_C128|
+                                                                                                             VICE_MACHINE_VIC20|VICE_MACHINE_PLUS4|VICE_MACHINE_CBM6x0) },
+    { ACTION_CART_ATTACH_RAW_1000,      "cart-attach-raw-1000",     "Attach raw cartridge image at $1000",  VICE_MACHINE_CBM6x0 },
+    { ACTION_CART_ATTACH_RAW_2000,      "cart-attach-raw-2000",     "Attach raw cartridge image at $2000",  VICE_MACHINE_CBM6x0|VICE_MACHINE_VIC20 },
+    { ACTION_CART_ATTACH_RAW_4000,      "cart-attach-raw-4000",     "Attach raw cartridge image at $4000",  VICE_MACHINE_CBM6x0|VICE_MACHINE_VIC20 },
+    { ACTION_CART_ATTACH_RAW_6000,      "cart-attach-raw-6000",     "Attach raw cartridge image at $6000",  VICE_MACHINE_CBM6x0|VICE_MACHINE_VIC20 },
+    { ACTION_CART_ATTACH_RAW_A000,      "cart-attach-raw-a000",     "Attach raw cartridge image at $A000",  VICE_MACHINE_VIC20 },
+    { ACTION_CART_ATTACH_RAW_B000,      "cart-attach-raw-b000",     "Attach raw cartridge image at $B000",  VICE_MACHINE_VIC20 },
+    { ACTION_CART_ATTACH_RAW_BEHRBONZ,  "cart-attach-raw-behrbonz", "Attach Behr Bonz cartridge image",     VICE_MACHINE_VIC20 },
+    { ACTION_CART_ATTACH_RAW_FINAL,     "cart-attach-raw-final",    "Attach Final Expansion cartridge image", VICE_MACHINE_VIC20 },
+    { ACTION_CART_ATTACH_RAW_MEGACART,  "cart-attach-raw-megacart", "Attach Mega-Cart image",               VICE_MACHINE_VIC20 },
+    { ACTION_CART_ATTACH_RAW_ULTIMEM,   "cart-attach-raw-ultimem",  "Attach UltiMem cartridge image",       VICE_MACHINE_VIC20 },
+    { ACTION_CART_ATTACH_RAW_VICFP,     "cart-attach-raw-vicfp",    "Attach Vic Flash Plugin cartridge image", VICE_MACHINE_VIC20 },
+    { ACTION_CART_ATTACH_RAW_JACINT1MB, "cart-attach-raw-jacint1mb", "Attach 1MB Cartridge image",           VICE_MACHINE_PLUS4 },
+    { ACTION_CART_ATTACH_RAW_MAGIC,     "cart-attach-raw-magic",    "Attach c264 magic cart image",         VICE_MACHINE_PLUS4 },
+    { ACTION_CART_ATTACH_RAW_MULTI,     "cart-attach-raw-multi",    "Attach multi cart image",              VICE_MACHINE_PLUS4 },
+    { ACTION_CART_ATTACH_RAW_C1_FULL,   "cart-attach-raw-c1-full",  "Attach full C1 cartridge image",       VICE_MACHINE_PLUS4 },
+    { ACTION_CART_ATTACH_RAW_C1_LOW,    "cart-attach-raw-c1-low",   "Attach low C1 cartridge image",        VICE_MACHINE_PLUS4 },
+    { ACTION_CART_ATTACH_RAW_C1_HIGH,   "cart-attach-raw-c1-high",  "Attach high C1 cartridge image",       VICE_MACHINE_PLUS4 },
+    { ACTION_CART_ATTACH_RAW_C2_FULL,   "cart-attach-raw-c2-full",  "Attach full C2 cartridge image",       VICE_MACHINE_PLUS4 },
+    { ACTION_CART_ATTACH_RAW_C2_LOW,    "cart-attach-raw-c2-low",   "Attach low C2 cartridge image",        VICE_MACHINE_PLUS4 },
+    { ACTION_CART_ATTACH_RAW_C2_HIGH,   "cart-attach-raw-c2-high",  "Attach high C2 cartridge image",       VICE_MACHINE_PLUS4 },
+    { ACTION_CART_DETACH,               "cart-detach",              "Detach cartridge",                     (VICE_MACHINE_C64|VICE_MACHINE_C64SC|VICE_MACHINE_SCPU64|
+                                                                                                             VICE_MACHINE_C128|VICE_MACHINE_PLUS4|VICE_MACHINE_CBM6x0) },
+    { ACTION_CART_FREEZE,               "cart-freeze",              "Press cartridge freeze button",        (VICE_MACHINE_C64|VICE_MACHINE_C64SC|VICE_MACHINE_SCPU64|VICE_MACHINE_C128) },
+    { ACTION_CART_DETACH_1000,          "cart-detach-1000",         "Detach cartridge image at $1000",      VICE_MACHINE_CBM6x0 },
+    { ACTION_CART_DETACH_2000,          "cart-detach-2000",         "Detach cartridge image at $2000",      VICE_MACHINE_CBM6x0 },
+    { ACTION_CART_DETACH_4000,          "cart-detach-4000",         "Detach cartridge image at $4000",      VICE_MACHINE_CBM6x0 },
+    { ACTION_CART_DETACH_6000,          "cart-detach-6000",         "Detach cartridge image at $6000",      VICE_MACHINE_CBM6x0 },
 
     /* open monitor */
     { ACTION_MONITOR_OPEN,      "monitor-open",         "Open monitor",                         VICE_MACHINE_ALL },
 
     /* reset items */
-    { ACTION_RESET_SOFT,        "reset-soft",           "Soft-reset the machine",               VICE_MACHINE_ALL },
-    { ACTION_RESET_HARD,        "reset-hard",           "Hard-reset the machine",               VICE_MACHINE_ALL },
-    { ACTION_RESET_DRIVE_8,     "reset-drive-8",        "Reset drive 8",                        VICE_MACHINE_ALL^VICE_MACHINE_VSID },
-    { ACTION_RESET_DRIVE_9,     "reset-drive-9",        "Reset drive 9",                        VICE_MACHINE_ALL^VICE_MACHINE_VSID },
-    { ACTION_RESET_DRIVE_10,    "reset-drive-10",       "Reset drive 10",                       VICE_MACHINE_ALL^VICE_MACHINE_VSID },
-    { ACTION_RESET_DRIVE_11,    "reset-drive-11",       "Reset drive 11",                       VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_MACHINE_RESET_CPU,      "machine-reset-cpu",       "Reset the machine CPU",                VICE_MACHINE_ALL },
+    { ACTION_MACHINE_POWER_CYCLE,    "machine-power-cycle",     "Power cycle the machine",              VICE_MACHINE_ALL },
+
+    { ACTION_RESET_DRIVE_8,          "reset-drive-8",           "Reset drive 8",                        VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_RESET_DRIVE_8_CONFIG,   "reset-drive-8-config",    "Reset drive 8 in configuration mode",  VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_RESET_DRIVE_8_INSTALL,  "reset-drive-8-install",   "Reset drive 8 in installation mode",   VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_RESET_DRIVE_9,          "reset-drive-9",           "Reset drive 9",                        VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_RESET_DRIVE_9_CONFIG,   "reset-drive-9-config",    "Reset drive 9 in configuration mode",  VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_RESET_DRIVE_9_INSTALL,  "reset-drive-9-install",   "Reset drive 9 in installation mode",   VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_RESET_DRIVE_10,         "reset-drive-10",          "Reset drive 10",                       VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_RESET_DRIVE_10_CONFIG,  "reset-drive-10-config",   "Reset drive 10 in configuration mode", VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_RESET_DRIVE_10_INSTALL, "reset-drive-10-install",  "Reset drive 10 in installation mode",  VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_RESET_DRIVE_11,         "reset-drive-11",          "Reset drive 11",                       VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_RESET_DRIVE_11_CONFIG,  "reset-drive-11-config",   "Reset drive 11 in configuration mode", VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_RESET_DRIVE_11_INSTALL, "reset-drive-11-install",  "Reset drive 11 in installation mode",  VICE_MACHINE_ALL^VICE_MACHINE_VSID },
 
     /* quit emulator */
     { ACTION_QUIT,              "quit",                 "Quit emulator",                        VICE_MACHINE_ALL },
@@ -215,7 +252,7 @@ static const ui_action_info_private_t action_info_list[] = {
 
     /* CPU speed presets and custom speed */
     { ACTION_SPEED_CPU_10,      "speed-cpu-10",         "Set CPU speed to 10%",                 VICE_MACHINE_ALL^VICE_MACHINE_VSID },
-    { ACTION_SPEED_CPU_20,      "speed-cpu-20",         "Set CPU speed to 20%",                 VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_SPEED_CPU_25,      "speed-cpu-25",         "Set CPU speed to 25%",                 VICE_MACHINE_ALL^VICE_MACHINE_VSID },
     { ACTION_SPEED_CPU_50,      "speed-cpu-50",         "Set CPU speed to 50%",                 VICE_MACHINE_ALL^VICE_MACHINE_VSID },
     { ACTION_SPEED_CPU_100,     "speed-cpu-100",        "Set CPU speed to 100%",                VICE_MACHINE_ALL^VICE_MACHINE_VSID },
     { ACTION_SPEED_CPU_200,     "speed-cpu-200",        "Set CPU speed to 200%",                VICE_MACHINE_ALL^VICE_MACHINE_VSID },
@@ -225,13 +262,14 @@ static const ui_action_info_private_t action_info_list[] = {
     { ACTION_SPEED_FPS_50,      "speed-fps-50",         "Set video clock to 50Hz",              VICE_MACHINE_ALL^VICE_MACHINE_VSID },
     { ACTION_SPEED_FPS_60,      "speed-fps-60",         "Set video clock to 60Hz",              VICE_MACHINE_ALL^VICE_MACHINE_VSID },
     { ACTION_SPEED_FPS_CUSTOM,  "speed-fps-custom",     "Set custom video clock",               VICE_MACHINE_ALL^VICE_MACHINE_VSID },
-    { ACTION_SPEED_FPS_REAL,    "speed-fps-50",         "Set real video clock",                 VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_SPEED_FPS_REAL,    "speed-fps-real",       "Set real video clock",                 VICE_MACHINE_ALL^VICE_MACHINE_VSID },
 
     /* fullscreen, fullscreen decs, restore display */
-    { ACTION_FULLSCREEN_TOGGLE,             "fullscreen-toggle",                "Toggle fullscreen",                        VICE_MACHINE_ALL^VICE_MACHINE_VSID },
-    { ACTION_FULLSCREEN_DECORATIONS_TOGGLE, "fullscreen-decorations-toggle",    "Show menu/status in fullscreen",           VICE_MACHINE_ALL^VICE_MACHINE_VSID },
-    { ACTION_SHOW_STATUSBAR_TOGGLE,         "show-statusbar-toggle",            "Show status bar",                          VICE_MACHINE_ALL^VICE_MACHINE_VSID },
-    { ACTION_RESTORE_DISPLAY,               "restore-display",                  "Resize application window to fit content", VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_FULLSCREEN_TOGGLE,                 "fullscreen-toggle",                "Toggle fullscreen",                        VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_FULLSCREEN_DECORATIONS_TOGGLE,     "fullscreen-decorations-toggle",    "Show menu/status in fullscreen",           VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_SHOW_STATUSBAR_TOGGLE,             "show-statusbar-toggle",            "Show status bar",                          VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_SHOW_STATUSBAR_SECONDARY_TOGGLE,   "show-statusbar-secondary-toggle",  "Show secondary status bar",                VICE_MACHINE_C128 },
+    { ACTION_RESTORE_DISPLAY,                   "restore-display",                  "Resize window to fit content",             VICE_MACHINE_ALL^VICE_MACHINE_VSID },
 
     /* joystick, mouse etc */
     { ACTION_SWAP_CONTROLPORT_TOGGLE,   "swap-controlport-toggle",  "Swap controlport joysticks",   (VICE_MACHINE_C64|VICE_MACHINE_C64SC|VICE_MACHINE_C64DTV|VICE_MACHINE_SCPU64|
@@ -242,10 +280,10 @@ static const ui_action_info_private_t action_info_list[] = {
     /* settings items */
     { ACTION_SETTINGS_DIALOG,       "settings-dialog",      "Open settings",                        VICE_MACHINE_ALL },
     { ACTION_SETTINGS_LOAD,         "settings-load",        "Load settings",                        VICE_MACHINE_ALL },
-    { ACTION_SETTINGS_LOAD_FROM,    "settings-load-from",   "Load settings from alternate file",    VICE_MACHINE_ALL },
+    { ACTION_SETTINGS_LOAD_FROM,    "settings-load-from",   "Load settings from custom file",       VICE_MACHINE_ALL },
     { ACTION_SETTINGS_LOAD_EXTRA,   "settings-load-extra",  "Load additional settings",             VICE_MACHINE_ALL },
     { ACTION_SETTINGS_SAVE,         "settings-save",        "Save settings",                        VICE_MACHINE_ALL },
-    { ACTION_SETTINGS_SAVE_TO,      "settings-save-to",     "Save settings to alternate file",      VICE_MACHINE_ALL },
+    { ACTION_SETTINGS_SAVE_TO,      "settings-save-to",     "Save settings to custom file",         VICE_MACHINE_ALL },
     { ACTION_SETTINGS_DEFAULT,      "settings-default",     "Restore default settings",             VICE_MACHINE_ALL },
 
     /* snapshots, media recording, events */
@@ -259,7 +297,10 @@ static const ui_action_info_private_t action_info_list[] = {
     { ACTION_HISTORY_PLAYBACK_STOP,     "history-playback-stop",    "Stop playing back events",         VICE_MACHINE_ALL^VICE_MACHINE_VSID },
     { ACTION_HISTORY_MILESTONE_SET,     "history-milestone-set",    "Set recording milestone",          VICE_MACHINE_ALL^VICE_MACHINE_VSID },
     { ACTION_HISTORY_MILESTONE_RESET,   "history-milestone-reset",  "Return to recording milestone",    VICE_MACHINE_ALL^VICE_MACHINE_VSID },
-    { ACTION_MEDIA_RECORD,              "media-record",             "Record media",                     VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_MEDIA_RECORD,              "media-record",             "Start recording media",            VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_MEDIA_RECORD_AUDIO,        "media-record-audio",       "Start recording audio",            VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_MEDIA_RECORD_SCREENSHOT,   "media-record-screenshot",  "Take screenshot",                  VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_MEDIA_RECORD_VIDEO,        "media-record-video",       "Start recording video",            VICE_MACHINE_ALL^VICE_MACHINE_VSID },
     { ACTION_MEDIA_STOP,                "media-stop",               "Stop media recording",             VICE_MACHINE_ALL^VICE_MACHINE_VSID },
     { ACTION_SCREENSHOT_QUICKSAVE,      "screenshot-quicksave",     "Quiksave screenshot",              VICE_MACHINE_ALL^VICE_MACHINE_VSID },
 
@@ -332,6 +373,7 @@ static const ui_action_info_private_t action_info_list[] = {
     { ACTION_PSID_SUBTUNE_29,           "psid-subtune-29",          "Play subtune #29",         VICE_MACHINE_VSID },
     { ACTION_PSID_SUBTUNE_30,           "psid-subtune-30",          "Play subtune #30",         VICE_MACHINE_VSID },
 
+    { ACTION_PSID_SUBTUNE_DEFAULT,      "psid-subtune-default",     "Play default subtune",     VICE_MACHINE_VSID },
     { ACTION_PSID_SUBTUNE_NEXT,         "psid-subtune-next",        "Play next subtune",        VICE_MACHINE_VSID },
     { ACTION_PSID_SUBTUNE_PREVIOUS,     "psid-subtune-previous",    "Play previous subtune",    VICE_MACHINE_VSID },
 
@@ -345,10 +387,31 @@ static const ui_action_info_private_t action_info_list[] = {
     { ACTION_PSID_PLAYLIST_PREVIOUS,    "psid-playlist-previous",   "Play previous tune in the playlist",   VICE_MACHINE_VSID },
     { ACTION_PSID_PLAYLIST_NEXT,        "psid-playlist-next",       "Play next tune in the playlist",       VICE_MACHINE_VSID },
     { ACTION_PSID_PLAYLIST_LAST,        "psid-playlist-last",       "Play last tune in the playlist",       VICE_MACHINE_VSID },
-    { ACTION_PSID_PLAYLIST_ADD,         "psid-playlist-add",        "Show dialog to add files to the playlist", VICE_MACHINE_VSID },
-    { ACTION_PSID_PLAYLIST_LOAD,        "psid-playlist-load",       "Show dialog to load a playlist",       VICE_MACHINE_VSID },
-    { ACTION_PSID_PLAYLIST_SAVE,        "psid-playlist-save",       "Show dialog to save the playlist",     VICE_MACHINE_VSID },
+    { ACTION_PSID_PLAYLIST_ADD,         "psid-playlist-add",        "Add files to the playlist",            VICE_MACHINE_VSID },
+    { ACTION_PSID_PLAYLIST_LOAD,        "psid-playlist-load",       "Load a playlist",                      VICE_MACHINE_VSID },
+    { ACTION_PSID_PLAYLIST_SAVE,        "psid-playlist-save",       "Save the playlist",                    VICE_MACHINE_VSID },
     { ACTION_PSID_PLAYLIST_CLEAR,       "psid-playlist-clear",      "Clear the playlist",                   VICE_MACHINE_VSID },
+
+    /* xpet */
+    { ACTION_DIAGNOSTIC_PIN_TOGGLE,     "diagnostic-pin-toggle",    "Toggle PET userport diagnostic pin",   VICE_MACHINE_PET },
+
+    /* printers */
+    { ACTION_PRINTER_FORMFEED_4,        "printer-formfeed-4",       "Send form feed to printer #4",         VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_PRINTER_FORMFEED_5,        "printer-formfeed-5",       "Send form feed to printer #5",         VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_PRINTER_FORMFEED_6,        "printer-formfeed-6",       "Send form feed to plotter #6",         VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+    { ACTION_PRINTER_FORMFEED_USERPORT, "printer-formfeed-userport", "Send form feed to userport printer",  VICE_MACHINE_C64|VICE_MACHINE_C64SC|VICE_MACHINE_SCPU64|VICE_MACHINE_C128|VICE_MACHINE_VIC20|VICE_MACHINE_PET|VICE_MACHINE_CBM6x0 },
+
+    { ACTION_VIRTUAL_KEYBOARD,          "virtual-keyboard",         "Activate virtual keyboard",            VICE_MACHINE_ALL^VICE_MACHINE_VSID },
+
+    /* Border modes (also invalid for x128's VDC window) */
+    { ACTION_BORDER_MODE_NORMAL,        "border-mode-normal",       "Set border mode to Normal",            VICE_MACHINE_ALL^VICE_MACHINE_VSID^VICE_MACHINE_CBM6x0^VICE_MACHINE_PET },
+    { ACTION_BORDER_MODE_FULL,          "border-mode-full",         "Set border mode to Full",              VICE_MACHINE_ALL^VICE_MACHINE_VSID^VICE_MACHINE_CBM6x0^VICE_MACHINE_PET },
+    { ACTION_BORDER_MODE_DEBUG,         "border-mode-debug",        "Set border mode to Debug",             VICE_MACHINE_ALL^VICE_MACHINE_VSID^VICE_MACHINE_CBM6x0^VICE_MACHINE_PET },
+    { ACTION_BORDER_MODE_NONE,          "border-mode-none",         "Set border mode to None",              VICE_MACHINE_ALL^VICE_MACHINE_VSID^VICE_MACHINE_CBM6x0^VICE_MACHINE_PET },
+
+    /* SCPU64 switches */
+    { ACTION_SCPU_JIFFY_SWITCH_TOGGLE,  "scpu-jiffy-switch-toggle", "Toggle SCPU JiffyDOS switch",          VICE_MACHINE_SCPU64 },
+    { ACTION_SCPU_SPEED_SWITCH_TOGGLE,  "scpu-speed-switch-toggle", "Toggle SCPU Speed switch",             VICE_MACHINE_SCPU64 },
 
     { ACTION_INVALID, NULL, NULL, 0 }
 };
@@ -364,7 +427,6 @@ static bool is_current_machine_action(const ui_action_info_private_t *action)
 {
     return (bool)(action->machine & machine_class);
 }
-
 
 /** \brief  Get "private" info about a UI action
  *
@@ -487,9 +549,9 @@ ui_action_info_t *ui_action_get_info_list(void)
     /* create list of valid actions */
     list = lib_malloc((valid + 1) * sizeof *list);
     action = action_info_list;
-    while (action-> name != NULL) {
+    while (action->name != NULL) {
         if (is_current_machine_action(action)) {
-            list[index].id = action->id;
+            list[index].id   = action->id;
             list[index].name = action->name;
             list[index].desc = action->desc;
             index++;
@@ -575,6 +637,27 @@ static const int drive_detach_ids[4][2] = {
     { ACTION_DRIVE_DETACH_9_0,  ACTION_DRIVE_DETACH_9_1 },
     { ACTION_DRIVE_DETACH_10_0, ACTION_DRIVE_DETACH_10_1 },
     { ACTION_DRIVE_DETACH_11_0, ACTION_DRIVE_DETACH_11_1 }
+};
+
+static const int drive_reset_ids[4] = {
+    ACTION_RESET_DRIVE_8,
+    ACTION_RESET_DRIVE_9,
+    ACTION_RESET_DRIVE_10,
+    ACTION_RESET_DRIVE_11
+};
+
+static const int drive_reset_config_ids[4] = {
+    ACTION_RESET_DRIVE_8_CONFIG,
+    ACTION_RESET_DRIVE_9_CONFIG,
+    ACTION_RESET_DRIVE_10_CONFIG,
+    ACTION_RESET_DRIVE_11_CONFIG
+};
+
+static const int drive_reset_install_ids[4] = {
+    ACTION_RESET_DRIVE_8_INSTALL,
+    ACTION_RESET_DRIVE_9_INSTALL,
+    ACTION_RESET_DRIVE_10_INSTALL,
+    ACTION_RESET_DRIVE_11_INSTALL
 };
 
 
@@ -711,19 +794,60 @@ int ui_action_id_drive_detach(int unit, int drive)
 }
 
 
+/** \brief  Get reset-drive action ID for unit
+ *
+ * \param[in]   unit    unit number (8-11)
+ *
+ * \return  action ID or `ACTION_NONE` for invalud \a unit
+ */
+int ui_action_id_drive_reset(int unit)
+{
+    if (unit >= DRIVE_UNIT_MIN && unit <= DRIVE_UNIT_MAX) {
+        return drive_reset_ids[unit - DRIVE_UNIT_MIN];
+    }
+    return ACTION_NONE;
+}
+
+
+/** \brief  Get reset-drive-config action ID for unit
+ *
+ * \param[in]   unit    unit number (8-11)
+ *
+ * \return  action ID or `ACTION_NONE` for invalud \a unit
+ */
+int ui_action_id_drive_reset_config(int unit)
+{
+    if (unit >= DRIVE_UNIT_MIN && unit <= DRIVE_UNIT_MAX) {
+        return drive_reset_config_ids[unit - DRIVE_UNIT_MIN];
+    }
+    return ACTION_NONE;
+}
+
+
+/** \brief  Get reset-drive-install action ID for unit
+ *
+ * \param[in]   unit    unit number (8-11)
+ *
+ * \return  action ID or `ACTION_NONE` for invalud \a unit
+ */
+int ui_action_id_drive_reset_install(int unit)
+{
+    if (unit >= DRIVE_UNIT_MIN && unit <= DRIVE_UNIT_MAX) {
+        return drive_reset_install_ids[unit - DRIVE_UNIT_MIN];
+    }
+    return ACTION_NONE;
+}
+
+
+/******************************************************************************
+ *                            UI action mappings                              *
+ *****************************************************************************/
+
 /** \brief  List of mappings of action IDs to handlers
  *
- * Will be allocated and reallocated when adding mappings.
+ * A simple array indexed by action ID
  */
-static ui_action_map_t *action_mappings;
-
-/** \brief  Size of the mappings array in elements
- */
-static size_t action_mappings_size = 0;
-
-/** \brief  Number of elements in the mappings array
- */
-static size_t action_mappings_count = 0;
+static ui_action_map_t action_mappings[ACTION_ID_COUNT];
 
 /** \brief  Flag indicating a dialog is active
  *
@@ -736,29 +860,26 @@ static bool dialog_active = false;
 /** \brief  UI action dispatch handler
  *
  * Function to trigger the action handler on the proper thread in a UI.
+ * This can remain `NULL` in which case the handler of an action is called
+ * directly on the thread that called ui_action_trigger().
  */
-static void (*dispatch_handler)(const ui_action_map_t *) = NULL;
+static void (*dispatch_handler)(ui_action_map_t *) = NULL;
 
 
-/** \brief  Find action mapping by action ID
+/** \brief  Find action mapping by action ID with valid handler
  *
  * \param[in]   action  action ID
  *
- * \return  action mapping or `NULL` when not found
+ * \return  action mapping or `NULL` when no handler registered
  */
 static ui_action_map_t *find_action_map(int action)
 {
-    ui_action_map_t *map = action_mappings;
-
     if (action < ACTION_NONE || action >= ACTION_ID_COUNT) {
         return NULL;
     }
 
-    while (map->action > ACTION_NONE) {
-        if (map->action == action) {
-            return map;
-        }
-        map++;
+    if (action_mappings[action].handler != NULL) {
+        return &action_mappings[action];
     }
     return NULL;
 }
@@ -772,24 +893,43 @@ static ui_action_map_t *find_action_map(int action)
  */
 void ui_actions_init(void)
 {
-#if defined(USE_GTK3UI) || defined(USE_SDL1UI) || defined(USE_SDL2UI)
-    action_mappings_size = 64;
-    action_mappings_count = 0;
-    action_mappings = lib_malloc(sizeof *action_mappings * action_mappings_size);
-    /* properly terminate list, when adding an action we first scan the list
-     * if the action is already registered */
-    action_mappings[0].action = ACTION_NONE;
+#if defined(USE_GTK3UI) || defined(USE_SDLUI) || defined(USE_SDL2UI)
+    int action;
+
+    for (action = 0; action < ACTION_ID_COUNT; action++) {
+        ui_action_map_t *map = &action_mappings[action];
+
+        /* explicitly initialize elements */
+        map->action       = action; /* needed when passing a pointer into the array */
+        map->handler      = NULL;
+        map->data         = NULL;
+        map->blocks       = false;
+        map->dialog       = false;
+        map->uithread     = false;
+        map->is_busy      = false;
+        map->vice_keysym  = 0;
+        map->vice_modmask = 0;
+        map->arch_keysym  = 0;
+        map->arch_modmask = 0;
+        map->menu_item[0] = NULL;
+        map->menu_item[1] = NULL;
+        map->user_data    = NULL;
+    }
+    dialog_active = false;
 #endif
 }
 
 
 /** \brief  Set UI-specific function to dispatch UI action handlers
  *
- * \param[in]   dispatch    function to call with an action handler as its
- *                          argument to have the UI actually invoke the handler
- *                          on the proper thread
+ * \param[in]   dispatch    function to call with an action map as its argument
+ *                          to have the UI actually invoke the handler on the
+ *                          proper thread
+ *
+ * \note    Installing a dispatch handler is optional, when not installed an
+ *          action's handler is called directly by ui_action_trigger().
  */
-void ui_actions_set_dispatch(void (*dispatch)(const ui_action_map_t *))
+void ui_actions_set_dispatch(void (*dispatch)(ui_action_map_t *))
 {
     dispatch_handler = dispatch;
 }
@@ -799,18 +939,11 @@ void ui_actions_set_dispatch(void (*dispatch)(const ui_action_map_t *))
  */
 void ui_actions_shutdown(void)
 {
-#if defined(USE_GTK3UI) || defined(USE_SDL1UI) || defined(USE_SDL2UI)
-    if (action_mappings != NULL) {
-        lib_free(action_mappings);
-        action_mappings = NULL;
-    }
+#if defined(USE_GTK3UI) || defined(USE_SDLUI) || defined(USE_SDL2UI)
+    /* NOP for now */
 #endif
 }
 
-const ui_action_map_t *ui_actions_get_registered(void)
-{
-    return action_mappings;
-}
 
 /** \brief  Register UI action implementations
  *
@@ -826,7 +959,7 @@ void ui_actions_register(const ui_action_map_t *mappings)
         ui_action_map_t *entry;
 
         /* first check if the action is already registered */
-        if (find_action_map(map->action) != NULL) {
+        if (action_mappings[map->action].handler != NULL) {
             log_error(LOG_ERR,
                       "Handler for action %d (%s) already present, skipping.",
                       map->action, ui_action_get_name(map->action));
@@ -834,27 +967,14 @@ void ui_actions_register(const ui_action_map_t *mappings)
             continue;
         }
 
-        /* do we need to reallocate the array? (-1 for the terminator) */
-        if ((action_mappings_size - 1) == action_mappings_count) {
-            /* yup, double its size */
-            action_mappings_size *= 2;
-            action_mappings = lib_realloc(action_mappings,
-                                          sizeof *action_mappings * action_mappings_size);
-        }
-
-        entry = &action_mappings[action_mappings_count];
-        entry->action  = map->action;
-        entry->handler = map->handler;
-        entry->blocks  = map->blocks;
-        entry->dialog  = map->dialog;
+        entry = &action_mappings[map->action];
+        entry->action   = map->action;
+        entry->handler  = map->handler;
+        entry->data     = map->data;
+        entry->blocks   = map->blocks;
+        entry->dialog   = map->dialog;
         entry->uithread = map->uithread;
-        entry->is_busy = false;
-
-        action_mappings_count++;
-        /* terminate list: needs to happen inside the loop since we search
-         * the array to determine if an action is already registered */
-        action_mappings[action_mappings_count].action  = ACTION_NONE;
-
+        entry->is_busy  = false;
         map++;;
     }
 }
@@ -862,15 +982,11 @@ void ui_actions_register(const ui_action_map_t *mappings)
 
 /** \brief  Trigger a UI action
  *
- * Calls the action's handler if conditions are met.
+ * Calls the action dispatch handler if conditions are met.
  *
  * If an action is marked as a dialog then it will only be triggered when there
  * is no other dialog active. If an action is marked as blocking i will only be
- * triggered when it isn't marked as busy. If an action is either marked as a
- * dialog or as an action that needs the UI thread then it will be dispatched
- * to the UI's dispatcher to push the handler onto the UI thread, if not the
- * action is executed directly, meaning it runs on the thread that invoked this
- * function.
+ * triggered when it isn't marked as busy.
  *
  * \param[in]   action  action ID
  *
@@ -878,19 +994,19 @@ void ui_actions_register(const ui_action_map_t *mappings)
  */
 void ui_action_trigger(int action)
 {
-    ui_action_map_t *map;
-
-    if (dispatch_handler == NULL) {
-        log_error(LOG_ERR, "action handler dispatcher not installed.");
-        return;
-    }
-
-    map = find_action_map(action);
+    ui_action_map_t *map = find_action_map(action);
     if (map != NULL) {
+#ifdef DEBUG_ACTIONS
+        const char *name = ui_action_get_name(action);
+#endif
+
        /* handle blocking actions */
         if (map->blocks) {
             if (map->is_busy) {
                 /* action is still busy, skip */
+#ifdef DEBUG_ACTIONS
+                printf("%s(): blocking action %s is still busy\n", __func__, name);
+#endif
                 return;
             }
             /* mark action busy */
@@ -899,19 +1015,30 @@ void ui_action_trigger(int action)
 
         /* handle dialogs, only one can be active at a time */
         if (map->dialog) {
+#ifdef DEBUG_ACTIONS
+            printf("%s(): dialog action %s\n", __func__, name);
+#endif
             if (dialog_active) {
+#ifdef DEBUG_ACTIONS
+                printf("%s(): a dialog is already active, exiting\n", __func__);
+#endif
                 return;
             }
+#ifdef DEBUG_ACTIONS
+            printf("%s(): setting `dialog_active = true`\n", __func__);
+#endif
             dialog_active = true;
         }
 
-        /* dispatch to UI? */
-        if (map->uithread || map->dialog) {
-            /* yes, call the UI-specific dispatcher */
+        /* pass to dispatch handler */
+        if (dispatch_handler != NULL) {
             dispatch_handler(map);
         } else {
-            /* no, call directly without pushing onto the UI thread */
-            map->handler();
+            /* default handler: trigger directly */
+#ifdef DEBUG_ACTIONS
+            printf("%s(): calling handler for %s directly\n", __func__, name);
+#endif
+            map->handler(map);
         }
     } else {
         log_error(LOG_ERR, "no handler for action %d\n", action);
@@ -932,22 +1059,218 @@ void ui_action_finish(int action)
 #ifdef DEBUG_ACTIONS
     const char *name = ui_action_get_name(action);
 
-    log_debug("%s(): called for %d (%s).",
-              __func__, action, name != NULL ? name : "<no name>");
+    printf("%s(): called for %d (%s).",
+           __func__, action, name != NULL ? name : "<no name>");
 #endif
 
     if (map != NULL) {
         /* clear all state flags for the action */
 #ifdef DEBUG_ACTIONS
-        log_debug("%s(): clearing state flags.", __func__);
+        printf("%s(): clearing state flags.", __func__);
 #endif
         map->is_busy = false;
         /* clear global dialog flag */
         if (map->dialog) {
 #ifdef DEBUG_ACTIONS
-            log_debug("%s(): clearing global dialog-active flag.", __func__);
+            printf("%s(): clearing global dialog-active flag.", __func__);
 #endif
             dialog_active = false;
         }
     }
+}
+
+
+/*
+ * Additional code for the hotkeys
+ */
+
+/** \brief  Check if \a action is a valid index in the mappings array
+ *
+ * \param[in]   action  UI action ID
+ *
+ * \return  `true` if valid index
+ */
+static bool is_valid_index(int action)
+{
+    return (action >= 0 && action < (int)ARRAY_LEN(action_mappings));
+}
+
+
+/** \brief  Get UI action map by UI action ID
+ *
+ * \param[in]   action  UI action ID
+ *
+ * \return  UI action map or `NULL` when \a action is invalid
+ */
+ui_action_map_t *ui_action_map_get(int action)
+{
+    if (is_valid_index(action)) {
+        return &action_mappings[action];
+    }
+    return NULL;
+}
+
+
+/** \brief  Get UI action map by VICE hotkey
+ *
+ * \param[in]   vice_keysym     VICE keysym
+ * \param[in]   vice_modmask    VICE modifier mask
+ *
+ * \return  UI action map or `NULL` when not found
+ */
+ui_action_map_t *ui_action_map_get_by_hotkey(uint32_t vice_keysym,
+                                             uint32_t vice_modmask)
+{
+    if (vice_keysym != 0) {
+        size_t action;
+
+        for (action = 0; action < ARRAY_LEN(action_mappings); action++) {
+            ui_action_map_t *map = &action_mappings[action];
+            if (map->vice_keysym == vice_keysym && map->vice_modmask == vice_modmask) {
+                return map;
+            }
+        }
+    }
+    return NULL;
+}
+
+
+/** \brief  Get UI action map by arch hotkey
+ *
+ * \param[in]   arch_keysym     arch keysym
+ * \param[in]   arch_modmask    arch modifier mask
+ *
+ * \return  UI action map or `NULL` when not found
+ */
+ui_action_map_t *ui_action_map_get_by_arch_hotkey(uint32_t arch_keysym,
+                                                  uint32_t arch_modmask)
+{
+    uint32_t vice_keysym  = ui_hotkeys_arch_keysym_from_arch(arch_keysym);
+    uint32_t vice_modmask = ui_hotkeys_arch_modmask_from_arch(arch_modmask);
+
+    return ui_action_map_get_by_hotkey(vice_keysym, vice_modmask);
+}
+
+
+/** \brief  Clear hotkey
+ *
+ * Set the VICE and arch keysyms and modifier masks to 0 in \a map.
+ *
+ * \param[in]   map     UI action map
+ */
+void ui_action_map_clear_hotkey(ui_action_map_t *map)
+{
+    map->vice_keysym  = 0;
+    map->vice_modmask = 0;
+    map->arch_keysym  = 0;
+    map->arch_modmask = 0;
+}
+
+
+/** \brief  Clear hotkey
+ *
+ * Set VICE and arch keysyms and modifier masks to 0.
+ *
+ * \param[in]   action  UI action ID
+ */
+void ui_action_map_clear_hotkey_by_action(int action)
+{
+    ui_action_map_t *map = ui_action_map_get(action);
+    if (map != NULL) {
+        ui_action_map_clear_hotkey(map);
+    }
+}
+
+
+/** \brief  Clear hotkey
+ *
+ * Set VICE and arch keysyms and modifier masks to 0.
+ *
+ * \param[in]   vice_keysym     VICE keysym
+ * \param[in]   vice_modmask    VICE modifier mask
+ */
+void ui_action_map_clear_hotkey_by_hotkey(uint32_t vice_keysym,
+                                          uint32_t vice_modmask)
+{
+    ui_action_map_t *map = ui_action_map_get_by_hotkey(vice_keysym, vice_modmask);
+    if (map != NULL) {
+        ui_action_map_clear_hotkey(map);
+    }
+}
+
+
+/** \brief  Set hotkey for action
+ *
+ * \param[in]   action          action ID
+ * \param[in]   vice_keysym     VICE keysym
+ * \param[in]   vice_modmask    VICE modifier mask
+ * \param[in]   arch_keysym     arch keysym
+ * \param[in]   arch_modmask    arch modifier mask
+ *
+ * \return  pointer to map or `NULL` on error
+ */
+ui_action_map_t *ui_action_map_set_hotkey(int       action,
+                                          uint32_t  vice_keysym,
+                                          uint32_t  vice_modmask,
+                                          uint32_t  arch_keysym,
+                                          uint32_t  arch_modmask)
+{
+    ui_action_map_t *map = ui_action_map_get(action);
+    if (map != NULL) {
+        map->action       = action;
+        map->vice_keysym  = vice_keysym;
+        map->vice_modmask = vice_modmask;
+        map->arch_keysym  = arch_keysym;
+        map->arch_modmask = arch_modmask;
+    }
+    return map;
+}
+
+
+/** \brief  Set hotkey for action
+ *
+ * \param[in]   map             UI action map
+ * \param[in]   vice_keysym     VICE keysym
+ * \param[in]   vice_modmask    VICE modifier mask
+ * \param[in]   arch_keysym     arch keysym
+ * \param[in]   arch_modmask    arch modifier mask
+ */
+void ui_action_map_set_hotkey_by_map(ui_action_map_t *map,
+                                     uint32_t         vice_keysym,
+                                     uint32_t         vice_modmask,
+                                     uint32_t         arch_keysym,
+                                     uint32_t         arch_modmask)
+{
+    map->vice_keysym  = vice_keysym;
+    map->vice_modmask = vice_modmask;
+    map->arch_keysym  = arch_keysym;
+    map->arch_modmask = arch_modmask;
+}
+
+
+/** \brief  Get hotkey label for action map
+ *
+ * \param[in]   map     UI action map
+ *
+ * \return  label for hotkey, free with \c lib_free()
+ */
+char *ui_action_map_get_hotkey_label(ui_action_map_t *map)
+{
+    return vhk_hotkey_label(map->vice_keysym, map->vice_modmask);
+}
+
+
+/** \brief  Get hotkey label for action ID
+ *
+ * \param[in]   action  UI action ID
+ *
+ * \return  label for hotkey, free with \c lib_free()
+ */
+char *ui_action_get_hotkey_label(int action)
+{
+    ui_action_map_t *map = ui_action_map_get(action);
+    if (map != NULL) {
+        return ui_action_map_get_hotkey_label(map);
+    }
+    return NULL;
 }

@@ -126,21 +126,21 @@ am_libc64cart_a_OBJECTS = actionreplay2.$(OBJEXT) \
 	final3.$(OBJEXT) finalplus.$(OBJEXT) formel64.$(OBJEXT) \
 	freezeframe.$(OBJEXT) freezeframe2.$(OBJEXT) \
 	freezemachine.$(OBJEXT) funplay.$(OBJEXT) gamekiller.$(OBJEXT) \
-	gmod2.$(OBJEXT) gmod3.$(OBJEXT) gs.$(OBJEXT) ide64.$(OBJEXT) \
-	ieeeflash64.$(OBJEXT) isepic.$(OBJEXT) kcs.$(OBJEXT) \
-	kingsoft.$(OBJEXT) ltkernal.$(OBJEXT) mach5.$(OBJEXT) \
-	magicdesk.$(OBJEXT) magicformel.$(OBJEXT) magicvoice.$(OBJEXT) \
-	maxbasic.$(OBJEXT) mikroass.$(OBJEXT) mmcreplay.$(OBJEXT) \
-	mmc64.$(OBJEXT) multimax.$(OBJEXT) ocean.$(OBJEXT) \
-	pagefox.$(OBJEXT) partner64.$(OBJEXT) prophet64.$(OBJEXT) \
-	ramcart.$(OBJEXT) ramlink.$(OBJEXT) retroreplay.$(OBJEXT) \
-	reu.$(OBJEXT) rexep256.$(OBJEXT) rexramfloppy.$(OBJEXT) \
-	rexutility.$(OBJEXT) rgcd.$(OBJEXT) ross.$(OBJEXT) \
-	rrnetmk3.$(OBJEXT) sdbox.$(OBJEXT) shortbus.$(OBJEXT) \
-	shortbus_digimax.$(OBJEXT) shortbus_etfe.$(OBJEXT) \
-	silverrock128.$(OBJEXT) simonsbasic.$(OBJEXT) \
-	snapshot64.$(OBJEXT) stardos.$(OBJEXT) stb.$(OBJEXT) \
-	superexplode5.$(OBJEXT) supergames.$(OBJEXT) \
+	gmod2.$(OBJEXT) gmod3.$(OBJEXT) gs.$(OBJEXT) \
+	hyperbasic.$(OBJEXT) ide64.$(OBJEXT) ieeeflash64.$(OBJEXT) \
+	isepic.$(OBJEXT) kcs.$(OBJEXT) kingsoft.$(OBJEXT) \
+	ltkernal.$(OBJEXT) mach5.$(OBJEXT) magicdesk.$(OBJEXT) \
+	magicformel.$(OBJEXT) magicvoice.$(OBJEXT) maxbasic.$(OBJEXT) \
+	mikroass.$(OBJEXT) mmcreplay.$(OBJEXT) mmc64.$(OBJEXT) \
+	multimax.$(OBJEXT) ocean.$(OBJEXT) pagefox.$(OBJEXT) \
+	partner64.$(OBJEXT) prophet64.$(OBJEXT) ramcart.$(OBJEXT) \
+	ramlink.$(OBJEXT) retroreplay.$(OBJEXT) reu.$(OBJEXT) \
+	rexep256.$(OBJEXT) rexramfloppy.$(OBJEXT) rexutility.$(OBJEXT) \
+	rgcd.$(OBJEXT) ross.$(OBJEXT) rrnetmk3.$(OBJEXT) \
+	sdbox.$(OBJEXT) shortbus.$(OBJEXT) shortbus_digimax.$(OBJEXT) \
+	shortbus_etfe.$(OBJEXT) silverrock128.$(OBJEXT) \
+	simonsbasic.$(OBJEXT) snapshot64.$(OBJEXT) stardos.$(OBJEXT) \
+	stb.$(OBJEXT) superexplode5.$(OBJEXT) supergames.$(OBJEXT) \
 	supersnapshot.$(OBJEXT) supersnapshot4.$(OBJEXT) \
 	turtlegraphics.$(OBJEXT) warpspeed.$(OBJEXT) \
 	westermann.$(OBJEXT) zaxxon.$(OBJEXT) zippcode48.$(OBJEXT)
@@ -198,7 +198,8 @@ am__depfiles_remade = ./$(DEPDIR)/actionreplay.Po \
 	./$(DEPDIR)/freezeframe2.Po ./$(DEPDIR)/freezemachine.Po \
 	./$(DEPDIR)/funplay.Po ./$(DEPDIR)/gamekiller.Po \
 	./$(DEPDIR)/georam.Po ./$(DEPDIR)/gmod2.Po \
-	./$(DEPDIR)/gmod3.Po ./$(DEPDIR)/gs.Po ./$(DEPDIR)/ide64.Po \
+	./$(DEPDIR)/gmod3.Po ./$(DEPDIR)/gs.Po \
+	./$(DEPDIR)/hyperbasic.Po ./$(DEPDIR)/ide64.Po \
 	./$(DEPDIR)/ieeeflash64.Po ./$(DEPDIR)/isepic.Po \
 	./$(DEPDIR)/kcs.Po ./$(DEPDIR)/kingsoft.Po \
 	./$(DEPDIR)/ltkernal.Po ./$(DEPDIR)/mach5.Po \
@@ -332,7 +333,6 @@ GLIB_LIBS = @GLIB_LIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 HAVE_CXX11 = @HAVE_CXX11@
-HAVE_READLINE = @HAVE_READLINE@
 ICONV = @ICONV@
 ICOTOOL = @ICOTOOL@
 INLINE_UNIT_GROWTH = @INLINE_UNIT_GROWTH@
@@ -379,8 +379,6 @@ PNG_LIBS = @PNG_LIBS@
 PROGRAM_PREFIX = @PROGRAM_PREFIX@
 PROGRAM_SUFFIX = @PROGRAM_SUFFIX@
 RANLIB = @RANLIB@
-READLINE = @READLINE@
-READLINE_LIBS = @READLINE_LIBS@
 RESIDDTVSUB = @RESIDDTVSUB@
 RESIDSUB = @RESIDSUB@
 RESID_DEP = @RESID_DEP@
@@ -405,7 +403,6 @@ SOUND_DRIVERS = @SOUND_DRIVERS@
 SOUND_LIBS = @SOUND_LIBS@
 SOUND_MIDAS_OBJ = @SOUND_MIDAS_OBJ@
 SOUND_SDL_OBJ = @SOUND_SDL_OBJ@
-SOUND_USS_OBJ = @SOUND_USS_OBJ@
 STRIP = @STRIP@
 SVN = @SVN@
 SVNVERSION = @SVNVERSION@
@@ -414,6 +411,7 @@ TAR = @TAR@
 TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
+UNZIPBIN = @UNZIPBIN@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -621,6 +619,8 @@ libc64cart_a_SOURCES = \
 	gmod3.h \
 	gs.c \
 	gs.h \
+	hyperbasic.c \
+	hyperbasic.h \
 	ide64.c \
 	ide64.h \
 	ieeeflash64.c \
@@ -846,6 +846,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gmod2.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gmod3.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gs.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hyperbasic.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ide64.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ieeeflash64.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/isepic.Po@am__quote@ # am--include-marker
@@ -1093,6 +1094,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/gmod2.Po
 	-rm -f ./$(DEPDIR)/gmod3.Po
 	-rm -f ./$(DEPDIR)/gs.Po
+	-rm -f ./$(DEPDIR)/hyperbasic.Po
 	-rm -f ./$(DEPDIR)/ide64.Po
 	-rm -f ./$(DEPDIR)/ieeeflash64.Po
 	-rm -f ./$(DEPDIR)/isepic.Po
@@ -1241,6 +1243,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/gmod2.Po
 	-rm -f ./$(DEPDIR)/gmod3.Po
 	-rm -f ./$(DEPDIR)/gs.Po
+	-rm -f ./$(DEPDIR)/hyperbasic.Po
 	-rm -f ./$(DEPDIR)/ide64.Po
 	-rm -f ./$(DEPDIR)/ieeeflash64.Po
 	-rm -f ./$(DEPDIR)/isepic.Po

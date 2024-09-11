@@ -13,13 +13,17 @@ repo: https://sourceforge.net/p/vice-emu/code/HEAD/tree/tags/
 - update the html pages in doc/html (index.html, windows.html, macosx.html). use
   the checklinks.sh script to check the links.
 
+$ cd doc/html
 $ ./checklinks.sh
+$ cd ../..
 
 - update vice.texi. use checkdoc.mak to find missing resources and options in
   the documentation.
 
+$ make
 $ cd doc
 $ make -f checkdoc.mak full
+$ cd ..
 
   (this only works for in-tree builds and with --enable-x64)
 
@@ -33,20 +37,20 @@ $ make -f checkdoc.mak full
   needed files.
 
 $ touch doc/vice.texi
-$ src/buildtools/genvicedate_h.sh
+$ ./src/buildtools/genvicedate_h.sh
 
 - after changing any of the above, make sure to run "make" so the changes will
   propagate to various files, and then commit the changed files.
 
 $ make all
-$ svn commit -m "preparing release"
+$ svn commit -m "preparing release - no more committing until after the release is done!"
 
 - ANNOUNCE A CODE FREEZE ;)
 
 - make sure the version in configure.ac is updated:
 
     m4_define(vice_version_major, 3)
-    m4_define(vice_version_minor, 6)
+    m4_define(vice_version_minor, 8)
     m4_define(vice_version_build, 0)
 
   These three defines are all that is needed for a version number, the absence
@@ -56,6 +60,7 @@ $ svn commit -m "preparing release"
 
   The BUILD number is bumped by one on each point release, except when we do
   our "traditional" Christmas release, then we bump MINOR and reset BUILD to 0.
+
   For massive changes we can decide to bump MAJOR and set MINOR and BUILD to 0,
   for example when merging the 'vice-4' branch somewhere in the future.
 
@@ -74,7 +79,25 @@ while at it, also check the following:
 
 Make sure everything is fine, and commit the release
 
-$ svn commit -m "this is the 3.6.0 release - merry xmas"
+$ svn commit -m "this is the 3.8.0 release - merry xmas"
+
+
+****************************************
+ Tarball verification using Github
+****************************************
+
+  The file in .github/workflows/check-make-dist.yml contains a worflow to check
+  if `make dist` works for all UIs, with `make dist` being run configured for
+  each UI and then a Linux `configure && make && make install` being run for
+  each UI for the generated tarballs, so currently nine combinations of
+  `make dist` and `make [install]`.
+
+  To trigger this workflow go to:
+  https://github.com/VICE-Team/svn-mirror/actions/workflows/check-make-dist.yml
+  Click on the "Run workflow" dropdown and click on the "Run workflow" button.
+
+  The process usually takes about 7 minutes to finish if successful. If not
+  successful check the logs and fix missing files in Makefile.am files.
 
 ****************************************
  Tarball and Windows Builds - Automated
@@ -82,7 +105,7 @@ $ svn commit -m "this is the 3.6.0 release - merry xmas"
 
   The file in .github/workflows/make-release.yml implements a release process that
   will create the dist tarball and then windows builds from that tarball. To trigger it,
-  push a git tag like v3.6.0 to our github mirror. This will create a release on Github
+  push a git tag like v3.8.0 to our github mirror. This will create a release on Github
   which can be seen at https://github.com/VICE-Team/svn-mirror/releases. The build
   process can be observed at https://github.com/VICE-Team/svn-mirror/actions.
 
@@ -95,19 +118,31 @@ $ svn commit -m "this is the 3.6.0 release - merry xmas"
   Github. Make sure that the commit has synchronised over to Github before you trigger the
   build process.
 
-  $ RELEASE=3.6.0
+  $ RELEASE=3.8.0
 
   $ git clone --branch clean --depth 1 git@github.com:VICE-Team/svn-mirror.git
      or if that doesnt work because github doesnt have your ssh key:
   $ git clone --branch clean --depth 1 https://github.com/VICE-Team/svn-mirror.git
 
   $ cd svn-mirror
+
   $ git tag $RELEASE
   $ git push origin $RELEASE
 
-  Pushing the tag triggers the release build, and creates a 'release' on Github called 3.6.0.
+  Pushing the tag triggers the release build, and creates a 'release' on Github called 3.8.0.
   Annoyingly, this release will automatically include a zip and tgz of the source for that
   commit, without any way to prevent it.
+
+  OOOOPS! now something doesnt work as intended - for example the release creation
+  itself fails for some reason. Now you can revert the tag like this:
+
+  $ git tag -d $RELEASE
+  $ git push --delete origin $RELEASE
+
+  Now fix your stuff, commit to svn, and if you are ready push the tag again:
+
+  $ git tag $RELEASE
+  $ git push origin $RELEASE
 
 *************************************
  Tarball and Windows Builds - Manual

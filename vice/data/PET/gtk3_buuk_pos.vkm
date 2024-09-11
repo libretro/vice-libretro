@@ -157,7 +157,12 @@
 #!LCTRL 0 0
 #!VCTRL LCTRL
 
-Shift_L     6 0 2
+# left shift
+# key is left shift
+Shift_L          6 0 2
+# shift lock
+# key is (left) shift-lock
+Caps_Lock        6 0 64
 Shift_R     6 6 4
 Control_L   9 4 8
 
@@ -333,13 +338,16 @@ KP_Decimal      6 4 0
 #
 # Joystick 2
 #
-w -2 6
-e -2 7
-r -2 8
-s -2 4
-f -2 5
-x -2 1
-c -2 2
-v -2 3
-space -2 0
-
+# Commented out: due to the keymap loading *after* vicerc any keyset settings
+#                in vicerc are overruled by this.
+#                see https://sourceforge.net/p/vice-emu/bugs/1797/
+#
+# w -2 6
+# e -2 7
+# r -2 8
+# s -2 4
+# f -2 5
+# x -2 1
+# c -2 2
+# v -2 3
+# space -2 0

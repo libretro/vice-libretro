@@ -31,6 +31,8 @@
 #include <stdlib.h>
 
 #include "debug.h"
+#include "actions-display.h"
+#include "actions-speed.h"
 #include "lib.h"
 #include "machine.h"
 #include "menu_common.h"
@@ -59,6 +61,7 @@
 #include "menu_tape.h"
 #include "menu_userport.h"
 #include "menu_video.h"
+#include "pet.h"
 #include "petmem.h"
 #include "petrom.h"
 #include "pets.h"
@@ -66,139 +69,184 @@
 #include "pet-resources.h"
 #include "resources.h"
 #include "ui.h"
+#include "uiactions.h"
 #include "uifonts.h"
 #include "uimenu.h"
+#include "uistatusbar.h"
 #include "vkbd.h"
 
-static UI_MENU_CALLBACK(pause_callback_wrapper);
 
 static ui_menu_entry_t xpet_main_menu[] = {
-    { "Autostart image",
-      MENU_ENTRY_DIALOG,
-      autostart_callback,
-      NULL },
-    { "Drive",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)drive_menu },
-    { "Tape",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)tape_pet_menu },
-    { "Cartridge",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)petcart_menu },
-    { "Printer",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)printer_ieee_menu },
-    { "Machine settings",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)pet_hardware_menu },
-    { "Video settings",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)pet_video_menu },
-    { "Sound settings",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)sound_output_menu },
-    { "Sampler settings",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)sampler_menu },
-    { "Snapshot",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)snapshot_menu },
-    { "Save media file",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)media_menu },
-    { "Speed settings",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)speed_menu },
-    { "Reset",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)reset_menu },
-    { "Action on CPU JAM",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)jam_menu },
+    {   .action    = ACTION_SMART_ATTACH,
+        .string    = "Autostart image",
+        .type      = MENU_ENTRY_DIALOG,
+        .callback  = autostart_callback,
+        .activated = MENU_EXIT_UI_STRING
+    },
+    {   .string   = "Drive",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)drive_menu
+    },
+    {   .string   = "Tape",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)tape_pet_menu
+    },
+    {   .string   = "Cartridge",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)petcart_menu
+    },
+    {   .string   = "Printer",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)printer_ieee_menu
+    },
+    {   .string   = "Machine settings",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)pet_hardware_menu
+    },
+    {   .string   = "Video settings",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)pet_video_menu
+    },
+    {   .string   = "Sound settings",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)sound_output_menu
+    },
+    {   .string   = "Sampler settings",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)sampler_menu
+    },
+    {   .string   = "Snapshot",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)snapshot_menu
+    },
+    {   .string   = "Save media file",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)media_menu
+    },
+    {   .string   = "Speed settings",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)speed_menu
+    },
+    {   .string   = "Reset",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)reset_menu
+    },
+    {   .string   = "Action on CPU JAM",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)jam_menu
+    },
 #ifdef HAVE_NETWORK
-    { "Network",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)network_menu },
+    {   .string   = "Network",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)network_menu
+    },
 #endif
-    { "Pause",
-      MENU_ENTRY_OTHER_TOGGLE,
-      pause_callback_wrapper,
-      NULL },
-    /* Caution: index is hardcoded below */
-    { "Advance Frame",
-      MENU_ENTRY_OTHER,
-      advance_frame_callback,
-      NULL },
-    { "Monitor",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)monitor_menu },
-    /* Caution: index is hardcoded below */
-    { "Virtual keyboard",
-      MENU_ENTRY_OTHER,
-      vkbd_callback,
-      NULL },
-    { "Statusbar",
-      MENU_ENTRY_OTHER_TOGGLE,
-      statusbar_callback,
-      NULL },
+    {   .action    = ACTION_PAUSE_TOGGLE,
+        .string    = "Pause",
+        .type      = MENU_ENTRY_OTHER_TOGGLE,
+        .displayed = pause_toggle_display
+    },
+    {   .action   = ACTION_ADVANCE_FRAME,
+        .string   = "Advance Frame",
+        .type     = MENU_ENTRY_OTHER,
+    },
+    {   .string   = "Monitor",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)monitor_menu
+    },
+    {   .action    = ACTION_VIRTUAL_KEYBOARD,
+        .string    = "Virtual keyboard",
+        .type      = MENU_ENTRY_OTHER,
+        .activated = MENU_EXIT_UI_STRING
+    },
+    {   .action    = ACTION_SHOW_STATUSBAR_TOGGLE,
+        .string    = "Statusbar",
+        .type      = MENU_ENTRY_OTHER_TOGGLE,
+        .displayed = show_statusbar_toggle_display
+    },
 #ifdef DEBUG
-    { "Debug",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)debug_menu },
+    {   .string   = "Debug",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)debug_menu
+    },
 #endif
-    { "Help",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)help_menu },
-    { "Settings management",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)settings_manager_menu },
+    {   .string   = "Help",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)help_menu
+    },
+    {   .string   = "Settings management",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)settings_manager_menu
+    },
 #ifdef USE_SDL2UI
-    { "Edit",
-      MENU_ENTRY_SUBMENU,
-      submenu_callback,
-      (ui_callback_data_t)edit_menu },
+    {   .string   = "Edit",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)edit_menu
+    },
 #endif
-    { "Quit emulator",
-      MENU_ENTRY_OTHER,
-      quit_callback,
-      NULL },
+    {   .action   = ACTION_QUIT,
+        .string   = "Quit emulator",
+        .type     = MENU_ENTRY_OTHER,
+    },
     SDL_MENU_LIST_END
 };
 
-#ifdef HAVE_NETWORK
-# define MENU_ADVANCE_FRAME_IDX      16
-# define MENU_VIRTUAL_KEYBOARD_IDX   18
-#else
-# define MENU_ADVANCE_FRAME_IDX      15
-# define MENU_VIRTUAL_KEYBOARD_IDX   17
-#endif
-static UI_MENU_CALLBACK(pause_callback_wrapper)
+#define STRINGIFY(x) STRINGIFY2(x)
+#define STRINGIFY2(x) #x
+
+static UI_MENU_CALLBACK(custom_cb2_lowpass_filter_callback)
 {
-    xpet_main_menu[MENU_ADVANCE_FRAME_IDX].status =
-        sdl_pause_state || !sdl_menu_state ? MENU_STATUS_ACTIVE : MENU_STATUS_INACTIVE;
-    xpet_main_menu[MENU_VIRTUAL_KEYBOARD_IDX].status =
-        sdl_pause_state ? MENU_STATUS_INACTIVE : MENU_STATUS_ACTIVE;
-    return pause_callback(activated, param);
+    static char buf[20];
+    char *value = NULL;
+    int previous, new_value;
+
+    resources_get_int("CB2Lowpass", &previous);
+
+    if (activated) {
+        sprintf(buf, "%i", previous);
+        value = sdl_ui_text_input_dialog("Enter cutoff frequency in Hz (1.."
+                                         STRINGIFY(SOUND_SAMPLE_RATE)
+                                         ")", buf);
+        if (value) {
+            new_value = (int)strtol(value, NULL, 0);
+            if (new_value != previous &&
+                new_value >= 1 &&
+                new_value <= SOUND_SAMPLE_RATE) {
+                resources_set_int("CB2Lowpass", new_value);
+            }
+            lib_free(value);
+        }
+    } else {
+        sprintf(buf, "%i Hz", previous);
+        return buf;
+    }
+    return NULL;
 }
+
+const ui_menu_entry_t pet_cb2_lowpass =
+    {   .string   = "CB2 lowpass filter",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = custom_cb2_lowpass_filter_callback,
+    };
 
 /* FIXME: support all PET keyboards (see pet-resources.h) */
 
@@ -225,15 +273,41 @@ static void petui_set_menu_params(int index, menu_draw_t *menu_draw)
         old_keymap = keymap;
     }
 
+#define RGB_encode(r,g,b) (((r)<<5)|((g)<<2)|(b))
+
     /* CRTC */
-    menu_draw->color_front = menu_draw->color_default_front = 1;
-    menu_draw->color_back = menu_draw->color_default_back = 0;
-    menu_draw->color_cursor_back = 0;
-    menu_draw->color_cursor_revers = 1;
-    menu_draw->color_active_green = 1;
-    menu_draw->color_inactive_red = 1;
-    menu_draw->color_active_grey = 1;
-    menu_draw->color_inactive_grey = 1;
+    switch (pet_colour_type) {
+        case PET_COLOUR_TYPE_RGBI:
+            menu_draw->color_front = menu_draw->color_default_front = 15;
+            menu_draw->color_back = menu_draw->color_default_back = 0;
+            menu_draw->color_cursor_back = 3;
+            menu_draw->color_cursor_revers = 0;
+            menu_draw->color_active_green = 4;
+            menu_draw->color_inactive_red = 8;
+            menu_draw->color_active_grey = 14;
+            menu_draw->color_inactive_grey = 1;
+            break;
+        case PET_COLOUR_TYPE_ANALOG:
+            menu_draw->color_front = menu_draw->color_default_front = RGB_encode(7,7,3);
+            menu_draw->color_back = menu_draw->color_default_back = RGB_encode(0,0,0);
+            menu_draw->color_cursor_back = RGB_encode(0,0,3);
+            menu_draw->color_cursor_revers = RGB_encode(0,0,0);
+            menu_draw->color_active_green = RGB_encode(0,7,0);
+            menu_draw->color_inactive_red = RGB_encode(7,0,0);
+            menu_draw->color_active_grey = RGB_encode(4,4,2);
+            menu_draw->color_inactive_grey = RGB_encode(3,3,1);
+            break;
+        default:
+            menu_draw->color_front = menu_draw->color_default_front = 1;
+            menu_draw->color_back = menu_draw->color_default_back = 0;
+            menu_draw->color_cursor_back = 0;
+            menu_draw->color_cursor_revers = 1;
+            menu_draw->color_active_green = 1;
+            menu_draw->color_inactive_red = 1;
+            menu_draw->color_active_grey = 1;
+            menu_draw->color_inactive_grey = 1;
+            break;
+    }
 }
 
 /** \brief  Pre-initialize the UI before the canvas window gets created
@@ -243,6 +317,65 @@ static void petui_set_menu_params(int index, menu_draw_t *menu_draw)
 int petui_init_early(void)
 {
     return 0;
+}
+
+static int patched_main_menu_item = -1;
+
+/** \brief  Adapt the Sound menu by insterting a PET-only item.
+ *
+ * \return  void
+ */
+static void pet_sound_menu_fixup(void)
+{
+    int num_items = 0;
+    const ui_menu_entry_t *menu = sound_output_menu;
+    ui_menu_entry_t *new_menu;
+    int i, j;
+
+    /* Count the size of the sound_output_menu */
+    while (menu[num_items].string != NULL) {
+        ++num_items;
+    }
+
+    /* Allocate a new version, 1 item bigger, 1 terminator */
+    new_menu = lib_calloc(num_items + 2, sizeof(ui_menu_entry_t));
+
+    /* Insert a new item into it, while copying all original items */
+    for (i = j = 0; menu[i].string; i++, j++) {
+        new_menu[j] = menu[i];
+
+        /* Insert our new item after "Volume" */
+        if (strcmp(menu[i].string, "Volume") == 0) {
+            j++;
+            new_menu[j] = pet_cb2_lowpass;
+        }
+    }
+
+    /* Copy terminating entry */
+    new_menu[j] = menu[i];
+
+    /* Replace the old sound_output_menu (in the main menu) with our new one */
+    for (i = 0; xpet_main_menu[i].string; i++) {
+        if (xpet_main_menu[i].data == (ui_callback_data_t)menu) {
+            xpet_main_menu[i].data = (ui_callback_data_t)new_menu;
+            patched_main_menu_item = i;
+            break;
+        }
+    }
+}
+
+/** \brief  Undo the effect of pet_sound_menu_fixup().
+ *
+ * \return  void
+ */
+static void pet_sound_menu_shutdown(void)
+{
+    if (patched_main_menu_item >= 0) {
+        lib_free(xpet_main_menu[patched_main_menu_item].data);
+        xpet_main_menu[patched_main_menu_item].data =
+            (ui_callback_data_t)sound_output_menu;
+        patched_main_menu_item = -1;
+    }
 }
 
 /** \brief  Initialize the UI
@@ -257,28 +390,32 @@ int petui_init(void)
 #endif
 
     sdl_ui_set_menu_params = petui_set_menu_params;
-    uijoyport_menu_create(0, 0, 1, 0, 0);
-    uijoystick_menu_create(0, 0, 1, 0, 0);
+    uijoyport_menu_create(0, 0, 1, 1, 1, 0);
     uiuserport_menu_create(1);
     uisampler_menu_create();
-    uidrive_menu_create();
+    uidrive_menu_create(1);
+    uitape_menu_create(1);
     uikeyboard_menu_create();
     uipalette_menu_create("Crtc", NULL);
     uisid_menu_create();
     uimedia_menu_create();
+    pet_sound_menu_fixup();
 
     sdl_ui_set_main_menu(xpet_main_menu);
     sdl_ui_font_init(PET_CHARGEN2_NAME, 0, 0x400, 0);
 
-#ifdef HAVE_FFMPEG
     sdl_menu_ffmpeg_init();
-#endif
 
+    uistatusbar_realize();
     return 0;
 }
 
 void petui_shutdown(void)
 {
+#ifdef SDL_DEBUG
+    fprintf(stderr, "%s\n", __func__);
+#endif
+    uisound_output_menu_shutdown();
     uikeyboard_menu_shutdown();
     uisid_menu_shutdown();
     uipalette_menu_shutdown();
@@ -287,13 +424,7 @@ void petui_shutdown(void)
     uiuserport_menu_shutdown();
     uitapeport_menu_shutdown();
     uimedia_menu_shutdown();
-#ifdef SDL_DEBUG
-    fprintf(stderr, "%s\n", __func__);
-#endif
-
-#ifdef HAVE_FFMPEG
+    pet_sound_menu_shutdown();
     sdl_menu_ffmpeg_shutdown();
-#endif
-
     sdl_ui_font_shutdown();
 }

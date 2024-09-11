@@ -221,7 +221,6 @@ GLIB_LIBS = @GLIB_LIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 HAVE_CXX11 = @HAVE_CXX11@
-HAVE_READLINE = @HAVE_READLINE@
 ICONV = @ICONV@
 ICOTOOL = @ICOTOOL@
 INLINE_UNIT_GROWTH = @INLINE_UNIT_GROWTH@
@@ -268,8 +267,6 @@ PNG_LIBS = @PNG_LIBS@
 PROGRAM_PREFIX = @PROGRAM_PREFIX@
 PROGRAM_SUFFIX = @PROGRAM_SUFFIX@
 RANLIB = @RANLIB@
-READLINE = @READLINE@
-READLINE_LIBS = @READLINE_LIBS@
 RESIDDTVSUB = @RESIDDTVSUB@
 RESIDSUB = @RESIDSUB@
 RESID_DEP = @RESID_DEP@
@@ -294,7 +291,6 @@ SOUND_DRIVERS = @SOUND_DRIVERS@
 SOUND_LIBS = @SOUND_LIBS@
 SOUND_MIDAS_OBJ = @SOUND_MIDAS_OBJ@
 SOUND_SDL_OBJ = @SOUND_SDL_OBJ@
-SOUND_USS_OBJ = @SOUND_USS_OBJ@
 STRIP = @STRIP@
 SVN = @SVN@
 SVNVERSION = @SVNVERSION@
@@ -303,6 +299,7 @@ TAR = @TAR@
 TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
+UNZIPBIN = @UNZIPBIN@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -408,14 +405,15 @@ romsets = \
 palettes = \
 	yape-pal.vpl \
 	yape-ntsc.vpl \
-	colodore_ted.vpl
-
-gtk3_hotkeys = \
-	gtk3-hotkeys.vhk \
-	gtk3-hotkeys-mac.vhk
+	colodore_ted.vpl \
+	ITU-R_BT601_CRT.vpl \
+	ITU-R_BT709_HDTV.vpl \
+	ITU-R_BT2020.vpl
 
 gtk3_keymaps = \
 	gtk3_pos.vkm \
+	gtk3_pos_de.vkm \
+	gtk3_pos_es.vkm \
 	gtk3_sym.vkm \
 	gtk3_sym_fr.vkm \
 	gtk3_sym_de.vkm \
@@ -430,17 +428,14 @@ sdl_keymaps = \
 	sdl_pos_fr.vkm \
 	sdl_pos.vkm
 
-sdl_hotkeys = \
-	sdl-hotkeys.vhk
-
-@USE_GTK3UI_TRUE@plus4_DATA = $(roms) $(romsets) $(palettes) $(gtk3_keymaps) $(gtk3_hotkeys)
+@USE_GTK3UI_TRUE@plus4_DATA = $(roms) $(romsets) $(palettes) $(gtk3_keymaps)
 @USE_HEADLESSUI_TRUE@plus4_DATA = $(roms) $(romsets) $(palettes)
-@USE_SDL2UI_TRUE@plus4_DATA = $(roms) $(romsets) $(palettes) $(sdl_keymaps) $(sdl_hotkeys)
-@USE_SDLUI_TRUE@plus4_DATA = $(roms) $(romsets) $(palettes) $(sdl_keymaps) $(sdl_hotkeys)
-@USE_GTK3UI_TRUE@EXTRA_DIST = $(plus4_DATA) $(sdl_keymaps) $(sdl_hotkeys)
-@USE_HEADLESSUI_TRUE@EXTRA_DIST = $(plus4_DATA) $(sdl_keymaps) $(sdl_hotkeys) $(gtk3_keymaps) $(gtk3_hotkeys)
-@USE_SDL2UI_TRUE@EXTRA_DIST = $(plus4_DATA) $(gtk3_keymaps) $(gtk3_hotkeys)
-@USE_SDLUI_TRUE@EXTRA_DIST = $(plus4_DATA) $(gtk3_keymaps) $(gtk3_hotkeys)
+@USE_SDL2UI_TRUE@plus4_DATA = $(roms) $(romsets) $(palettes) $(sdl_keymaps)
+@USE_SDLUI_TRUE@plus4_DATA = $(roms) $(romsets) $(palettes) $(sdl_keymaps)
+@USE_GTK3UI_TRUE@EXTRA_DIST = $(plus4_DATA) $(sdl_keymaps)
+@USE_HEADLESSUI_TRUE@EXTRA_DIST = $(plus4_DATA) $(sdl_keymaps) $(gtk3_keymaps)
+@USE_SDL2UI_TRUE@EXTRA_DIST = $(plus4_DATA) $(gtk3_keymaps)
+@USE_SDLUI_TRUE@EXTRA_DIST = $(plus4_DATA) $(gtk3_keymaps)
 all: all-am
 
 .SUFFIXES:

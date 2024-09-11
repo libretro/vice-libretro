@@ -112,9 +112,10 @@ am__v_AR_0 = @echo "  AR      " $@;
 am__v_AR_1 = 
 libgfxoutputdrv_a_AR = $(AR) $(ARFLAGS)
 am_libgfxoutputdrv_a_OBJECTS = bmpdrv.$(OBJEXT) artstudiodrv.$(OBJEXT) \
-	gfxoutput.$(OBJEXT) godotdrv.$(OBJEXT) iffdrv.$(OBJEXT) \
-	koaladrv.$(OBJEXT) minipaintdrv.$(OBJEXT) nativedrv.$(OBJEXT) \
-	pcxdrv.$(OBJEXT) ppmdrv.$(OBJEXT)
+	ffmpegexedrv.$(OBJEXT) gfxoutput.$(OBJEXT) godotdrv.$(OBJEXT) \
+	iffdrv.$(OBJEXT) koaladrv.$(OBJEXT) minipaintdrv.$(OBJEXT) \
+	nativedrv.$(OBJEXT) pcxdrv.$(OBJEXT) ppmdrv.$(OBJEXT) \
+	zmbvdrv.$(OBJEXT)
 libgfxoutputdrv_a_OBJECTS = $(am_libgfxoutputdrv_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -133,12 +134,13 @@ depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/artstudiodrv.Po \
 	./$(DEPDIR)/bmpdrv.Po ./$(DEPDIR)/ffmpegdrv.Po \
-	./$(DEPDIR)/ffmpeglib.Po ./$(DEPDIR)/gfxoutput.Po \
-	./$(DEPDIR)/gifdrv.Po ./$(DEPDIR)/godotdrv.Po \
-	./$(DEPDIR)/iffdrv.Po ./$(DEPDIR)/koaladrv.Po \
-	./$(DEPDIR)/minipaintdrv.Po ./$(DEPDIR)/nativedrv.Po \
-	./$(DEPDIR)/pcxdrv.Po ./$(DEPDIR)/pngdrv.Po \
-	./$(DEPDIR)/ppmdrv.Po
+	./$(DEPDIR)/ffmpegexedrv.Po ./$(DEPDIR)/ffmpeglib.Po \
+	./$(DEPDIR)/gfxoutput.Po ./$(DEPDIR)/gifdrv.Po \
+	./$(DEPDIR)/godotdrv.Po ./$(DEPDIR)/iffdrv.Po \
+	./$(DEPDIR)/koaladrv.Po ./$(DEPDIR)/minipaintdrv.Po \
+	./$(DEPDIR)/nativedrv.Po ./$(DEPDIR)/pcxdrv.Po \
+	./$(DEPDIR)/pngdrv.Po ./$(DEPDIR)/ppmdrv.Po \
+	./$(DEPDIR)/zmbvdrv.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -248,7 +250,6 @@ GLIB_LIBS = @GLIB_LIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 HAVE_CXX11 = @HAVE_CXX11@
-HAVE_READLINE = @HAVE_READLINE@
 ICONV = @ICONV@
 ICOTOOL = @ICOTOOL@
 INLINE_UNIT_GROWTH = @INLINE_UNIT_GROWTH@
@@ -295,8 +296,6 @@ PNG_LIBS = @PNG_LIBS@
 PROGRAM_PREFIX = @PROGRAM_PREFIX@
 PROGRAM_SUFFIX = @PROGRAM_SUFFIX@
 RANLIB = @RANLIB@
-READLINE = @READLINE@
-READLINE_LIBS = @READLINE_LIBS@
 RESIDDTVSUB = @RESIDDTVSUB@
 RESIDSUB = @RESIDSUB@
 RESID_DEP = @RESID_DEP@
@@ -321,7 +320,6 @@ SOUND_DRIVERS = @SOUND_DRIVERS@
 SOUND_LIBS = @SOUND_LIBS@
 SOUND_MIDAS_OBJ = @SOUND_MIDAS_OBJ@
 SOUND_SDL_OBJ = @SOUND_SDL_OBJ@
-SOUND_USS_OBJ = @SOUND_USS_OBJ@
 STRIP = @STRIP@
 SVN = @SVN@
 SVNVERSION = @SVNVERSION@
@@ -330,6 +328,7 @@ TAR = @TAR@
 TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
+UNZIPBIN = @UNZIPBIN@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -423,6 +422,7 @@ AM_CPPFLAGS = \
 	@ARCH_INCLUDES@ \
 	-I$(top_builddir)/src \
 	-I$(top_srcdir)/src \
+	-I$(top_srcdir)/src/lib/libzmbv \
 	-I$(top_srcdir)/src/arch/shared/sounddrv \
 	@FFMPEG_INCLUDES@ \
 	@ARCH_INCLUDES@
@@ -441,7 +441,9 @@ EXTRA_libgfxoutputdrv_a_SOURCES = \
 	gifdrv.c \
 	gifdrv.h \
 	pngdrv.c \
-	pngdrv.h
+	pngdrv.h \
+	zmbvdrv.c \
+	zmbvdrv.h
 
 
 # These sources are always built.
@@ -449,6 +451,8 @@ libgfxoutputdrv_a_SOURCES = \
 	bmpdrv.c \
 	bmpdrv.h \
 	artstudiodrv.c \
+	ffmpegexedrv.c \
+	ffmpegexedrv.h \
 	gfxoutput.c \
 	godotdrv.c \
 	godotdrv.h \
@@ -461,7 +465,9 @@ libgfxoutputdrv_a_SOURCES = \
 	pcxdrv.c \
 	pcxdrv.h \
 	ppmdrv.c \
-	ppmdrv.h
+	ppmdrv.h \
+	zmbvdrv.c \
+	zmbvdrv.h
 
 libgfxoutputdrv_a_DEPENDENCIES = @GFXOUTPUT_DRIVERS@
 libgfxoutputdrv_a_LIBADD = @GFXOUTPUT_DRIVERS@
@@ -516,6 +522,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/artstudiodrv.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bmpdrv.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ffmpegdrv.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ffmpegexedrv.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ffmpeglib.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gfxoutput.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gifdrv.Po@am__quote@ # am--include-marker
@@ -527,6 +534,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pcxdrv.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pngdrv.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ppmdrv.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zmbvdrv.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -674,6 +682,7 @@ distclean: distclean-am
 		-rm -f ./$(DEPDIR)/artstudiodrv.Po
 	-rm -f ./$(DEPDIR)/bmpdrv.Po
 	-rm -f ./$(DEPDIR)/ffmpegdrv.Po
+	-rm -f ./$(DEPDIR)/ffmpegexedrv.Po
 	-rm -f ./$(DEPDIR)/ffmpeglib.Po
 	-rm -f ./$(DEPDIR)/gfxoutput.Po
 	-rm -f ./$(DEPDIR)/gifdrv.Po
@@ -685,6 +694,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/pcxdrv.Po
 	-rm -f ./$(DEPDIR)/pngdrv.Po
 	-rm -f ./$(DEPDIR)/ppmdrv.Po
+	-rm -f ./$(DEPDIR)/zmbvdrv.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -733,6 +743,7 @@ maintainer-clean: maintainer-clean-am
 		-rm -f ./$(DEPDIR)/artstudiodrv.Po
 	-rm -f ./$(DEPDIR)/bmpdrv.Po
 	-rm -f ./$(DEPDIR)/ffmpegdrv.Po
+	-rm -f ./$(DEPDIR)/ffmpegexedrv.Po
 	-rm -f ./$(DEPDIR)/ffmpeglib.Po
 	-rm -f ./$(DEPDIR)/gfxoutput.Po
 	-rm -f ./$(DEPDIR)/gifdrv.Po
@@ -744,6 +755,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/pcxdrv.Po
 	-rm -f ./$(DEPDIR)/pngdrv.Po
 	-rm -f ./$(DEPDIR)/ppmdrv.Po
+	-rm -f ./$(DEPDIR)/zmbvdrv.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

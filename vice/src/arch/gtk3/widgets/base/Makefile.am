@@ -5,6 +5,7 @@ AM_CPPFLAGS = \
 	@VICE_CPPFLAGS@ \
 	@ARCH_INCLUDES@ \
 	-I$(top_srcdir)/src/arch/shared \
+	-I$(top_srcdir)/src/arch/shared/hotkeys \
 	-I$(top_builddir)/src \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/src/drive \
@@ -37,23 +38,26 @@ noinst_LIBRARIES = libbasewidgets.a
 libbasewidgets_a_SOURCES = \
 	basedialogs.c \
 	carthelpers.c \
-	cartimagewidget.c \
+	cartridgewidgets.c \
 	clockportdevicewidget.c \
 	csshelpers.c \
 	filechooserhelpers.c \
 	lastdir.c \
 	openfiledialog.c \
 	popupmenu.c \
+	ramsizeradiogroup.c \
 	resourcebrowser.c \
 	resourcecheckbutton.c \
 	resourcecombobox.c \
 	resourceentry.c \
+	resourcefilechooser.c \
 	resourcehelpers.c \
 	resourcenumericstring.c \
 	resourceradiogroup.c \
 	resourcescale.c \
 	resourcespinbutton.c \
 	resourceswitch.c \
+	resourcewidgetmediator.c \
 	savefiledialog.c \
 	selectdirectorydialog.c \
 	uiactionbutton.c \
@@ -64,23 +68,26 @@ EXTRA_DIST = \
 	basewidget_types.h \
 	basewidgets.h \
 	carthelpers.h \
-	cartimagewidget.h \
+	cartridgewidgets.h \
 	clockportdevicewidget.h \
 	csshelpers.h \
 	filechooserhelpers.h \
 	lastdir.h \
 	openfiledialog.h \
 	popupmenu.h \
+	ramsizeradiogroup.h \
 	resourcebrowser.h \
 	resourcecheckbutton.h \
 	resourcecombobox.h \
 	resourceentry.h \
+	resourcefilechooser.h \
 	resourcehelpers.h \
 	resourcenumericstring.h \
 	resourceradiogroup.h \
 	resourcescale.h \
 	resourcespinbutton.h \
 	resourceswitch.h \
+	resourcewidgetmediator.h \
 	savefiledialog.h \
 	selectdirectorydialog.h \
 	uiactionbutton.h \

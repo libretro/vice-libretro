@@ -98,11 +98,11 @@ static GSList *tune_submenu_group = NULL;
 /** \brief  File->Reset submenu
  */
 static const ui_menu_item_t reset_submenu[] = {
-    { "Soft reset", UI_MENU_TYPE_ITEM_ACTION,
-      ACTION_RESET_SOFT,
+    { "Reset machine CPU", UI_MENU_TYPE_ITEM_ACTION,
+      ACTION_MACHINE_RESET_CPU,
       NULL, true },
-    { "Hard reset", UI_MENU_TYPE_ITEM_ACTION,
-      ACTION_RESET_HARD,
+    { "Power cycle machine", UI_MENU_TYPE_ITEM_ACTION,
+      ACTION_MACHINE_POWER_CYCLE,
       NULL, true },
 
     UI_MENU_TERMINATOR
@@ -270,7 +270,7 @@ static void select_tune_from_menu(GtkMenuItem *menuitem,
     tune = GPOINTER_TO_INT(user_data);
     psid_init_driver();
     machine_play_psid(tune);
-    machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    machine_trigger_reset(MACHINE_RESET_MODE_RESET_CPU);
 }
 
 

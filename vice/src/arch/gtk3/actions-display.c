@@ -47,12 +47,13 @@
 #include <stddef.h>
 
 #include "debug_gtk3.h"
-#include "hotkeymap.h"
+#include "hotkeys.h"
 #include "resources.h"
 #include "ui.h"
 #include "uiactions.h"
 #include "uimenu.h"
 #include "uistatusbar.h"
+#include "vicii.h"
 #include "video.h"
 #include "videoarch.h"
 
@@ -64,14 +65,12 @@
  * If fullscreen is enabled and there are no window decorations requested for
  * fullscreen mode, the mouse pointer is hidden until fullscreen is disabled.
  *
- * FIXME:   Currently doesn't properly update the fullscreen check menu items
- *          in case of x128: each window can be individually fullscreened but
- *          the check items will be set/unset in both windows' menus.
+ * \param[in]   self    action map
  */
-static void fullscreen_toggle_action(void)
+static void fullscreen_toggle_action(ui_action_map_t *self)
 {
-    gboolean enabled;
-    gint index = ui_get_main_window_index();
+    gboolean enabled = 0;
+    gint     index = ui_get_main_window_index();
 
     if (index != PRIMARY_WINDOW && index != SECONDARY_WINDOW) {
         return;
@@ -80,31 +79,30 @@ static void fullscreen_toggle_action(void)
     /* flip fullscreen mode */
     enabled = !ui_is_fullscreen();
     ui_set_fullscreen_enabled(enabled);
-
-    ui_set_check_menu_item_blocked_by_action_for_window(
-            ACTION_FULLSCREEN_TOGGLE, index, enabled);
+    vhk_gtk_set_check_item_blocked_by_action_for_window(self->action, index, enabled);
     ui_update_fullscreen_decorations();
 }
 
-
-/** \brief Toggles fullscreen window decorations */
-static void fullscreen_decorations_toggle_action(void)
+/** \brief Toggles fullscreen window decorations
+ *
+ * \param[in]   self    action map
+ */
+static void fullscreen_decorations_toggle_action(ui_action_map_t *self)
 {
     gboolean decorations = !ui_fullscreen_has_decorations();
 
     resources_set_int("FullscreenDecorations", decorations);
-
-    ui_set_check_menu_item_blocked_by_action(ACTION_FULLSCREEN_DECORATIONS_TOGGLE,
-                                             decorations);
+    vhk_gtk_set_check_item_blocked_by_action(self->action, decorations);
     ui_update_fullscreen_decorations();
 }
-
 
 /** \brief  Attempt to restore the active window's size to its "natural" size
  *
  * Also unmaximizes and unfullscreens the window.
+ *
+ * \param[in]   self    action map
  */
-static void restore_display_action(void)
+static void restore_display_action(ui_action_map_t *self)
 {
     GtkWindow *window = ui_get_active_window();
 
@@ -123,13 +121,17 @@ static void restore_display_action(void)
     }
 }
 
-/** \brief  Toggle status bar visibility for the active window */
-static void show_statusbar_toggle_action(void)
+/** \brief  Toggle status bar visibility for the primary window action
+ *
+ * \param[in]   self    action map
+ */
+static void show_statusbar_toggle_action(ui_action_map_t *self)
 {
-    video_canvas_t *canvas = ui_get_active_canvas();
-    if (canvas != NULL) {
-        GtkWindow *window;
-        int show = 0;
+    GtkWidget      *window = ui_get_window_by_index(PRIMARY_WINDOW);
+    video_canvas_t *canvas = ui_get_canvas_for_window(PRIMARY_WINDOW);
+
+    if (window != NULL && canvas != NULL ) {
+        int         show = 0;
         const char *chip_name = canvas->videoconfig->chip_name;
 
         resources_get_int_sprintf("%sShowStatusbar", &show, chip_name);
@@ -137,45 +139,113 @@ static void show_statusbar_toggle_action(void)
         resources_set_int_sprintf("%sShowStatusbar", show, chip_name);
         debug_gtk3("%sShowStatusbar => %s.", chip_name, show ? "True" : "False");
 
-        window = ui_get_active_window();
-        ui_statusbar_set_visible_for_window(GTK_WIDGET(window), show);
+        ui_statusbar_set_visible_for_window(window, show);
         /* update menu item's toggled state */
-        if (machine_class == VICE_MACHINE_C128) {
-            /* x128 is special since it has two windows and thus two status bars */
-            ui_set_check_menu_item_blocked_by_action_for_window(ACTION_SHOW_STATUSBAR_TOGGLE,
-                                                                canvas->window_index,
-                                                                show);
-        } else {
-            ui_set_check_menu_item_blocked_by_action(ACTION_SHOW_STATUSBAR_TOGGLE,
-                                                     show);
-        }
+        vhk_gtk_set_check_item_blocked_by_action_for_window(ACTION_SHOW_STATUSBAR_TOGGLE,
+                                                            PRIMARY_WINDOW,
+                                                            show);
+        gtk_window_resize(GTK_WINDOW(window), 1, 1);
     }
+}
+
+/** \brief  Toggle status bar visibility for the secondary window action
+ *
+ * Toggle visibility of the status bar of the VDC window of x128.
+ *
+ * \param[in]   self    action map
+ */
+static void show_statusbar_secondary_toggle_action(ui_action_map_t *self)
+{
+    GtkWidget *window;
+    int        show = 0;
+
+    window = ui_get_window_by_index(SECONDARY_WINDOW);
+    if (window == NULL) {
+        return;
+    }
+    /* only x128 has a secondary window, so no need to get the chip name from
+     * the canvas */
+    resources_get_int("VDCShowStatusbar", &show);
+    show = !show;
+    resources_set_int("VDCShowStatusbar", show);
+    ui_statusbar_set_visible_for_window(window, show);
+    vhk_gtk_set_check_item_blocked_by_action_for_window(ACTION_SHOW_STATUSBAR_SECONDARY_TOGGLE,
+                                                        SECONDARY_WINDOW,
+                                                        show);
+    gtk_window_resize(GTK_WINDOW(window), 1, 1);
+}
+
+/** \brief  Set border mode action
+ *
+ * Set border mode for current video chip, the \c data member of \a self contains
+ * the border mode.
+ *
+ * \param[in]   self    action map
+ */
+static void border_mode_action(ui_action_map_t *self)
+{
+    /* x128's VDC doesn't support border mode, so we can simply use the
+     * primary window index here */
+    video_canvas_t *canvas = ui_get_canvas_for_window(PRIMARY_WINDOW);
+    const char     *chip   = canvas->videoconfig->chip_name;
+
+    resources_set_int_sprintf("%sBorderMode", vice_ptr_to_int(self->data), chip);
 }
 
 
 /** \brief  List of display-related actions */
 static const ui_action_map_t display_actions[] = {
-    {
-        .action = ACTION_FULLSCREEN_TOGGLE,
-        .handler = fullscreen_toggle_action,
+    {   .action   = ACTION_FULLSCREEN_TOGGLE,
+        .handler  = fullscreen_toggle_action,
         .uithread = true
     },
-    {
-        .action = ACTION_FULLSCREEN_DECORATIONS_TOGGLE,
-        .handler = fullscreen_decorations_toggle_action,
+    {   .action   = ACTION_FULLSCREEN_DECORATIONS_TOGGLE,
+        .handler  = fullscreen_decorations_toggle_action,
         .uithread = true
     },
-    {
-        .action = ACTION_RESTORE_DISPLAY,
-        .handler = restore_display_action,
+    {   .action   = ACTION_RESTORE_DISPLAY,
+        .handler  = restore_display_action,
         .uithread = true
     },
-    {
-        .action = ACTION_SHOW_STATUSBAR_TOGGLE,
-        .handler = show_statusbar_toggle_action,
+    {   .action   = ACTION_SHOW_STATUSBAR_TOGGLE,
+        .handler  = show_statusbar_toggle_action,
         .uithread = true
     },
+    {   .action   = ACTION_SHOW_STATUSBAR_SECONDARY_TOGGLE,
+        .handler  = show_statusbar_secondary_toggle_action,
+        .uithread = true
+    },
+    UI_ACTION_MAP_TERMINATOR
+};
 
+/** \brief  Border mode actions
+ *
+ * UI action maps for setting border mode.
+ * Since all ${CHIP}_${MODE}_BORDER constants are the same for each CHIP, we
+ * simply use the constants for VICII here, should that ever change we'll need
+ * separate lists for each CHIP.
+ */
+static const ui_action_map_t border_mode_actions[] = {
+    {   .action   = ACTION_BORDER_MODE_NONE,
+        .handler  = border_mode_action,
+        .data     = int_to_void_ptr(VICII_NO_BORDERS),
+        .uithread = true
+    },
+    {   .action   = ACTION_BORDER_MODE_NORMAL,
+        .handler  = border_mode_action,
+        .data     = int_to_void_ptr(VICII_NORMAL_BORDERS),
+        .uithread = true
+    },
+    {   .action   = ACTION_BORDER_MODE_FULL,
+        .handler  = border_mode_action,
+        .data     = int_to_void_ptr(VICII_FULL_BORDERS),
+        .uithread = true
+    },
+    {   .action   = ACTION_BORDER_MODE_DEBUG,
+        .handler  = border_mode_action,
+        .data     = int_to_void_ptr(VICII_DEBUG_BORDERS),
+        .uithread = true
+    },
     UI_ACTION_MAP_TERMINATOR
 };
 
@@ -184,6 +254,21 @@ static const ui_action_map_t display_actions[] = {
 void actions_display_register(void)
 {
     ui_actions_register(display_actions);
+    switch (machine_class) {
+        case VICE_MACHINE_C64:      /* fall through */
+        case VICE_MACHINE_C64SC:    /* fall through */
+        case VICE_MACHINE_C64DTV:   /* fall through */
+        case VICE_MACHINE_SCPU64:   /* fall through */
+        case VICE_MACHINE_C128:     /* fall through */
+        case VICE_MACHINE_PLUS4:    /* fall through */
+        case VICE_MACHINE_CBM5x0:   /* fall through */
+        case VICE_MACHINE_VIC20:
+            ui_actions_register(border_mode_actions);
+            break;
+        default:
+            /* no BorderMode resource for other emulator */
+            break;
+    }
 }
 
 
@@ -194,22 +279,22 @@ void actions_display_register(void)
 void actions_display_setup_ui(void)
 {
     video_canvas_t *canvas;
-    const char *chip;
-    int enabled;
+    const char     *chip;
+    int             enabled = 0;
 
     canvas = ui_get_canvas_for_window(PRIMARY_WINDOW);
-    chip = canvas->videoconfig->chip_name;
+    chip   = canvas->videoconfig->chip_name;
 
     /* set fullscreen check button for primary window */
     resources_get_int_sprintf("%sFullscreen", &enabled, chip);
-    ui_set_check_menu_item_blocked_by_action_for_window(ACTION_FULLSCREEN_TOGGLE,
+    vhk_gtk_set_check_item_blocked_by_action_for_window(ACTION_FULLSCREEN_TOGGLE,
                                                         PRIMARY_WINDOW,
                                                         (gboolean)enabled);
 
     /* set fullscreen check button for secondary window (x128 VDC) */
     if (machine_class == VICE_MACHINE_C128) {
         resources_get_int("VDCFullscreen", &enabled);
-        ui_set_check_menu_item_blocked_by_action_for_window(ACTION_FULLSCREEN_TOGGLE,
+        vhk_gtk_set_check_item_blocked_by_action_for_window(ACTION_FULLSCREEN_TOGGLE,
                                                             SECONDARY_WINDOW,
                                                             (gboolean)enabled);
     }
@@ -217,19 +302,18 @@ void actions_display_setup_ui(void)
     /* fullscreen decorations is currently a single resource for all chips
      * and thus windows */
     resources_get_int("FullscreenDecorations", &enabled);
-    ui_set_check_menu_item_blocked_by_action(ACTION_FULLSCREEN_DECORATIONS_TOGGLE,
+    vhk_gtk_set_check_item_blocked_by_action(ACTION_FULLSCREEN_DECORATIONS_TOGGLE,
                                              (gboolean)enabled);
 
     /* set check buttons for show-statusbar */
     resources_get_int_sprintf("%sShowStatusbar", &enabled, chip);
-    ui_set_check_menu_item_blocked_by_action_for_window(ACTION_SHOW_STATUSBAR_TOGGLE,
+    vhk_gtk_set_check_item_blocked_by_action_for_window(ACTION_SHOW_STATUSBAR_TOGGLE,
                                                         PRIMARY_WINDOW,
                                                         enabled);
     if (machine_class == VICE_MACHINE_C128) {
         resources_get_int("VDCShowStatusbar", &enabled);
-        ui_set_check_menu_item_blocked_by_action_for_window(ACTION_SHOW_STATUSBAR_TOGGLE,
+        vhk_gtk_set_check_item_blocked_by_action_for_window(ACTION_SHOW_STATUSBAR_SECONDARY_TOGGLE,
                                                             SECONDARY_WINDOW,
                                                             enabled);
     }
-
 }

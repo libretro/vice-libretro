@@ -147,11 +147,11 @@
 /* Define to the full name of this package. */
 #define PACKAGE_NAME "VICE"
 
-/* Define to the full name and version of this package. */
-#define PACKAGE_STRING "VICE 3.7"
-
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.7"
+#define PACKAGE_VERSION "3.8"
+
+/* Define to the full name and version of this package. */
+#define PACKAGE_STRING PACKAGE_NAME " " PACKAGE_VERSION
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void

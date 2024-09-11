@@ -3,7 +3,7 @@
  *
  * \author  Bas Wassink <b.wassink@ziggo.nl>
  *
- * \@note   This file cannot be used from ui.c since that causes massive
+ * \note    This file cannot be used from ui.c since that causes massive
  *          linker errors due to the way vsid is linked. Currently registering
  *          the actions happens in vsidui.c, which magically does work.
  */
@@ -39,7 +39,7 @@
 #include <stdbool.h>
 
 #include "debug_gtk3.h"
-#include "hotkeymap.h"
+#include "hotkeys.h"
 #include "machine.h"
 #include "psid.h"
 #include "resources.h"
@@ -47,6 +47,7 @@
 #include "uiactions.h"
 #include "uisidattach.h"
 #include "vsidcontrolwidget.h"
+#include "vsidmixerwidget.h"
 #include "vsidplaylistwidget.h"
 #include "vsidstate.h"
 
@@ -65,11 +66,11 @@
 static void play_current_tune(void)
 {
     vsid_state_t *state;
-    int current;
-    const char *filename;
+    int           current;
+    const char   *filename;
 
-    state = vsid_state_lock();
-    current = state->tune_current;
+    state    = vsid_state_lock();
+    current  = state->tune_current;
     filename = state->psid_filename;
 
     if (state->tune_current < 0) {
@@ -98,7 +99,7 @@ static void play_current_tune(void)
     debug_gtk3("calling machine_play_psid(%d).", current);
     machine_play_psid(current);
     debug_gtk3("calling machine_trigger_reset(SOFT).");
-    machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    machine_trigger_reset(MACHINE_RESET_MODE_RESET_CPU);
     ui_pause_disable();
     vsid_control_widget_set_state(VSID_PLAYING);
 }
@@ -130,32 +131,41 @@ static void play_subtune(int tune)
     play_current_tune();
 }
 
-/** \brief  Show PSID load dialog */
-static void psid_load_action(void)
+/** \brief  Show PSID load dialog
+ *
+ * \param[in]   self    action map
+ */
+static void psid_load_action(ui_action_map_t *self)
 {
     uisidattach_show_dialog();
 }
 
-/** \brief  Toggle override of PSID file settings */
-static void psid_override_toggle_action(void)
+/** \brief  Toggle override of PSID file settings
+ *
+ * \param[in]   self    action map
+ */
+static void psid_override_toggle_action(ui_action_map_t *self)
 {
     int enabled = 0;
 
     resources_get_int("PSIDKeepEnv", &enabled);
     enabled = !enabled;
     resources_set_int("PSIDKeepEnv", enabled);
-    ui_set_check_menu_item_blocked_by_action(ACTION_PSID_OVERRIDE_TOGGLE, enabled);
+    vhk_gtk_set_check_item_blocked_by_action(ACTION_PSID_OVERRIDE_TOGGLE, enabled);
 }
 
-/** \brief  Start playback */
-static void psid_play_action(void)
+/** \brief  Start playback
+ *
+ * \param[in]   self    action map
+ */
+static void psid_play_action(ui_action_map_t *self)
 {
     vsid_state_t *state;
-    int current;
-    const char *filename;
+    int           current;
+    const char   *filename;
 
-    state = vsid_state_lock();
-    current = state->tune_current;
+    state    = vsid_state_lock();
+    current  = state->tune_current;
     filename = state->psid_filename;
 
     if (current < 0) {
@@ -175,7 +185,8 @@ static void psid_play_action(void)
 
         psid_init_driver();
         machine_play_psid(current);
-        machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+        machine_trigger_reset(MACHINE_RESET_MODE_RESET_CPU);
+        vsid_mixer_widget_update();
     } else {
         /* return emulation speed back to 100% */
         vsid_state_unlock();
@@ -185,15 +196,21 @@ static void psid_play_action(void)
     vsid_control_widget_set_state(VSID_PLAYING);
 }
 
-/** \brief  Toggle pause */
-static void psid_pause_action(void)
+/** \brief  Toggle pause
+ *
+ * \param[in]   self    action map
+ */
+static void psid_pause_action(ui_action_map_t *self)
 {
     ui_pause_toggle();
     vsid_control_widget_set_state(ui_pause_active() ? VSID_PAUSED : VSID_PLAYING);
 }
 
-/** \brief  Stop playback */
-static void psid_stop_action(void)
+/** \brief  Stop playback
+ *
+ * \param[in]   self    action map
+ */
+static void psid_stop_action(ui_action_map_t *self)
 {
     vsid_state_t *state = vsid_state_lock();
 
@@ -204,12 +221,15 @@ static void psid_stop_action(void)
 
     psid_init_driver();
     machine_play_psid(-1);
-    machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    machine_trigger_reset(MACHINE_RESET_MODE_RESET_CPU);
     vsid_control_widget_set_state(VSID_STOPPED);
 }
 
-/** \brief  Toggle fast forward */
-static void psid_ffwd_action(void)
+/** \brief  Toggle fast forward
+ *
+ * \param[in]   self    action map
+ */
+static void psid_ffwd_action(ui_action_map_t *self)
 {
     int speed = 0;
 
@@ -225,9 +245,12 @@ static void psid_ffwd_action(void)
 }
 
 /** \brief  Play next subtune
- *  \note   Wraps around to the first tune if the current tune is the last.
+ *
+ * \param[in]   self    action map
+ *
+ * \note   Wraps around to the first tune if the current tune is the last.
  */
-static void psid_subtune_next_action(void)
+static void psid_subtune_next_action(ui_action_map_t *self)
 {
     vsid_state_t *state = vsid_state_lock();
 
@@ -253,9 +276,12 @@ static void psid_subtune_next_action(void)
 }
 
 /** \brief  Play previous subtune
- *  \note   Wraps around to the last tune if the current tune is the first.
+ *
+ * \param[in]   self    action map
+ *
+ * \note   Wraps around to the last tune if the current tune is the first.
  */
-static void psid_subtune_previous_action(void)
+static void psid_subtune_previous_action(ui_action_map_t *self)
 {
     vsid_state_t *state = vsid_state_lock();
 
@@ -273,493 +299,279 @@ static void psid_subtune_previous_action(void)
     play_current_tune();
 }
 
-/** \brief  Play subtune 1 */
-static void psid_subtune_1_action(void)
+/** \brief  Play a subtune
+ *
+ * \param[in]   self    action map
+ */
+static void psid_subtune_action(ui_action_map_t *self)
 {
-    play_subtune(1);
+    play_subtune(vice_ptr_to_int(self->data));
 }
 
-/** \brief  Play subtune 2 */
-static void psid_subtune_2_action(void)
-{
-    play_subtune(2);
-}
-
-/** \brief  Play subtune 3 */
-static void psid_subtune_3_action(void)
-{
-    play_subtune(3);
-}
-
-/** \brief  Play subtune 4 */
-static void psid_subtune_4_action(void)
-{
-    play_subtune(4);
-}
-
-/** \brief  Play subtune 5 */
-static void psid_subtune_5_action(void)
-{
-    play_subtune(5);
-}
-
-/** \brief  Play subtune 6 */
-static void psid_subtune_6_action(void)
-{
-    play_subtune(6);
-}
-
-/** \brief  Play subtune 7 */
-static void psid_subtune_7_action(void)
-{
-    play_subtune(7);
-}
-
-/** \brief  Play subtune 8 */
-static void psid_subtune_8_action(void)
-{
-    play_subtune(8);
-}
-
-/** \brief  Play subtune 9 */
-static void psid_subtune_9_action(void)
-{
-    play_subtune(9);
-}
-
-/** \brief  Play subtune 10 */
-static void psid_subtune_10_action(void)
-{
-    play_subtune(10);
-}
-
-/** \brief  Play subtune 11 */
-static void psid_subtune_11_action(void)
-{
-    play_subtune(11);
-}
-
-/** \brief  Play subtune 12 */
-static void psid_subtune_12_action(void)
-{
-    play_subtune(12);
-}
-
-/** \brief  Play subtune 13 */
-static void psid_subtune_13_action(void)
-{
-    play_subtune(13);
-}
-
-/** \brief  Play subtune 14 */
-static void psid_subtune_14_action(void)
-{
-    play_subtune(14);
-}
-
-/** \brief  Play subtune 15 */
-static void psid_subtune_15_action(void)
-{
-    play_subtune(15);
-}
-
-/** \brief  Play subtune 16 */
-static void psid_subtune_16_action(void)
-{
-    play_subtune(16);
-}
-
-/** \brief  Play subtune 17 */
-static void psid_subtune_17_action(void)
-{
-    play_subtune(17);
-}
-
-/** \brief  Play subtune 18 */
-static void psid_subtune_18_action(void)
-{
-    play_subtune(18);
-}
-
-/** \brief  Play subtune 19 */
-static void psid_subtune_19_action(void)
-{
-    play_subtune(19);
-}
-
-/** \brief  Play subtune 20 */
-static void psid_subtune_20_action(void)
-{
-    play_subtune(20);
-}
-
-/** \brief  Play subtune 21 */
-static void psid_subtune_21_action(void)
-{
-    play_subtune(21);
-}
-
-/** \brief  Play subtune 22 */
-static void psid_subtune_22_action(void)
-{
-    play_subtune(22);
-}
-
-/** \brief  Play subtune 23 */
-static void psid_subtune_23_action(void)
-{
-    play_subtune(23);
-}
-
-/** \brief  Play subtune 24 */
-static void psid_subtune_24_action(void)
-{
-    play_subtune(24);
-}
-
-/** \brief  Play subtune 25 */
-static void psid_subtune_25_action(void)
-{
-    play_subtune(25);
-}
-
-/** \brief  Play subtune 26 */
-static void psid_subtune_26_action(void)
-{
-    play_subtune(26);
-}
-
-/** \brief  Play subtune 27 */
-static void psid_subtune_27_action(void)
-{
-    play_subtune(27);
-}
-
-/** \brief  Play subtune 28 */
-static void psid_subtune_28_action(void)
-{
-    play_subtune(28);
-}
-
-/** \brief  Play subtune 29 */
-static void psid_subtune_29_action(void)
-{
-    play_subtune(29);
-}
-
-/** \brief  Play subtune 30 */
-static void psid_subtune_30_action(void)
-{
-    play_subtune(30);
-}
-
-/** \brief  Toggle SID tune looping */
-static void psid_loop_toggle_action(void)
+/** \brief  Toggle SID tune looping
+ *
+ * \param[in]   self    action map
+ */
+static void psid_loop_toggle_action(ui_action_map_t *self)
 {
     gboolean enabled = vsid_control_widget_get_repeat();
 
     vsid_control_widget_set_repeat(!enabled);
 }
 
-/** \brief  Play first tune in the playlist */
-static void psid_playlist_first_action(void)
+/** \brief  Call a VSID playlist function
+ *
+ * \param[in]   self    action map
+ */
+static void psid_playlist_action(ui_action_map_t *self)
 {
-    vsid_playlist_first();
-}
-
-/** \brief  Play previous tune in the playlist */
-static void psid_playlist_previous_action(void)
-{
-    vsid_playlist_previous();
-}
-
-/** \brief  Play next tune in the playlist */
-static void psid_playlist_next_action(void)
-{
-    vsid_playlist_next();
-}
-
-/** \brief  Play last tune in the playlist */
-static void psid_playlist_last_action(void)
-{
-    vsid_playlist_last();
-}
-
-/** \brief  Show dialog to add files to the playlist */
-static void psid_playlist_add_action(void)
-{
-    vsid_playlist_add();
-}
-
-/** \brief  Show dialog to load a playlist */
-static void psid_playlist_load_action(void)
-{
-    vsid_playlist_load();
-}
-
-/** \brief  Show dialog to save the playlist */
-static void psid_playlist_save_action(void)
-{
-    vsid_playlist_save();
-}
-
-/** \brief  Clear the playlist */
-static void psid_playlist_clear_action(void)
-{
-    vsid_playlist_clear();
+    /* the action system makes sure we're on the UI thread, so we can simply
+     * call the function passed */
+    void (*func)(void) = self->data;
+    func();
 }
 
 
 /** \brief  List of VSID-specific actions */
 static const ui_action_map_t vsid_actions[] = {
-    {
-        .action = ACTION_PSID_LOAD,
+    {   .action  = ACTION_PSID_LOAD,
         .handler = psid_load_action,
-        .blocks = true,
-        .dialog = true
+        .blocks  = true,
+        .dialog  = true
     },
-    {
-        .action = ACTION_PSID_OVERRIDE_TOGGLE,
-        .handler = psid_override_toggle_action,
+    {   .action   = ACTION_PSID_OVERRIDE_TOGGLE,
+        .handler  = psid_override_toggle_action,
         .uithread = true,
     },
-    {
-        .action = ACTION_PSID_PLAY,
-        .handler = psid_play_action,
+    {   .action   = ACTION_PSID_PLAY,
+        .handler  = psid_play_action,
         .uithread = true,   /* if we want to toggle the button's pressed state */
     },
-    {
-        .action = ACTION_PSID_PAUSE,
-        .handler = psid_pause_action,
+    {   .action   = ACTION_PSID_PAUSE,
+        .handler  = psid_pause_action,
         .uithread = true
     },
-    {
-        .action = ACTION_PSID_STOP,
-        .handler = psid_stop_action,
+    {   .action   = ACTION_PSID_STOP,
+        .handler  = psid_stop_action,
         .uithread = true
     },
-    {
-        .action = ACTION_PSID_FFWD,
-        .handler = psid_ffwd_action,
+    {   .action   = ACTION_PSID_FFWD,
+        .handler  = psid_ffwd_action,
         .uithread = true    /* if we want to toggle the button's pressed state */
     },
-    {
-        .action = ACTION_PSID_SUBTUNE_NEXT,
-        .handler = psid_subtune_next_action,
+    {   .action   = ACTION_PSID_SUBTUNE_NEXT,
+        .handler  = psid_subtune_next_action,
         .uithread = true
     },
-    {
-        .action = ACTION_PSID_SUBTUNE_PREVIOUS,
-        .handler = psid_subtune_previous_action,
+    {   .action   = ACTION_PSID_SUBTUNE_PREVIOUS,
+        .handler  = psid_subtune_previous_action,
         .uithread = true
     },
+    /* {{{ actions for subtune 1-30 */
+    {   .action   = ACTION_PSID_SUBTUNE_1,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(1),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_2,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(2),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_3,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(3),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_4,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(4),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_5,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(5),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_6,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(6),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_7,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(7),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_8,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(8),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_9,
+        .handler  = psid_subtune_action,
+        .data    = int_to_void_ptr(9),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_10,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(10),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_11,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(11),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_12,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(12),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_13,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(13),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_14,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(14),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_15,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(15),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_16,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(16),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_17,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(17),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_18,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(18),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_19,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(19),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_20,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(20),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_21,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(21),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_22,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(22),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_23,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(23),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_24,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(24),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_25,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(25),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_26,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(26),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_27,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(27),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_28,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(28),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_29,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(29),
+        .uithread = true
+    },
+    {   .action   = ACTION_PSID_SUBTUNE_30,
+        .handler  = psid_subtune_action,
+        .data     = int_to_void_ptr(30),
+        .uithread = true
+    },
+    /* }}} */
 
-    {
-        .action = ACTION_PSID_SUBTUNE_1,
-        .handler = psid_subtune_1_action,
+    {   .action   = ACTION_PSID_LOOP_TOGGLE,
+        .handler  = psid_loop_toggle_action,
         .uithread = true
     },
-    {
-        .action = ACTION_PSID_SUBTUNE_2,
-        .handler = psid_subtune_2_action,
+    {   .action   = ACTION_PSID_PLAYLIST_FIRST,
+        .handler  = psid_playlist_action,
+        .data     = (void*)vsid_playlist_first,
         .uithread = true
     },
-    {
-        .action = ACTION_PSID_SUBTUNE_3,
-        .handler = psid_subtune_3_action,
+    {   .action   = ACTION_PSID_PLAYLIST_PREVIOUS,
+        .handler  = psid_playlist_action,
+        .data     = (void*)vsid_playlist_previous,
         .uithread = true
     },
-    {
-        .action = ACTION_PSID_SUBTUNE_4,
-        .handler = psid_subtune_4_action,
+    {   .action   = ACTION_PSID_PLAYLIST_NEXT,
+        .handler  = psid_playlist_action,
+        .data     = (void*)vsid_playlist_next,
         .uithread = true
     },
-    {
-        .action = ACTION_PSID_SUBTUNE_5,
-        .handler = psid_subtune_5_action,
+    {   .action   = ACTION_PSID_PLAYLIST_LAST,
+        .handler  = psid_playlist_action,
+        .data     = (void*)vsid_playlist_last,
         .uithread = true
     },
-    {
-        .action = ACTION_PSID_SUBTUNE_6,
-        .handler = psid_subtune_6_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_7,
-        .handler = psid_subtune_7_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_8,
-        .handler = psid_subtune_8_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_9,
-        .handler = psid_subtune_9_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_10,
-        .handler = psid_subtune_10_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_11,
-        .handler = psid_subtune_11_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_12,
-        .handler = psid_subtune_12_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_13,
-        .handler = psid_subtune_13_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_14,
-        .handler = psid_subtune_14_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_15,
-        .handler = psid_subtune_15_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_16,
-        .handler = psid_subtune_16_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_17,
-        .handler = psid_subtune_17_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_18,
-        .handler = psid_subtune_18_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_19,
-        .handler = psid_subtune_19_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_20,
-        .handler = psid_subtune_20_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_21,
-        .handler = psid_subtune_21_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_22,
-        .handler = psid_subtune_22_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_23,
-        .handler = psid_subtune_23_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_24,
-        .handler = psid_subtune_24_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_25,
-        .handler = psid_subtune_25_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_26,
-        .handler = psid_subtune_26_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_27,
-        .handler = psid_subtune_27_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_28,
-        .handler = psid_subtune_28_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_29,
-        .handler = psid_subtune_29_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_SUBTUNE_30,
-        .handler = psid_subtune_30_action,
-        .uithread = true
-    },
-
-    {
-        .action = ACTION_PSID_LOOP_TOGGLE,
-        .handler = psid_loop_toggle_action,
-        .uithread = true
-    },
-
-    {
-        .action = ACTION_PSID_PLAYLIST_FIRST,
-        .handler = psid_playlist_first_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_PLAYLIST_PREVIOUS,
-        .handler = psid_playlist_previous_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_PLAYLIST_NEXT,
-        .handler = psid_playlist_next_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_PLAYLIST_LAST,
-        .handler = psid_playlist_last_action,
-        .uithread = true
-    },
-    {
-        .action = ACTION_PSID_PLAYLIST_ADD,
-        .handler = psid_playlist_add_action,
+    {   .action   = ACTION_PSID_PLAYLIST_ADD,
+        .handler  = psid_playlist_action,
+        .data     = (void*)vsid_playlist_add,
         .uithread = true,
-        .dialog = true,
-        .blocks = true
+        .dialog   = true,
+        .blocks   = true
     },
-    {
-        .action = ACTION_PSID_PLAYLIST_LOAD,
-        .handler = psid_playlist_load_action,
+    {   .action   = ACTION_PSID_PLAYLIST_LOAD,
+        .handler  = psid_playlist_action,
+        .data     = (void*)vsid_playlist_load,
         .uithread = true,
-        .dialog = true,
-        .blocks = true
+        .dialog   = true,
+        .blocks   = true
     },
-    {
-        .action = ACTION_PSID_PLAYLIST_SAVE,
-        .handler = psid_playlist_save_action,
+    {   .action   = ACTION_PSID_PLAYLIST_SAVE,
+        .handler  = psid_playlist_action,
+        .data     = (void*)vsid_playlist_save,
         .uithread = true,
-        .dialog = true,
-        .blocks = true
+        .dialog   = true,
+        .blocks   = true
     },
-    {
-        .action = ACTION_PSID_PLAYLIST_CLEAR,
-        .handler = psid_playlist_clear_action,
+    {   .action   = ACTION_PSID_PLAYLIST_CLEAR,
+        .handler  = psid_playlist_action,
+        .data     = (void*)vsid_playlist_clear,
         .uithread = true,
-        .dialog = true,
-        .blocks = true
+        .dialog   = true,
+        .blocks   = true
     },
-
 
     UI_ACTION_MAP_TERMINATOR
 };
@@ -780,5 +592,5 @@ void actions_vsid_setup_ui(void)
 
     /* Override PSID settings */
     resources_get_int("PSIDKeepEnv", &enabled);
-    ui_set_check_menu_item_blocked_by_action(ACTION_PSID_OVERRIDE_TOGGLE, enabled);
+    vhk_gtk_set_check_item_blocked_by_action(ACTION_PSID_OVERRIDE_TOGGLE, enabled);
 }

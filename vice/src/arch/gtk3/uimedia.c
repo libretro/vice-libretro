@@ -64,9 +64,7 @@
 #include "videoarch.h"
 #include "vsync.h"
 
-#ifdef HAVE_FFMPEG
 #include "ffmpegwidget.h"
-#endif
 
 #include "uimedia.h"
 
@@ -77,17 +75,13 @@ enum {
     RESPONSE_SAVE = 1   /**< Save button clicked */
 };
 
-
-/** \brief  Name of the stack child for screenshots
- */
+/** \brief  Name of the stack child for screenshots */
 #define CHILD_SCREENSHOT    "Screenshot"
 
-/** \brief  Name of the stack child for sound recording
- */
+/** \brief  Name of the stack child for sound recording */
 #define CHILD_SOUND         "Sound"
 
-/** \brief  Name of the stack child for video recording
-*/
+/** \brief  Name of the stack child for video recording */
 #define CHILD_VIDEO         "Video"
 
 
@@ -98,7 +92,6 @@ typedef struct video_driver_info_s {
     const char *name;       /**< driver name */
     const char *ext;        /**< default file extension */
 } video_driver_info_t;
-
 
 /** \brief  Struct to hold information on available audio recording drivers
  */
@@ -113,11 +106,9 @@ typedef struct audio_driver_info_s {
  */
 static video_driver_info_t *video_driver_list = NULL;
 
-
 /** \brief  Number of available video drivers
  */
 static int video_driver_count = 0;
-
 
 /** \brief  Index of currently selected screenshot driver
  *
@@ -126,14 +117,10 @@ static int video_driver_count = 0;
  */
 static int screenshot_driver_index = -1;
 
-
-#ifdef HAVE_FFMPEG
-/** \brief  Index of currently selected video driver
- *
- */
+/** \brief  Index of currently selected video driver */
 static int video_driver_index = 0;
-#endif  /* HAVE_FFMPEG */
 
+static const char *video_driver = NULL;
 
 /** \brief  Index of currently selected audio driver
  *
@@ -141,7 +128,6 @@ static int video_driver_index = 0;
  * Set to last selected driver on subsequent uses of the dialog.
  */
 static int audio_driver_index = -1;
-
 
 /** \brief  Last used directory of the file chooser dialogs
  *
@@ -175,51 +161,47 @@ static audio_driver_info_t audio_driver_list[] = {
     { NULL,         NULL,   NULL }
 };
 
-
 /** \brief  List of 'oversize modes' for some screenshot output drivers
  */
 static vice_gtk3_combo_entry_int_t oversize_modes[] = {
-    { "scale down", 0 },
-    { "crop left top", 1, },
-    { "crop center top", 2 },
-    { "crop right top", 3 },
-    { "crop left center", 4 },
-    { "crop center", 5 },
-    { "crop right center", 6 },
-    { "crop left bottom", 7 },
-    { "crop center bottom", 8 },
-    { "crop right bottom", 9 },
-    { NULL, -1 }
+    { "scale down",         NATIVE_SS_OVERSIZE_SCALE },
+    { "crop left top",      NATIVE_SS_OVERSIZE_CROP_LEFT_TOP, },
+    { "crop center top",    NATIVE_SS_OVERSIZE_CROP_CENTER_TOP },
+    { "crop right top",     NATIVE_SS_OVERSIZE_CROP_RIGHT_TOP },
+    { "crop left center",   NATIVE_SS_OVERSIZE_CROP_LEFT_CENTER },
+    { "crop center",        NATIVE_SS_OVERSIZE_CROP_CENTER },
+    { "crop right center",  NATIVE_SS_OVERSIZE_CROP_RIGHT_CENTER },
+    { "crop left bottom",   NATIVE_SS_OVERSIZE_CROP_LEFT_BOTTOM },
+    { "crop center bottom", NATIVE_SS_OVERSIZE_CROP_CENTER_BOTTOM },
+    { "crop right bottom",  NATIVE_SS_OVERSIZE_CROP_RIGHT_BOTTOM },
+    { NULL,                 -1 }
 };
-
 
 /** \brief  List of 'undersize modes' for some screenshot output drivers
  */
 static vice_gtk3_combo_entry_int_t undersize_modes[] = {
-    { "scale up", 0 },
-    { "border size", 1 },
-    { NULL, -1 }
+    { "scale up",   NATIVE_SS_UNDERSIZE_SCALE },
+    { "bordize",    NATIVE_SS_UNDERSIZE_BORDERIZE },
+    { NULL,         -1 }
 };
-
 
 /** \brief  List of multi color modes for some screenshot output drivers
  */
 static const vice_gtk3_combo_entry_int_t multicolor_modes[] = {
-    { "B&W", 0 },
-    { "2 colors", 1 },
-    { "4 colors", 2 },
-    { "Grey scale", 3 },
-    { "Best cell colors", 4 },
-    { NULL, -1 }
+    { "Black & White",      NATIVE_SS_MC2HR_BLACK_WHITE },
+    { "2 colors",           NATIVE_SS_MC2HR_2_COLORS },
+    { "4 colors",           NATIVE_SS_MC2HR_4_COLORS },
+    { "Grayscale",          NATIVE_SS_MC2HR_GRAY },
+    { "Best cell colors",   NATIVE_SS_MC2HR_DITHER },
+    { NULL,                 -1 }
 };
-
 
 /** \brief  TED output driver Luma modes
  */
 static const vice_gtk3_combo_entry_int_t ted_luma_modes[] = {
-    { "ignore", 0 },
-    { "Best cell colors", 1 },
-    { NULL, -1 },
+    { "ignore",             NATIVE_SS_TED_LUM_IGNORE },
+    { "Best cell colors",   NATIVE_SS_TED_LUM_DITHER },
+    { NULL,                 -1 },
 };
 
 
@@ -279,11 +261,9 @@ static GtkWidget *undersize_widget = NULL;
 static GtkWidget *multicolor_widget = NULL;
 /** \brief  Screenshot "TED luma" widget reference */
 static GtkWidget *ted_luma_widget = NULL;
-#ifdef HAVE_FFMPEG
+
 /** \brief  FFMPEG video driver options grid reference */
 static GtkWidget *video_driver_options_grid = NULL;
-#endif
-
 
 /*****************************************************************************
  *                              Event handlers                               *
@@ -324,6 +304,26 @@ static void update_screenshot_options_grid(GtkWidget *new)
             gtk_widget_destroy(old);
         }
         gtk_grid_attach(GTK_GRID(screenshot_options_grid), new, 0, 1, 1, 1);
+    }
+}
+
+
+/** \brief  Set new widget for the movie options, replacing the old one
+ *
+ * Destroys any widget present before setting the \a new widget.
+ *
+ * \param[in]   new     new widget
+ */
+static void update_video_driver_options_grid(GtkWidget *new)
+{
+    GtkWidget *old;
+
+    if (new != NULL) {
+        old = gtk_grid_get_child_at(GTK_GRID(video_driver_options_grid), 0, 1);
+        if (old != NULL) {
+            gtk_widget_destroy(old);
+        }
+        gtk_grid_attach(GTK_GRID(video_driver_options_grid), new, 0, 1, 1, 1);
     }
 }
 
@@ -407,10 +407,30 @@ static void on_audio_driver_toggled(GtkWidget *widget, gpointer data)
 }
 
 
+/** \brief  Handler for the "toggled" event of the video driver dropdown list
+ *
+ * \param[in]       widget      widget riggering the event
+ * \param[in]       data        extra event data (unused)
+ */
+static void on_video_driver_toggled(GtkWidget *widget, gpointer data)
+{
+    video_driver = (char*)gtk_combo_box_get_active_id(GTK_COMBO_BOX(widget));
+
+    update_video_driver_options_grid(ffmpeg_widget_create(video_driver));
+}
 
 /*****************************************************************************
  *                              Helpers functions                            *
  ****************************************************************************/
+
+/* hack to deal with coexistence of old (lib) and new (exe) FFMPEG drivers,
+   we use this to wrap usages of videodriver when producing resource names - in
+   that case we use "FFMPEG" also when the videodriver name is "FFMPEGEXE". */
+static const char* ffmpeg_kludges(const char *name)
+{
+    if (!strcmp(name, "FFMPEGEXE")) return "FFMPEG";
+    return name;
+}
 
 /** \brief  Create a string in the format 'yyyymmddHHMMssffffff' of the current time
  *
@@ -605,11 +625,10 @@ static void save_screenshot_handler(GtkWidget *parent)
     lastdir_set(dialog, &media_last_dir, NULL);
 
     /* destroy parent dialog when the dialog is destroyed */
-    g_signal_connect_swapped(
-            dialog,
-            "destroy",
-            G_CALLBACK(gtk_widget_destroy),
-            parent);
+    g_signal_connect_swapped_unlocked(dialog,
+                                      "destroy",
+                                      G_CALLBACK(gtk_widget_destroy),
+                                      parent);
 
     lib_free(proposed);
     lib_free(title);
@@ -674,11 +693,10 @@ static void save_audio_recording_handler(GtkWidget *parent)
             NULL);
     lastdir_set(dialog, &media_last_dir, NULL);
     /* destroy parent dialog when the dialog is destroyed */
-    g_signal_connect_swapped(
-            dialog,
-            "destroy",
-            G_CALLBACK(gtk_widget_destroy),
-            parent);
+    g_signal_connect_swapped_unlocked(dialog,
+                                      "destroy",
+                                      G_CALLBACK(gtk_widget_destroy),
+                                      parent);
 
     lib_free(title);
     lib_free(proposed);
@@ -697,26 +715,27 @@ static void on_save_video_filename(GtkDialog *dialog,
                                    gpointer data)
 {
     if (filename != NULL) {
-
+#if 0
         const char *driver;
         int ac;
         int vc;
         int ab;
         int vb;
+#endif
         gchar *filename_locale;
 
         lastdir_update(GTK_WIDGET(dialog), &media_last_dir, NULL);
-
+#if 0
         resources_get_string("FFMPEGFormat", &driver);
         resources_get_int("FFMPEGVideoCodec", &vc);
         resources_get_int("FFMPEGVideoBitrate", &vb);
         resources_get_int("FFMPEGAudioCodec", &ac);
         resources_get_int("FFMPEGAudioBitrate", &ab);
-
+#endif
         filename_locale = file_chooser_convert_to_locale(filename);
-
+        /* printf("on_save_video_filename video_driver:'%s'\n", video_driver); */
         /* TODO: add extension if not present? */
-        if (screenshot_save("FFMPEG", filename_locale, ui_get_active_canvas()) < 0) {
+        if (screenshot_save(video_driver, filename_locale, ui_get_active_canvas()) < 0) {
             vice_gtk3_message_error("VICE Error",
                     "Failed to write video file '%s'", filename);
         }
@@ -751,9 +770,9 @@ static void save_video_recording_handler(GtkWidget *parent)
 #endif
     /* we don't have a format->extension mapping, so the format name itself is
        better than `video_driver_list[video_driver_index].ext' */
-    resources_get_string("FFMPEGFormat", &ext);
+    resources_get_string_sprintf("%sFormat", &ext, ffmpeg_kludges(video_driver));
 
-    title = lib_msprintf("Save %s file", "FFMPEG");
+    title = lib_msprintf("Save %s file", video_driver ? video_driver : "NULL");
     proposed = create_proposed_video_recording_name(ext);
 
     dialog = vice_gtk3_save_file_dialog(
@@ -762,11 +781,10 @@ static void save_video_recording_handler(GtkWidget *parent)
     lastdir_set(dialog, &media_last_dir, NULL);
 
     /* destroy parent dialog when the dialog is destroyed */
-    g_signal_connect_swapped(
-            dialog,
-            "destroy",
-            G_CALLBACK(gtk_widget_destroy),
-            parent);
+    g_signal_connect_swapped_unlocked(dialog,
+                                      "destroy",
+                                      G_CALLBACK(gtk_widget_destroy),
+                                      parent);
 
     lib_free(proposed);
     lib_free(title);
@@ -818,7 +836,7 @@ static int driver_is_video(const char *name)
 {
     int result;
 
-    result = strcmp(name, "FFMPEG") == 0;
+    result = (strcmp(name, "FFMPEG") == 0) || (strcmp(name, "FFMPEGEXE") == 0) || (strcmp(name, "ZMBV") == 0);
     return result;
 }
 
@@ -874,7 +892,7 @@ static GtkWidget *create_screenshot_param_widget(const char *prefix)
     label = gtk_label_new("Oversize handling");
     gtk_widget_set_margin_start(label, 16);
     gtk_widget_set_halign(label, GTK_ALIGN_START);
-    oversize_widget = vice_gtk3_resource_combo_box_int_new_sprintf(
+    oversize_widget = vice_gtk3_resource_combo_int_new_sprintf(
             "%sOversizeHandling", oversize_modes, prefix);
     gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), oversize_widget, 1, 0, 1, 1);
@@ -883,7 +901,7 @@ static GtkWidget *create_screenshot_param_widget(const char *prefix)
     label = gtk_label_new("Undersize handling");
     gtk_widget_set_margin_start(label, 16);
     gtk_widget_set_halign(label, GTK_ALIGN_START);
-    undersize_widget = vice_gtk3_resource_combo_box_int_new_sprintf(
+    undersize_widget = vice_gtk3_resource_combo_int_new_sprintf(
             "%sUndersizeHandling", undersize_modes, prefix);
     gtk_grid_attach(GTK_GRID(grid), label, 0, 1, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), undersize_widget, 1, 1, 1, 1);
@@ -897,7 +915,7 @@ static GtkWidget *create_screenshot_param_widget(const char *prefix)
         label = gtk_label_new("Multi color handling");
         gtk_widget_set_margin_start(label, 16);
         gtk_widget_set_halign(label, GTK_ALIGN_START);
-        multicolor_widget = vice_gtk3_resource_combo_box_int_new_sprintf(
+        multicolor_widget = vice_gtk3_resource_combo_int_new_sprintf(
                 "%sMultiColorHandling", multicolor_modes, prefix);
         gtk_grid_attach(GTK_GRID(grid), label, 0, row, 1, 1);
         gtk_grid_attach(GTK_GRID(grid), multicolor_widget, 1, row, 1, 1);
@@ -909,7 +927,7 @@ static GtkWidget *create_screenshot_param_widget(const char *prefix)
         label = gtk_label_new("TED luma handling");
         gtk_widget_set_margin_start(label, 16);
         gtk_widget_set_halign(label, GTK_ALIGN_START);
-        ted_luma_widget = vice_gtk3_resource_combo_box_int_new_sprintf(
+        ted_luma_widget = vice_gtk3_resource_combo_int_new_sprintf(
                 "%sTEDLumHandling", ted_luma_modes, prefix);
         gtk_grid_attach(GTK_GRID(grid), label, 0, row, 1, 1);
         gtk_grid_attach(GTK_GRID(grid), ted_luma_widget, 1, row, 1, 1);
@@ -1083,16 +1101,15 @@ static GtkWidget *create_video_widget(void)
 {
     GtkWidget *grid;
     GtkWidget *label;
-#ifdef HAVE_FFMPEG
     GtkWidget *combo;
     int index;
     GtkWidget *selection_grid;
     GtkWidget *options_grid;
-#endif
+
     grid = vice_gtk3_grid_new_spaced(16, 8);
 
 
-#ifdef HAVE_FFMPEG
+#if 1
     label = gtk_label_new("Video driver");
     gtk_widget_set_margin_start(label, 16);
 
@@ -1100,28 +1117,31 @@ static GtkWidget *create_video_widget(void)
     for (index = 0; video_driver_list[index].name != NULL; index++) {
         const char *display = video_driver_list[index].display;
         const char *name = video_driver_list[index].name;
-
         if (driver_is_video(name)) {
             gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(combo), name, display);
-        }
-
-        if (video_driver_index < 0) {
-            video_driver_index = 0;
-            gtk_combo_box_set_active(GTK_COMBO_BOX(combo), index);
-        } else {
-            if (video_driver_index == index) {
+            if (video_driver_index < 0) {
+                video_driver_index = 0;
                 gtk_combo_box_set_active(GTK_COMBO_BOX(combo), index);
+                video_driver = name;
+            } else {
+                if (video_driver_index == index) {
+                    gtk_combo_box_set_active(GTK_COMBO_BOX(combo), index);
+                    video_driver = name;
+                }
             }
         }
-
     }
     gtk_widget_set_hexpand(combo, TRUE);
     gtk_combo_box_set_active(GTK_COMBO_BOX(combo), 0);
+
+    g_signal_connect(combo, "changed", G_CALLBACK(on_video_driver_toggled), NULL);
+    video_driver = (char*)gtk_combo_box_get_active_id(GTK_COMBO_BOX(combo));
 
     selection_grid = vice_gtk3_grid_new_spaced_with_label(
             -1, -1, "Driver selection", 2);
     gtk_widget_set_margin_top(selection_grid, 8);
     gtk_widget_set_margin_start(selection_grid, 16);
+    gtk_widget_set_margin_end(selection_grid, 16);
     gtk_grid_set_column_spacing(GTK_GRID(selection_grid), 16);
     gtk_grid_set_row_spacing(GTK_GRID(selection_grid), 8);
     gtk_grid_attach(GTK_GRID(selection_grid), label, 0, 1, 1, 1);
@@ -1135,10 +1155,11 @@ static GtkWidget *create_video_widget(void)
             -1, -1, "Driver options", 1);
     gtk_widget_set_margin_top(options_grid, 8);
     gtk_widget_set_margin_start(options_grid, 16);
+    gtk_widget_set_margin_end(options_grid, 16);
     gtk_grid_set_column_spacing(GTK_GRID(options_grid), 16);
     gtk_grid_set_row_spacing(GTK_GRID(options_grid), 8);
 
-    gtk_grid_attach(GTK_GRID(options_grid), ffmpeg_widget_create(), 0, 1, 1,1);
+    gtk_grid_attach(GTK_GRID(options_grid), ffmpeg_widget_create(video_driver), 0, 1, 1,1);
     video_driver_options_grid = options_grid;
 
     gtk_grid_attach(GTK_GRID(grid), options_grid, 0, 1, 1, 1);
@@ -1293,6 +1314,7 @@ static void auto_screenshot_vsync_callback(void *param)
     if (screenshot_save("PNG", filename, canvas) < 0) {
         log_error(LOG_ERR, "Failed to autosave screenshot.");
     }
+    lib_free(filename);
 }
 
 

@@ -5,9 +5,10 @@
  */
 
 /*
- * $VICERES Printer4Output  -vsid
- * $VICERES Printer5Output  -vsid
- * $VICERES Printer6Output  -vsid
+ * $VICERES Printer4Output          -vsid
+ * $VICERES Printer5Output          -vsid
+ * $VICERES Printer6Output          -vsid
+ * $VICERES PrinterUserportOutput   x64 x64sc xscpu64 x128 xvic xpet xcbm2
  */
 
 /*
@@ -32,52 +33,44 @@
  */
 
 #include "vice.h"
-
 #include <gtk/gtk.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
-#include "vice_gtk3.h"
-#include "resources.h"
+#include "log.h"
 #include "printer.h"
+#include "resources.h"
+#include "vice_gtk3.h"
 
 #include "printeroutputmodewidget.h"
 
 
-/** \brief  Handler for the 'destroy' event of \a widget
- *
- * Frees memory used by the copy of the resource name.
- *
- * \param[in,out]   widget      widget
- * \param[in]       user_data   extra event data (unused)
- */
-static void on_widget_destroy(GtkWidget *widget, gpointer user_data)
-{
-    resource_widget_free_resource_name(widget);
-}
+/* Output mode radio button rows */
+enum {
+    ROW_TEXT_MODE     = 1,
+    ROW_GRAPHICS_MODE = 2
+};
 
 
 /** \brief  Handler for the 'toggled' event of the radio buttons
  *
- * \param[in]   radio       radio button
- * \param[in]   user_data   new value for resource (`string`)
+ * \param[in]   radio   radio button
+ * \param[in]   mode    new output mode
  */
-static void on_radio_toggled(GtkWidget *radio, gpointer user_data)
+static void on_radio_toggled(GtkWidget *radio, gpointer mode)
 {
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(radio))) {
 
-        GtkWidget *parent;
+        GtkWidget  *parent;
         const char *new_val;
-        const char *old_val;
+        const char *old_val = NULL;
         const char *resource;
 
-        parent = gtk_widget_get_parent(radio);
+        parent   = gtk_widget_get_parent(radio);
         resource = resource_widget_get_resource_name(parent);
+        new_val  = (const char *)mode;
         resources_get_string(resource, &old_val);
-        new_val = (const char *)user_data;
 
-        if (strcmp(new_val, old_val) != 0) {
+        if (g_strcmp0(new_val, old_val) != 0) {
             resources_set_string(resource, new_val);
         }
     }
@@ -86,52 +79,81 @@ static void on_radio_toggled(GtkWidget *radio, gpointer user_data)
 
 /** \brief  Create widget to control Printer[device]TextDevice resource
  *
- * \param[in]   device  device number
+ * \param[in]   device  device number (4-6 or 3 for userport)
  *
  * \return  GtkGrid
  */
 GtkWidget *printer_output_mode_widget_create(int device)
 {
-    GtkWidget *grid;
-    GtkWidget *radio_text;
-    GtkWidget *radio_gfx;
-    GSList *group = NULL;
-    char resource[256];
-    const char *value;
+    GtkWidget  *grid;
+    GtkWidget  *text;
+    GtkWidget  *gfx;
+    GSList     *group = NULL;
+    const char *value = NULL;
+    char        resource[32];
 
     /* can't use the resource base widgets here, since for some reason this
      * resource is a string with two possible values: "text" and "graphics"
      */
 
-    grid = vice_gtk3_grid_new_spaced_with_label(-1, -1, "Output mode", 1);
+    grid = vice_gtk3_grid_new_spaced_with_label(8, 0, "Output mode", 1);
+    vice_gtk3_grid_set_title_margin(grid, 8);
 
-    g_snprintf(resource, sizeof(resource), "Printer%dOutput", device);
+    if (device >= 4 && device <= 6) {
+        g_snprintf(resource, sizeof resource , "Printer%dOutput", device);
+    } else if (device == 3) {
+        /* userport printer */
+        strncpy(resource, "PrinterUserportOutput", sizeof resource - 1u);
+        resource[sizeof resource - 1u] = '\0';
+    } else {
+        log_error(LOG_ERR,
+                  "%s(): invalid device number %d.",
+                  __func__, device);
+        return NULL;
+    }
     resource_widget_set_resource_name(grid, resource);
 
-    radio_text = gtk_radio_button_new_with_label(group, "Text");
-    gtk_widget_set_margin_start(radio_text, 16);
-    radio_gfx = gtk_radio_button_new_with_label(group, "Graphics");
-    gtk_widget_set_margin_start(radio_gfx, 16);
-    gtk_radio_button_join_group(GTK_RADIO_BUTTON(radio_gfx),
-            GTK_RADIO_BUTTON(radio_text));
+    text = gtk_radio_button_new_with_label(group, "Text");
+    gfx  = gtk_radio_button_new_with_label(group, "Graphics");
+    gtk_radio_button_join_group(GTK_RADIO_BUTTON(gfx),
+                                GTK_RADIO_BUTTON(text));
 
     resources_get_string(resource, &value);
-    if (strcmp(value, "text") == 0) {
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(radio_text), TRUE);
+    if (g_strcmp0(value, "text") == 0) {
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(text), TRUE);
     } else {
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(radio_gfx), TRUE);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gfx), TRUE);
     }
 
-    gtk_grid_attach(GTK_GRID(grid), radio_text, 0, 1, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), radio_gfx, 0, 2, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), text, 0, ROW_TEXT_MODE,     1, 1);
+    gtk_grid_attach(GTK_GRID(grid), gfx,  0, ROW_GRAPHICS_MODE, 1, 1);
 
-    g_signal_connect(radio_text, "toggled", G_CALLBACK(on_radio_toggled),
-            (gpointer)"text");
-    g_signal_connect(radio_gfx, "toggled", G_CALLBACK(on_radio_toggled),
-            (gpointer)"graphics");
-
-    g_signal_connect_unlocked(grid, "destroy", G_CALLBACK(on_widget_destroy), NULL);
+    g_signal_connect(text,
+                     "toggled",
+                     G_CALLBACK(on_radio_toggled),
+                     (gpointer)"text");
+    g_signal_connect(gfx,
+                     "toggled",
+                     G_CALLBACK(on_radio_toggled),
+                     (gpointer)"graphics");
 
     gtk_widget_show_all(grid);
     return grid;
+}
+
+/** \brief  Set printer output mode
+ *
+ * \param[in]   widget  printer output mode widget
+ * \param[in]   mode    mode ("text or "graphics")
+ */
+void printer_output_mode_widget_set_mode(GtkWidget *widget, const char *mode)
+{
+    GtkWidget *radio;
+
+    if (g_strcmp0(mode, "text") == 0) {
+        radio = gtk_grid_get_child_at(GTK_GRID(widget), 0, ROW_TEXT_MODE);
+    } else {
+        radio = gtk_grid_get_child_at(GTK_GRID(widget), 0, ROW_GRAPHICS_MODE);
+    }
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(radio), TRUE);
 }

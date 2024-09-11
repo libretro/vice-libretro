@@ -30,6 +30,6 @@
 #include "vice.h"
 #include <gtk/gtk.h>
 
-GtkWidget *ffmpeg_widget_create(void);
+GtkWidget *ffmpeg_widget_create(const char *name);
 
 #endif

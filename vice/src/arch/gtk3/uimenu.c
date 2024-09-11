@@ -34,7 +34,7 @@
 #include "archdep.h"
 #include "debug_gtk3.h"
 #include "vice_gtk3.h"
-#include "hotkeymap.h"
+#include "hotkeys.h"
 #include "kbd.h"
 #include "lib.h"
 #include "log.h"
@@ -85,7 +85,7 @@ static void on_menu_item_destroy(GtkWidget *item, gpointer unused)
         guint mask;
 
         gtk_accel_label_get_accel(label, &keysym, &mask);
-        ui_remove_accelerator(keysym, mask);
+        vhk_gtk_remove_accelerator(keysym, mask);
     }
 }
 
@@ -98,7 +98,9 @@ static void on_menu_item_destroy(GtkWidget *item, gpointer unused)
  */
 static void on_menu_item_activate(GtkWidget *item, gpointer action_id)
 {
+#if 0
     debug_gtk3("Called with action ID %d", GPOINTER_TO_INT(action_id));
+#endif
     ui_action_trigger(GPOINTER_TO_INT(action_id));
 }
 
@@ -241,28 +243,23 @@ GtkWidget *ui_menu_add(GtkWidget *menu, const ui_menu_item_t *items, gint window
 
             /* add item to table of references if it triggers a UI action */
             if (items[i].action_id > ACTION_NONE) {
-
-                hotkey_map_t *map;
+                ui_action_map_t *action_map;        /* ui-agnostic data */
 
                 /* add to hotkey maps or update */
-                if (window_id == PRIMARY_WINDOW) {
-                    map = hotkey_map_new();
-                    map->action = items[i].action_id;
-                    map->decl = &items[i];
-                    hotkey_map_append(map);
-                } else {
-                    map = hotkey_map_get_by_action(items[i].action_id);
-                    if (map == NULL) {
-                        /* this shouldn't happen! */
-                        debug_gtk3("Failed to locate hotkey mapping object"
-                                   "for action %d (%s).",
-                                   items[i].action_id,
-                                   ui_action_get_name(items[i].action_id));
+                action_map = ui_action_map_get(items[i].action_id);
+                if (action_map != NULL) {
+                    vhk_gtk_map_t *arch_map;    /* gtk3-specific data */
+
+                    action_map->menu_item[window_id] = item;
+                    arch_map = action_map->user_data;
+                    if (arch_map == NULL) {
+                        /* will be NULL when this code runs for the primary
+                         * window */
+                        arch_map = vhk_gtk_map_new(&items[i]);
+                        action_map->user_data = arch_map;
                     }
-                }
-                if (map != NULL) {
-                    map->item[window_id] = item;
-                    map->handler[window_id] = handler_id;
+                    /* set signal handler ID in the gtk3-specific map */
+                    arch_map->handler[window_id] = handler_id;
                 }
             }
         }
@@ -270,9 +267,3 @@ GtkWidget *ui_menu_add(GtkWidget *menu, const ui_menu_item_t *items, gint window
     }
     return menu;
 }
-
-
-
-
-
-

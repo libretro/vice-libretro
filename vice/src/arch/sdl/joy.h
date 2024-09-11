@@ -33,45 +33,42 @@
 
 #include "types.h"
 
-//#include "vice_sdl.h"
+#include "vice_sdl.h"
 
-//#include "uimenu.h"
+#include "uimenu.h"
 
-//extern void joystick_close(void);
-//extern void joystick(void);
-
-//extern void joy_arch_resources_shutdown(void);
+void joystick_close(void);
+void joystick(void);
 
 #ifdef HAVE_SDL_NUMJOYSTICKS
-extern void joy_arch_init_default_mapping(int joynum);
-extern int joy_arch_mapping_load(const char *filename);
-extern int joy_arch_mapping_dump(const char *filename);
-extern ui_menu_action_t sdljoy_axis_event(Uint8 joynum, Uint8 axis, Sint16 value);
-extern ui_menu_action_t sdljoy_button_event(Uint8 joynum, Uint8 button, Uint8 value);
-extern ui_menu_action_t sdljoy_hat_event(Uint8 joynum, Uint8 hat, Uint8 value);
-extern ui_menu_action_t sdljoy_autorepeat(void);
-extern uint8_t sdljoy_check_axis_movement(SDL_Event e);
-extern uint8_t sdljoy_check_hat_movement(SDL_Event e);
-extern void sdljoy_set_joystick(SDL_Event e, int port, int bits);
-extern void sdljoy_set_hotkey(SDL_Event e, ui_menu_entry_t *value);
-extern void sdljoy_set_keypress(SDL_Event e, int row, int col);
-extern void sdljoy_set_extra(SDL_Event e, int type);
-extern void sdljoy_unset(SDL_Event e);
-extern void sdljoy_set_joystick_axis(SDL_Event e, int port, int pot);
-extern char *get_joy_pin_mapping_string(int joy, int pin);
-extern char *get_joy_pot_mapping_string(int joynr, int pot);
-extern char *get_joy_extra_mapping_string(int type);
-extern void sdljoy_delete_pin_mapping(int port, int pin);
-extern void sdljoy_delete_pot_mapping(int port, int pot);
-extern void sdljoy_delete_extra_mapping(int type);
-extern int sdljoy_get_joynum_for_event(Uint8 event_device_id);
-extern int sdljoy_rescan(void);
-extern void sdljoy_clear_presses(void);
+void joy_arch_init_default_mapping(int joynum);
+int joy_arch_mapping_load(const char *filename);
+int joy_arch_mapping_dump(const char *filename);
+void sdljoy_axis_event(Uint8 joynum, Uint8 axis, Sint16 value);
+ui_menu_action_t sdljoy_axis_event_for_menu_action(Uint8 joynum, Uint8 axis, Sint16 value);
+ui_menu_action_t sdljoy_button_event_for_menu_action(Uint8 joynum, Uint8 button, Uint8 value);
+ui_menu_action_t sdljoy_hat_event_for_menu_action(Uint8 joynum, Uint8 hat, Uint8 value);
+ui_menu_action_t sdljoy_autorepeat(void);
+void sdljoy_autorepeat_init(void);
+uint8_t sdljoy_check_axis_movement(SDL_Event e);
+uint8_t sdljoy_check_hat_movement(SDL_Event e);
+void sdljoy_set_joystick(SDL_Event e, int bits);
+void sdljoy_set_hotkey(SDL_Event e, ui_menu_entry_t *value);
+void sdljoy_set_keypress(SDL_Event e, int row, int col);
+void sdljoy_set_extra(SDL_Event e, int type);
+void sdljoy_unset(SDL_Event e);
+void sdljoy_set_joystick_axis(SDL_Event e, int pot);
+void sdljoy_delete_extra_mapping(int type);
+int sdljoy_get_joynum_for_event(VICE_SDL_JoystickID event_device_id);
+int sdljoy_rescan(void);
+void sdljoy_clear_presses(void);
 
 #endif
 
-extern void sdljoy_swap_ports(void);
-extern int sdljoy_get_swap_ports(void) ;
+void sdljoy_swap_ports(void);
+int sdljoy_get_swap_ports(void) ;
+
+extern VICE_SDL_JoystickID *joy_ordinal_to_id;
 
 #define JOYDEV_NONE     0
 #define JOYDEV_NUMPAD   1

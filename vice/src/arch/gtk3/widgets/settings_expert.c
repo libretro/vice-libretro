@@ -35,15 +35,11 @@
  */
 
 #include "vice.h"
-
 #include <gtk/gtk.h>
 
-#include "vice_gtk3.h"
+#include "c64cart.h"
 #include "cartridge.h"
-#include "machine.h"
-#include "openfiledialog.h"
-#include "resources.h"
-#include "savefiledialog.h"
+#include "vice_gtk3.h"
 
 #include "settings_expert.h"
 
@@ -51,9 +47,9 @@
 /** \brief  List of 'modes' for the Expert Cartridge
  */
 static const vice_gtk3_radiogroup_entry_t mode_list[] = {
-    { "Off",            0 },
-    { "Programmable",   1 },
-    { "On",             2 },
+    { "Off",            EXPERT_MODE_OFF },
+    { "Programmable",   EXPERT_MODE_PRG },
+    { "On",             EXPERT_MODE_ON },
     { NULL,             -1 }
 };
 
@@ -65,29 +61,44 @@ static const vice_gtk3_radiogroup_entry_t mode_list[] = {
 static GtkWidget *create_expert_mode_widget(void)
 {
     GtkWidget *grid;
-    GtkWidget *radio_group;
+    GtkWidget *label;
+    GtkWidget *group;
 
-    grid = vice_gtk3_grid_new_spaced_with_label(-1, -1, "Cartridge mode", 3);
-    radio_group = vice_gtk3_resource_radiogroup_new("ExpertCartridgeMode",
-            mode_list, GTK_ORIENTATION_HORIZONTAL);
-    gtk_widget_set_margin_start(radio_group, 16);
-    gtk_grid_set_column_spacing(GTK_GRID(radio_group), 16);
-    gtk_grid_attach(GTK_GRID(grid), radio_group, 0, 1, 1, 1);
+    grid = gtk_grid_new();
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 8);
+
+    label = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(label), "<b>" CARTRIDGE_NAME_EXPERT " mode</b>");
+    gtk_widget_set_halign(label, GTK_ALIGN_START);
+    gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 1, 1);
+
+    group = vice_gtk3_resource_radiogroup_new("ExpertCartridgeMode",
+                                              mode_list,
+                                              GTK_ORIENTATION_VERTICAL);
+    gtk_grid_attach(GTK_GRID(grid), group, 0, 1, 1, 1);
     gtk_widget_show_all(grid);
     return grid;
 }
 
-
-/** \brief  Create widget to load/save Expert Cartridge image file
+/** \brief  Create widget to load/flush/save Expert Cartridge image file
  *
  * \return  GtkGrid
  */
 static GtkWidget *create_expert_image_widget(void)
 {
-    return cart_image_widget_create(
-            NULL, "Expert Cartridge image",
-            "Expertfilename", "ExpertImageWrite",
-            CARTRIDGE_NAME_EXPERT, CARTRIDGE_EXPERT);
+    GtkWidget *image;
+
+    image = cart_image_widget_new(CARTRIDGE_EXPERT,
+                                  CARTRIDGE_NAME_EXPERT,
+                                  CART_IMAGE_PRIMARY,
+                                  NULL,
+                                  "Expertfilename",
+                                  TRUE,
+                                  TRUE);
+    cart_image_widget_append_check(image,
+                                   "ExpertImageWrite",
+                                   "Write image on cartridge detach/emulator exit");
+    return image;
 }
 
 
@@ -100,21 +111,21 @@ static GtkWidget *create_expert_image_widget(void)
 GtkWidget *settings_expert_widget_create(GtkWidget *parent)
 {
     GtkWidget *grid;
-    GtkWidget *expert_enable_widget; /* expert_enable is defined by expert.c */
-    GtkWidget *expert_image;
-    GtkWidget *expert_mode;
+    GtkWidget *enable;
+    GtkWidget *image;
+    GtkWidget *mode;
 
-    grid = vice_gtk3_grid_new_spaced(8, 8);
+    grid = gtk_grid_new();
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 32);
 
-    expert_enable_widget = carthelpers_create_enable_check_button(
-            CARTRIDGE_NAME_EXPERT, CARTRIDGE_EXPERT);
-    gtk_grid_attach(GTK_GRID(grid), expert_enable_widget, 0, 0, 1, 1);
+    enable = carthelpers_create_enable_check_button(CARTRIDGE_NAME_EXPERT,
+                                                    CARTRIDGE_EXPERT);
+    image  = create_expert_image_widget();
+    mode   = create_expert_mode_widget();
 
-    expert_mode = create_expert_mode_widget();
-    gtk_grid_attach(GTK_GRID(grid), expert_mode, 0, 1, 1, 1);
-
-    expert_image = create_expert_image_widget();
-    gtk_grid_attach(GTK_GRID(grid), expert_image, 0, 2, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), enable, 0, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), image,  0, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), mode,   0, 2, 1, 1);
 
     gtk_widget_show_all(grid);
     return grid;

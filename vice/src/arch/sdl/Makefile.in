@@ -112,45 +112,63 @@ am__v_AR_0 = @echo "  AR      " $@;
 am__v_AR_1 = 
 libarch_a_AR = $(AR) $(ARFLAGS)
 libarch_a_LIBADD =
-am__libarch_a_SOURCES_DIST = archdep.c archdep.h fullscreen.c \
-	fullscreenarch.h icon.c icon.h joy.c joy.h kbd.c kbd.h \
-	lightpendrv.c lightpendrv.h menu_c128hw.c menu_c128hw.h \
-	menu_c64cart.c menu_c64cart.h menu_c64_common_expansions.c \
-	menu_c64_common_expansions.h menu_c64_expansions.c \
-	menu_c64_expansions.h menu_c64dtvhw.c menu_c64dtvhw.h \
-	menu_c64hw.c menu_c64hw.h menu_c64model.c menu_c64model.h \
-	menu_cbm2cart.c menu_cbm2cart.h menu_cbm2hw.c menu_cbm2hw.h \
-	menu_cbm5x0hw.c menu_cbm5x0hw.h menu_common.c menu_common.h \
-	menu_debug.c menu_debug.h menu_drive.c menu_drive.h \
-	menu_drive_rom.c menu_drive_rom.h menu_edit.c menu_edit.h \
-	menu_ethernet.c menu_ethernet.h menu_ethernetcart.c \
-	menu_ethernetcart.h menu_ffmpeg.c menu_ffmpeg.h menu_help.c \
-	menu_help.h menu_jam.c menu_jam.h menu_joyport.c \
-	menu_joyport.h menu_joystick.c menu_joystick.h menu_media.c \
-	menu_media.h menu_midi.c menu_midi.h menu_monitor.c \
-	menu_monitor.h menu_mouse.c menu_mouse.h menu_network.c \
-	menu_network.h menu_petcart.c menu_petcart.h menu_pethw.c \
-	menu_pethw.h menu_plus4cart.c menu_plus4cart.h menu_plus4hw.c \
-	menu_plus4hw.h menu_printer.c menu_printer.h menu_ram.c \
-	menu_ram.h menu_reset.c menu_reset.h menu_rom.c menu_rom.h \
-	menu_rs232.c menu_rs232.h menu_sampler.c menu_sampler.h \
-	menu_scpu64hw.c menu_scpu64hw.h menu_screenshot.c \
-	menu_screenshot.h menu_settings.c menu_settings.h menu_sid.c \
-	menu_sid.h menu_snapshot.c menu_snapshot.h menu_sound.c \
-	menu_sound.h menu_speed.c menu_speed.h menu_tape.c menu_tape.h \
-	menu_userport.c menu_userport.h menu_vic20cart.c \
-	menu_vic20cart.h menu_vic20hw.c menu_vic20hw.h menu_video.c \
-	menu_video.h mousedrv.c mousedrv.h sdlmain.c ui.c ui.h \
-	uifonts.c uifonts.h uifilereq.c uiimagefilereq.c uifilereq.h \
-	uihotkey.c uihotkey.h uimenu.c uimenu.h uimon.c uimsgbox.c \
-	uimsgbox.h uipause.c uipoll.c uipoll.h uistatusbar.c \
-	uistatusbar.h video_sdl1.c video_sdl2.c videoarch.h vkbd.c \
-	vkbd.h vsidui.c vsidui_sdl.h vsyncarch.c x128_ui.c x64_ui.c \
-	x64dtv_ui.c x64sc_ui.c xcbm2_ui.c xcbm5x0_ui.c xpet_ui.c \
-	xplus4_ui.c xscpu64_ui.c xvic_ui.c
+am__libarch_a_SOURCES_DIST = actions-cartridge.c actions-cartridge.h \
+	actions-debug.c actions-debug.h actions-display.c \
+	actions-display.h actions-drive.c actions-drive.h \
+	actions-edit.c actions-edit.h actions-help.c actions-help.h \
+	actions-hotkeys.c actions-hotkeys.h actions-joystick.c \
+	actions-joystick.h actions-machine.c actions-machine.h \
+	actions-media.c actions-media.h actions-settings.c \
+	actions-settings.h actions-snapshot.c actions-snapshot.h \
+	actions-speed.c actions-speed.h actions-tape.c actions-tape.h \
+	actions-vsid.c actions-vsid.h archdep.c archdep.h fullscreen.c \
+	fullscreenarch.h hotkeys.c hotkeys.h icon.c icon.h joy.c joy.h \
+	kbd.c kbd.h lightpendrv.c lightpendrv.h menu_c128hw.c \
+	menu_c128hw.h menu_c64cart.c menu_c64cart.h \
+	menu_c64_common_expansions.c menu_c64_common_expansions.h \
+	menu_c64_expansions.c menu_c64_expansions.h menu_c64dtvhw.c \
+	menu_c64dtvhw.h menu_c64hw.c menu_c64hw.h menu_c64model.c \
+	menu_c64model.h menu_cbm2cart.c menu_cbm2cart.h menu_cbm2hw.c \
+	menu_cbm2hw.h menu_cbm5x0hw.c menu_cbm5x0hw.h menu_common.c \
+	menu_common.h menu_debug.c menu_debug.h menu_drive.c \
+	menu_drive.h menu_drive_rom.c menu_drive_rom.h menu_edit.c \
+	menu_edit.h menu_ethernet.c menu_ethernet.h \
+	menu_ethernetcart.c menu_ethernetcart.h menu_ffmpeg.c \
+	menu_ffmpeg.h menu_help.c menu_help.h menu_jam.c menu_jam.h \
+	menu_joyport.c menu_joyport.h menu_joystick.c menu_joystick.h \
+	menu_media.c menu_media.h menu_midi.c menu_midi.h \
+	menu_monitor.c menu_monitor.h menu_mouse.c menu_mouse.h \
+	menu_network.c menu_network.h menu_petcart.c menu_petcart.h \
+	menu_pethw.c menu_pethw.h menu_plus4cart.c menu_plus4cart.h \
+	menu_plus4hw.c menu_plus4hw.h menu_printer.c menu_printer.h \
+	menu_ram.c menu_ram.h menu_reset.c menu_reset.h menu_rom.c \
+	menu_rom.h menu_rs232.c menu_rs232.h menu_sampler.c \
+	menu_sampler.h menu_scpu64hw.c menu_scpu64hw.h \
+	menu_screenshot.c menu_screenshot.h menu_settings.c \
+	menu_settings.h menu_sid.c menu_sid.h menu_snapshot.c \
+	menu_snapshot.h menu_sound.c menu_sound.h menu_speed.c \
+	menu_speed.h menu_tape.c menu_tape.h menu_userport.c \
+	menu_userport.h menu_vic20cart.c menu_vic20cart.h \
+	menu_vic20hw.c menu_vic20hw.h menu_video.c menu_video.h \
+	menu_wic64.c menu_wic64.h mousedrv.c mousedrv.h sdlmain.c ui.c \
+	ui.h uifonts.c uifonts.h uifilereq.c uiimagefilereq.c \
+	uifilereq.h uihotkey.c uihotkey.h uimedia.c uimedia.h uimenu.c \
+	uimenu.h uimon.c uimsgbox.c uimsgbox.h uipause.c uipoll.c \
+	uipoll.h uistatusbar.c uistatusbar.h video_sdl1.c video_sdl2.c \
+	videoarch.h vkbd.c vkbd.h vsidui.c vsidui_sdl.h vsyncarch.c \
+	x128_ui.c x64_ui.c x64dtv_ui.c x64sc_ui.c xcbm2_ui.c \
+	xcbm5x0_ui.c xpet_ui.c xplus4_ui.c xscpu64_ui.c xvic_ui.c
 @USE_SDL2UI_FALSE@am__objects_1 = video_sdl1.$(OBJEXT)
 @USE_SDL2UI_TRUE@am__objects_1 = video_sdl2.$(OBJEXT)
-am_libarch_a_OBJECTS = archdep.$(OBJEXT) fullscreen.$(OBJEXT) \
+am_libarch_a_OBJECTS = actions-cartridge.$(OBJEXT) \
+	actions-debug.$(OBJEXT) actions-display.$(OBJEXT) \
+	actions-drive.$(OBJEXT) actions-edit.$(OBJEXT) \
+	actions-help.$(OBJEXT) actions-hotkeys.$(OBJEXT) \
+	actions-joystick.$(OBJEXT) actions-machine.$(OBJEXT) \
+	actions-media.$(OBJEXT) actions-settings.$(OBJEXT) \
+	actions-snapshot.$(OBJEXT) actions-speed.$(OBJEXT) \
+	actions-tape.$(OBJEXT) actions-vsid.$(OBJEXT) \
+	archdep.$(OBJEXT) fullscreen.$(OBJEXT) hotkeys.$(OBJEXT) \
 	icon.$(OBJEXT) joy.$(OBJEXT) kbd.$(OBJEXT) \
 	lightpendrv.$(OBJEXT) menu_c128hw.$(OBJEXT) \
 	menu_c64cart.$(OBJEXT) menu_c64_common_expansions.$(OBJEXT) \
@@ -175,16 +193,17 @@ am_libarch_a_OBJECTS = archdep.$(OBJEXT) fullscreen.$(OBJEXT) \
 	menu_snapshot.$(OBJEXT) menu_sound.$(OBJEXT) \
 	menu_speed.$(OBJEXT) menu_tape.$(OBJEXT) \
 	menu_userport.$(OBJEXT) menu_vic20cart.$(OBJEXT) \
-	menu_vic20hw.$(OBJEXT) menu_video.$(OBJEXT) mousedrv.$(OBJEXT) \
-	sdlmain.$(OBJEXT) ui.$(OBJEXT) uifonts.$(OBJEXT) \
-	uifilereq.$(OBJEXT) uiimagefilereq.$(OBJEXT) \
-	uihotkey.$(OBJEXT) uimenu.$(OBJEXT) uimon.$(OBJEXT) \
-	uimsgbox.$(OBJEXT) uipause.$(OBJEXT) uipoll.$(OBJEXT) \
-	uistatusbar.$(OBJEXT) $(am__objects_1) vkbd.$(OBJEXT) \
-	vsidui.$(OBJEXT) vsyncarch.$(OBJEXT) x128_ui.$(OBJEXT) \
-	x64_ui.$(OBJEXT) x64dtv_ui.$(OBJEXT) x64sc_ui.$(OBJEXT) \
-	xcbm2_ui.$(OBJEXT) xcbm5x0_ui.$(OBJEXT) xpet_ui.$(OBJEXT) \
-	xplus4_ui.$(OBJEXT) xscpu64_ui.$(OBJEXT) xvic_ui.$(OBJEXT)
+	menu_vic20hw.$(OBJEXT) menu_video.$(OBJEXT) \
+	menu_wic64.$(OBJEXT) mousedrv.$(OBJEXT) sdlmain.$(OBJEXT) \
+	ui.$(OBJEXT) uifonts.$(OBJEXT) uifilereq.$(OBJEXT) \
+	uiimagefilereq.$(OBJEXT) uihotkey.$(OBJEXT) uimedia.$(OBJEXT) \
+	uimenu.$(OBJEXT) uimon.$(OBJEXT) uimsgbox.$(OBJEXT) \
+	uipause.$(OBJEXT) uipoll.$(OBJEXT) uistatusbar.$(OBJEXT) \
+	$(am__objects_1) vkbd.$(OBJEXT) vsidui.$(OBJEXT) \
+	vsyncarch.$(OBJEXT) x128_ui.$(OBJEXT) x64_ui.$(OBJEXT) \
+	x64dtv_ui.$(OBJEXT) x64sc_ui.$(OBJEXT) xcbm2_ui.$(OBJEXT) \
+	xcbm5x0_ui.$(OBJEXT) xpet_ui.$(OBJEXT) xplus4_ui.$(OBJEXT) \
+	xscpu64_ui.$(OBJEXT) xvic_ui.$(OBJEXT)
 libarch_a_OBJECTS = $(am_libarch_a_OBJECTS)
 libtoolarch_a_AR = $(AR) $(ARFLAGS)
 libtoolarch_a_LIBADD =
@@ -205,9 +224,18 @@ am__v_at_1 =
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/src
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/archdep.Po ./$(DEPDIR)/fullscreen.Po \
-	./$(DEPDIR)/icon.Po ./$(DEPDIR)/joy.Po ./$(DEPDIR)/kbd.Po \
-	./$(DEPDIR)/lightpendrv.Po ./$(DEPDIR)/menu_c128hw.Po \
+am__depfiles_remade = ./$(DEPDIR)/actions-cartridge.Po \
+	./$(DEPDIR)/actions-debug.Po ./$(DEPDIR)/actions-display.Po \
+	./$(DEPDIR)/actions-drive.Po ./$(DEPDIR)/actions-edit.Po \
+	./$(DEPDIR)/actions-help.Po ./$(DEPDIR)/actions-hotkeys.Po \
+	./$(DEPDIR)/actions-joystick.Po ./$(DEPDIR)/actions-machine.Po \
+	./$(DEPDIR)/actions-media.Po ./$(DEPDIR)/actions-settings.Po \
+	./$(DEPDIR)/actions-snapshot.Po ./$(DEPDIR)/actions-speed.Po \
+	./$(DEPDIR)/actions-tape.Po ./$(DEPDIR)/actions-vsid.Po \
+	./$(DEPDIR)/archdep.Po ./$(DEPDIR)/fullscreen.Po \
+	./$(DEPDIR)/hotkeys.Po ./$(DEPDIR)/icon.Po ./$(DEPDIR)/joy.Po \
+	./$(DEPDIR)/kbd.Po ./$(DEPDIR)/lightpendrv.Po \
+	./$(DEPDIR)/menu_c128hw.Po \
 	./$(DEPDIR)/menu_c64_common_expansions.Po \
 	./$(DEPDIR)/menu_c64_expansions.Po ./$(DEPDIR)/menu_c64cart.Po \
 	./$(DEPDIR)/menu_c64dtvhw.Po ./$(DEPDIR)/menu_c64hw.Po \
@@ -232,10 +260,11 @@ am__depfiles_remade = ./$(DEPDIR)/archdep.Po ./$(DEPDIR)/fullscreen.Po \
 	./$(DEPDIR)/menu_sound.Po ./$(DEPDIR)/menu_speed.Po \
 	./$(DEPDIR)/menu_tape.Po ./$(DEPDIR)/menu_userport.Po \
 	./$(DEPDIR)/menu_vic20cart.Po ./$(DEPDIR)/menu_vic20hw.Po \
-	./$(DEPDIR)/menu_video.Po ./$(DEPDIR)/mousedrv.Po \
-	./$(DEPDIR)/sdlmain.Po ./$(DEPDIR)/ui.Po \
-	./$(DEPDIR)/uifilereq.Po ./$(DEPDIR)/uifonts.Po \
-	./$(DEPDIR)/uihotkey.Po ./$(DEPDIR)/uiimagefilereq.Po \
+	./$(DEPDIR)/menu_video.Po ./$(DEPDIR)/menu_wic64.Po \
+	./$(DEPDIR)/mousedrv.Po ./$(DEPDIR)/sdlmain.Po \
+	./$(DEPDIR)/ui.Po ./$(DEPDIR)/uifilereq.Po \
+	./$(DEPDIR)/uifonts.Po ./$(DEPDIR)/uihotkey.Po \
+	./$(DEPDIR)/uiimagefilereq.Po ./$(DEPDIR)/uimedia.Po \
 	./$(DEPDIR)/uimenu.Po ./$(DEPDIR)/uimon.Po \
 	./$(DEPDIR)/uimsgbox.Po ./$(DEPDIR)/uipause.Po \
 	./$(DEPDIR)/uipoll.Po ./$(DEPDIR)/uistatusbar.Po \
@@ -354,7 +383,6 @@ GLIB_LIBS = @GLIB_LIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 HAVE_CXX11 = @HAVE_CXX11@
-HAVE_READLINE = @HAVE_READLINE@
 ICONV = @ICONV@
 ICOTOOL = @ICOTOOL@
 INLINE_UNIT_GROWTH = @INLINE_UNIT_GROWTH@
@@ -401,8 +429,6 @@ PNG_LIBS = @PNG_LIBS@
 PROGRAM_PREFIX = @PROGRAM_PREFIX@
 PROGRAM_SUFFIX = @PROGRAM_SUFFIX@
 RANLIB = @RANLIB@
-READLINE = @READLINE@
-READLINE_LIBS = @READLINE_LIBS@
 RESIDDTVSUB = @RESIDDTVSUB@
 RESIDSUB = @RESIDSUB@
 RESID_DEP = @RESID_DEP@
@@ -427,7 +453,6 @@ SOUND_DRIVERS = @SOUND_DRIVERS@
 SOUND_LIBS = @SOUND_LIBS@
 SOUND_MIDAS_OBJ = @SOUND_MIDAS_OBJ@
 SOUND_SDL_OBJ = @SOUND_SDL_OBJ@
-SOUND_USS_OBJ = @SOUND_USS_OBJ@
 STRIP = @STRIP@
 SVN = @SVN@
 SVNVERSION = @SVNVERSION@
@@ -436,6 +461,7 @@ TAR = @TAR@
 TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
+UNZIPBIN = @UNZIPBIN@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -529,6 +555,7 @@ AM_CPPFLAGS = \
 	@VICE_CPPFLAGS@ \
 	@ARCH_INCLUDES@ \
 	-I$(top_srcdir)/src/arch/shared \
+	-I$(top_srcdir)/src/arch/shared/hotkeys \
 	$(extra_includes) \
 	-I$(top_builddir)/src \
 	-I$(top_srcdir)/src/drive \
@@ -549,6 +576,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src/sid \
 	-I$(top_srcdir)/src/userport \
 	-I$(top_srcdir)/src/vdrive \
+	-I$(top_srcdir)/src/vdc \
 	-I$(top_srcdir)/src/video \
 	-I$(top_srcdir)/src/lib/ \
 	-I$(top_srcdir)/src/lib/p64 \
@@ -572,10 +600,42 @@ noinst_LIBRARIES = libarch.a libtoolarch.a
 @USE_SDL2UI_TRUE@	video_sdl2.c
 
 libarch_a_SOURCES = \
+	actions-cartridge.c \
+	actions-cartridge.h \
+	actions-debug.c \
+	actions-debug.h \
+	actions-display.c \
+	actions-display.h \
+	actions-drive.c \
+	actions-drive.h \
+	actions-edit.c \
+	actions-edit.h \
+	actions-help.c \
+	actions-help.h \
+	actions-hotkeys.c \
+	actions-hotkeys.h \
+	actions-joystick.c \
+	actions-joystick.h \
+	actions-machine.c \
+	actions-machine.h \
+	actions-media.c \
+	actions-media.h \
+	actions-settings.c \
+	actions-settings.h \
+	actions-snapshot.c \
+	actions-snapshot.h \
+	actions-speed.c \
+	actions-speed.h \
+	actions-tape.c \
+	actions-tape.h \
+	actions-vsid.c \
+	actions-vsid.h \
 	archdep.c \
 	archdep.h \
 	fullscreen.c \
 	fullscreenarch.h \
+	hotkeys.c \
+	hotkeys.h \
 	icon.c \
 	icon.h \
 	joy.c \
@@ -682,6 +742,8 @@ libarch_a_SOURCES = \
 	menu_vic20hw.h \
 	menu_video.c \
 	menu_video.h \
+	menu_wic64.c \
+	menu_wic64.h \
 	mousedrv.c \
 	mousedrv.h \
 	sdlmain.c \
@@ -694,6 +756,8 @@ libarch_a_SOURCES = \
 	uifilereq.h \
 	uihotkey.c \
 	uihotkey.h \
+	uimedia.c \
+	uimedia.h \
 	uimenu.c \
 	uimenu.h \
 	uimon.c \
@@ -789,8 +853,24 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-cartridge.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-debug.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-display.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-drive.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-edit.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-help.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-hotkeys.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-joystick.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-machine.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-media.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-settings.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-snapshot.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-speed.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-tape.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/actions-vsid.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fullscreen.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hotkeys.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/icon.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/joy.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/kbd.Po@am__quote@ # am--include-marker
@@ -844,6 +924,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/menu_vic20cart.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/menu_vic20hw.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/menu_video.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/menu_wic64.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mousedrv.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sdlmain.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ui.Po@am__quote@ # am--include-marker
@@ -851,6 +932,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/uifonts.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/uihotkey.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/uiimagefilereq.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/uimedia.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/uimenu.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/uimon.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/uimsgbox.Po@am__quote@ # am--include-marker
@@ -1016,8 +1098,24 @@ clean: clean-am
 clean-am: clean-generic clean-noinstLIBRARIES mostlyclean-am
 
 distclean: distclean-am
-		-rm -f ./$(DEPDIR)/archdep.Po
+		-rm -f ./$(DEPDIR)/actions-cartridge.Po
+	-rm -f ./$(DEPDIR)/actions-debug.Po
+	-rm -f ./$(DEPDIR)/actions-display.Po
+	-rm -f ./$(DEPDIR)/actions-drive.Po
+	-rm -f ./$(DEPDIR)/actions-edit.Po
+	-rm -f ./$(DEPDIR)/actions-help.Po
+	-rm -f ./$(DEPDIR)/actions-hotkeys.Po
+	-rm -f ./$(DEPDIR)/actions-joystick.Po
+	-rm -f ./$(DEPDIR)/actions-machine.Po
+	-rm -f ./$(DEPDIR)/actions-media.Po
+	-rm -f ./$(DEPDIR)/actions-settings.Po
+	-rm -f ./$(DEPDIR)/actions-snapshot.Po
+	-rm -f ./$(DEPDIR)/actions-speed.Po
+	-rm -f ./$(DEPDIR)/actions-tape.Po
+	-rm -f ./$(DEPDIR)/actions-vsid.Po
+	-rm -f ./$(DEPDIR)/archdep.Po
 	-rm -f ./$(DEPDIR)/fullscreen.Po
+	-rm -f ./$(DEPDIR)/hotkeys.Po
 	-rm -f ./$(DEPDIR)/icon.Po
 	-rm -f ./$(DEPDIR)/joy.Po
 	-rm -f ./$(DEPDIR)/kbd.Po
@@ -1071,6 +1169,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/menu_vic20cart.Po
 	-rm -f ./$(DEPDIR)/menu_vic20hw.Po
 	-rm -f ./$(DEPDIR)/menu_video.Po
+	-rm -f ./$(DEPDIR)/menu_wic64.Po
 	-rm -f ./$(DEPDIR)/mousedrv.Po
 	-rm -f ./$(DEPDIR)/sdlmain.Po
 	-rm -f ./$(DEPDIR)/ui.Po
@@ -1078,6 +1177,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/uifonts.Po
 	-rm -f ./$(DEPDIR)/uihotkey.Po
 	-rm -f ./$(DEPDIR)/uiimagefilereq.Po
+	-rm -f ./$(DEPDIR)/uimedia.Po
 	-rm -f ./$(DEPDIR)/uimenu.Po
 	-rm -f ./$(DEPDIR)/uimon.Po
 	-rm -f ./$(DEPDIR)/uimsgbox.Po
@@ -1144,8 +1244,24 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-		-rm -f ./$(DEPDIR)/archdep.Po
+		-rm -f ./$(DEPDIR)/actions-cartridge.Po
+	-rm -f ./$(DEPDIR)/actions-debug.Po
+	-rm -f ./$(DEPDIR)/actions-display.Po
+	-rm -f ./$(DEPDIR)/actions-drive.Po
+	-rm -f ./$(DEPDIR)/actions-edit.Po
+	-rm -f ./$(DEPDIR)/actions-help.Po
+	-rm -f ./$(DEPDIR)/actions-hotkeys.Po
+	-rm -f ./$(DEPDIR)/actions-joystick.Po
+	-rm -f ./$(DEPDIR)/actions-machine.Po
+	-rm -f ./$(DEPDIR)/actions-media.Po
+	-rm -f ./$(DEPDIR)/actions-settings.Po
+	-rm -f ./$(DEPDIR)/actions-snapshot.Po
+	-rm -f ./$(DEPDIR)/actions-speed.Po
+	-rm -f ./$(DEPDIR)/actions-tape.Po
+	-rm -f ./$(DEPDIR)/actions-vsid.Po
+	-rm -f ./$(DEPDIR)/archdep.Po
 	-rm -f ./$(DEPDIR)/fullscreen.Po
+	-rm -f ./$(DEPDIR)/hotkeys.Po
 	-rm -f ./$(DEPDIR)/icon.Po
 	-rm -f ./$(DEPDIR)/joy.Po
 	-rm -f ./$(DEPDIR)/kbd.Po
@@ -1199,6 +1315,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/menu_vic20cart.Po
 	-rm -f ./$(DEPDIR)/menu_vic20hw.Po
 	-rm -f ./$(DEPDIR)/menu_video.Po
+	-rm -f ./$(DEPDIR)/menu_wic64.Po
 	-rm -f ./$(DEPDIR)/mousedrv.Po
 	-rm -f ./$(DEPDIR)/sdlmain.Po
 	-rm -f ./$(DEPDIR)/ui.Po
@@ -1206,6 +1323,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/uifonts.Po
 	-rm -f ./$(DEPDIR)/uihotkey.Po
 	-rm -f ./$(DEPDIR)/uiimagefilereq.Po
+	-rm -f ./$(DEPDIR)/uimedia.Po
 	-rm -f ./$(DEPDIR)/uimenu.Po
 	-rm -f ./$(DEPDIR)/uimon.Po
 	-rm -f ./$(DEPDIR)/uimsgbox.Po

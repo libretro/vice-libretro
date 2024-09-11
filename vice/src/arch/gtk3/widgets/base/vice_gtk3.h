@@ -39,6 +39,7 @@
 #include "debug_gtk3.h"
 #include "filechooserhelpers.h"
 #include "popupmenu.h"
+#include "ramsizeradiogroup.h"
 #include "resourcehelpers.h"
 #include "widgethelpers.h"
 

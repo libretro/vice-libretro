@@ -27,6 +27,9 @@
 #include "vice.h"
 #include "types.h"
 
+#include <stdbool.h>
+
+#include "hotkeys.h"
 #include "joy.h"
 #include "lib.h"
 #include "kbd.h"
@@ -108,12 +111,12 @@ ui_menu_entry_t *sdl_ui_hotkey_action(char *path)
     return NULL;
 }
 
-int sdl_ui_hotkey_map(ui_menu_entry_t *item)
+bool sdl_ui_hotkey_map(ui_menu_entry_t *item)
 {
     SDL_Event e;
 
     if (item == NULL) {
-        return -1;
+        return false;
     }
 
     /* Use text item for unsetting hotkeys */
@@ -121,12 +124,17 @@ int sdl_ui_hotkey_map(ui_menu_entry_t *item)
         item = NULL;
     }
 
-    e = sdl_ui_poll_event("hotkey", item ? item->string : "(unmap hotkey)", SDL_POLL_JOYSTICK | SDL_POLL_KEYBOARD, 5);
+    e = sdl_ui_poll_event("hotkey", item ? item->string : "(unmap hotkey)", -1, 1, 1, 0, 5);
 
     /* TODO check if key/event is suitable */
     switch (e.type) {
         case SDL_KEYDOWN:
+#if 0
             sdlkbd_set_hotkey(SDL2x_to_SDL1x_Keys(e.key.keysym.sym), e.key.keysym.mod, item);
+#endif
+            if (!hotkeys_set_hotkey_from_menu(e.key.keysym.sym, e.key.keysym.mod, item)) {
+                return false;
+            }
             break;
 #ifdef HAVE_SDL_NUMJOYSTICKS
         case SDL_JOYAXISMOTION:
@@ -138,5 +146,5 @@ int sdl_ui_hotkey_map(ui_menu_entry_t *item)
         default:
             break;
     }
-    return 1;
+    return true;
 }

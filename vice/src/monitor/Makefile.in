@@ -120,11 +120,11 @@ am_libmonitor_a_OBJECTS = asm6502.$(OBJEXT) asm6502dtv.$(OBJEXT) \
 	mon_assemblez80.$(OBJEXT) mon_breakpoint.$(OBJEXT) \
 	mon_command.$(OBJEXT) mon_disassemble.$(OBJEXT) \
 	mon_drive.$(OBJEXT) mon_file.$(OBJEXT) mon_memmap.$(OBJEXT) \
-	mon_memory.$(OBJEXT) mon_register6502.$(OBJEXT) \
-	mon_register6502dtv.$(OBJEXT) mon_register6809.$(OBJEXT) \
-	mon_registerR65C02.$(OBJEXT) mon_register65816.$(OBJEXT) \
-	mon_registerz80.$(OBJEXT) mon_register.$(OBJEXT) \
-	mon_ui.$(OBJEXT) mon_util.$(OBJEXT) mon_lex.$(OBJEXT) \
+	mon_memory.$(OBJEXT) mon_profile.$(OBJEXT) \
+	mon_register6502.$(OBJEXT) mon_register6502dtv.$(OBJEXT) \
+	mon_register6809.$(OBJEXT) mon_registerR65C02.$(OBJEXT) \
+	mon_register65816.$(OBJEXT) mon_registerz80.$(OBJEXT) \
+	mon_register.$(OBJEXT) mon_util.$(OBJEXT) mon_lex.$(OBJEXT) \
 	monitor.$(OBJEXT) monitor_network.$(OBJEXT) \
 	monitor_binary.$(OBJEXT)
 libmonitor_a_OBJECTS = $(am_libmonitor_a_OBJECTS)
@@ -155,14 +155,15 @@ am__depfiles_remade = ./$(DEPDIR)/asm6502.Po ./$(DEPDIR)/asm6502dtv.Po \
 	./$(DEPDIR)/mon_drive.Po ./$(DEPDIR)/mon_file.Po \
 	./$(DEPDIR)/mon_lex.Po ./$(DEPDIR)/mon_memmap.Po \
 	./$(DEPDIR)/mon_memory.Po ./$(DEPDIR)/mon_parse.Po \
-	./$(DEPDIR)/mon_register.Po ./$(DEPDIR)/mon_register6502.Po \
+	./$(DEPDIR)/mon_profile.Po ./$(DEPDIR)/mon_register.Po \
+	./$(DEPDIR)/mon_register6502.Po \
 	./$(DEPDIR)/mon_register6502dtv.Po \
 	./$(DEPDIR)/mon_register65816.Po \
 	./$(DEPDIR)/mon_register6809.Po \
 	./$(DEPDIR)/mon_registerR65C02.Po \
-	./$(DEPDIR)/mon_registerz80.Po ./$(DEPDIR)/mon_ui.Po \
-	./$(DEPDIR)/mon_util.Po ./$(DEPDIR)/monitor.Po \
-	./$(DEPDIR)/monitor_binary.Po ./$(DEPDIR)/monitor_network.Po
+	./$(DEPDIR)/mon_registerz80.Po ./$(DEPDIR)/mon_util.Po \
+	./$(DEPDIR)/monitor.Po ./$(DEPDIR)/monitor_binary.Po \
+	./$(DEPDIR)/monitor_network.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -285,7 +286,6 @@ GLIB_LIBS = @GLIB_LIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 HAVE_CXX11 = @HAVE_CXX11@
-HAVE_READLINE = @HAVE_READLINE@
 ICONV = @ICONV@
 ICOTOOL = @ICOTOOL@
 INLINE_UNIT_GROWTH = @INLINE_UNIT_GROWTH@
@@ -332,8 +332,6 @@ PNG_LIBS = @PNG_LIBS@
 PROGRAM_PREFIX = @PROGRAM_PREFIX@
 PROGRAM_SUFFIX = @PROGRAM_SUFFIX@
 RANLIB = @RANLIB@
-READLINE = @READLINE@
-READLINE_LIBS = @READLINE_LIBS@
 RESIDDTVSUB = @RESIDDTVSUB@
 RESIDSUB = @RESIDSUB@
 RESID_DEP = @RESID_DEP@
@@ -358,7 +356,6 @@ SOUND_DRIVERS = @SOUND_DRIVERS@
 SOUND_LIBS = @SOUND_LIBS@
 SOUND_MIDAS_OBJ = @SOUND_MIDAS_OBJ@
 SOUND_SDL_OBJ = @SOUND_SDL_OBJ@
-SOUND_USS_OBJ = @SOUND_USS_OBJ@
 STRIP = @STRIP@
 SVN = @SVN@
 SVNVERSION = @SVNVERSION@
@@ -367,6 +364,7 @@ TAR = @TAR@
 TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
+UNZIPBIN = @UNZIPBIN@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -460,7 +458,6 @@ AM_CPPFLAGS = \
 	@ARCH_INCLUDES@ \
 	-I$(top_builddir)/src \
 	-I$(top_srcdir)/src \
-	-I$(top_srcdir)/src/arch/unix/readline \
 	-I$(top_srcdir)/src/datasette \
 	-I$(top_srcdir)/src/drive \
 	-I$(top_srcdir)/src/imagecontents \
@@ -506,6 +503,8 @@ libmonitor_a_SOURCES = \
 	mon_memmap.h \
 	mon_memory.c \
 	mon_memory.h \
+	mon_profile.c \
+	mon_profile.h \
 	mon_register6502.c \
 	mon_register6502dtv.c \
 	mon_register6809.c \
@@ -514,8 +513,6 @@ libmonitor_a_SOURCES = \
 	mon_registerz80.c \
 	mon_register.h \
 	mon_register.c \
-	mon_ui.c \
-	mon_ui.h \
 	mon_util.c \
 	mon_util.h \
 	mon_lex.l \
@@ -596,6 +593,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mon_memmap.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mon_memory.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mon_parse.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mon_profile.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mon_register.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mon_register6502.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mon_register6502dtv.Po@am__quote@ # am--include-marker
@@ -603,7 +601,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mon_register6809.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mon_registerR65C02.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mon_registerz80.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mon_ui.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mon_util.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/monitor.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/monitor_binary.Po@am__quote@ # am--include-marker
@@ -784,6 +781,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/mon_memmap.Po
 	-rm -f ./$(DEPDIR)/mon_memory.Po
 	-rm -f ./$(DEPDIR)/mon_parse.Po
+	-rm -f ./$(DEPDIR)/mon_profile.Po
 	-rm -f ./$(DEPDIR)/mon_register.Po
 	-rm -f ./$(DEPDIR)/mon_register6502.Po
 	-rm -f ./$(DEPDIR)/mon_register6502dtv.Po
@@ -791,7 +789,6 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/mon_register6809.Po
 	-rm -f ./$(DEPDIR)/mon_registerR65C02.Po
 	-rm -f ./$(DEPDIR)/mon_registerz80.Po
-	-rm -f ./$(DEPDIR)/mon_ui.Po
 	-rm -f ./$(DEPDIR)/mon_util.Po
 	-rm -f ./$(DEPDIR)/monitor.Po
 	-rm -f ./$(DEPDIR)/monitor_binary.Po
@@ -861,6 +858,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/mon_memmap.Po
 	-rm -f ./$(DEPDIR)/mon_memory.Po
 	-rm -f ./$(DEPDIR)/mon_parse.Po
+	-rm -f ./$(DEPDIR)/mon_profile.Po
 	-rm -f ./$(DEPDIR)/mon_register.Po
 	-rm -f ./$(DEPDIR)/mon_register6502.Po
 	-rm -f ./$(DEPDIR)/mon_register6502dtv.Po
@@ -868,7 +866,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/mon_register6809.Po
 	-rm -f ./$(DEPDIR)/mon_registerR65C02.Po
 	-rm -f ./$(DEPDIR)/mon_registerz80.Po
-	-rm -f ./$(DEPDIR)/mon_ui.Po
 	-rm -f ./$(DEPDIR)/mon_util.Po
 	-rm -f ./$(DEPDIR)/monitor.Po
 	-rm -f ./$(DEPDIR)/monitor_binary.Po

@@ -1,8 +1,8 @@
 # VICE LIBRETRO
 
-Port of VICE, the Versatile Commodore Emulator 3.7
+Port of VICE, the Versatile Commodore Emulator 3.8
 
-Source base: [https://sourceforge.net/projects/vice-emu/files/releases/vice-3.7.tar.gz](https://sourceforge.net/projects/vice-emu/files/releases/vice-3.7.tar.gz)
+Source base: [https://sourceforge.net/projects/vice-emu/files/releases/vice-3.8.tar.gz](https://sourceforge.net/projects/vice-emu/files/releases/vice-3.8.tar.gz)
 
 Supported platforms: Linux, Windows, Apple, Android, emscripten, Switch, Vita
 
@@ -265,7 +265,7 @@ ndk-build
 
 ## VICE readme
 
-  VICE  3.7                                                          Dec 2022
+  VICE  3.8                                                          Dec 2023
 
 
                  _______________
@@ -290,7 +290,7 @@ ndk-build
 
  ----------------------------------------------------------------------------
 
- This is version 3.7 of VICE, the multi-platform C64, C128, VIC20,
+ This is version 3.8 of VICE, the multi-platform C64, C128, VIC20,
  PET, PLUS4 and CBM-II emulator.  This version can be compiled for
  Win32, macOS, Haiku and for most Unix systems provided with the X Window
  System version 11, R5 or later.
@@ -457,24 +457,24 @@ ndk-build
  VICE, the Versatile Commodore Emulator
 
     Core Team Members:
-    1999-2022 Martin Pottendorfer
-    2005-2022 Marco van den Heuvel
-    2007-2022 Fabrizio Gennari
-    2009-2022 Groepaz
-    2009-2022 Errol Smith
-    2009-2022 Ingo Korb
-    2010-2022 Olaf Seibert
-    2011-2022 Marcus Sutton
-    2011-2022 Kajtar Zsolt
-    2016-2022 AreaScout
-    2016-2022 Bas Wassink
-    2017-2022 Michael C. Martin
-    2018-2022 Christopher Phillips
-    2019-2022 David Hogan
-    2020-2022 Empathic Qubit
-    2020-2022 Roberto Muscedere
-    2021-2022 June Tate-Gans
-    2021-2022 Pablo Roldan
+    1999-2023 Pottendo
+    2005-2023 Marco van den Heuvel
+    2007-2023 Fabrizio Gennari
+    2009-2023 Groepaz
+    2009-2023 Errol Smith
+    2009-2023 Ingo Korb
+    2010-2023 Olaf Seibert
+    2011-2023 Marcus Sutton
+    2011-2023 Kajtar Zsolt
+    2016-2023 AreaScout
+    2016-2023 Bas Wassink
+    2017-2023 Michael C. Martin
+    2018-2023 Christopher Phillips
+    2019-2023 David Hogan
+    2020-2023 Empathic Qubit
+    2020-2023 Roberto Muscedere
+    2021-2023 June Tate-Gans
+    2021-2023 Pablo Roldan
 
     Inactive/Ex Team Members:
     2011-2016 Stefan Haubenthal
@@ -497,7 +497,7 @@ ndk-build
     2000-2004 Markus Brenner
     1999-2004 Thomas Bretz
     1997-2001 Daniel Sladic
-    1996-2001 André Fachat
+    1996-2001 Andre Fachat
     1996-1999 Ettore Perazzoli
     1993-1994, 1997-1999 Teemu Rantanen
     1993-1996 Jouko Valta
@@ -505,9 +505,9 @@ ndk-build
 
     Translation Team Members:
     2009-2017 Mikkel Holm Olsen
-    2000-2017 Martin Pottendorfer
+    2000-2017 Pottendo
     2011-2017 Manuel Antonio Rodriguez Bas
-    2004-2017 Paul Dubé
+    2004-2017 Paul Dube
     2006-2017 Czirkos Zoltan
     2006-2017 Karai Csaba
     2001-2017 Andrea Musuruane

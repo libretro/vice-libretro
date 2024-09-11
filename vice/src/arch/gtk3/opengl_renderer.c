@@ -68,6 +68,9 @@ static void on_widget_realized(GtkWidget *widget, gpointer data);
 static void on_widget_unrealized(GtkWidget *widget, gpointer data);
 static void on_widget_resized(GtkWidget *widget, GdkRectangle *allocation, gpointer data);
 static void on_widget_monitors_changed(GdkScreen *screen, gpointer data);
+#ifdef MACOS_COMPILE
+static void on_top_level_widget_resized(GtkWidget *widget, GdkRectangle *allocation, gpointer data);
+#endif
 static void render(void *job_data, void *pool_data);
 
 static GLuint create_shader(GLenum shader_type, const char *text);
@@ -80,14 +83,37 @@ static GLuint create_shader_program(char *vertex_shader_filename, char *fragment
  * to each corner.
  */
 static float vertexData[] = {
-        -1.0f,    -1.0f, 0.0f, 1.0f,
-         1.0f,    -1.0f, 0.0f, 1.0f,
-        -1.0f,     1.0f, 0.0f, 1.0f,
-         1.0f,     1.0f, 0.0f, 1.0f,
-         0.0f,     1.0f,
-         1.0f,     1.0f,
-         0.0f,     0.0f,
-         1.0f,     0.0f
+        -1.0f, -1.0f, 0.0f, 1.0f,
+         1.0f, -1.0f, 0.0f, 1.0f,
+        -1.0f,  1.0f, 0.0f, 1.0f,
+         1.0f,  1.0f, 0.0f, 1.0f,
+/* normal */
+        0.0f,  1.0f,
+        1.0f,  1.0f,
+        0.0f,  0.0f,
+        1.0f,  0.0f
+#if 0
+/* xflip */
+        1.0f,  1.0f,
+        0.0f,  1.0f,
+        1.0f,  0.0f,
+        0.0f,  0.0f,
+/* yflip */
+        0.0f,  0.0f,
+        1.0f,  0.0f,
+        0.0f,  1.0f,
+        1.0f,  1.0f,
+/* xyflip (180 degr rot) */
+        1.0f,  0.0f,
+        0.0f,  0.0f,
+        1.0f,  1.0f,
+        0.0f,  1.0f,
+/* 90 degr rot */
+        1.0f,  1.0f,
+        1.0f,  0.0f,
+        0.0f,  1.0f,
+        0.0f,  0.0f,
+#endif
 };
 
 /**/
@@ -145,11 +171,6 @@ static void on_widget_realized(GtkWidget *widget, gpointer data)
 
     CANVAS_LOCK();
 
-#ifdef MACOS_COMPILE
-    /* The content area coordinates include the menu on macOS */
-    gtk_widget_translate_coordinates(widget, gtk_widget_get_toplevel(widget), 0, 0, &context->native_view_x, &context->native_view_y);
-#endif
-
     gtk_widget_get_allocation(widget, &allocation);
     context->native_view_width  = allocation.width;
     context->native_view_height = allocation.height;
@@ -188,6 +209,11 @@ static void on_widget_realized(GtkWidget *widget, gpointer data)
     /* Monitor display DPI changes */
     g_signal_connect_unlocked(gtk_widget_get_screen(widget), "monitors_changed", G_CALLBACK(on_widget_monitors_changed), canvas);
 
+#ifdef MACOS_COMPILE
+    /* Due to the weird inverted native co-ordinates on macOS, we also need to layout when the window size changes */
+    g_signal_connect_unlocked(gtk_widget_get_toplevel(canvas->event_box), "size-allocate", G_CALLBACK(on_top_level_widget_resized), canvas);
+#endif
+
     CANVAS_UNLOCK();
 }
 
@@ -197,6 +223,10 @@ static void on_widget_unrealized(GtkWidget *widget, gpointer data)
     context_t *context = canvas->renderer_context;
 
     g_signal_handlers_disconnect_by_func(gtk_widget_get_screen(widget), G_CALLBACK(on_widget_monitors_changed), canvas);
+
+#ifdef MACOS_COMPILE
+    g_signal_handlers_disconnect_by_func(gtk_widget_get_toplevel(canvas->event_box), G_CALLBACK(on_top_level_widget_resized), canvas);
+#endif
 
     CANVAS_LOCK();
 
@@ -221,18 +251,6 @@ static void on_widget_resized(GtkWidget *widget, GtkAllocation *allocation, gpoi
         return;
     }
 
-#ifdef MACOS_COMPILE
-    /* The content area coordinates include the menu on macOS */
-    gtk_widget_translate_coordinates(widget, gtk_widget_get_toplevel(widget), 0, 0, &context->native_view_x, &context->native_view_y);
-#endif
-
-    context->native_view_width = allocation->width;
-    context->native_view_height = allocation->height;
-
-    gtk_scale = gtk_widget_get_scale_factor(widget);
-    context->gl_backing_layer_width     = context->native_view_width    * gtk_scale;
-    context->gl_backing_layer_height    = context->native_view_height   * gtk_scale;
-
     /* Set the background colour */
     if (ui_is_fullscreen_from_canvas(canvas)) {
         context->native_view_bg_r = 0.0f;
@@ -244,17 +262,24 @@ static void on_widget_resized(GtkWidget *widget, GtkAllocation *allocation, gpoi
         context->native_view_bg_b = 0.5f;
     }
 
+    context->native_view_x      = allocation->x;
+    context->native_view_y      = allocation->y;
+    context->native_view_width  = allocation->width;
+    context->native_view_height = allocation->height;
+
+    gtk_scale = gtk_widget_get_scale_factor(widget);
+    context->gl_backing_layer_width     = allocation->width    * gtk_scale;
+    context->gl_backing_layer_height    = allocation->height   * gtk_scale;
+
     CANVAS_UNLOCK();
 
     /* Update the size of the native child window to match the gtk drawing area */
-    vice_opengl_renderer_resize_child_view(context);
+    vice_opengl_renderer_resize_child_view(widget, context);
 }
 
-static void on_widget_monitors_changed(GdkScreen *screen, gpointer data)
+static void invoke_widget_layout(video_canvas_t *canvas)
 {
-    video_canvas_t *canvas = data;
     context_t *context;
-    GtkWidget *widget;
     GtkAllocation allocation;
 
     CANVAS_LOCK();
@@ -267,12 +292,21 @@ static void on_widget_monitors_changed(GdkScreen *screen, gpointer data)
 
     CANVAS_UNLOCK();
 
-    widget = canvas->event_box;
-
-    gtk_widget_get_allocation(widget, &allocation);
-
+    gtk_widget_get_allocation(canvas->event_box, &allocation);
     on_widget_resized(canvas->event_box, &allocation, canvas);
 }
+
+static void on_widget_monitors_changed(GdkScreen *screen, gpointer data)
+{
+    invoke_widget_layout(data);
+}
+
+#ifdef MACOS_COMPILE
+static void on_top_level_widget_resized(GtkWidget *top_level_widget, GtkAllocation *top_level_allocation, gpointer data)
+{
+    invoke_widget_layout(data);
+}
+#endif
 
 /******/
 
@@ -485,7 +519,7 @@ static void update_frame_textures(context_t *context, backbuffer_t *backbuffer)
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-static void legacy_render(context_t *context, float scale_x, float scale_y)
+static void legacy_render(video_canvas_t *canvas, float scale_x, float scale_y)
 {
     /* Used when OpenGL 3.2+ is NOT available */
 
@@ -497,7 +531,10 @@ static void legacy_render(context_t *context, float scale_x, float scale_y)
     float u2 = 1.0f;
     float v2 = 1.0f;
 
-    resources_get_int("GTKFilter", &filter);
+    vice_opengl_renderer_context_t *context = (vice_opengl_renderer_context_t *)canvas->renderer_context;
+    filter = canvas->videoconfig->glfilter;
+
+    /* FIXME: add support for flipx/flipy/rotate */
 
     /* We only support builtin linear and nearest on legacy OpenGL contexts */
     gl_filter = filter ? GL_LINEAR : GL_NEAREST;
@@ -548,7 +585,7 @@ static void legacy_render(context_t *context, float scale_x, float scale_y)
     glDisable(GL_TEXTURE_2D);
 }
 
-static void modern_render(context_t *context, float scale_x, float scale_y)
+static void modern_render(video_canvas_t *canvas, float scale_x, float scale_y)
 {
     /* Used when OpenGL 3.2+ is available */
 
@@ -562,22 +599,25 @@ static void modern_render(context_t *context, float scale_x, float scale_y)
     GLuint view_size_uniform;
     GLuint source_size_uniform;
     GLuint this_frame_uniform;
-    GLuint last_frame_uniform;
+    GLuint last_frame_uniform = 0;
 
-    resources_get_int("GTKFilter", &filter);
+    vice_opengl_renderer_context_t *context = (vice_opengl_renderer_context_t *)canvas->renderer_context;
+    filter = canvas->videoconfig->glfilter;
+
+    /* FIXME: add support for flipx/flipy/rotate */
 
     /* For shader filters, we start with nearest neighbor. So only use linear if directly requested. */
-    gl_filter = filter == 1 ?  GL_LINEAR : GL_NEAREST;
+    gl_filter = (filter == VIDEO_GLFILTER_BILINEAR) ?  GL_LINEAR : GL_NEAREST;
 
     /* Choose the appropriate shader */
     if (context->interlaced) {
-        if (filter == 2) {
+        if (filter == VIDEO_GLFILTER_BICUBIC) {
             program = context->shader_bicubic_interlaced;
         } else {
             program = context->shader_builtin_interlaced;
         }
     } else {
-        if (filter == 2) {
+        if (filter == VIDEO_GLFILTER_BICUBIC) {
             program = context->shader_bicubic;
         } else {
             program = context->shader_builtin;
@@ -651,8 +691,6 @@ static void render(void *job_data, void *pool_data)
     vice_opengl_renderer_context_t *context = (vice_opengl_renderer_context_t *)canvas->renderer_context;
     backbuffer_t *backbuffer;
     int vsync = 1;
-    int keepaspect = 1;
-    int trueaspect = 0;
     float scale_x = 1.0f;
     float scale_y = 1.0f;
 
@@ -702,18 +740,17 @@ static void render(void *job_data, void *pool_data)
      * Recalculate layout
      */
 
-    resources_get_int("KeepAspectRatio", &keepaspect);
-    resources_get_int("TrueAspectRatio", &trueaspect);
-
-    if (keepaspect) {
+    if (canvas->videoconfig->aspect_mode != VIDEO_ASPECT_MODE_NONE) {
         float viewport_aspect;
         float emulated_aspect;
 
         viewport_aspect = (float)context->native_view_width / (float)context->native_view_height;
         emulated_aspect = (float)context->current_frame_width / (float)context->current_frame_height;
 
-        if (trueaspect) {
+        if (canvas->videoconfig->aspect_mode == VIDEO_ASPECT_MODE_TRUE) {
             emulated_aspect *= context->pixel_aspect_ratio;
+        } else {
+            emulated_aspect *= canvas->videoconfig->aspect_ratio;
         }
 
         if (emulated_aspect < viewport_aspect) {
@@ -731,7 +768,7 @@ static void render(void *job_data, void *pool_data)
     canvas->screen_origin_y = ((float)context->native_view_height - canvas->screen_display_h) / 2.0;
 
     /* Calculate the minimum drawing area size to be enforced by gtk */
-    if (keepaspect && trueaspect) {
+    if (canvas->videoconfig->aspect_mode == VIDEO_ASPECT_MODE_TRUE) {
         context->native_view_min_width  = ceil((float)context->current_frame_width * context->pixel_aspect_ratio);
         context->native_view_min_height = context->current_frame_height;
     } else {
@@ -746,7 +783,7 @@ static void render(void *job_data, void *pool_data)
     vice_opengl_renderer_set_viewport(context);
 
     /* Enable or disable vsync as needed */
-    resources_get_int("VSync", &vsync);
+    vsync = canvas->videoconfig->vsync;
 
     if (vsync != context->cached_vsync_resource) {
         vice_opengl_renderer_set_vsync(context, vsync ? true : false);
@@ -759,9 +796,9 @@ static void render(void *job_data, void *pool_data)
 
     /* Invoke the appropriate renderer */
     if (context->gl_context_is_legacy) {
-        legacy_render(context, scale_x, scale_y);
+        legacy_render(canvas, scale_x, scale_y);
     } else {
-        modern_render(context, scale_x, scale_y);
+        modern_render(canvas, scale_x, scale_y);
     }
 
     vice_opengl_renderer_present_backbuffer(context);
@@ -829,11 +866,16 @@ static GLuint create_shader(GLenum shader_type, const char *text)
         info_log = lib_malloc(sizeof(GLchar) * (info_log_length + 1));
         glGetShaderInfoLog(shader, info_log_length, NULL, info_log);
 
-        switch(shader_type)
-        {
-        case GL_VERTEX_SHADER: shader_type_name = "vertex"; break;
-        case GL_FRAGMENT_SHADER: shader_type_name = "fragment"; break;
-        default: shader_type_name = "unknown"; break;
+        switch(shader_type) {
+            case GL_VERTEX_SHADER:
+                shader_type_name = "vertex";
+                break;
+            case GL_FRAGMENT_SHADER:
+                shader_type_name = "fragment";
+                break;
+            default:
+                shader_type_name = "unknown";
+                break;
         }
 
         log_error(LOG_DEFAULT, "Compile failure in %s shader:\n%s\n", shader_type_name, info_log);
@@ -905,8 +947,7 @@ static GLuint create_shader_program(char *vertex_shader_filename, char *fragment
     glAttachShader(program, frag);
     glLinkProgram(program);
     glGetProgramiv (program, GL_LINK_STATUS, &status);
-    if (status == GL_FALSE)
-    {
+    if (status == GL_FALSE) {
         GLint info_log_length;
         GLchar *info_log;
 

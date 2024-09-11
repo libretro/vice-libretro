@@ -49,6 +49,13 @@
  * installing an ignoring handler.
  */
 
+/* this code is currently used to spawn sub processes in:
+   - gfxoutputdrv/ffmpegexedrv.c
+   - printerdrv/output-text.c
+   - arch/shared/rs232-unix-dev.c
+   - arch/shared/rs232-win32-dev.c
+*/
+
 #include "vice.h"
 
 /* TODO: Perhaps implement fork_coproc() on Haiku using Haiku-specific code
@@ -78,10 +85,10 @@
 
 static struct sigaction ignore;
 
-int fork_coproc(int *fd_wr, int *fd_rd, char *cmd)
+int fork_coproc(int *fd_wr, int *fd_rd, char *cmd, vice_pid_t *childpid)
 {
     int fd1[2], fd2[2];
-    pid_t pid;
+    vice_pid_t pid;
 
     ignore.sa_handler = SIG_IGN;
     sigemptyset(&ignore.sa_mask);
@@ -100,6 +107,7 @@ int fork_coproc(int *fd_wr, int *fd_rd, char *cmd)
         close(fd1[1]);
         return -1;
     }
+    log_message(LOG_DEFAULT, "forking process '%s'", cmd);
     if ((pid = fork()) < 0) {
         log_error(LOG_DEFAULT, "Coproc: Couldn't fork()!");
         close(fd1[0]);
@@ -118,6 +126,7 @@ int fork_coproc(int *fd_wr, int *fd_rd, char *cmd)
             dup2(fd2[0], STDIN_FILENO);
             close(fd2[0]);
         }
+
         /* Hm, we have to close all other files that are currently
            open now...  */
         execl(SHELL, "sh", "-c", cmd, NULL);
@@ -129,8 +138,18 @@ int fork_coproc(int *fd_wr, int *fd_rd, char *cmd)
 
         *fd_rd = fd1[0];
         *fd_wr = fd2[1];
+        *childpid = pid;
+        log_message(LOG_DEFAULT, "forked process id is: %d", pid);
     }
     return 0;
+}
+
+void kill_coproc(vice_pid_t pid)
+{
+    log_message(LOG_DEFAULT, "terminating child process id: %d", pid);
+    if (kill(pid, SIGKILL) != 0) {
+        log_error(LOG_DEFAULT, "terminating child process id %d failed.", pid);
+    }
 }
 
 #elif defined(WINDOWS_COMPILE)
@@ -154,7 +173,8 @@ int fork_coproc(int *fd_wr, int *fd_rd, char *cmd)
 static int CreateChildProcess(
     TCHAR *szCmdline,
     HANDLE hChildStd_IN_Rd,
-    HANDLE hChildStd_OUT_Wr)
+    HANDLE hChildStd_OUT_Wr,
+    HANDLE *pid)
 {
     PROCESS_INFORMATION piProcInfo;
     STARTUPINFO siStartInfo;
@@ -178,7 +198,7 @@ static int CreateChildProcess(
         szCmdline,     /* command line */
         NULL,          /* process security attributes */
         NULL,          /* primary thread security attributes */
-        TRUE,          /* handles are inherited */
+        FALSE,         /* handles are inherited */
         0,             /* creation flags */
         NULL,          /* use parent's environment */
         NULL,          /* use parent's current directory */
@@ -192,6 +212,7 @@ static int CreateChildProcess(
         /* Close handles to the child process and its primary thread.
             Some applications might keep these handles to monitor the status
             of the child process, for example. */
+        *pid = piProcInfo.hProcess;
         CloseHandle(piProcInfo.hProcess);
         CloseHandle(piProcInfo.hThread);
 
@@ -203,7 +224,7 @@ static int CreateChildProcess(
     return 0;
 }
 
-int fork_coproc(int *fd_wr, int *fd_rd, char *cmd)
+int fork_coproc(int *fd_wr, int *fd_rd, char *cmd, vice_pid_t *pid)
 {
     HANDLE hChildStd_IN_Rd = NULL;
     HANDLE hChildStd_OUT_Wr = NULL;
@@ -243,7 +264,7 @@ int fork_coproc(int *fd_wr, int *fd_rd, char *cmd)
     strcat(cmdline, cmd);
 
     /* Create the child process. */
-    if (CreateChildProcess(cmdline, hChildStd_IN_Rd, hChildStd_OUT_Wr) < 0) {
+    if (CreateChildProcess(cmdline, hChildStd_IN_Rd, hChildStd_OUT_Wr, pid) < 0) {
         lib_free(cmdline);
         return -1;
     }
@@ -257,13 +278,26 @@ int fork_coproc(int *fd_wr, int *fd_rd, char *cmd)
     return 0;
 }
 
+void kill_coproc(vice_pid_t pid)
+{
+    log_message(LOG_DEFAULT, "terminating child process id: %p", pid);
+    if (TerminateProcess(pid, 0) != 0) {
+        log_error(LOG_DEFAULT, "terminating child process id %p failed.", pid);
+    }
+}
+
 #else
 
 /* Stub for systems other than Unix, MacOS, Windows or Haiku: */
-int fork_coproc(int *fd_wr, int *fd_rd, char *cmd)
+int fork_coproc(int *fd_wr, int *fd_rd, char *cmd, vice_pid_t *pid)
 {
     log_error(LOG_DEFAULT, "FIXME: fork_coproc() not implemented for this system.");
     return -1;
+}
+
+void kill_coproc(vice_pid_t pid)
+{
+    log_error(LOG_DEFAULT, "FIXME: kill_coproc() not implemented for this system.");
 }
 
 #endif

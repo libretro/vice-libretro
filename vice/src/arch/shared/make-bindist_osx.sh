@@ -31,8 +31,14 @@ set -o nounset
 #                         $1           $2      $3             $4              $5         $6
 #
 
+WARN_CODE_SIGN=false
+
 [ -z ${DEPS_PREFIX+set} ] && (>&2 echo "ERROR: Please set DEPS_PREFIX environment variable to something like /opt/local, /usr/local, or /opt/homebrew"; exit 1)
-[ -z ${CODE_SIGN_ID+set} ] && CODE_SIGN_ID=""
+
+if [ -z ${CODE_SIGN_ID+set} ]; then
+  CODE_SIGN_ID=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -n1 | awk -F'"' '{ print $2 }')
+  WARN_CODE_SIGN=true
+fi
 
 if which gtk-update-icon-cache-3.0 > /dev/null; then
   # macports
@@ -143,6 +149,7 @@ APP_RESOURCES=$APP_CONTENTS/Resources
 APP_ETC=$APP_RESOURCES/etc
 APP_SHARE=$APP_RESOURCES/share
 APP_COMMON=$APP_SHARE/vice/common
+APP_HOTKEYS=$APP_SHARE/vice/hotkeys
 APP_GLSL=$APP_SHARE/vice/GLSL
 APP_ICONS=$APP_SHARE/vice/icons
 APP_ROMS=$APP_SHARE/vice
@@ -174,7 +181,8 @@ make_app_bundle() {
     -R \
     -B \
     "$app_path" \
-    2&>1 > $output
+    > /dev/null \
+    2> $output
   
   PLATYPUS_STATUS=$?
   
@@ -193,8 +201,12 @@ make_app_bundle() {
   # means it won't get past gatekeeper properly, at least on 10.14. But it will on
   # 10.15 if it's notarised. Wtf Apple.
   #
+  # Also, with newer versions of platypus, the key WILL be there already.
+  # So, we check for it, and add it if missing.
+  #
 
-  /usr/libexec/PlistBuddy -c "Add CFBundlePackageType string APPL" "$app_path/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c 'print ":CFBundlePackageType"' "$app_path/Contents/Info.plist" >/dev/null 2>&1 || \
+    /usr/libexec/PlistBuddy -c "Add CFBundlePackageType string APPL" "$app_path/Contents/Info.plist"
 }
 
 echo "  bundling $BUNDLE.app: "
@@ -206,6 +218,7 @@ echo -n "[dirs] "
 mkdir -p $APP_ETC
 mkdir -p $APP_SHARE
 mkdir -p $APP_COMMON
+mkdir -p $APP_HOTKEYS
 mkdir -p $APP_ICONS
 mkdir -p $APP_ROMS
 mkdir -p $APP_DOCS
@@ -229,8 +242,10 @@ for rom in $ROM_COMMON ; do
 done
 
 # copy manual into bundle
-echo -n "[manual] "
-cp "doc/vice.pdf" "$APP_DOCS"
+if [ -f doc/vice.pdf ]; then
+  echo -n "[manual] "
+  cp doc/vice.pdf "$APP_DOCS"
+fi
 
 # any config files from /etc?
 if [ -d etc ]; then
@@ -563,7 +578,9 @@ echo "  copying documents"
 
 mkdir $BUILD_DIR/doc
 cp README $BUILD_DIR/doc/README.txt
-cp doc/vice.pdf $BUILD_DIR/doc/
+if [ -f doc/vice.pdf ]; then
+  cp doc/vice.pdf $BUILD_DIR/doc/
+fi
 
 # Readme-GTK3.txt is pointless but the others have content
 if [ "$UI_TYPE" != "GTK3" ]; then
@@ -583,15 +600,15 @@ if [ "$UI_TYPE" = "GTK3" ]; then
   echo "  copying vice.gresource"
   cp data/common/vice.gresource "$APP_COMMON/"
 
-  # --- copy hotkeys files ---
-  cp "$TOP_DIR/data/common/"*.vhk "$APP_COMMON/"
-
   # --- copy GLSL shaders ---
   mkdir -p "$APP_GLSL"
   for shader in $(find "$TOP_DIR/data/GLSL/" -type f -name '*.vert' -or -name '*.frag'); do
     cp "$shader" "$APP_GLSL/"
   done
 fi
+
+# --- copy hotkeys files ---
+cp "$TOP_DIR/data/hotkeys/"*.vhk "$APP_HOTKEYS/"
 
 
 # --- wtf permissions. ---------------------------------------------------------
@@ -670,7 +687,7 @@ fi
 # --- show warnings ------------------------------------------------------------
 
 if [ -z "$CODE_SIGN_ID" ]; then
-  cat << "  HEREDOC" | sed 's/^ *//'
+  cat <<HEREDOC | sed 's/^ *//'
 
     ****
     Bindist is not codesigned. To sign, export the CODE_SIGN_ID environment variable to
@@ -679,16 +696,39 @@ if [ -z "$CODE_SIGN_ID" ]; then
     Run 'security find-identity -v -p codesigning' to list available identities.
     ****
 
-  HEREDOC
+HEREDOC
+fi
+
+if $WARN_CODE_SIGN; then
+  cat <<HEREDOC | sed 's/^ *//'
+
+    ****
+    CODE_SIGN_ID environment variable not set, using detected value: $CODE_SIGN_ID
+    
+    Run 'security find-identity -v -p codesigning' to list available identities,
+    and set CODE_SIGN_ID to something like "Developer ID Application: <NAME> (<ID>)".
+    ****
+
+HEREDOC
 fi
 
 if test x"$ENABLEARCH" = "xyes"; then
-  cat << "  HEREDOC" | sed 's/^ *//'
+  cat <<HEREDOC | sed 's/^ *//'
     
     ****
     Warning: binaries are optimized for your system and might not run on a different system,
     use --enable-arch=no to avoid this.
     ****
 
-  HEREDOC
+HEREDOC
+fi
+
+if [ ! -e doc/vice.pdf ]; then
+  cat <<HEREDOC | sed 's/^ *//'
+    
+    ****
+    Warning: This binary distribution does not include vice.pdf as it was not built.
+    ****
+
+HEREDOC
 fi

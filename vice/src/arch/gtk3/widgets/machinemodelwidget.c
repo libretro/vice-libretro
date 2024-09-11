@@ -145,37 +145,42 @@ void machine_model_widget_set_models(const char **list)
  */
 GtkWidget *machine_model_widget_create(void)
 {
-    GtkWidget *grid;
-    GtkWidget *radio;
-    GtkRadioButton *last;
-    GSList *group;
-    const char **list;
-    int i;
-    GtkWidget *title;
+    GtkWidget   *grid;
+    GtkWidget   *label;
+    GtkWidget   *radio;
+    GtkWidget   *last;
+    GSList      *group = NULL;
+    const char **list = model_list;
+    int          row = 0;
 
-    grid = vice_gtk3_grid_new_spaced_with_label(-1, 0, "Model", 1);
-    title = gtk_grid_get_child_at(GTK_GRID(grid), 0, 0);
-    gtk_widget_set_margin_bottom(title, 16);
+    grid = gtk_grid_new();
+
+    label = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(label), "<b>Model</b>");
+    gtk_widget_set_halign(label, GTK_ALIGN_START);
+    gtk_widget_set_margin_bottom(label, 8);
+    gtk_grid_attach(GTK_GRID(grid), label, 0, row, 1, 1);
+    row++;
 
     /* add 'unknown' model radio */
     group = NULL;
-    radio = gtk_radio_button_new_with_label(group, "Unknown");
-    gtk_widget_set_margin_start(radio, 16);
+    last = radio = gtk_radio_button_new_with_label(group, "Unknown");
     gtk_widget_set_sensitive(radio, FALSE);
-    gtk_grid_attach(GTK_GRID(grid), radio, 0, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), radio, 0, row, 1, 1);
+    row++;
 
-    last = GTK_RADIO_BUTTON(radio);
-    list = model_list;
     if (list != NULL) {
+        int i;
+
         for (i = 0; list[i] != NULL; i++) {
             radio = gtk_radio_button_new_with_label(group, list[i]);
-            gtk_radio_button_join_group(GTK_RADIO_BUTTON(radio), last);
-            gtk_widget_set_margin_start(radio, 16);
-            gtk_grid_attach(GTK_GRID(grid), radio, 0, i + 2, 1, 1);
-            last = GTK_RADIO_BUTTON(radio);
+            gtk_radio_button_join_group(GTK_RADIO_BUTTON(radio),
+                                        GTK_RADIO_BUTTON(last));
+            gtk_grid_attach(GTK_GRID(grid), radio, 0, row, 1, 1);
+            last = radio;
+            row++;
         }
-
-        machine_model_widget_update(grid);
+        machine_model_widget_update(grid, false);
     }
     gtk_widget_show_all(grid);
     return grid;
@@ -186,10 +191,12 @@ GtkWidget *machine_model_widget_create(void)
  *
  * \param[in,out]   widget  machine model widget
  */
-void machine_model_widget_update(GtkWidget *widget)
+void machine_model_widget_update(GtkWidget *widget, bool force_callback)
 {
     GtkWidget *radio;
     int model = 99;
+    int position;
+    bool was_active = true;
 
     if (model_get != NULL) {
         model = model_get();
@@ -207,20 +214,24 @@ void machine_model_widget_update(GtkWidget *widget)
     debug_gtk3("model ID = %d.", model);
 #endif
     if (model == 99) {
-        /* invalid model, make all radio buttons unselected
-         *
-         * XXX: doesn't appear to actually work on my box, so perhaps an
-         *      'uknown' radio button should be added, but then I'd have to
-         *      guard against the user selecting that one
-         */
-        radio = gtk_grid_get_child_at(GTK_GRID(widget), 0, 1);
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(radio), TRUE);
-        return;
+        /* invalid model */
+        position = 1;
+    } else {
+        position = model + 2;
     }
 
-    radio = gtk_grid_get_child_at(GTK_GRID(widget), 0, model + 2);
+    radio = gtk_grid_get_child_at(GTK_GRID(widget), 0, position);
     if (radio != NULL && GTK_IS_RADIO_BUTTON(radio)) {
+        was_active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(radio));
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(radio), TRUE);
+    }
+
+    if (force_callback && was_active) {
+        /* When asked, make sure a callback happens, even if the model doesn't
+         * seem to change, to re-sync all other widgets. */
+        if (user_callback != NULL) {
+            user_callback(0);
+        }
     }
 }
 

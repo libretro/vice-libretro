@@ -41,9 +41,12 @@
 #include "plus4rom.h"
 #include "plus4memrom.h"
 
+#include "ted_colodore_ted_vpl.h"
+#include "ted_ITU_R_BT601_CRT_vpl.h"
+#include "ted_ITU_R_BT709_HDTV_vpl.h"
+#include "ted_ITU_R_BT2020_vpl.h"
 #include "ted_yape_pal_vpl.h"
 #include "ted_yape_ntsc_vpl.h"
-#include "ted_colodore_ted_vpl.h"
 
 #include "plus4kernal005.h"
 #include "plus4kernal232.h"
@@ -63,9 +66,12 @@ static embedded_t plus4files[] = {
 };
 
 static embedded_palette_t palette_files[] = {
+    { "colodore_ted", "colodore_ted.vpl", 128, ted_colodore_ted_vpl },
+    { "ITU-R_BT601_CRT", "ITU-R_BT601_CRT.vpl", 128, ted_ITU_R_BT601_CRT_vpl },
+    { "ITU-R_BT709_HDTV", "ITU-R_BT709_HDTV.vpl", 128, ted_ITU_R_BT709_HDTV_vpl },
+    { "ITU-R_BT2020", "ITU-R_BT2020.vpl", 128, ted_ITU_R_BT2020_vpl },
     { "yape-pal", "yape-pal.vpl", 128, ted_yape_pal_vpl },
     { "yape-ntsc", "yape-ntsc.vpl", 128, ted_yape_ntsc_vpl },
-    { "colodore_ted", "colodore_ted.vpl", 128, ted_colodore_ted_vpl },
     EMBEDDED_PALETTE_LIST_END
 };
 

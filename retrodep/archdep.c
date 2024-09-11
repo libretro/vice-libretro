@@ -78,6 +78,7 @@
 #include "arch/shared/archdep_dir.c"
 #include "arch/shared/archdep_expand_path.c"
 #include "arch/shared/archdep_extra_title_text.c"
+#include "arch/shared/archdep_file_exists.c"
 #include "arch/shared/archdep_file_size.c"
 #include "arch/shared/archdep_fseeko.c"
 #include "arch/shared/archdep_ftello.c"
@@ -88,6 +89,7 @@
 #include "arch/shared/archdep_remove.c"
 #include "arch/shared/archdep_set_openmp_wait_policy.c"
 #include "arch/shared/archdep_tick.c"
+#include "arch/shared/coproc.c"
 
 #include "libretro-core.h"
 extern unsigned int opt_read_vicerc;
@@ -610,12 +612,20 @@ int archdep_stat(const char *path, size_t *len, unsigned int *isdir)
     struct stat statbuf;
 
     if (libretro_stat(path, &statbuf) != 0) {
-        *len = -1;
-        *isdir = 0;
+        if (len != NULL) {
+            *len = -1;
+        }
+        if (isdir != NULL) {
+            *isdir = 0;
+        }
         return -1;
     }
-    *len = statbuf.st_size;
-    *isdir = S_ISDIR(statbuf.st_mode);
+    if (len != NULL) {
+        *len = statbuf.st_size;
+    }
+    if (isdir != NULL) {
+        *isdir = S_ISDIR(statbuf.st_mode);
+    }
     return 0;
 }
 
@@ -673,11 +683,6 @@ char *archdep_default_sysfile_pathlist(const char *emu_id)
     return lib_strdup(boot_path);
 }
 
-int fork_coproc(int *fd_wr, int *fd_rd, char *cmd)
-{
-    return -1;
-}
-
 #if !defined(realpath) && !defined(VITA)
 char *realpath(const char *restrict path, char *restrict resolved_path) { return NULL; }
 #endif
@@ -699,3 +704,9 @@ int archdep_real_path_equal(const char *path1, const char *path2)
     }
     return !strcmp(path1_norm, path2_norm);
 }
+
+/* 3.8 -> */
+char *archdep_default_joymap_file_name(void) { return ""; }
+int ui_hotkeys_resources_init(void) { return 0; }
+int ui_hotkeys_cmdline_options_init(void) { return 0; }
+void ui_hotkeys_shutdown(void) {}

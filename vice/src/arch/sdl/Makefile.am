@@ -6,6 +6,7 @@ AM_CPPFLAGS = \
 	@VICE_CPPFLAGS@ \
 	@ARCH_INCLUDES@ \
 	-I$(top_srcdir)/src/arch/shared \
+	-I$(top_srcdir)/src/arch/shared/hotkeys \
 	$(extra_includes) \
 	-I$(top_builddir)/src \
 	-I$(top_srcdir)/src/drive \
@@ -26,6 +27,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src/sid \
 	-I$(top_srcdir)/src/userport \
 	-I$(top_srcdir)/src/vdrive \
+	-I$(top_srcdir)/src/vdc \
 	-I$(top_srcdir)/src/video \
 	-I$(top_srcdir)/src/lib/ \
 	-I$(top_srcdir)/src/lib/p64 \
@@ -60,10 +62,42 @@ libarch_a_VERDEP_SOURCES = \
 endif
 
 libarch_a_SOURCES = \
+	actions-cartridge.c \
+	actions-cartridge.h \
+	actions-debug.c \
+	actions-debug.h \
+	actions-display.c \
+	actions-display.h \
+	actions-drive.c \
+	actions-drive.h \
+	actions-edit.c \
+	actions-edit.h \
+	actions-help.c \
+	actions-help.h \
+	actions-hotkeys.c \
+	actions-hotkeys.h \
+	actions-joystick.c \
+	actions-joystick.h \
+	actions-machine.c \
+	actions-machine.h \
+	actions-media.c \
+	actions-media.h \
+	actions-settings.c \
+	actions-settings.h \
+	actions-snapshot.c \
+	actions-snapshot.h \
+	actions-speed.c \
+	actions-speed.h \
+	actions-tape.c \
+	actions-tape.h \
+	actions-vsid.c \
+	actions-vsid.h \
 	archdep.c \
 	archdep.h \
 	fullscreen.c \
 	fullscreenarch.h \
+	hotkeys.c \
+	hotkeys.h \
 	icon.c \
 	icon.h \
 	joy.c \
@@ -170,6 +204,8 @@ libarch_a_SOURCES = \
 	menu_vic20hw.h \
 	menu_video.c \
 	menu_video.h \
+	menu_wic64.c \
+	menu_wic64.h \
 	mousedrv.c \
 	mousedrv.h \
 	sdlmain.c \
@@ -182,6 +218,8 @@ libarch_a_SOURCES = \
 	uifilereq.h \
 	uihotkey.c \
 	uihotkey.h \
+	uimedia.c \
+	uimedia.h \
 	uimenu.c \
 	uimenu.h \
 	uimon.c \

@@ -51,125 +51,122 @@
  */
 static log_t    gtk3video_log = LOG_ERR;
 
-/** \brief  Keep aspect ratio when resizing */
-static int keepaspect = 0;
-
-/** \brief  Use true aspect ratio */
-static int trueaspect = 0;
-
-/** \brief  Prevent screen tearing */
-static int vsync = 1;
-
-/** \brief  Display filter (0: nearest 1: bilinear) */
-static int display_filter = 1;
-
-/** \brief  Set KeepAspectRatio resource (bool)
+/** \brief  Set <CHIP>AspectMode resource (integer)
  *
  * The display will be updated to reflect any changes this makes.
  *
- * \param[in]   val     new value
- * \param[in]   param   extra parameter (unused)
+ * Called by the actual resource handler (do not call directly)
+ *
+ * \param[in]   mode    new value
+ * \param[in]   canvas  extra parameter (canvas associated with this videochip)
  *
  * \return 0
  */
-static int set_keepaspect(int val, void *param)
+int ui_set_aspect_mode(int mode, void *canvas)
 {
-    keepaspect = val ? 1 : 0;
+    video_canvas_t *cv = canvas;
+    cv->videoconfig->aspect_mode = mode;
     ui_trigger_resize();
     return 0;
 }
 
-
-/** \brief  Set TrueAspectRatio resource (bool)
+/** \brief  Set <CHIP>AspectRatio resource (string)
  *
  * The display will be updated to reflect any changes this makes.
  *
- * \param[in]   val     new value
- * \param[in]   param   extra parameter (unused)
+ * Called by the actual resource handler (do not call directly)
+ *
+ * \param[in]   aspect    new value
+ * \param[in]   canvas  extra parameter (canvas associated with this videochip)
  *
  * \return 0
  */
-static int set_trueaspect(int val, void *param)
+int ui_set_aspect_ratio(double aspect, void *canvas)
 {
-    trueaspect = val ? 1 : 0;
+    video_canvas_t *cv = canvas;
+    cv->videoconfig->aspect_ratio = aspect;
     ui_trigger_resize();
-    return 0;
-}
-
-
-/** \brief  Set VSync resource (bool)
- *
- * The display will be updated to reflect any changes this makes.
- *
- * \param[in]   val     new value
- * \param[in]   param   extra parameter (unused)
- *
- * \return 0
- */
-static int set_vsync(int val, void *param)
-{
-    vsync = val ? 1 : 0;
     return 0;
 }
 
 /** \brief Set the display filter for scaling.
- *  \param     val   new filter (0: nearest, 1: bilinear)
- *  \param[in] param extra parameter (unused).
+ *  \param       val     new filter (0: nearest, 1: bilinear, 2: bicubic)
+ *  \param[in]   canvas  canvas this applies to
  *  \return  0
  */
-static int set_display_filter(int val, void *param)
+int ui_set_glfilter(int val, void *canvas)
 {
+    video_canvas_t *cv = canvas;
     if (val < 0) {
         val = 0;
     }
     if (val > 2) {
         val = 2;
     }
-    display_filter = val;
+    cv->videoconfig->glfilter = val;
     return 0;
 }
 
-/** \brief  Command line options related to generic video output
- */
-static const cmdline_option_t cmdline_options[] =
+int ui_set_flipx(int val, void *canvas)
 {
-    { "-trueaspect", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
-      NULL, NULL, "TrueAspectRatio", (resource_value_t)1,
-      NULL, "Enable true aspect ratio" },
-    { "+trueaspect", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
-      NULL, NULL, "TrueAspectRatio", (resource_value_t)0,
-      NULL, "Disable true aspect ratio" },
-    { "-keepaspect", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
-      NULL, NULL, "KeepAspectRatio", (resource_value_t)1,
-      NULL, "Keep aspect ratio when scaling" },
-    { "+keepaspect", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
-      NULL, NULL, "KeepAspectRatio", (resource_value_t)0,
-      NULL, "Do not keep aspect ratio when scaling (freescale)" },
-    { "-vsync", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
-      NULL, NULL, "VSync", (resource_value_t)1,
-      NULL, "Enable vsync to prevent screen tearing" },
-    { "+vsync", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
-      NULL, NULL, "VSync", (resource_value_t)0,
-      NULL, "Disable vsync to allow screen tearing" },
-    { "-gtkfilter", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
-      NULL, NULL, "GTKFilter", NULL,
-      "<mode>", "Set filtering mode (0 = nearest, 1 = bilinear, 2 = cubic" },
-    CMDLINE_LIST_END
-};
+    video_canvas_t *cv = canvas;
+    if (val < 0) {
+        val = 0;
+    }
+    if (val > 1) {
+        val = 1;
+    }
+    cv->videoconfig->flipx = val;
+    return 0;
+}
 
-/** \brief  Integer/boolean resources related to video output
+int ui_set_flipy(int val, void *canvas)
+{
+    video_canvas_t *cv = canvas;
+    if (val < 0) {
+        val = 0;
+    }
+    if (val > 1) {
+        val = 1;
+    }
+    cv->videoconfig->flipy = val;
+    return 0;
+}
+
+int ui_set_rotate(int val, void *canvas)
+{
+    video_canvas_t *cv = canvas;
+    if (val < 0) {
+        val = 0;
+    }
+    if (val > 1) {
+        val = 1;
+    }
+    cv->videoconfig->rotate = val;
+    return 0;
+}
+
+/** \brief  Set VSync resource (bool)
+ *
+ * The display will be updated to reflect any changes this makes.
+ *
+ * \param[in]   val     new value
+ * \param[in]   canvas  canvas this applies to
+ *
+ * \return 0
  */
-static const resource_int_t resources_int[] = {
-    { "KeepAspectRatio", 1, RES_EVENT_NO, NULL,
-      &keepaspect, set_keepaspect, NULL },
-    { "TrueAspectRatio", 1, RES_EVENT_NO, NULL,
-      &trueaspect, set_trueaspect, NULL },
-    { "VSync", 1, RES_EVENT_NO, NULL,
-      &vsync, set_vsync, NULL },
-    { "GTKFilter", 2, RES_EVENT_NO, NULL,
-      &display_filter, set_display_filter, NULL },
-    RESOURCE_INT_LIST_END
-};
+int ui_set_vsync(int val, void *canvas)
+{
+    video_canvas_t *cv = canvas;
+    if (val < 0) {
+        val = 0;
+    }
+    if (val > 1) {
+        val = 1;
+    }
+    cv->videoconfig->vsync = val;
+    return 0;
+}
 
 int video_arch_get_active_chip(void)
 {
@@ -213,9 +210,6 @@ void video_arch_canvas_init(struct video_canvas_s *canvas)
  */
 int video_arch_cmdline_options_init(void)
 {
-    if (machine_class != VICE_MACHINE_VSID) {
-        return cmdline_register_options(cmdline_options);
-    }
     return 0;
 }
 
@@ -226,9 +220,6 @@ int video_arch_cmdline_options_init(void)
  */
 int video_arch_resources_init(void)
 {
-    if (machine_class != VICE_MACHINE_VSID) {
-        return resources_register_int(resources_int);
-    }
     return 0;
 }
 
@@ -380,7 +371,9 @@ void video_canvas_adjust_aspect_ratio(struct video_canvas_s *canvas)
 {
     int width = canvas->draw_buffer->canvas_physical_width;
     int height = canvas->draw_buffer->canvas_physical_height;
-    if (keepaspect && trueaspect) {
+    if (canvas->videoconfig->aspect_mode == VIDEO_ASPECT_MODE_CUSTOM) {
+        width *= canvas->videoconfig->aspect_ratio;
+    } else if (canvas->videoconfig->aspect_mode == VIDEO_ASPECT_MODE_TRUE) {
         width *= canvas->geometry->pixel_aspect_ratio;
     }
 

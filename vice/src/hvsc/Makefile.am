@@ -1,5 +1,3 @@
-# vim: set noet ts=8 sw=8 sts=8:
-
 noinst_LIBRARIES = libhvsc.a
 
 libhvsc_a_SOURCES = \
@@ -24,7 +22,8 @@ EXTRA_DIST = \
 	stil.h
 
 AM_CPPFLAGS = @VICE_CPPFLAGS@ \
-	-I$(top_srcdir)/src
+	-I$(top_srcdir)/src \
+	-I$(top_srcdir)/src/lib/md5
 
 AM_CFLAGS = -pedantic @VICE_CFLAGS@
 

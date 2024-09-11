@@ -3,13 +3,14 @@
  *
  * \author  Bas Wassink <b.wassink@ziggo.nl>
  *
- * Allows selecting drivers for printers \#4, \#5 and \#6.
+ * Allows selecting drivers for printers \#4, \#5, \#6 and userport printer.
  */
 
 /*
- * $VICERES Printer4Driver  -vsid
- * $VICERES Printer5Driver  -vsid
- * $VICERES Printer6Driver  -vsid
+ * $VICERES Printer4Driver          -vsid
+ * $VICERES Printer5Driver          -vsid
+ * $VICERES Printer6Driver          -vsid
+ * $VICERES PrinterUserportDriver   x64 x64sc xscpu64 x128 xvic xpet xcbm2
  */
 
 /*
@@ -34,18 +35,30 @@
  */
 
 #include "vice.h"
-
 #include <gtk/gtk.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-#include "vice_gtk3.h"
-#include "archdep.h"
+#include "driver-select.h"
+#include "log.h"
 #include "resources.h"
-#include "printer.h"
+#include "vice_gtk3.h"
 
 #include "printerdriverwidget.h"
+
+
+/** \brief  Resources names per device
+ *
+ * \note    Index 0 is device 3/userport, index 1-2 are printer 4 and 5 and
+ *          index 3 is plotter 6.
+ */
+static const char *driver_resource_names[4] = {
+    "PrinterUserportDriver",
+    "Printer4Driver",
+    "Printer5Driver",
+    "Printer6Driver"
+};
+
+/** \brief  Function to call when a driver radio button is selected */
+static void (*extra_radio_callback)(GtkWidget *, int, const char *) = NULL;
 
 
 /** \brief  Handler for the "toggled" event of the radio buttons
@@ -57,14 +70,22 @@ static void on_radio_toggled(GtkWidget *radio, gpointer user_data)
 {
 
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(radio))) {
-        int device;
-        const char *type;
+        GtkWidget  *parent;
+        const char *resource;
+        const char *driver;
+        int         device;
 
-        /* get device number from the "DeviceNumber" property of the radio
-         * button */
-        device = resource_widget_get_int(radio, "DeviceNumber");
-        type = (const char *)user_data;
-        resources_set_string_sprintf("Printer%dDriver", type, device);
+        parent   = gtk_widget_get_parent(radio);
+        resource = resource_widget_get_resource_name(parent);
+        driver   = g_object_get_data(G_OBJECT(radio), "Driver");
+        device   = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(radio), "Device"));
+#if 0
+        debug_gtk3("Setting resource '%s' to '%s'", resource, driver);
+#endif
+        resources_set_string(resource, driver);
+        if (extra_radio_callback != NULL) {
+            extra_radio_callback(radio, device, driver);
+        }
     }
 }
 
@@ -73,112 +94,102 @@ static void on_radio_toggled(GtkWidget *radio, gpointer user_data)
  *
  * Creates a group of radio buttons to select the driver of printer # \a device.
  *
- * Uses a custom property "DeviceNumber" for the radio buttons and the widget
- * itself to pass the device number to the event handler and to allow
- * printer_driver_widget_update() to select the proper radio button index.
+ * Uses a custom property "Driver" for the radio buttons and stores the
+ * resource name for \a device as the "ResourceName" property.
  *
- * Printer 4/5: [ascii, mps803, nl10, raw]
- * Printer 6  : [1520, raw]
+ * The following device lists are obtained dynamically:
+ * Printer 4/5  : [ascii, mps 801/802/803, cbm 2022/4023/8023, nl10, raw]
+ * Printer 6    : [1520, raw]
+ * Userport (3) : [ascii, nl10, raw]
  *
- * \param[in]   device  device number (4-6)
+ * \param[in]   device      device number (4-6) or 3 for userport
+ * \param[in]   callback    function to call on radio button selection (optional)
  *
  * \return  GtkGrid
  */
-GtkWidget *printer_driver_widget_create(int device)
+GtkWidget *printer_driver_widget_create(int device,
+                                        void (*callback)(GtkWidget  *radio,
+                                                         int         device,
+                                                         const char *drv_name))
 {
-    GtkWidget *grid;
-    GtkWidget *radio_ascii = NULL;
-    GtkWidget *radio_mps803 = NULL;
-    GtkWidget *radio_nl10 = NULL;
-    GtkWidget *radio_raw = NULL;
-    GtkWidget *radio_1520 = NULL;
-    GSList *group = NULL;
-    const char *driver;
+    GtkWidget                  *grid;
+    GtkWidget                  *last;
+    GSList                     *group;
+    const driver_select_list_t *drv_node;
+    const char                 *current = NULL;
+    int                         index;
+    int                         row;
+
+    extra_radio_callback = callback;
+
+    /* sanity check */
+    if (device < 3 || device > 6) {
+        log_error(LOG_ERR,
+                  "%s(): invalid device number %d, valid device numbers are"
+                  " 4-6 or 3 for userport",
+                  __func__, device);
+        return NULL;
+    }
+    index = device - 3; /* index in the resource names array */
 
     /* build grid */
-    grid = vice_gtk3_grid_new_spaced_with_label(-1, -1, "Driver", 1);
-    /* set DeviceNumber property to allow the update function to work */
-    resource_widget_set_int(grid, "DeviceNumber", device);
+    grid = vice_gtk3_grid_new_spaced_with_label(8, 0, "Driver", 1);
+    vice_gtk3_grid_set_title_margin(grid, 8);
 
-    if (device == 4 || device == 5) {
-        /* 'normal' printers */
+    /* get current resource value */
+    resources_get_string(driver_resource_names[index], &current);
+    /* set resource name to allow the update function to work */
+    resource_widget_set_resource_name(grid, driver_resource_names[index]);
 
-        /* ASCII */
-        radio_ascii = gtk_radio_button_new_with_label(group, "ASCII");
-        g_object_set_data(G_OBJECT(radio_ascii), "DeviceNumber",
-                GINT_TO_POINTER(device));
-        gtk_widget_set_margin_start(radio_ascii, 16);
-        gtk_grid_attach(GTK_GRID(grid), radio_ascii, 0, 1, 1, 1);
+    /* create radio buttons */
+    last     = NULL;
+    group    = NULL;
+    row      = 1;
+    drv_node = driver_select_get_drivers();
 
-        /* MPS803 */
-        radio_mps803 = gtk_radio_button_new_with_label(group, "MPS-803");
-        gtk_radio_button_join_group(GTK_RADIO_BUTTON(radio_mps803),
-                GTK_RADIO_BUTTON(radio_ascii));
-        g_object_set_data(G_OBJECT(radio_mps803), "DeviceNumber",
-                GINT_TO_POINTER(device));
-        gtk_widget_set_margin_start(radio_mps803, 16);
-        gtk_grid_attach(GTK_GRID(grid), radio_mps803, 0, 2, 1, 1);
+    while (drv_node != NULL) {
+        GtkWidget  *radio = NULL;
+        char       *drv_name;   /* cannot be const since we cast this to gpointer */
+        const char *ui_name;
 
-        /* NL10 */
-        radio_nl10 = gtk_radio_button_new_with_label(group, "NL10");
-        gtk_radio_button_join_group(GTK_RADIO_BUTTON(radio_nl10),
-                GTK_RADIO_BUTTON(radio_mps803));
-        g_object_set_data(G_OBJECT(radio_nl10), "DeviceNumber",
-                GINT_TO_POINTER(device));
-        gtk_widget_set_margin_start(radio_nl10, 16);
-        gtk_grid_attach(GTK_GRID(grid), radio_nl10, 0, 3, 1, 1);
+        drv_name = drv_node->driver_select.drv_name;
+        ui_name  = drv_node->driver_select.ui_name;
 
-        /* RAW */
-        radio_raw = gtk_radio_button_new_with_label(group, "RAW");
-        gtk_radio_button_join_group(GTK_RADIO_BUTTON(radio_raw),
-                GTK_RADIO_BUTTON(radio_nl10));
-        g_object_set_data(G_OBJECT(radio_raw), "DeviceNumber",
-                GINT_TO_POINTER(device));
-        gtk_widget_set_margin_start(radio_raw, 16);
-        gtk_grid_attach(GTK_GRID(grid), radio_raw, 0, 4, 1, 1);
-    } else if (device == 6) {
-        /* plotter */
+        if ((device == 4 || device == 5) && driver_select_is_printer(drv_name)) {
+            radio = gtk_radio_button_new_with_label(group, ui_name);
+        } else if ((device == 6) && driver_select_is_plotter(drv_name)) {
+            radio = gtk_radio_button_new_with_label(group, ui_name);
+        } else if ((device == 3) && driver_select_has_userport(drv_name)) {
+            radio = gtk_radio_button_new_with_label(group, ui_name);
+        }
 
-        /* 1520 */
-        radio_1520 = gtk_radio_button_new_with_label(group, "1520");
-        g_object_set_data(G_OBJECT(radio_1520), "DeviceNumber",
-                GINT_TO_POINTER(device));
-        gtk_widget_set_margin_start(radio_1520, 16);
-        gtk_grid_attach(GTK_GRID(grid), radio_1520, 0, 1, 1, 1);
+        if (radio != NULL) {
+            /* No need to use g_strdup() since the string is always available.
+             * We could use the signal handler's `data` argument to pass this
+             * value, but we also need the value for the update() function to work
+             */
+            g_object_set_data(G_OBJECT(radio), "Driver", (gpointer)drv_name);
+            g_object_set_data(G_OBJECT(radio), "Device", GINT_TO_POINTER(device));
 
-        /* RAW */
-        radio_raw = gtk_radio_button_new_with_label(group, "RAW");
-        gtk_radio_button_join_group(GTK_RADIO_BUTTON(radio_raw),
-                GTK_RADIO_BUTTON(radio_1520));
-        g_object_set_data(G_OBJECT(radio_raw), "DeviceNumber",
-                GINT_TO_POINTER(device));
-        gtk_widget_set_margin_start(radio_raw, 16);
-        gtk_grid_attach(GTK_GRID(grid), radio_raw, 0, 2, 1, 1);
-    } else {
-        fprintf(stderr, "%s:%d:%s(): invalid device #%d\n",
-                __FILE__, __LINE__, __func__, device);
-        archdep_vice_exit(1);
-    }
+            if (last != NULL) {
+                gtk_radio_button_join_group(GTK_RADIO_BUTTON(radio),
+                                            GTK_RADIO_BUTTON(last));
+            }
+            if (g_strcmp0(current, drv_name) == 0) {
+                gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(radio), TRUE);
+            }
 
+            g_signal_connect(G_OBJECT(radio),
+                             "toggled",
+                             G_CALLBACK(on_radio_toggled),
+                             NULL);
 
-    /* set current driver from resource */
-    resources_get_string_sprintf("Printer%dDriver", &driver, device);
-    printer_driver_widget_update(grid, driver);
+            gtk_grid_attach(GTK_GRID(grid), radio, 0, row, 1, 1);
+            row++;
+            last = radio;
+        }
 
-    /* connect signal handlers */
-    g_signal_connect(radio_raw, "toggled", G_CALLBACK(on_radio_toggled),
-            (gpointer)"raw");
-
-    if (device == 4 || device == 5) {
-        g_signal_connect(radio_ascii, "toggled", G_CALLBACK(on_radio_toggled),
-                (gpointer)"ascii");
-        g_signal_connect(radio_mps803, "toggled", G_CALLBACK(on_radio_toggled),
-                (gpointer)"mps803");
-        g_signal_connect(radio_nl10, "toggled", G_CALLBACK(on_radio_toggled),
-                (gpointer)"nl10");
-    } else if (device == 6) {
-        g_signal_connect(radio_1520, "toggled", G_CALLBACK(on_radio_toggled),
-                (gpointer)"1520");
+        drv_node = drv_node->next;
     }
 
     gtk_widget_show_all(grid);
@@ -193,39 +204,21 @@ GtkWidget *printer_driver_widget_create(int device)
  */
 void printer_driver_widget_update(GtkWidget *widget, const char *driver)
 {
-    GtkWidget *radio;
-    int index = 4;  /* RAW for 4/5 */
-    int device;
+    int row = 1;
 
-    /* get device number from custom GObject property */
-    device = GPOINTER_TO_INT(
-            g_object_get_data(G_OBJECT(widget), "DeviceNumber"));
+    while (TRUE) {
+        GtkWidget *radio = gtk_grid_get_child_at(GTK_GRID(widget), 0, row);
 
-    /* this is a little silly, using string constants, but it works */
-    if (device == 4 || device == 5) {
-        if (strcmp(driver, "ascii") == 0) {
-            index = 1;
-        } else if (strcmp(driver, "mps803") == 0) {
-            index = 2;
-        } else if (strcmp(driver, "nl10") == 0) {
-            index = 3;
+        if (radio == NULL) {
+            break;  /* end of grid, give up */
+        } else if (GTK_IS_RADIO_BUTTON(radio)) {
+            const char *value = g_object_get_data(G_OBJECT(radio), "Driver");
+            if (g_strcmp0(driver, value) == 0) {
+                /* this also triggers the signal handler, updating the resource */
+                gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(radio), TRUE);
+                break;
+            }
         }
-    } else if (device == 6) {
-        if (strcmp(driver, "1520") == 0) {
-            index = 1;
-        } else {
-            index = 2;  /* RAW */
-        }
-    } else {
-        fprintf(stderr, "%s:%d:%s(): invalid printer device #%d\n",
-                __FILE__, __LINE__, __func__, device);
-        archdep_vice_exit(1);
-    }
-
-    /* now select the proper radio button */
-    radio = gtk_grid_get_child_at(GTK_GRID(widget), 0, index);
-    if (radio != NULL && GTK_IS_RADIO_BUTTON(radio)) {
-        /* set toggle button to active, this also sets the resource */
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(radio), TRUE);
+        row++;
     }
 }

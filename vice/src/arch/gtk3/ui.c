@@ -11,6 +11,22 @@
  * $VICERES VDCFullscreen           x128
  * $VICERES VICFullscreen           xvic
  * $VICERES VICIIFullscreen         x64 x64sc x64dtv xscpu64 x128 xcbm5x0
+ * $VICERES MonitorBG               all
+ * $VICERES MonitorFG               all
+ * $VICERES MonitorFont             all
+ * $VICERES MonitorXPos             all
+ * $VICERES MonitorYPos             all
+ * $VICERES MonitorWidth            all
+ * $VICERES MonitorHeight           all
+ * $VICERES Window0Height           -vsid
+ * $VICERES Window0Width            -vsid
+ * $VICERES Window0Xpos             -vsid
+ * $VICERES Window0Ypos             -vsid
+ * $VICERES Window1Height           x128
+ * $VICERES Window1Width            x128
+ * $VICERES Window1Xpos             x128
+ * $VICERES Window1Ypos             x128
+
  */
 
 /*
@@ -55,16 +71,18 @@
 #endif
 
 #include "archdep.h"
+#include "attach.h"
 #include "autostart.h"
 #include "basedialogs.h"
 #include "cmdline.h"
+#include "cartridgewidgets.h"
+#include "crtcontrolwidget.h"
 #include "debug.h"
 #include "debug_gtk3.h"
 #include "drive.h"
 #include "extendimagedialog.h"
 /* for the fullscreen_capability() stub */
 #include "fullscreen.h"
-#include "hotkeymap.h"
 #include "hotkeys.h"
 #include "interrupt.h"
 #include "jamdialog.h"
@@ -76,13 +94,18 @@
 #include "mainlock.h"
 #include "mixerwidget.h"
 #include "monitor.h"
+#ifdef HAVE_DEBUG_GTK3UI
+#include "rommanager.h"
+#endif
 #include "resources.h"
+#include "settings_keyboard.h"
 #include "types.h"
 #include "uiactions.h"
 #include "uiapi.h"
 #include "uicart.h"
 #include "uidata.h"
 #include "uidiskattach.h"
+#include "uihotkeys.h"
 #include "uimachinemenu.h"
 #include "uimachinewindow.h"
 #include "uimedia.h"
@@ -112,6 +135,7 @@
 #include "actions-joystick.h"
 #include "actions-machine.h"
 #include "actions-media.h"
+#include "actions-printer.h"
 #include "actions-settings.h"
 #include "actions-snapshot.h"
 #include "actions-speed.h"
@@ -147,8 +171,7 @@ static int set_monitor_width(const gchar *width, void *window_index);
 static int set_monitor_height(const gchar *height, void *window_index);
 static int set_settings_node_path(const gchar *path, void *unused);
 static int window_index_from_param(void *param);
-static void ui_action_dispatch(const ui_action_map_t *);
-
+static void ui_action_dispatch(ui_action_map_t *);
 
 /*****************************************************************************
  *                  Defines, enums, type declarations                        *
@@ -298,9 +321,11 @@ static const resource_int_t resources_int_shared[] = {
  * These are used by all emulators.
  */
 static const resource_int_t resources_int_primary_window[] = {
+    /* FIXME: this is a generic (not GTK specific) resource */
     { "Window0Height", INT_MIN, RES_EVENT_NO, NULL,
         &(ui_resources.window_height[PRIMARY_WINDOW]), set_window_height,
         (void*)PRIMARY_WINDOW },
+    /* FIXME: this is a generic (not GTK specific) resource */
     { "Window0Width", INT_MIN, RES_EVENT_NO, NULL,
         &(ui_resources.window_width[PRIMARY_WINDOW]), set_window_width,
         (void*)PRIMARY_WINDOW },
@@ -320,9 +345,11 @@ static const resource_int_t resources_int_primary_window[] = {
  * These are only used by x128's VDC window.
  */
 static const resource_int_t resources_int_secondary_window[] = {
+    /* FIXME: this is a generic (not GTK specific) resource */
     { "Window1Height", 0, RES_EVENT_NO, NULL,
         &(ui_resources.window_height[SECONDARY_WINDOW]), set_window_height,
         (void*)SECONDARY_WINDOW },
+    /* FIXME: this is a generic (not GTK specific) resource */
     { "Window1Width", 0, RES_EVENT_NO, NULL,
         &(ui_resources.window_width[SECONDARY_WINDOW]), set_window_width,
         (void*)SECONDARY_WINDOW },
@@ -407,7 +434,31 @@ static const cmdline_option_t cmdline_options_common[] =
     { "-monitorheight", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
         set_monitor_height, (void*)MONITOR_WINDOW, "MonitorHeight", NULL,
         "height", "Set monitor window height" },
-
+    /* Note: the following options are common/the same in SDL port */
+    { "-windowxpos", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
+        set_monitor_xpos, (void*)PRIMARY_WINDOW, "Window0XPos", NULL,
+        "X", "Set window X position" },
+    { "-windowypos", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
+        set_monitor_ypos, (void*)PRIMARY_WINDOW, "Window0YPos", NULL,
+        "Y", "Set window Y position" },
+    { "-windowwidth", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
+        set_monitor_width, (void*)PRIMARY_WINDOW, "Window0Width", NULL,
+        "width", "Set window width" },
+    { "-windowheight", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
+        set_monitor_height, (void*)PRIMARY_WINDOW, "Window0Height", NULL,
+        "height", "Set window height" },
+    { "-windowxpos1", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
+        set_monitor_xpos, (void*)SECONDARY_WINDOW, "Window1XPos", NULL,
+        "X", "Set secondary window X position" },
+    { "-windowypos1", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
+        set_monitor_ypos, (void*)SECONDARY_WINDOW, "Window1YPos", NULL,
+        "Y", "Set secondary window Y position" },
+    { "-windowwidth1", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
+        set_monitor_width, (void*)SECONDARY_WINDOW, "Window1Width", NULL,
+        "width", "Set secondary window width" },
+    { "-windowheight1", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
+        set_monitor_height, (void*)SECONDARY_WINDOW, "Window1Height", NULL,
+        "height", "Set secondary window height" },
     CMDLINE_LIST_END
 };
 
@@ -644,7 +695,6 @@ static int set_window_height(gint height, void *window_index)
 static int set_window_xpos(gint xpos, void *window_index)
 {
     int index = window_index_from_param(window_index);
-
     if (index < 0) {
         return -1;
     }
@@ -669,7 +719,7 @@ static int set_window_ypos(gint ypos, void *window_index)
     return 0;
 }
 
-/** \brief  Cmdline handler for -monitorxpos
+/** \brief  Cmdline handler for -monitorxpos, -windowxpos, -windowxpos1
  *
  * \param[in]   xpos            xpos in pixels as string
  * \param[in]   window_index    window index
@@ -688,7 +738,7 @@ static int set_monitor_xpos(const gchar *xpos, void *window_index)
     return set_window_xpos((gint)result, window_index);
 }
 
-/** \brief  Cmdline handler for -monitorypos
+/** \brief  Cmdline handler for -monitorypos, -windowypos, -windowypos1
  *
  * \param[in]   ypos            ypos in pixels as string
  * \param[in]   window_index    window index
@@ -707,7 +757,7 @@ static int set_monitor_ypos(const gchar *ypos, void *window_index)
     return set_window_ypos((gint)result, window_index);
 }
 
-/** \brief  Cmdline handler for -monitorwidth
+/** \brief  Cmdline handler for -monitorwidth, -windowwidth, -windowwidth1
  *
  * \param[in]   width           width in pixels as string
  * \param[in]   window_index    window index
@@ -726,7 +776,7 @@ static int set_monitor_width(const gchar *width, void *window_index)
     return set_window_width((gint)result, window_index);
 }
 
-/** \brief  Cmdline handler for -monitorheight
+/** \brief  Cmdline handler for -monitorheight, -windowheight, -windowheight1
  *
  * \param[in]   height          height in pixels as string
  * \param[in]   window_index    window index
@@ -800,6 +850,7 @@ static void on_drag_data_received(GtkWidget *widget,
     gchar *filename = NULL;
     gchar **files = NULL;
     guchar *text = NULL;
+    GdkDragAction action = gdk_drag_context_get_selected_action (context);
 
     switch (info) {
 
@@ -879,8 +930,17 @@ static void on_drag_data_received(GtkWidget *widget,
 
     /* can we attempt autostart? */
     if (filename != NULL) {
-        if (autostart_autodetect(filename, NULL, 0, AUTOSTART_MODE_RUN) != 0) {
-            /* TODO: add proper UI error */
+        if (action != GDK_ACTION_MOVE) {
+            /* drop with alt ("link") -> only load, not run */
+            int mode = (action == GDK_ACTION_LINK) ? AUTOSTART_MODE_LOAD : AUTOSTART_MODE_RUN;
+            if (autostart_autodetect(filename, NULL, 0, mode) != 0) {
+                /* TODO: add proper UI error */
+            }
+        } else {
+            /* drop with shift ("move") -> only mount the disk */
+            if (file_system_attach_disk(8, 0, filename) < 0) {
+                /* TODO: add proper UI error */
+            }
         }
         g_free(filename);
     }
@@ -1073,37 +1133,36 @@ static int set_settings_node_path(const gchar *path, void *param)
 
 /* Dispatch function and its helper for the UI actions */
 
+
 /** \brief  GSourceFunc to call a UI action
  *
- * \param[in]   data    UI action function
+ * \param[in]   data    UI action map
  *
- * \return  `FALSE` to remove this timeout source
+ * \return  `G_SOURCE_REMOVE` to remove this timeout source
  */
 static gboolean ui_action_dispatch_impl(gpointer data)
 {
-    void (*handler)(void) = data;
-    debug_gtk3("Called with handler %p", (void*)handler);
-    handler();
-    return FALSE;
+    ui_action_map_t *map = data;
+
+    map->handler(map);
+    return G_SOURCE_REMOVE;
 }
 
 /** \brief  Dispatcher for UI actions
  *
- * Executes \a handler on the the UI thread.
+ * Executes UI action handler on the the UI thread if requested.
  *
- * \param[in]   handler handler to invoke
+ * \param[in]   map UI action map
  */
-static void ui_action_dispatch(const ui_action_map_t *map)
+static void ui_action_dispatch(ui_action_map_t *map)
 {
-    if (mainlock_is_vice_thread()) {
-        /* we're on the main thread, push to UI thread */
-        gdk_threads_add_timeout(0, ui_action_dispatch_impl, (gpointer)(map->handler));
+    if ((map->uithread || map->dialog) && mainlock_is_vice_thread()) {
+        /* we're on the main thread and we need the UI thread: push to UI thread */
+        gdk_threads_add_timeout(0, ui_action_dispatch_impl, (void*)map);
     } else {
-        /* we're already on the UI thread */
-        map->handler();
+        map->handler(map);
     }
 }
-
 
 
 /******************************************************************************
@@ -1596,7 +1655,7 @@ void macos_set_dock_icon_workaround(GdkPixbuf *icon)
  * This workaround is the obj-c runtime equivalent of calling:
  * [[NSApplication sharedApplication] activateIgnoringOtherApps: YES];
  */
-void macos_activate_application_workaround()
+void macos_activate_application_workaround(void)
 {
     id ns_application;
 
@@ -1646,6 +1705,54 @@ static gboolean rendering_area_event_handler(GtkWidget *canvas,
     return FALSE;
 }
 
+/** \brief  Set window geomeotry of a window by index from resources
+ *
+ * \param[in]   index   window index (\c PRIMARY_WINDOW or \c SECONDARY_WINDOW)
+ *
+ * \return  \c true if the geomeotry for the given \a index was set due to the
+ *          resources not containing their default values
+ */
+static bool set_window_geometry_from_resources(int index)
+{
+    GtkWidget *window;
+    bool       restored = false;
+
+    window = ui_resources.window_widget[index];
+    if (window != NULL) {
+        int xpos;
+        int ypos;
+        int width;
+        int height;
+
+        resources_get_int_sprintf("Window%dXpos",   &xpos,   index);
+        resources_get_int_sprintf("Window%dYpos",   &ypos,   index);
+        resources_get_int_sprintf("Window%dWidth",  &width,  index);
+        resources_get_int_sprintf("Window%dHeight", &height, index);
+
+        if (xpos > INT_MIN && ypos > INT_MIN) {
+            gtk_window_move(GTK_WINDOW(window), xpos, ypos);
+            restored = true;
+        }
+        if (width > 0 && height > 0) {
+            gtk_window_resize(GTK_WINDOW(window), width, height);
+            restored = true;
+        }
+    }
+    return restored;
+}
+
+
+/** \brief  Set geometry of (both) emulated display window(s) from resources
+ *
+ * Attempt to set the size and position of the display window(s) from resources.
+ */
+void ui_set_window_geometries(void)
+{
+    set_window_geometry_from_resources(PRIMARY_WINDOW);
+    if (machine_class == VICE_MACHINE_C128) {
+        set_window_geometry_from_resources(SECONDARY_WINDOW);
+    }
+}
 
 
 /** \brief  Create a toplevel window to represent a video canvas
@@ -1678,16 +1785,10 @@ void ui_create_main_window(video_canvas_t *canvas)
     int mouse_grab = 0;
 
     GdkPixbuf *icon;
-
-    int xpos = -1;
-    int ypos = -1;
-    int width = 0;
-    int height = 0;
-
     gchar title[256];
 
     int minimized = 0;
-    int restored = 0;
+    bool restored = false;
 
     if (machine_class != VICE_MACHINE_VSID) {
         resources_get_int("Mouse", &mouse_grab);
@@ -1695,7 +1796,7 @@ void ui_create_main_window(video_canvas_t *canvas)
 
     new_window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
     /* this needs to be here to make the menus with accelerators work */
-    ui_init_accelerators(new_window);
+    vhk_gtk_init_accelerators(new_window);
 
     /* set the dock / taskbar icon */
     icon = get_default_icon();
@@ -1712,7 +1813,7 @@ void ui_create_main_window(video_canvas_t *canvas)
     if (!mouse_grab) {
         g_snprintf(title, sizeof(title), "VICE (%s)", machine_get_name());
     } else {
-        gchar *name = hotkey_map_get_accel_label_for_action(ACTION_MOUSE_GRAB_TOGGLE);
+        gchar *name = vhk_gtk_get_accel_label_by_action(ACTION_MOUSE_GRAB_TOGGLE);
         g_snprintf(title, sizeof(title),
                    "VICE (%s) (Use %s to disable mouse grab)",
                    machine_get_name(), name);
@@ -1801,7 +1902,7 @@ void ui_create_main_window(video_canvas_t *canvas)
                           GTK_DEST_DEFAULT_ALL,
                           ui_drag_targets,
                           UI_DRAG_TARGETS_COUNT,
-                          GDK_ACTION_COPY);
+                          GDK_ACTION_COPY | GDK_ACTION_MOVE | GDK_ACTION_LINK);
         g_signal_connect(new_window,
                          "drag-data-received",
                          G_CALLBACK(on_drag_data_received),
@@ -1829,24 +1930,7 @@ void ui_create_main_window(video_canvas_t *canvas)
     /*
      * Try to restore windows position and size
      */
-    if (resources_get_int_sprintf("Window%dXpos", &xpos, target_window) < 0) {
-        log_error(LOG_ERR, "No for Window%dXpos", target_window);
-    }
-    resources_get_int_sprintf("Window%dYpos", &ypos, target_window);
-    resources_get_int_sprintf("Window%dwidth", &width, target_window);
-    resources_get_int_sprintf("Window%dheight", &height, target_window);
-#if 0
-    debug_gtk3("X: %d, Y: %d, W: %d, H: %d", xpos, ypos, width, height);
-#endif
-    if (xpos > INT_MIN && ypos > INT_MIN) {
-        gtk_window_move(GTK_WINDOW(new_window), xpos, ypos);
-        restored = 1;
-    }
-    if (width > 0 && height > 0) {
-        gtk_window_resize(GTK_WINDOW(new_window), width, height);
-        restored = 1;
-    }
-
+    restored = set_window_geometry_from_resources(target_window);
     if (!restored) {
         /*
          * If not restoring location and size from config, attempt to place
@@ -1857,7 +1941,6 @@ void ui_create_main_window(video_canvas_t *canvas)
          */
         gtk_window_set_position(GTK_WINDOW(new_window), GTK_WIN_POS_CENTER);
     }
-
 
     /*
      * Do we start minimized?
@@ -1896,7 +1979,7 @@ void ui_create_main_window(video_canvas_t *canvas)
     }
 
     /* set any menu checkboxes that aren't connected to resources */
-    ui_set_check_menu_item_blocked_by_action(ACTION_WARP_MODE_TOGGLE,
+    vhk_gtk_set_check_item_blocked_by_action(ACTION_WARP_MODE_TOGGLE,
                                              vsync_get_warp_mode());
 
     if (machine_class != VICE_MACHINE_VSID) {
@@ -2011,9 +2094,6 @@ void ui_destroy_main_window(int index)
  */
 int ui_cmdline_options_init(void)
 {
-    if (ui_hotkeys_cmdline_options_init() != 0) {
-        return -1;
-    }
     return cmdline_register_options(cmdline_options_common);
 }
 
@@ -2073,7 +2153,11 @@ int ui_init(void)
      * hack works, and it does.
      */
     settings_default = gtk_settings_get_default();
-    g_object_set(settings_default, "gtk-menu-bar-accel", "F20", NULL);
+    /* i've seen gtk example code use the returned value directly, but the docs
+     * say it can return NULL, so let's be safe */
+    if (settings_default != NULL) {
+        g_object_set(settings_default, "gtk-menu-bar-accel", "F20", NULL);
+    }
 
     if (!uidata_init()) {
         log_error(LOG_ERR,
@@ -2095,24 +2179,14 @@ int ui_init(void)
      *          Which probably isn't the correct way.
      */
     settings = g_settings_new("org.gtk.Settings.FileChooser");
+    /* returns floating ref */
     variant = g_variant_new("b", TRUE);
+    /* floating ref is consumed here */
     g_settings_set_value(settings, "sort-directories-first", variant);
+    /* this should be unref'ed after use */
+    g_object_unref(settings);
 
     ui_statusbar_init();
-    return 0;
-}
-
-
-/** \brief  Finish initialization after loading the resources
- *
- * \note    This function exists for compatibility with other UIs.
- *
- * \return  0 on success, -1 on failure
- *
- * \sa      ui_init_finalize()
- */
-int ui_init_finish(void)
-{
     return 0;
 }
 
@@ -2124,8 +2198,6 @@ int ui_init_finish(void)
  * the main window(s) is/are created.
  *
  * \return  0 on success, -1 on failure
- *
- * \sa      ui_init_finish()
  */
 int ui_init_finalize(void)
 {
@@ -2204,6 +2276,7 @@ int ui_init_finalize(void)
             actions_joystick_register();
             actions_machine_register();
             actions_media_register();
+            actions_printer_register();
             actions_settings_register();
             actions_snapshot_register();
             actions_speed_register();
@@ -2211,6 +2284,7 @@ int ui_init_finalize(void)
             /* VSID-specific actions */
             actions_machine_register(); /* reset, monitor & quit */
             actions_settings_register();
+            actions_speed_register();
 #ifdef DEBUG
             actions_debug_register();
 #endif
@@ -2218,10 +2292,8 @@ int ui_init_finalize(void)
             /* actions_vsid_register(); */
         }
 
-        /* Add any actions that weren't already registered during menu creation */
-        hotkey_map_add_actions();
-
-        ui_hotkeys_init();
+        /* new hotkeys API in shared/hotkeys/ */
+        ui_hotkeys_init("gtk3");
 
         /* Set proper radio buttons, check buttons and menu item labels
          * (All emus including VSID) */
@@ -2320,9 +2392,6 @@ int ui_resources_init(void)
         }
     }
 
-    /* initialize custom hotkeys resources */
-    ui_hotkeys_resources_init();
-
     for (i = 0; i < NUM_WINDOWS; ++i) {
         ui_resources.canvas[i] = NULL;
         ui_resources.window_widget[i] = NULL;
@@ -2348,10 +2417,13 @@ void ui_shutdown(void)
 {
     uidata_shutdown();
     ui_statusbar_shutdown();
-    ui_hotkeys_shutdown();
-#if 0
-    ui_actions_shutdown();
+    cart_image_widgets_shutdown();
+    settings_keyboard_widget_shutdown();
+    actions_settings_shutdown();
+#ifdef HAVE_DEBUG_GTK3UI
+    rom_manager_shutdown();
 #endif
+    /* hotkeys are shut down in src/main.c */
 }
 
 
@@ -2427,6 +2499,14 @@ void ui_dispatch_events(void)
 {
 }
 
+/** \brief  Show settings dialog from a joystick button
+ */
+void arch_ui_activate(void)
+{
+    /* Use actions system to avoid popping up multiple dialogs on multiple
+     * button presses: */
+    ui_action_trigger(ACTION_SETTINGS_DIALOG);
+}
 
 /** \brief  Error dialog handler for the threaded UI
  *
@@ -2466,6 +2546,26 @@ void ui_error(const char *format, ...)
 }
 
 
+/** \brief  Message dialog handler for the threaded UI
+ *
+ * \param[in]   user_data   message
+ *
+ * \return  FALSE
+ */
+static gboolean ui_message_impl(gpointer user_data)
+{
+    char *buffer = (char *)user_data;
+    GtkWidget *dialog;
+
+    dialog = vice_gtk3_message_info("VICE Message", "%s", buffer);
+    gtk_dialog_run(GTK_DIALOG(dialog));
+
+    lib_free(buffer);
+
+    return FALSE;
+}
+
+
 /** \brief  Display a message through the UI
  *
  * \param[in]   format  format string for message
@@ -2479,8 +2579,8 @@ void ui_message(const char *format, ...)
     buffer = lib_mvsprintf(format, ap);
     va_end(ap);
 
-    vice_gtk3_message_info("VICE Message", "%s", buffer);
-    lib_free(buffer);
+    /* call from ui thread */
+    gdk_threads_add_timeout(0, ui_message_impl, (gpointer)buffer);
 }
 
 
@@ -2583,7 +2683,7 @@ void ui_pause_toggle(void)
 gboolean ui_action_toggle_pause(void)
 {
     ui_pause_toggle();
-    ui_set_check_menu_item_blocked_by_action(ACTION_PAUSE_TOGGLE,
+    vhk_gtk_set_check_item_blocked_by_action(ACTION_PAUSE_TOGGLE,
                                              (gboolean)ui_pause_active());
 
     return TRUE;    /* has to be TRUE to avoid passing Alt+P into the emu */
@@ -2598,7 +2698,7 @@ gboolean ui_action_toggle_pause(void)
 gboolean ui_action_toggle_warp(void)
 {
     vsync_set_warp_mode(!vsync_get_warp_mode());
-    ui_set_check_menu_item_blocked_by_action(ACTION_WARP_MODE_TOGGLE,
+    vhk_gtk_set_check_item_blocked_by_action(ACTION_WARP_MODE_TOGGLE,
                                              (gboolean)vsync_get_warp_mode());
 
     return TRUE;
@@ -2619,7 +2719,7 @@ gboolean ui_action_advance_frame(void)
         vsyncarch_advance_frame();
     } else {
         ui_pause_enable();
-        ui_set_check_menu_item_blocked_by_action(ACTION_PAUSE_TOGGLE,
+        vhk_gtk_set_check_item_blocked_by_action(ACTION_PAUSE_TOGGLE,
                                                  (gboolean)ui_pause_active());
     }
 
@@ -2643,6 +2743,7 @@ void ui_exit(void)
         ui_tape_attach_shutdown();
         ui_smart_attach_shutdown();
         ui_media_shutdown();
+        crt_control_widget_shutdown();
     }
 
     ui_settings_shutdown();
@@ -2716,9 +2817,7 @@ void ui_enable_crt_controls(int enabled)
          * Appearently setting a size of 1x1 pixels forces Gtk3 to render the
          * window to the appropriate (minimum) size,
          */
-#if 0
         gtk_window_resize(GTK_WINDOW(window), 1, 1);
-#endif
     }
 }
 
@@ -2752,9 +2851,7 @@ void ui_enable_mixer_controls(int enabled)
          * Appearently setting a size of 1x1 pixels forces Gtk3 to render the
          * window to the appropriate (minimum) size,
          */
-#if 0
         gtk_window_resize(GTK_WINDOW(window), 1, 1);
-#endif
     }
 }
 

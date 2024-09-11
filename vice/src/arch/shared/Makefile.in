@@ -100,11 +100,15 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-@UNIX_COMPILE_TRUE@am__append_1 = \
+@USE_HEADLESSUI_FALSE@am__append_1 = hotkeys
+@USE_SDLUI_TRUE@am__append_2 = uiactions.c
+@USE_SDL2UI_TRUE@am__append_3 = uiactions.c
+@USE_GTK3UI_TRUE@am__append_4 = uiactions.c
+@UNIX_COMPILE_TRUE@am__append_5 = \
 @UNIX_COMPILE_TRUE@	rawnetarch_tuntap.c \
 @UNIX_COMPILE_TRUE@	rawnetarch_unix.c
 
-@MACOS_COMPILE_TRUE@am__append_2 = macOS-util.m
+@MACOS_COMPILE_TRUE@am__append_6 = macOS-util.m
 subdir = src/arch/shared
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cxx_compile_stdcxx.m4 \
@@ -130,11 +134,12 @@ libarchdep_a_LIBADD =
 am__libarchdep_a_SOURCES_DIST = archdep_access.c archdep_boot_path.c \
 	archdep_cbmfont.c archdep_chdir.c archdep_close.c \
 	archdep_create_user_cache_dir.c \
-	archdep_create_user_config_dir.c archdep_current_dir.c \
+	archdep_create_user_config_dir.c \
+	archdep_create_user_state_dir.c archdep_current_dir.c \
 	archdep_default_autostart_disk_image_file_name.c \
 	archdep_default_fliplist_file_name.c \
-	archdep_default_hotkey_file_name.c \
-	archdep_default_joymap_file_name.c archdep_default_logger.c \
+	archdep_default_joymap_file_name.c archdep_default_logfile.c \
+	archdep_default_logger.c \
 	archdep_default_portable_resource_file_name.c \
 	archdep_default_resource_file_name.c \
 	archdep_default_rtc_file_name.c \
@@ -148,39 +153,44 @@ am__libarchdep_a_SOURCES_DIST = archdep_access.c archdep_boot_path.c \
 	archdep_fseeko.c archdep_ftello.c archdep_get_current_drive.c \
 	archdep_get_hvsc_dir.c archdep_get_runtime_info.c \
 	archdep_get_vice_datadir.c archdep_get_vice_docsdir.c \
-	archdep_get_vice_drivesdir.c archdep_get_vice_machinedir.c \
-	archdep_getcwd.c archdep_home_path.c archdep_icon_path.c \
-	archdep_is_haiku.c archdep_is_macos_bindist.c \
-	archdep_is_windows_nt.c archdep_kbd_get_host_mapping.c \
-	archdep_list_drives.c archdep_make_backup_filename.c \
-	archdep_mkdir.c archdep_mkstemp_fd.c \
-	archdep_open_default_log_file.c archdep_path_is_relative.c \
-	archdep_program_name.c archdep_program_path.c \
-	archdep_quote_parameter.c archdep_quote_unzip.c \
-	archdep_rawnet_capability.c archdep_real_path.c \
-	archdep_remove.c archdep_rename.c archdep_require_vkbd.c \
-	archdep_rmdir.c archdep_rtc_get_centisecond.c \
-	archdep_sanitize_filename.c archdep_set_current_drive.c \
-	archdep_set_openmp_wait_policy.c archdep_signals.c \
-	archdep_sound.c archdep_spawn.c archdep_startup_log_error.c \
-	archdep_stat.c archdep_tick.c archdep_tmpnam.c \
-	archdep_user_cache_path.c archdep_user_config_path.c \
+	archdep_get_vice_drivesdir.c archdep_get_vice_hotkeysdir.c \
+	archdep_get_vice_machinedir.c archdep_getcwd.c \
+	archdep_home_path.c archdep_icon_path.c archdep_is_haiku.c \
+	archdep_is_macos_bindist.c archdep_is_windows_nt.c \
+	archdep_kbd_get_host_mapping.c archdep_list_drives.c \
+	archdep_make_backup_filename.c archdep_mkdir.c \
+	archdep_mkstemp_fd.c archdep_open_default_log_file.c \
+	archdep_path_is_relative.c archdep_program_name.c \
+	archdep_program_path.c archdep_quote_parameter.c \
+	archdep_quote_unzip.c archdep_rawnet_capability.c \
+	archdep_real_path.c archdep_remove.c archdep_rename.c \
+	archdep_require_vkbd.c archdep_rmdir.c \
+	archdep_rtc_get_centisecond.c archdep_sanitize_filename.c \
+	archdep_set_current_drive.c archdep_set_openmp_wait_policy.c \
+	archdep_signals.c archdep_socketpeek.c archdep_sound.c \
+	archdep_spawn.c archdep_startup_log_error.c archdep_stat.c \
+	archdep_tick.c archdep_tmpnam.c archdep_user_cache_path.c \
+	archdep_user_config_path.c archdep_user_state_path.c \
 	archdep_usleep.c archdep_xdg.c console.c coproc.c dynlib.c \
 	rawnetarch.c rs232dev.c signals.c uiactions.c \
 	rawnetarch_tuntap.c rawnetarch_unix.c macOS-util.m
-@UNIX_COMPILE_TRUE@am__objects_1 = rawnetarch_tuntap.$(OBJEXT) \
+@USE_SDLUI_TRUE@am__objects_1 = uiactions.$(OBJEXT)
+@USE_SDL2UI_TRUE@am__objects_2 = uiactions.$(OBJEXT)
+@USE_GTK3UI_TRUE@am__objects_3 = uiactions.$(OBJEXT)
+@UNIX_COMPILE_TRUE@am__objects_4 = rawnetarch_tuntap.$(OBJEXT) \
 @UNIX_COMPILE_TRUE@	rawnetarch_unix.$(OBJEXT)
-@MACOS_COMPILE_TRUE@am__objects_2 = macOS-util.$(OBJEXT)
+@MACOS_COMPILE_TRUE@am__objects_5 = macOS-util.$(OBJEXT)
 am_libarchdep_a_OBJECTS = archdep_access.$(OBJEXT) \
 	archdep_boot_path.$(OBJEXT) archdep_cbmfont.$(OBJEXT) \
 	archdep_chdir.$(OBJEXT) archdep_close.$(OBJEXT) \
 	archdep_create_user_cache_dir.$(OBJEXT) \
 	archdep_create_user_config_dir.$(OBJEXT) \
+	archdep_create_user_state_dir.$(OBJEXT) \
 	archdep_current_dir.$(OBJEXT) \
 	archdep_default_autostart_disk_image_file_name.$(OBJEXT) \
 	archdep_default_fliplist_file_name.$(OBJEXT) \
-	archdep_default_hotkey_file_name.$(OBJEXT) \
 	archdep_default_joymap_file_name.$(OBJEXT) \
+	archdep_default_logfile.$(OBJEXT) \
 	archdep_default_logger.$(OBJEXT) \
 	archdep_default_portable_resource_file_name.$(OBJEXT) \
 	archdep_default_resource_file_name.$(OBJEXT) \
@@ -201,6 +211,7 @@ am_libarchdep_a_OBJECTS = archdep_access.$(OBJEXT) \
 	archdep_get_vice_datadir.$(OBJEXT) \
 	archdep_get_vice_docsdir.$(OBJEXT) \
 	archdep_get_vice_drivesdir.$(OBJEXT) \
+	archdep_get_vice_hotkeysdir.$(OBJEXT) \
 	archdep_get_vice_machinedir.$(OBJEXT) archdep_getcwd.$(OBJEXT) \
 	archdep_home_path.$(OBJEXT) archdep_icon_path.$(OBJEXT) \
 	archdep_is_haiku.$(OBJEXT) archdep_is_macos_bindist.$(OBJEXT) \
@@ -221,15 +232,17 @@ am_libarchdep_a_OBJECTS = archdep_access.$(OBJEXT) \
 	archdep_sanitize_filename.$(OBJEXT) \
 	archdep_set_current_drive.$(OBJEXT) \
 	archdep_set_openmp_wait_policy.$(OBJEXT) \
-	archdep_signals.$(OBJEXT) archdep_sound.$(OBJEXT) \
-	archdep_spawn.$(OBJEXT) archdep_startup_log_error.$(OBJEXT) \
-	archdep_stat.$(OBJEXT) archdep_tick.$(OBJEXT) \
-	archdep_tmpnam.$(OBJEXT) archdep_user_cache_path.$(OBJEXT) \
-	archdep_user_config_path.$(OBJEXT) archdep_usleep.$(OBJEXT) \
+	archdep_signals.$(OBJEXT) archdep_socketpeek.$(OBJEXT) \
+	archdep_sound.$(OBJEXT) archdep_spawn.$(OBJEXT) \
+	archdep_startup_log_error.$(OBJEXT) archdep_stat.$(OBJEXT) \
+	archdep_tick.$(OBJEXT) archdep_tmpnam.$(OBJEXT) \
+	archdep_user_cache_path.$(OBJEXT) \
+	archdep_user_config_path.$(OBJEXT) \
+	archdep_user_state_path.$(OBJEXT) archdep_usleep.$(OBJEXT) \
 	archdep_xdg.$(OBJEXT) console.$(OBJEXT) coproc.$(OBJEXT) \
 	dynlib.$(OBJEXT) rawnetarch.$(OBJEXT) rs232dev.$(OBJEXT) \
-	signals.$(OBJEXT) uiactions.$(OBJEXT) $(am__objects_1) \
-	$(am__objects_2)
+	signals.$(OBJEXT) $(am__objects_1) $(am__objects_2) \
+	$(am__objects_3) $(am__objects_4) $(am__objects_5)
 libarchdep_a_OBJECTS = $(am_libarchdep_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -252,11 +265,12 @@ am__depfiles_remade = ./$(DEPDIR)/archdep_access.Po \
 	./$(DEPDIR)/archdep_close.Po \
 	./$(DEPDIR)/archdep_create_user_cache_dir.Po \
 	./$(DEPDIR)/archdep_create_user_config_dir.Po \
+	./$(DEPDIR)/archdep_create_user_state_dir.Po \
 	./$(DEPDIR)/archdep_current_dir.Po \
 	./$(DEPDIR)/archdep_default_autostart_disk_image_file_name.Po \
 	./$(DEPDIR)/archdep_default_fliplist_file_name.Po \
-	./$(DEPDIR)/archdep_default_hotkey_file_name.Po \
 	./$(DEPDIR)/archdep_default_joymap_file_name.Po \
+	./$(DEPDIR)/archdep_default_logfile.Po \
 	./$(DEPDIR)/archdep_default_logger.Po \
 	./$(DEPDIR)/archdep_default_portable_resource_file_name.Po \
 	./$(DEPDIR)/archdep_default_resource_file_name.Po \
@@ -281,6 +295,7 @@ am__depfiles_remade = ./$(DEPDIR)/archdep_access.Po \
 	./$(DEPDIR)/archdep_get_vice_datadir.Po \
 	./$(DEPDIR)/archdep_get_vice_docsdir.Po \
 	./$(DEPDIR)/archdep_get_vice_drivesdir.Po \
+	./$(DEPDIR)/archdep_get_vice_hotkeysdir.Po \
 	./$(DEPDIR)/archdep_get_vice_machinedir.Po \
 	./$(DEPDIR)/archdep_getcwd.Po ./$(DEPDIR)/archdep_home_path.Po \
 	./$(DEPDIR)/archdep_icon_path.Po \
@@ -306,13 +321,15 @@ am__depfiles_remade = ./$(DEPDIR)/archdep_access.Po \
 	./$(DEPDIR)/archdep_sanitize_filename.Po \
 	./$(DEPDIR)/archdep_set_current_drive.Po \
 	./$(DEPDIR)/archdep_set_openmp_wait_policy.Po \
-	./$(DEPDIR)/archdep_signals.Po ./$(DEPDIR)/archdep_sound.Po \
+	./$(DEPDIR)/archdep_signals.Po \
+	./$(DEPDIR)/archdep_socketpeek.Po ./$(DEPDIR)/archdep_sound.Po \
 	./$(DEPDIR)/archdep_spawn.Po \
 	./$(DEPDIR)/archdep_startup_log_error.Po \
 	./$(DEPDIR)/archdep_stat.Po ./$(DEPDIR)/archdep_tick.Po \
 	./$(DEPDIR)/archdep_tmpnam.Po \
 	./$(DEPDIR)/archdep_user_cache_path.Po \
 	./$(DEPDIR)/archdep_user_config_path.Po \
+	./$(DEPDIR)/archdep_user_state_path.Po \
 	./$(DEPDIR)/archdep_usleep.Po ./$(DEPDIR)/archdep_xdg.Po \
 	./$(DEPDIR)/console.Po ./$(DEPDIR)/coproc.Po \
 	./$(DEPDIR)/dynlib.Po ./$(DEPDIR)/macOS-util.Po \
@@ -385,7 +402,7 @@ am__define_uniq_tagged_files = \
   unique=`for i in $$list; do \
     if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
   done | $(am__uniquify_input)`
-DIST_SUBDIRS = $(SUBDIRS)
+DIST_SUBDIRS = hwsiddrv mididrv socketdrv sounddrv hotkeys
 am__DIST_COMMON = $(srcdir)/Makefile.in $(top_srcdir)/depcomp \
 	$(top_srcdir)/mkinstalldirs
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -481,7 +498,6 @@ GLIB_LIBS = @GLIB_LIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 HAVE_CXX11 = @HAVE_CXX11@
-HAVE_READLINE = @HAVE_READLINE@
 ICONV = @ICONV@
 ICOTOOL = @ICOTOOL@
 INLINE_UNIT_GROWTH = @INLINE_UNIT_GROWTH@
@@ -528,8 +544,6 @@ PNG_LIBS = @PNG_LIBS@
 PROGRAM_PREFIX = @PROGRAM_PREFIX@
 PROGRAM_SUFFIX = @PROGRAM_SUFFIX@
 RANLIB = @RANLIB@
-READLINE = @READLINE@
-READLINE_LIBS = @READLINE_LIBS@
 RESIDDTVSUB = @RESIDDTVSUB@
 RESIDSUB = @RESIDSUB@
 RESID_DEP = @RESID_DEP@
@@ -554,7 +568,6 @@ SOUND_DRIVERS = @SOUND_DRIVERS@
 SOUND_LIBS = @SOUND_LIBS@
 SOUND_MIDAS_OBJ = @SOUND_MIDAS_OBJ@
 SOUND_SDL_OBJ = @SOUND_SDL_OBJ@
-SOUND_USS_OBJ = @SOUND_USS_OBJ@
 STRIP = @STRIP@
 SVN = @SVN@
 SVNVERSION = @SVNVERSION@
@@ -563,6 +576,7 @@ TAR = @TAR@
 TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
+UNZIPBIN = @UNZIPBIN@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -651,14 +665,21 @@ xpet_LDFLAGS = @xpet_LDFLAGS@
 xplus4_LDFLAGS = @xplus4_LDFLAGS@
 xscpu64_LDFLAGS = @xscpu64_LDFLAGS@
 xvic_LDFLAGS = @xvic_LDFLAGS@
-SUBDIRS = hwsiddrv iodrv mididrv socketdrv sounddrv
+SUBDIRS = hwsiddrv mididrv socketdrv sounddrv $(am__append_1)
+
+# The core/rtc and lib/p64 directories are required in order to be able to
+# include drive.h
 AM_CPPFLAGS = \
 	@VICE_CPPFLAGS@ \
 	@ARCH_INCLUDES@ \
 	-I$(top_srcdir)/src/arch/shared \
+	-I$(top_srcdir)/src/arch/shared/hotkeys \
 	$(extra_includes) \
 	-I$(top_builddir)/src \
 	-I$(top_srcdir)/src \
+	-I$(top_srcdir)/src/core/rtc \
+	-I$(top_srcdir)/src/drive \
+	-I$(top_srcdir)/src/lib/p64 \
 	-I$(top_srcdir)/src/rs232drv \
 	-DVICE_DATADIR='"$(datadir)/$(PACKAGE)"' \
 	-DVICE_DOCDIR='"$(docdir)"'
@@ -671,11 +692,12 @@ noinst_LIBRARIES = libarchdep.a
 libarchdep_a_SOURCES = archdep_access.c archdep_boot_path.c \
 	archdep_cbmfont.c archdep_chdir.c archdep_close.c \
 	archdep_create_user_cache_dir.c \
-	archdep_create_user_config_dir.c archdep_current_dir.c \
+	archdep_create_user_config_dir.c \
+	archdep_create_user_state_dir.c archdep_current_dir.c \
 	archdep_default_autostart_disk_image_file_name.c \
 	archdep_default_fliplist_file_name.c \
-	archdep_default_hotkey_file_name.c \
-	archdep_default_joymap_file_name.c archdep_default_logger.c \
+	archdep_default_joymap_file_name.c archdep_default_logfile.c \
+	archdep_default_logger.c \
 	archdep_default_portable_resource_file_name.c \
 	archdep_default_resource_file_name.c \
 	archdep_default_rtc_file_name.c \
@@ -689,26 +711,28 @@ libarchdep_a_SOURCES = archdep_access.c archdep_boot_path.c \
 	archdep_fseeko.c archdep_ftello.c archdep_get_current_drive.c \
 	archdep_get_hvsc_dir.c archdep_get_runtime_info.c \
 	archdep_get_vice_datadir.c archdep_get_vice_docsdir.c \
-	archdep_get_vice_drivesdir.c archdep_get_vice_machinedir.c \
-	archdep_getcwd.c archdep_home_path.c archdep_icon_path.c \
-	archdep_is_haiku.c archdep_is_macos_bindist.c \
-	archdep_is_windows_nt.c archdep_kbd_get_host_mapping.c \
-	archdep_list_drives.c archdep_make_backup_filename.c \
-	archdep_mkdir.c archdep_mkstemp_fd.c \
-	archdep_open_default_log_file.c archdep_path_is_relative.c \
-	archdep_program_name.c archdep_program_path.c \
-	archdep_quote_parameter.c archdep_quote_unzip.c \
-	archdep_rawnet_capability.c archdep_real_path.c \
-	archdep_remove.c archdep_rename.c archdep_require_vkbd.c \
-	archdep_rmdir.c archdep_rtc_get_centisecond.c \
-	archdep_sanitize_filename.c archdep_set_current_drive.c \
-	archdep_set_openmp_wait_policy.c archdep_signals.c \
-	archdep_sound.c archdep_spawn.c archdep_startup_log_error.c \
-	archdep_stat.c archdep_tick.c archdep_tmpnam.c \
-	archdep_user_cache_path.c archdep_user_config_path.c \
+	archdep_get_vice_drivesdir.c archdep_get_vice_hotkeysdir.c \
+	archdep_get_vice_machinedir.c archdep_getcwd.c \
+	archdep_home_path.c archdep_icon_path.c archdep_is_haiku.c \
+	archdep_is_macos_bindist.c archdep_is_windows_nt.c \
+	archdep_kbd_get_host_mapping.c archdep_list_drives.c \
+	archdep_make_backup_filename.c archdep_mkdir.c \
+	archdep_mkstemp_fd.c archdep_open_default_log_file.c \
+	archdep_path_is_relative.c archdep_program_name.c \
+	archdep_program_path.c archdep_quote_parameter.c \
+	archdep_quote_unzip.c archdep_rawnet_capability.c \
+	archdep_real_path.c archdep_remove.c archdep_rename.c \
+	archdep_require_vkbd.c archdep_rmdir.c \
+	archdep_rtc_get_centisecond.c archdep_sanitize_filename.c \
+	archdep_set_current_drive.c archdep_set_openmp_wait_policy.c \
+	archdep_signals.c archdep_socketpeek.c archdep_sound.c \
+	archdep_spawn.c archdep_startup_log_error.c archdep_stat.c \
+	archdep_tick.c archdep_tmpnam.c archdep_user_cache_path.c \
+	archdep_user_config_path.c archdep_user_state_path.c \
 	archdep_usleep.c archdep_xdg.c console.c coproc.c dynlib.c \
-	rawnetarch.c rs232dev.c signals.c uiactions.c $(am__append_1) \
-	$(am__append_2)
+	rawnetarch.c rs232dev.c signals.c $(am__append_2) \
+	$(am__append_3) $(am__append_4) $(am__append_5) \
+	$(am__append_6)
 EXTRA_DIST = \
 	archapi.h \
 	archdep_access.h \
@@ -719,11 +743,12 @@ EXTRA_DIST = \
 	archdep_close.h \
 	archdep_create_user_cache_dir.h \
 	archdep_create_user_config_dir.h \
+	archdep_create_user_state_dir.h \
 	archdep_current_dir.h \
 	archdep_default_autostart_disk_image_file_name.h \
 	archdep_default_fliplist_file_name.h \
-	archdep_default_hotkey_file_name.h \
 	archdep_default_joymap_file_name.h \
+	archdep_default_logfile.h \
 	archdep_default_logger.h \
 	archdep_default_portable_resource_file_name.h \
 	archdep_default_resource_file_name.h \
@@ -751,6 +776,7 @@ EXTRA_DIST = \
 	archdep_get_vice_datadir.h \
 	archdep_get_vice_docsdir.h \
 	archdep_get_vice_drivesdir.h \
+	archdep_get_vice_hotkeysdir.h \
 	archdep_get_vice_machinedir.h \
 	archdep_getcwd.h \
 	archdep_home_path.h \
@@ -781,6 +807,7 @@ EXTRA_DIST = \
 	archdep_set_current_drive.h \
 	archdep_set_openmp_wait_policy.h \
 	archdep_signals.h \
+	archdep_socketpeek.h \
 	archdep_sound.h \
 	archdep_spawn.h \
 	archdep_startup_log_error.h \
@@ -791,6 +818,7 @@ EXTRA_DIST = \
 	archdep_unix.h \
 	archdep_user_cache_path.h \
 	archdep_user_config_path.h \
+	archdep_user_state_path.h \
 	archdep_usleep.h \
 	archdep_win32.h \
 	archdep_xdg.h \
@@ -869,11 +897,12 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_close.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_create_user_cache_dir.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_create_user_config_dir.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_create_user_state_dir.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_current_dir.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_default_autostart_disk_image_file_name.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_default_fliplist_file_name.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_default_hotkey_file_name.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_default_joymap_file_name.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_default_logfile.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_default_logger.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_default_portable_resource_file_name.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_default_resource_file_name.Po@am__quote@ # am--include-marker
@@ -900,6 +929,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_get_vice_datadir.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_get_vice_docsdir.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_get_vice_drivesdir.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_get_vice_hotkeysdir.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_get_vice_machinedir.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_getcwd.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_home_path.Po@am__quote@ # am--include-marker
@@ -929,6 +959,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_set_current_drive.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_set_openmp_wait_policy.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_signals.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_socketpeek.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_sound.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_spawn.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_startup_log_error.Po@am__quote@ # am--include-marker
@@ -937,6 +968,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_tmpnam.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_user_cache_path.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_user_config_path.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_user_state_path.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_usleep.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_xdg.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/console.Po@am__quote@ # am--include-marker
@@ -1187,11 +1219,12 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/archdep_close.Po
 	-rm -f ./$(DEPDIR)/archdep_create_user_cache_dir.Po
 	-rm -f ./$(DEPDIR)/archdep_create_user_config_dir.Po
+	-rm -f ./$(DEPDIR)/archdep_create_user_state_dir.Po
 	-rm -f ./$(DEPDIR)/archdep_current_dir.Po
 	-rm -f ./$(DEPDIR)/archdep_default_autostart_disk_image_file_name.Po
 	-rm -f ./$(DEPDIR)/archdep_default_fliplist_file_name.Po
-	-rm -f ./$(DEPDIR)/archdep_default_hotkey_file_name.Po
 	-rm -f ./$(DEPDIR)/archdep_default_joymap_file_name.Po
+	-rm -f ./$(DEPDIR)/archdep_default_logfile.Po
 	-rm -f ./$(DEPDIR)/archdep_default_logger.Po
 	-rm -f ./$(DEPDIR)/archdep_default_portable_resource_file_name.Po
 	-rm -f ./$(DEPDIR)/archdep_default_resource_file_name.Po
@@ -1218,6 +1251,7 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/archdep_get_vice_datadir.Po
 	-rm -f ./$(DEPDIR)/archdep_get_vice_docsdir.Po
 	-rm -f ./$(DEPDIR)/archdep_get_vice_drivesdir.Po
+	-rm -f ./$(DEPDIR)/archdep_get_vice_hotkeysdir.Po
 	-rm -f ./$(DEPDIR)/archdep_get_vice_machinedir.Po
 	-rm -f ./$(DEPDIR)/archdep_getcwd.Po
 	-rm -f ./$(DEPDIR)/archdep_home_path.Po
@@ -1247,6 +1281,7 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/archdep_set_current_drive.Po
 	-rm -f ./$(DEPDIR)/archdep_set_openmp_wait_policy.Po
 	-rm -f ./$(DEPDIR)/archdep_signals.Po
+	-rm -f ./$(DEPDIR)/archdep_socketpeek.Po
 	-rm -f ./$(DEPDIR)/archdep_sound.Po
 	-rm -f ./$(DEPDIR)/archdep_spawn.Po
 	-rm -f ./$(DEPDIR)/archdep_startup_log_error.Po
@@ -1255,6 +1290,7 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/archdep_tmpnam.Po
 	-rm -f ./$(DEPDIR)/archdep_user_cache_path.Po
 	-rm -f ./$(DEPDIR)/archdep_user_config_path.Po
+	-rm -f ./$(DEPDIR)/archdep_user_state_path.Po
 	-rm -f ./$(DEPDIR)/archdep_usleep.Po
 	-rm -f ./$(DEPDIR)/archdep_xdg.Po
 	-rm -f ./$(DEPDIR)/console.Po
@@ -1319,11 +1355,12 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/archdep_close.Po
 	-rm -f ./$(DEPDIR)/archdep_create_user_cache_dir.Po
 	-rm -f ./$(DEPDIR)/archdep_create_user_config_dir.Po
+	-rm -f ./$(DEPDIR)/archdep_create_user_state_dir.Po
 	-rm -f ./$(DEPDIR)/archdep_current_dir.Po
 	-rm -f ./$(DEPDIR)/archdep_default_autostart_disk_image_file_name.Po
 	-rm -f ./$(DEPDIR)/archdep_default_fliplist_file_name.Po
-	-rm -f ./$(DEPDIR)/archdep_default_hotkey_file_name.Po
 	-rm -f ./$(DEPDIR)/archdep_default_joymap_file_name.Po
+	-rm -f ./$(DEPDIR)/archdep_default_logfile.Po
 	-rm -f ./$(DEPDIR)/archdep_default_logger.Po
 	-rm -f ./$(DEPDIR)/archdep_default_portable_resource_file_name.Po
 	-rm -f ./$(DEPDIR)/archdep_default_resource_file_name.Po
@@ -1350,6 +1387,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/archdep_get_vice_datadir.Po
 	-rm -f ./$(DEPDIR)/archdep_get_vice_docsdir.Po
 	-rm -f ./$(DEPDIR)/archdep_get_vice_drivesdir.Po
+	-rm -f ./$(DEPDIR)/archdep_get_vice_hotkeysdir.Po
 	-rm -f ./$(DEPDIR)/archdep_get_vice_machinedir.Po
 	-rm -f ./$(DEPDIR)/archdep_getcwd.Po
 	-rm -f ./$(DEPDIR)/archdep_home_path.Po
@@ -1379,6 +1417,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/archdep_set_current_drive.Po
 	-rm -f ./$(DEPDIR)/archdep_set_openmp_wait_policy.Po
 	-rm -f ./$(DEPDIR)/archdep_signals.Po
+	-rm -f ./$(DEPDIR)/archdep_socketpeek.Po
 	-rm -f ./$(DEPDIR)/archdep_sound.Po
 	-rm -f ./$(DEPDIR)/archdep_spawn.Po
 	-rm -f ./$(DEPDIR)/archdep_startup_log_error.Po
@@ -1387,6 +1426,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/archdep_tmpnam.Po
 	-rm -f ./$(DEPDIR)/archdep_user_cache_path.Po
 	-rm -f ./$(DEPDIR)/archdep_user_config_path.Po
+	-rm -f ./$(DEPDIR)/archdep_user_state_path.Po
 	-rm -f ./$(DEPDIR)/archdep_usleep.Po
 	-rm -f ./$(DEPDIR)/archdep_xdg.Po
 	-rm -f ./$(DEPDIR)/console.Po

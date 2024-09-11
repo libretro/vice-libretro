@@ -198,7 +198,6 @@ GLIB_LIBS = @GLIB_LIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 HAVE_CXX11 = @HAVE_CXX11@
-HAVE_READLINE = @HAVE_READLINE@
 ICONV = @ICONV@
 ICOTOOL = @ICOTOOL@
 INLINE_UNIT_GROWTH = @INLINE_UNIT_GROWTH@
@@ -245,8 +244,6 @@ PNG_LIBS = @PNG_LIBS@
 PROGRAM_PREFIX = @PROGRAM_PREFIX@
 PROGRAM_SUFFIX = @PROGRAM_SUFFIX@
 RANLIB = @RANLIB@
-READLINE = @READLINE@
-READLINE_LIBS = @READLINE_LIBS@
 RESIDDTVSUB = @RESIDDTVSUB@
 RESIDSUB = @RESIDSUB@
 RESID_DEP = @RESID_DEP@
@@ -271,7 +268,6 @@ SOUND_DRIVERS = @SOUND_DRIVERS@
 SOUND_LIBS = @SOUND_LIBS@
 SOUND_MIDAS_OBJ = @SOUND_MIDAS_OBJ@
 SOUND_SDL_OBJ = @SOUND_SDL_OBJ@
-SOUND_USS_OBJ = @SOUND_USS_OBJ@
 STRIP = @STRIP@
 SVN = @SVN@
 SVNVERSION = @SVNVERSION@
@@ -280,6 +276,7 @@ TAR = @TAR@
 TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
+UNZIPBIN = @UNZIPBIN@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -407,53 +404,47 @@ FONTS_FILES = \
 	fonts/Lato-Regular.woff2 \
 	fonts/OFL.txt
 
+
+# Sorted in the order of `LC_ALL=C ls -1 *.png`, makes it easier to spot
+# missing files.
 IMAGES_FILES = \
 	images/CIPS2008.png \
-	images/new.gif \
-	images/vice-logo.svg \
-	images/vice-logo-black.png \
-	images/c64-layout.png \
-	images/c64-layout-small.png \
+	images/c116-layout.png \
 	images/c128-layout.png \
-	images/c128-layout-small.png \
+	images/c16-layout.png \
+	images/c64-layout.png \
+	images/cbm2-layout.png \
+	images/new.gif \
 	images/pet-business-uk-layout.png \
-	images/pet-business-uk-layout-small.png \
 	images/pet-chiclet-layout.png \
-	images/pet-chiclet-layout-small.png \
 	images/pet-graphical-layout.png \
-	images/pet-graphical-layout-small.png \
-	images/vice-c64-symbolic-keymap-us-small.png \
-	images/vice-c64-symbolic-keymap-us.png \
-	images/vice-c64-positional-keymap-us-small.png \
-	images/vice-c64-positional-keymap-us.png \
-	images/vice-c64-symbolic-keymap-de-small.png \
-	images/vice-c64-symbolic-keymap-de.png \
-	images/vice-c64-positional-keymap-de-small.png \
-	images/vice-c64-positional-keymap-de.png \
-	images/vice-c128-symbolic-keymap-us-small.png \
-	images/vice-c128-symbolic-keymap-us.png \
-	images/vice-c128-positional-keymap-us-small.png \
-	images/vice-c128-positional-keymap-us.png \
-	images/vice-c128-symbolic-keymap-de-small.png \
-	images/vice-c128-symbolic-keymap-de.png \
-	images/vice-c128-positional-keymap-de-small.png \
+	images/plus4-layout.png \
 	images/vice-c128-positional-keymap-de.png \
+	images/vice-c128-positional-keymap-us.png \
+	images/vice-c128-symbolic-keymap-de.png \
+	images/vice-c128-symbolic-keymap-us.png \
+	images/vice-c64-positional-keymap-de.png \
+	images/vice-c64-positional-keymap-us.png \
+	images/vice-c64-symbolic-keymap-de.png \
+	images/vice-c64-symbolic-keymap-us.png \
+	images/vice-cbm2-positional-keymap-de.png \
+	images/vice-cbm2-positional-keymap-us.png \
+	images/vice-cbm2-symbolic-keymap-de.png \
+	images/vice-cbm2-symbolic-keymap-us.png \
+	images/vice-logo-black.png \
+	images/vice-logo.svg \
 	images/vice-pet-business-uk-positional-keymap-de.png \
-	images/vice-pet-business-uk-positional-keymap-de-small.png \
 	images/vice-pet-business-uk-positional-keymap-us.png \
-	images/vice-pet-business-uk-positional-keymap-us-small.png \
 	images/vice-pet-business-uk-symbolic-keymap-de.png \
-	images/vice-pet-business-uk-symbolic-keymap-de-small.png \
 	images/vice-pet-business-uk-symbolic-keymap-us.png \
-	images/vice-pet-business-uk-symbolic-keymap-us-small.png \
 	images/vice-pet-graphical-positional-keymap-de.png \
-	images/vice-pet-graphical-positional-keymap-de-small.png \
 	images/vice-pet-graphical-positional-keymap-us.png \
-	images/vice-pet-graphical-positional-keymap-us-small.png \
 	images/vice-pet-graphical-symbolic-keymap-de.png \
-	images/vice-pet-graphical-symbolic-keymap-de-small.png \
 	images/vice-pet-graphical-symbolic-keymap-us.png \
-	images/vice-pet-graphical-symbolic-keymap-us-small.png
+	images/vice-plus4-positional-keymap-de.png \
+	images/vice-plus4-positional-keymap-us.png \
+	images/vice-plus4-symbolic-keymap-de.png \
+	images/vice-plus4-symbolic-keymap-us.png
 
 EXTRA_DIST = \
 	checklinks.sh \
@@ -686,7 +677,7 @@ uninstall-am:
 
 @ENABLE_HTML_DOCS_TRUE@@HAVE_PERL_TRUE@$(GEN_HTML): vice.texi $(srcdir)/texi2html
 @ENABLE_HTML_DOCS_TRUE@@HAVE_PERL_TRUE@	@echo "generating html documentation..."
-@ENABLE_HTML_DOCS_TRUE@@HAVE_PERL_TRUE@	$(PERL) "$(srcdir)"/texi2html -number -split_chapter -D$(PLATFORM_DOX_FLAGS) "$<"
+@ENABLE_HTML_DOCS_TRUE@@HAVE_PERL_TRUE@	$(PERL) "$(srcdir)"/texi2html -I "$(srcdir)"/.. -number -split_chapter -D$(PLATFORM_DOX_FLAGS) "$<"
 
 @ENABLE_HTML_DOCS_TRUE@$(TEXT_FILES): %: $(top_srcdir)/%
 @ENABLE_HTML_DOCS_TRUE@	cp "$<" "$@"

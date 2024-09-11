@@ -111,17 +111,19 @@ am__v_AR_1 =
 libbasewidgets_a_AR = $(AR) $(ARFLAGS)
 libbasewidgets_a_LIBADD =
 am_libbasewidgets_a_OBJECTS = basedialogs.$(OBJEXT) \
-	carthelpers.$(OBJEXT) cartimagewidget.$(OBJEXT) \
+	carthelpers.$(OBJEXT) cartridgewidgets.$(OBJEXT) \
 	clockportdevicewidget.$(OBJEXT) csshelpers.$(OBJEXT) \
 	filechooserhelpers.$(OBJEXT) lastdir.$(OBJEXT) \
 	openfiledialog.$(OBJEXT) popupmenu.$(OBJEXT) \
-	resourcebrowser.$(OBJEXT) resourcecheckbutton.$(OBJEXT) \
-	resourcecombobox.$(OBJEXT) resourceentry.$(OBJEXT) \
+	ramsizeradiogroup.$(OBJEXT) resourcebrowser.$(OBJEXT) \
+	resourcecheckbutton.$(OBJEXT) resourcecombobox.$(OBJEXT) \
+	resourceentry.$(OBJEXT) resourcefilechooser.$(OBJEXT) \
 	resourcehelpers.$(OBJEXT) resourcenumericstring.$(OBJEXT) \
 	resourceradiogroup.$(OBJEXT) resourcescale.$(OBJEXT) \
 	resourcespinbutton.$(OBJEXT) resourceswitch.$(OBJEXT) \
-	savefiledialog.$(OBJEXT) selectdirectorydialog.$(OBJEXT) \
-	uiactionbutton.$(OBJEXT) widgethelpers.$(OBJEXT)
+	resourcewidgetmediator.$(OBJEXT) savefiledialog.$(OBJEXT) \
+	selectdirectorydialog.$(OBJEXT) uiactionbutton.$(OBJEXT) \
+	widgethelpers.$(OBJEXT)
 libbasewidgets_a_OBJECTS = $(am_libbasewidgets_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -139,18 +141,22 @@ DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/src
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/basedialogs.Po \
-	./$(DEPDIR)/carthelpers.Po ./$(DEPDIR)/cartimagewidget.Po \
+	./$(DEPDIR)/carthelpers.Po ./$(DEPDIR)/cartridgewidgets.Po \
 	./$(DEPDIR)/clockportdevicewidget.Po ./$(DEPDIR)/csshelpers.Po \
 	./$(DEPDIR)/filechooserhelpers.Po ./$(DEPDIR)/lastdir.Po \
 	./$(DEPDIR)/openfiledialog.Po ./$(DEPDIR)/popupmenu.Po \
+	./$(DEPDIR)/ramsizeradiogroup.Po \
 	./$(DEPDIR)/resourcebrowser.Po \
 	./$(DEPDIR)/resourcecheckbutton.Po \
 	./$(DEPDIR)/resourcecombobox.Po ./$(DEPDIR)/resourceentry.Po \
+	./$(DEPDIR)/resourcefilechooser.Po \
 	./$(DEPDIR)/resourcehelpers.Po \
 	./$(DEPDIR)/resourcenumericstring.Po \
 	./$(DEPDIR)/resourceradiogroup.Po ./$(DEPDIR)/resourcescale.Po \
 	./$(DEPDIR)/resourcespinbutton.Po \
-	./$(DEPDIR)/resourceswitch.Po ./$(DEPDIR)/savefiledialog.Po \
+	./$(DEPDIR)/resourceswitch.Po \
+	./$(DEPDIR)/resourcewidgetmediator.Po \
+	./$(DEPDIR)/savefiledialog.Po \
 	./$(DEPDIR)/selectdirectorydialog.Po \
 	./$(DEPDIR)/uiactionbutton.Po ./$(DEPDIR)/widgethelpers.Po
 am__mv = mv -f
@@ -260,7 +266,6 @@ GLIB_LIBS = @GLIB_LIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 HAVE_CXX11 = @HAVE_CXX11@
-HAVE_READLINE = @HAVE_READLINE@
 ICONV = @ICONV@
 ICOTOOL = @ICOTOOL@
 INLINE_UNIT_GROWTH = @INLINE_UNIT_GROWTH@
@@ -307,8 +312,6 @@ PNG_LIBS = @PNG_LIBS@
 PROGRAM_PREFIX = @PROGRAM_PREFIX@
 PROGRAM_SUFFIX = @PROGRAM_SUFFIX@
 RANLIB = @RANLIB@
-READLINE = @READLINE@
-READLINE_LIBS = @READLINE_LIBS@
 RESIDDTVSUB = @RESIDDTVSUB@
 RESIDSUB = @RESIDSUB@
 RESID_DEP = @RESID_DEP@
@@ -333,7 +336,6 @@ SOUND_DRIVERS = @SOUND_DRIVERS@
 SOUND_LIBS = @SOUND_LIBS@
 SOUND_MIDAS_OBJ = @SOUND_MIDAS_OBJ@
 SOUND_SDL_OBJ = @SOUND_SDL_OBJ@
-SOUND_USS_OBJ = @SOUND_USS_OBJ@
 STRIP = @STRIP@
 SVN = @SVN@
 SVNVERSION = @SVNVERSION@
@@ -342,6 +344,7 @@ TAR = @TAR@
 TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
+UNZIPBIN = @UNZIPBIN@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -434,6 +437,7 @@ AM_CPPFLAGS = \
 	@VICE_CPPFLAGS@ \
 	@ARCH_INCLUDES@ \
 	-I$(top_srcdir)/src/arch/shared \
+	-I$(top_srcdir)/src/arch/shared/hotkeys \
 	-I$(top_builddir)/src \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/src/drive \
@@ -461,23 +465,26 @@ noinst_LIBRARIES = libbasewidgets.a
 libbasewidgets_a_SOURCES = \
 	basedialogs.c \
 	carthelpers.c \
-	cartimagewidget.c \
+	cartridgewidgets.c \
 	clockportdevicewidget.c \
 	csshelpers.c \
 	filechooserhelpers.c \
 	lastdir.c \
 	openfiledialog.c \
 	popupmenu.c \
+	ramsizeradiogroup.c \
 	resourcebrowser.c \
 	resourcecheckbutton.c \
 	resourcecombobox.c \
 	resourceentry.c \
+	resourcefilechooser.c \
 	resourcehelpers.c \
 	resourcenumericstring.c \
 	resourceradiogroup.c \
 	resourcescale.c \
 	resourcespinbutton.c \
 	resourceswitch.c \
+	resourcewidgetmediator.c \
 	savefiledialog.c \
 	selectdirectorydialog.c \
 	uiactionbutton.c \
@@ -488,23 +495,26 @@ EXTRA_DIST = \
 	basewidget_types.h \
 	basewidgets.h \
 	carthelpers.h \
-	cartimagewidget.h \
+	cartridgewidgets.h \
 	clockportdevicewidget.h \
 	csshelpers.h \
 	filechooserhelpers.h \
 	lastdir.h \
 	openfiledialog.h \
 	popupmenu.h \
+	ramsizeradiogroup.h \
 	resourcebrowser.h \
 	resourcecheckbutton.h \
 	resourcecombobox.h \
 	resourceentry.h \
+	resourcefilechooser.h \
 	resourcehelpers.h \
 	resourcenumericstring.h \
 	resourceradiogroup.h \
 	resourcescale.h \
 	resourcespinbutton.h \
 	resourceswitch.h \
+	resourcewidgetmediator.h \
 	savefiledialog.h \
 	selectdirectorydialog.h \
 	uiactionbutton.h \
@@ -562,23 +572,26 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/basedialogs.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/carthelpers.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cartimagewidget.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cartridgewidgets.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/clockportdevicewidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/csshelpers.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/filechooserhelpers.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lastdir.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openfiledialog.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/popupmenu.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ramsizeradiogroup.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/resourcebrowser.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/resourcecheckbutton.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/resourcecombobox.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/resourceentry.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/resourcefilechooser.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/resourcehelpers.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/resourcenumericstring.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/resourceradiogroup.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/resourcescale.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/resourcespinbutton.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/resourceswitch.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/resourcewidgetmediator.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/savefiledialog.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/selectdirectorydialog.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/uiactionbutton.Po@am__quote@ # am--include-marker
@@ -729,23 +742,26 @@ clean-am: clean-generic clean-noinstLIBRARIES mostlyclean-am
 distclean: distclean-am
 		-rm -f ./$(DEPDIR)/basedialogs.Po
 	-rm -f ./$(DEPDIR)/carthelpers.Po
-	-rm -f ./$(DEPDIR)/cartimagewidget.Po
+	-rm -f ./$(DEPDIR)/cartridgewidgets.Po
 	-rm -f ./$(DEPDIR)/clockportdevicewidget.Po
 	-rm -f ./$(DEPDIR)/csshelpers.Po
 	-rm -f ./$(DEPDIR)/filechooserhelpers.Po
 	-rm -f ./$(DEPDIR)/lastdir.Po
 	-rm -f ./$(DEPDIR)/openfiledialog.Po
 	-rm -f ./$(DEPDIR)/popupmenu.Po
+	-rm -f ./$(DEPDIR)/ramsizeradiogroup.Po
 	-rm -f ./$(DEPDIR)/resourcebrowser.Po
 	-rm -f ./$(DEPDIR)/resourcecheckbutton.Po
 	-rm -f ./$(DEPDIR)/resourcecombobox.Po
 	-rm -f ./$(DEPDIR)/resourceentry.Po
+	-rm -f ./$(DEPDIR)/resourcefilechooser.Po
 	-rm -f ./$(DEPDIR)/resourcehelpers.Po
 	-rm -f ./$(DEPDIR)/resourcenumericstring.Po
 	-rm -f ./$(DEPDIR)/resourceradiogroup.Po
 	-rm -f ./$(DEPDIR)/resourcescale.Po
 	-rm -f ./$(DEPDIR)/resourcespinbutton.Po
 	-rm -f ./$(DEPDIR)/resourceswitch.Po
+	-rm -f ./$(DEPDIR)/resourcewidgetmediator.Po
 	-rm -f ./$(DEPDIR)/savefiledialog.Po
 	-rm -f ./$(DEPDIR)/selectdirectorydialog.Po
 	-rm -f ./$(DEPDIR)/uiactionbutton.Po
@@ -797,23 +813,26 @@ installcheck-am:
 maintainer-clean: maintainer-clean-am
 		-rm -f ./$(DEPDIR)/basedialogs.Po
 	-rm -f ./$(DEPDIR)/carthelpers.Po
-	-rm -f ./$(DEPDIR)/cartimagewidget.Po
+	-rm -f ./$(DEPDIR)/cartridgewidgets.Po
 	-rm -f ./$(DEPDIR)/clockportdevicewidget.Po
 	-rm -f ./$(DEPDIR)/csshelpers.Po
 	-rm -f ./$(DEPDIR)/filechooserhelpers.Po
 	-rm -f ./$(DEPDIR)/lastdir.Po
 	-rm -f ./$(DEPDIR)/openfiledialog.Po
 	-rm -f ./$(DEPDIR)/popupmenu.Po
+	-rm -f ./$(DEPDIR)/ramsizeradiogroup.Po
 	-rm -f ./$(DEPDIR)/resourcebrowser.Po
 	-rm -f ./$(DEPDIR)/resourcecheckbutton.Po
 	-rm -f ./$(DEPDIR)/resourcecombobox.Po
 	-rm -f ./$(DEPDIR)/resourceentry.Po
+	-rm -f ./$(DEPDIR)/resourcefilechooser.Po
 	-rm -f ./$(DEPDIR)/resourcehelpers.Po
 	-rm -f ./$(DEPDIR)/resourcenumericstring.Po
 	-rm -f ./$(DEPDIR)/resourceradiogroup.Po
 	-rm -f ./$(DEPDIR)/resourcescale.Po
 	-rm -f ./$(DEPDIR)/resourcespinbutton.Po
 	-rm -f ./$(DEPDIR)/resourceswitch.Po
+	-rm -f ./$(DEPDIR)/resourcewidgetmediator.Po
 	-rm -f ./$(DEPDIR)/savefiledialog.Po
 	-rm -f ./$(DEPDIR)/selectdirectorydialog.Po
 	-rm -f ./$(DEPDIR)/uiactionbutton.Po

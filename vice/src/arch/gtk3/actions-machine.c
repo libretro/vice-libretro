@@ -1,5 +1,5 @@
 /** \file   actions-machine.c
- * \brief   UI action implementations for machine-related dialogs and settings
+ * \brief   UI action implementations for machine-related dialogs and settings (Gtk3)
  *
  * \author  Bas Wassink <b.wassink@ziggo.nl>
  */
@@ -39,6 +39,7 @@
 #include "resources.h"
 #include "ui.h"
 #include "uiactions.h"
+#include "uistatusbar.h"
 #include "vsync.h"
 
 #include "actions-machine.h"
@@ -63,8 +64,14 @@ static void confirm_exit_callback(GtkDialog *dialog, gboolean result)
 }
 
 
-/** \brief  Quit emulator, possibly popping up a confirmation dialog */
-static void quit_action(void)
+/** \brief  Quit emulator action
+ *
+ * Quit the emulator, possibly popping up a confirmation dialog before actually
+ * closing the emulator.
+ *
+ * \param[in]   self    action map
+ */
+static void quit_action(ui_action_map_t *self)
 {
     int confirm = FALSE;
 
@@ -81,9 +88,11 @@ static void quit_action(void)
             "Do you really wish to exit VICE?");
 }
 
-
-/** \brief  Open the monitor */
-static void monitor_open_action(void)
+/** \brief  Open the monitor action
+ *
+ * \param[in]   self    action map
+ */
+static void monitor_open_action(ui_action_map_t *self)
 {
     int server = 0;
 
@@ -103,45 +112,103 @@ static void monitor_open_action(void)
     }
 }
 
-/** \brief  Trigger soft reset of the machine */
-static void reset_soft_action(void)
+/** \brief  Trigger reset/power-cycle of the machine
+ *
+ * The \c data member of \a self contains the reset mode.
+ *
+ * \param[in]   self    action map
+ */
+static void machine_reset_action(ui_action_map_t *self)
 {
-    machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    machine_trigger_reset(vice_ptr_to_int(self->data));
     ui_pause_disable();
 }
 
-/** \brief  Trigger hard reset of the machine */
-static void reset_hard_action(void)
+/** \brief  Toggle PET userport diagnostic pin
+ *
+ * \param[in]   self    action map
+ */
+static void diagnostic_pin_toggle_action(ui_action_map_t *self)
 {
-    machine_trigger_reset(MACHINE_RESET_MODE_HARD);
-    ui_pause_disable();
+    int active = 0;
+
+    resources_get_int("DiagPin", &active);
+    resources_set_int("DiagPin", !active);
 }
 
+/** \brief  Toggle SuperCPU JiffyDOS switch
+ *
+ * \param[in]   self    action map
+ */
+static void scpu_jiffy_switch_toggle_action(ui_action_map_t *self)
+{
+    int jiffy = 0;
 
+    resources_get_int("JiffySwitch", &jiffy);
+    jiffy = !jiffy;
+    resources_set_int("JiffySwitch", jiffy);
+    /* update status bar LED */
+    supercpu_jiffy_led_set_active(PRIMARY_WINDOW, jiffy ? TRUE : FALSE);
+}
+
+/** \brief  Toggle SuperCPU Speed switch
+ *
+ * \param[in]   self    action map
+ */
+static void scpu_speed_switch_toggle_action(ui_action_map_t *self)
+{
+    int speed = 0;
+
+    resources_get_int("SpeedSwitch", &speed);
+    speed = !speed;
+    resources_set_int("SpeedSwitch", speed);
+    /* update status bar LED */
+    supercpu_turbo_led_set_active(PRIMARY_WINDOW, speed ? TRUE : FALSE);
+}
 
 
 /** \brief  List of machine-related actions */
 static const ui_action_map_t machine_actions[] = {
-    {
-        .action = ACTION_QUIT,
+    {   .action  = ACTION_QUIT,
         .handler = quit_action,
-        .blocks = true,
-        .dialog = true
+        .blocks  = true,
+        .dialog  = true
     },
-    {
-        .action = ACTION_MONITOR_OPEN,
-        .handler = monitor_open_action,
+    {   .action   = ACTION_MONITOR_OPEN,
+        .handler  = monitor_open_action,
         .uithread = true
     },
-    {
-        .action = ACTION_RESET_SOFT,
-        .handler = reset_soft_action
+    {   .action  = ACTION_MACHINE_RESET_CPU,
+        .handler = machine_reset_action,
+        .data    = int_to_void_ptr(MACHINE_RESET_MODE_RESET_CPU)
     },
-    {
-        .action = ACTION_RESET_HARD,
-        .handler = reset_hard_action
+    {   .action  = ACTION_MACHINE_POWER_CYCLE,
+        .handler = machine_reset_action,
+        .data    = int_to_void_ptr(MACHINE_RESET_MODE_POWER_CYCLE)
     },
+    {   .action  = ACTION_DIAGNOSTIC_PIN_TOGGLE,
+        .handler = diagnostic_pin_toggle_action,
+        /* no need for UI thread, the status bar code will update the LED when
+         * it runs */
+        .uithread = false
+    },
+    UI_ACTION_MAP_TERMINATOR
+};
 
+/** \brief  List of additional actions for xscpu64 */
+static const ui_action_map_t machine_actions_xscpu64[] = {
+    {   .action   = ACTION_SCPU_JIFFY_SWITCH_TOGGLE,
+        .handler  = scpu_jiffy_switch_toggle_action,
+        /* LED is not updated in the status bar sync code, so we need to guard
+         * this: */
+        .uithread = true
+    },
+    {   .action   = ACTION_SCPU_SPEED_SWITCH_TOGGLE,
+        .handler  = scpu_speed_switch_toggle_action,
+        /* LED is not updated in the status bar sync code, so we need to guard
+         * this: */
+        .uithread = true
+    },
     UI_ACTION_MAP_TERMINATOR
 };
 
@@ -149,4 +216,7 @@ static const ui_action_map_t machine_actions[] = {
 void actions_machine_register(void)
 {
     ui_actions_register(machine_actions);
+    if (machine_class == VICE_MACHINE_SCPU64) {
+        ui_actions_register(machine_actions_xscpu64);
+    }
 }

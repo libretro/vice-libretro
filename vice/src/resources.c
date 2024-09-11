@@ -40,6 +40,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
 
@@ -48,10 +49,12 @@
 #endif
 
 #include "archdep.h"
+#include "attach.h"
 #include "cartridge.h"
 #include "lib.h"
 #include "log.h"
 #include "network.h"
+#include "tape.h"
 #include "util.h"
 #include "uiapi.h"
 #include "vice-event.h"
@@ -537,11 +540,15 @@ int resources_set_value(const char *name, resource_value_t value)
         return -1;
     }
 
-    if (r->event_relevant == RES_EVENT_STRICT
-        && network_get_mode() != NETWORK_IDLE) {
+    /* if netplay is not idle, and resource is tagged RES_EVENT_STRICT,
+       it can not be changed at all */
+    if ((r->event_relevant == RES_EVENT_STRICT) &&
+        (network_get_mode() != NETWORK_IDLE)) {
         return -2;
     }
 
+    /* if netplay is connected, and resource is tagged RES_EVENT_SAME,
+       record the resource change event so it will be distributed to the client */
     if (r->event_relevant == RES_EVENT_SAME && network_connected()) {
         resource_record_event(r, value);
         return 0;
@@ -600,10 +607,15 @@ int resources_set_int(const char *name, int value)
         return -1;
     }
 
-    if (r->event_relevant == RES_EVENT_STRICT && network_get_mode() != NETWORK_IDLE) {
+    /* if netplay is not idle, and resource is tagged RES_EVENT_STRICT,
+       it can not be changed at all */
+    if ((r->event_relevant == RES_EVENT_STRICT) &&
+        (network_get_mode() != NETWORK_IDLE)) {
         return -2;
     }
 
+    /* if netplay is connected, and resource is tagged RES_EVENT_SAME,
+       record the resource change event so it will be distributed to the client */
     if (r->event_relevant == RES_EVENT_SAME && network_connected()) {
         resource_record_event(r, uint_to_void_ptr(value));
         return 0;
@@ -623,10 +635,15 @@ int resources_set_string(const char *name, const char *value)
         return -1;
     }
 
-    if (r->event_relevant == RES_EVENT_STRICT && network_get_mode() != NETWORK_IDLE) {
+    /* if netplay is not idle, and resource is tagged RES_EVENT_STRICT,
+       it can not be changed at all */
+    if ((r->event_relevant == RES_EVENT_STRICT) &&
+        (network_get_mode() != NETWORK_IDLE)) {
         return -2;
     }
 
+    /* if netplay is connected, and resource is tagged RES_EVENT_SAME,
+       record the resource change event so it will be distributed to the client */
     if (r->event_relevant == RES_EVENT_SAME && network_connected()) {
         resource_record_event(r, (resource_value_t)value);
         return 0;
@@ -754,6 +771,18 @@ int resources_get_value(const char *name, void *value_return)
     }
 
     return 0;
+}
+
+
+/** \brief  Determine if a resource exists
+ *
+ * \param[in]   name    resource name
+ *
+ * \return  \c true if \a resource name exists
+ */
+bool resources_exists(const char *name)
+{
+    return lookup(name) == NULL ? false : true;
 }
 
 
@@ -933,15 +962,24 @@ int resources_set_defaults(void)
     cartridge_unset_default();
     cartridge_detach_image(-1);
 
+    /* detach disk- and tape images, these are not saved in resources */
+    file_system_detach_disk_all();
+    tape_image_detach_all();
+
     for (i = 0; i < num_resources; i++) {
         DBG(("setting default for '%s'\n", resources[i].name));
         switch (resources[i].type) {
+            /* CAUTION: the following MUST NOT fail and NOT return early when resetting
+                        a resource fails - else we get strange side effects in the case
+                        that a default value is eg. the name of a ROM file that does
+                        not exist (and thus can not be loaded when the resource value
+                        changes). see #1948 */
             case RES_INTEGER:
                 if ((*resources[i].set_func_int)(vice_ptr_to_int(resources[i].factory_value),
                                                  resources[i].param) < 0) {
                     log_verbose("Cannot set int resource '%s' to default '%d'",
                                 resources[i].name, vice_ptr_to_int(resources[i].factory_value));
-                    return -1;
+                    /*return -1;*/
                 }
                 break;
             case RES_STRING:
@@ -949,7 +987,7 @@ int resources_set_defaults(void)
                                                     resources[i].param) < 0) {
                     log_verbose("Cannot set string resource '%s' to default '%s'",
                                 resources[i].name, (const char *)(resources[i].factory_value));
-                    return -1;
+                    /*return -1;*/
                 }
                 break;
         }
@@ -964,6 +1002,7 @@ int resources_set_defaults(void)
     return 0;
 }
 
+/* set resources tagged RES_EVENT_STRICT to their event_strict_value */
 int resources_set_event_safe(void)
 {
     unsigned int i;
@@ -999,6 +1038,9 @@ int resources_set_event_safe(void)
     return 0;
 }
 
+/* get list of event safe resources (tagged with RES_EVENT_SAME) - these need
+   to be the same on server and client during netplay, and are sent to the client
+   by the server when netplay is initiated */
 void resources_get_event_safe_list(event_list_state_t *list)
 {
     unsigned int i;
@@ -1032,7 +1074,10 @@ int resources_toggle(const char *name, int *new_value_return)
 
     value = !(*(int *)r->value_ptr);
 
-    if (r->event_relevant == RES_EVENT_STRICT && network_get_mode() != NETWORK_IDLE) {
+    /* if netplay is not idle, and resource is tagged RES_EVENT_STRICT,
+       it can not be changed at all */
+    if ((r->event_relevant == RES_EVENT_STRICT) &&
+        (network_get_mode() != NETWORK_IDLE)) {
         return -2;
     }
 
@@ -1040,6 +1085,8 @@ int resources_toggle(const char *name, int *new_value_return)
         *new_value_return = value;
     }
 
+    /* if netplay is connected, and resource is tagged RES_EVENT_SAME,
+       record the resource change event so it will be distributed to the client */
     if (r->event_relevant == RES_EVENT_SAME && network_connected()) {
         resource_record_event(r, uint_to_void_ptr(value));
         return 0;
@@ -1382,8 +1429,11 @@ static char* disabled_resources[] =
     "VICIIColorGamma", "VICIIColorSaturation", "VICIIColorContrast", "VICIIColorBrightness", "VICIIColorTint",
     "VICColorGamma", "VICColorSaturation", "VICColorContrast", "VICColorBrightness", "VICColorTint",
     "TEDColorGamma", "TEDColorSaturation", "TEDColorContrast", "TEDColorBrightness", "TEDColorTint",
-    "VICIIPALOddLinePhase", "VICIIPALOddLineOffset", "VICPALOddLinePhase", "VICPALOddLineOffset",
-    "TEDPALOddLinePhase", "TEDPALOddLineOffset", "CrtcPALOddLinePhase", "CrtcPALOddLineOffset",
+    "VICIIFilter", "VICIIPALBlur", "VICIIBorderMode", "VICIIPALOddLinePhase", "VICIIPALOddLineOffset",
+    "VICFilter", "VICPALBlur", "VICBorderMode", "VICPALOddLinePhase", "VICPALOddLineOffset",
+    "TEDPALOddLinePhase", "TEDPALOddLineOffset", "TEDFilter", "TEDPALBlur", "TEDBorderMode",
+    "CrtcPALOddLinePhase", "CrtcPALOddLineOffset", "CrtcFilter", "CrtcPALBlur",
+    "VDCFilter", "VDCPALBlur", "VDC64KB", "Go64Mode", "C128ColumnKey",
     "AutostartWarp", "AttachDevice8Readonly", "EasyFlashWriteCRT",
     "JoyDevice1", "JoyDevice2", "JoyDevice3", "JoyDevice4", "JoyDevice5",
     "JoyDevice6", "JoyDevice7", "JoyDevice8", "JoyDevice9", "JoyDevice10",
@@ -1394,8 +1444,8 @@ static char* disabled_resources[] =
     "VICIIAudioLeak", "VICAudioLeak", "TEDAudioLeak", "SidStereo", "Sid2AddressStart",
     "SidEngine", "SidModel", "SidResidSampling", "SidResidPassband", "SidResidGain", "SidResidFilterBias",
     "SidResid8580Passband", "SidResid8580Gain", "SidResid8580FilterBias", "SFXSoundExpander", "SFXSoundExpanderChip",
-    "Go64Mode", "C128ColumnKey", "RAMBlock0", "RAMBlock1", "RAMBlock2", "RAMBlock3", "RAMBlock5", "REU", "REUsize",
-    "Drive8Type", "KeymapSymFile", "KeymapPosFile", "KeymapIndex",
+    "RAMBlock0", "RAMBlock1", "RAMBlock2", "RAMBlock3", "RAMBlock5", "REU", "REUsize",
+    "Drive8Type", "KeymapSymFile", "KeymapPosFile", "KeymapIndex", "JoyMapFile",
 
     /* Frontend resources */
     "SDLStatusbar", "KbdStatusbar", "VICIIShowStatusbar",
@@ -1403,18 +1453,13 @@ static char* disabled_resources[] =
     "Directory", "SoundRecordDeviceName", "SoundRecordDeviceArg",
     "SoundDeviceName", "Sound", "SoundSampleRate", "SoundBufferSize", "SoundFragmentSize", "SoundDeviceArg",
     "SoundSuspendTime", "SoundSpeedAdjustment", "SoundVolume", "SoundOutput", "MachineVideoStandard",
-    "VICIIDoubleScan", "VICIIDoubleSize", "VICIIHwScale", "VICIIFilter", "VICIIBorderMode",
-    "VICDoubleSize", "VICFilter", "VICBorderMode",  "TEDDoubleSize", "TEDFilter", "TEDBorderMode",
-    "CrtcStretchVertical", "VDCStretchVertical",
+    "VICIIDoubleScan", "VICIIDoubleSize", "VICIIHwScale",
+    "VICDoubleSize",  "TEDDoubleSize", "CrtcStretchVertical", "VDCStretchVertical",
     "Mouse", "AutostartPrgMode", "AutostartDelayRandom",
     "EventSnapshotDir", "EventStartSnapshot", "EventEndSnapshot", "EventStartMode", "EventImageInclude",
 
     /* Stubbed resources */
     "DebugCartEnable", "CPMCart", "MonitorServerAddress", "MonitorServer"
-    
-    /* Deprecated resources */
-    /*"UserportJoy", "UserportJoyType", "WarpMode", */
-    /*"VirtualDevices", "DriveTrueEmulation", */
 };
 static int disabled_resources_num;
 static char *resources_get_description(const char *name)

@@ -114,7 +114,7 @@ libsid_a_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am_libsid_a_OBJECTS = catweaselmkiii.$(OBJEXT) fastsid.$(OBJEXT) \
 	hardsid.$(OBJEXT) parsid.$(OBJEXT) \
 	sid-cmdline-options.$(OBJEXT) sid-resources.$(OBJEXT) \
-	sid-snapshot.$(OBJEXT) sid.$(OBJEXT) ssi2001.$(OBJEXT)
+	sid-snapshot.$(OBJEXT) sid.$(OBJEXT)
 libsid_a_OBJECTS = $(am_libsid_a_OBJECTS)
 libsid_dtv_a_AR = $(AR) $(ARFLAGS)
 @HAVE_RESID_TRUE@am__DEPENDENCIES_2 = resid-dtv.o
@@ -122,7 +122,7 @@ libsid_dtv_a_DEPENDENCIES = $(am__DEPENDENCIES_2)
 am__objects_1 = catweaselmkiii.$(OBJEXT) fastsid.$(OBJEXT) \
 	hardsid.$(OBJEXT) parsid.$(OBJEXT) \
 	sid-cmdline-options.$(OBJEXT) sid-resources.$(OBJEXT) \
-	sid-snapshot.$(OBJEXT) sid.$(OBJEXT) ssi2001.$(OBJEXT)
+	sid-snapshot.$(OBJEXT) sid.$(OBJEXT)
 am_libsid_dtv_a_OBJECTS = $(am__objects_1)
 libsid_dtv_a_OBJECTS = $(am_libsid_dtv_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
@@ -145,7 +145,7 @@ am__depfiles_remade = ./$(DEPDIR)/catweaselmkiii.Po \
 	./$(DEPDIR)/parsid.Po ./$(DEPDIR)/resid-dtv.Po \
 	./$(DEPDIR)/resid.Po ./$(DEPDIR)/sid-cmdline-options.Po \
 	./$(DEPDIR)/sid-resources.Po ./$(DEPDIR)/sid-snapshot.Po \
-	./$(DEPDIR)/sid.Po ./$(DEPDIR)/ssi2001.Po
+	./$(DEPDIR)/sid.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -268,7 +268,6 @@ GLIB_LIBS = @GLIB_LIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 HAVE_CXX11 = @HAVE_CXX11@
-HAVE_READLINE = @HAVE_READLINE@
 ICONV = @ICONV@
 ICOTOOL = @ICOTOOL@
 INLINE_UNIT_GROWTH = @INLINE_UNIT_GROWTH@
@@ -315,8 +314,6 @@ PNG_LIBS = @PNG_LIBS@
 PROGRAM_PREFIX = @PROGRAM_PREFIX@
 PROGRAM_SUFFIX = @PROGRAM_SUFFIX@
 RANLIB = @RANLIB@
-READLINE = @READLINE@
-READLINE_LIBS = @READLINE_LIBS@
 RESIDDTVSUB = @RESIDDTVSUB@
 RESIDSUB = @RESIDSUB@
 RESID_DEP = @RESID_DEP@
@@ -341,7 +338,6 @@ SOUND_DRIVERS = @SOUND_DRIVERS@
 SOUND_LIBS = @SOUND_LIBS@
 SOUND_MIDAS_OBJ = @SOUND_MIDAS_OBJ@
 SOUND_SDL_OBJ = @SOUND_SDL_OBJ@
-SOUND_USS_OBJ = @SOUND_USS_OBJ@
 STRIP = @STRIP@
 SVN = @SVN@
 SVNVERSION = @SVNVERSION@
@@ -350,6 +346,7 @@ TAR = @TAR@
 TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
+UNZIPBIN = @UNZIPBIN@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -470,7 +467,6 @@ libsid_a_SOURCES = \
 	sid-snapshot.h \
 	sid.c \
 	sid.h \
-	ssi2001.c \
 	wave6581.h \
 	wave8580.h
 
@@ -550,7 +546,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sid-resources.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sid-snapshot.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sid.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ssi2001.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -719,7 +714,6 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/sid-resources.Po
 	-rm -f ./$(DEPDIR)/sid-snapshot.Po
 	-rm -f ./$(DEPDIR)/sid.Po
-	-rm -f ./$(DEPDIR)/ssi2001.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -775,7 +769,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/sid-resources.Po
 	-rm -f ./$(DEPDIR)/sid-snapshot.Po
 	-rm -f ./$(DEPDIR)/sid.Po
-	-rm -f ./$(DEPDIR)/ssi2001.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

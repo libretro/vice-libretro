@@ -30,11 +30,11 @@
 #define VICE_UI_H
 
 #include "vice.h"
-
 #include <gtk/gtk.h>
 
-#include "videoarch.h"
 #include "palette.h"
+#include "types.h"
+#include "videoarch.h"
 
 
 /** \brief  Number of GtkWindow's in the ui_resources
@@ -73,7 +73,19 @@ enum {
  * \param[in]   U   unit number (8-11)
  * \param[in]   D   drive number (0 or 1)
  */
-#define UNIT_DRIVE_TO_PTR(U, D) GINT_TO_POINTER(((U) << 8) | ((D) & 0xff))
+#define UNIT_DRIVE_TO_PTR(U, D) (int_to_void_ptr(((U) << 8) | ((D) & 0xff)))
+
+/** \brief  Convert pointer to unit number
+ *
+ * \param[in]   P   pointer obtained from UNIT_DRIVE_TO_PTR()
+ */
+#define UNIT_FROM_PTR(P)  ((vice_ptr_to_int(P) >> 8) & 0xff)
+
+/** \brief  Convert pointer to drive number
+ *
+ * \param[in]   P   pointer obtained from UNIT_DRIVE_TO_PTR()
+ */
+#define DRIVE_FROM_PTR(P) (vice_ptr_to_int(P) & 0xff)
 
 
 extern GtkTargetEntry ui_drag_targets[UI_DRAG_TARGETS_COUNT];
@@ -105,6 +117,14 @@ GtkWindow *ui_get_active_window(void);
 video_canvas_t *ui_get_active_canvas(void);
 video_canvas_t *ui_get_canvas_for_window(int index);
 
+int ui_set_aspect_mode(int mode, void *canvas);
+int ui_set_aspect_ratio(double aspect, void *canvas);
+int ui_set_glfilter(int val, void *canvas);
+int ui_set_flipx(int val, void *canvas);
+int ui_set_flipy(int val, void *canvas);
+int ui_set_rotate(int val, void *canvas);
+int ui_set_vsync(int val, void *canvas);
+
 /*
  * New pause 'API'
  */
@@ -127,5 +147,7 @@ int ui_get_main_window_index(void);
 GtkWidget *ui_get_main_window_by_index(gint index);
 
 gboolean ui_get_autostart_on_doubleclick(void);
+
+void ui_set_window_geometries(void);
 
 #endif

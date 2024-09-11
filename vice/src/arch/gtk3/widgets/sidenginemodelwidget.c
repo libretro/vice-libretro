@@ -33,12 +33,11 @@
  */
 
 #include "vice.h"
-
 #include <gtk/gtk.h>
 
-#include "vice_gtk3.h"
 #include "resources.h"
 #include "sid.h"
+#include "vice_gtk3.h"
 
 #include "sidenginemodelwidget.h"
 
@@ -70,7 +69,7 @@ static void on_radio_toggled(GtkWidget *radio, gpointer data)
     }
 
     resources_get_int("SidEngine", &current_engine);
-    resources_get_int("SidModel", &current_model);
+    resources_get_int("SidModel",  &current_model);
 
     /* bit 15-8: engine */
     engine = (GPOINTER_TO_INT(data) >> 8) & 0xff;
@@ -97,58 +96,46 @@ static void on_radio_toggled(GtkWidget *radio, gpointer data)
  */
 GtkWidget *sid_engine_model_widget_create(void)
 {
-    GtkWidget *grid;
-    GtkRadioButton *last = NULL;
-    GSList *group = NULL;
-    GtkWidget *label;
+    GtkWidget           *grid;
+    GtkWidget           *label;
+    GtkWidget           *last = NULL;
+    GSList              *group = NULL;
     sid_engine_model_t **list;
-    int i;
-    int model;
-    int engine;
-    unsigned int current;
+    int                  model = 0;
+    int                  engine = 0;
+    unsigned int         current;
+    int                  i;
+    int                  row = 0;
 
-    if (resources_get_int("SidEngine", &engine) < 0) {
-        engine = 0;
-    }
-    if (resources_get_int("SidModel", &model) < 0) {
-        model = 0;
-    }
-
+    resources_get_int("SidEngine", &engine);
+    resources_get_int("SidModel",  &model);
     current = (unsigned int)((engine << 8) | model);
 
-    grid = gtk_grid_new();
-
+    grid  = gtk_grid_new();
     label = gtk_label_new(NULL);
-#if defined(HAVE_RESID) && defined(HAVE_FASTSID)
     gtk_label_set_markup(GTK_LABEL(label), "<b>SID engine and model</b>");
-#elif defined(HAVE_RESID)
-    gtk_label_set_markup(GTK_LABEL(label), "<b>ReSID model</b>");
-#elif defined(HAVE_FASTSID)
-    gtk_label_set_markup(GTK_LABEL(label), "<b>FastSID model</b>");
-#endif
-
     gtk_widget_set_halign(label, GTK_ALIGN_START);
-    gtk_widget_set_margin_start(label, 8);
     gtk_widget_set_margin_bottom(label, 8);
     gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 1, 1);
+    row++;
 
     list = sid_get_engine_model_list();
     for (i = 0; list[i] != NULL; i++) {
         GtkWidget *radio;
 
         radio = gtk_radio_button_new_with_label(group, list[i]->name);
-        gtk_radio_button_join_group(GTK_RADIO_BUTTON(radio), last);
-        gtk_widget_set_margin_start(radio, 16);
+        gtk_radio_button_join_group(GTK_RADIO_BUTTON(radio),
+                                    GTK_RADIO_BUTTON(last));
         if (list[i]->value == current) {
             gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(radio), TRUE);
         }
-        g_signal_connect(radio, "toggled",
-                G_CALLBACK(on_radio_toggled),
-                GINT_TO_POINTER(list[i]->value));
-
-        gtk_grid_attach(GTK_GRID(grid), radio, 0, i + 1, 1, 1);
-
-        last = GTK_RADIO_BUTTON(radio);
+        g_signal_connect(G_OBJECT(radio),
+                         "toggled",
+                         G_CALLBACK(on_radio_toggled),
+                         GINT_TO_POINTER(list[i]->value));
+        gtk_grid_attach(GTK_GRID(grid), radio, 0, row, 1, 1);
+        last = radio;
+        row++;
     }
 
     gtk_widget_show_all(grid);

@@ -3,6 +3,7 @@
  *
  * \author  Fabrizio Gennari <fabrizio.ge@tiscali.it>
  * \author  David Hogan <david.q.hogan@gmail.com>
+ * \author  Bas Wassink <b.wassink@ziggo.nl>
  *
  * TODO:    Properly document this, please.
  */
@@ -415,6 +416,8 @@ static gboolean ctrl_plus_key_pressed(char **input_buffer, guint keyval, GtkWidg
     }
 }
 
+static gboolean on_window_delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data);
+
 #ifdef MACOS_COMPILE
 static gboolean cmd_plus_key_pressed(char **input_buffer, guint keyval, GtkWidget *terminal)
 {
@@ -431,13 +434,25 @@ static gboolean cmd_plus_key_pressed(char **input_buffer, guint keyval, GtkWidge
         case GDK_KEY_V:
             *input_buffer = append_string_to_input_buffer(*input_buffer, terminal, GDK_SELECTION_CLIPBOARD);
             return TRUE;
+        case GDK_KEY_w:
+        case GDK_KEY_W:
+            on_window_delete_event(terminal, NULL, NULL);
+            return TRUE;
     }
 }
 #endif
 
-static gboolean key_press_event (GtkWidget   *widget,
-                                 GdkEventKey *event,
-                                 gpointer     user_data)
+/** \brief  Handler for the 'key-press-event' event of the the VTE terminal
+ *
+ * \param[in]   widget      VTE terminal
+ * \param[in]   event       event information
+ * \param[in]   user_data   extra event data (unused)
+ *
+ * \return  \c TRUE to stop propagation of event, or \c FALSE to propagate further
+ */
+static gboolean on_term_key_press_event(GtkWidget   *widget,
+                                        GdkEventKey *event,
+                                        gpointer     user_data)
 {
     GdkModifierType state = 0;
     gboolean retval = FALSE;
@@ -475,10 +490,17 @@ done:
     return retval;
 }
 
-
-static gboolean button_press_event(GtkWidget *widget,
-                            GdkEvent  *event,
-                            gpointer   user_data)
+/** \brief  Handler for the 'button-press-event' event of the the VTE terminal
+ *
+ * \param[in]   widget      VTE terminal
+ * \param[in]   event       event information
+ * \param[in]   user_data   extra event data (unused)
+ *
+ * \return  \c TRUE to stop propagation of event, or \c FALSE to propagate further
+ */
+static gboolean on_term_button_press_event(GtkWidget *widget,
+                                           GdkEvent  *event,
+                                           gpointer   user_data)
 {
     GdkEventButton *button_event = (GdkEventButton*)event;
 
@@ -494,7 +516,17 @@ static gboolean button_press_event(GtkWidget *widget,
     return TRUE;
 }
 
-static gboolean close_window(GtkWidget *widget, GdkEvent *event, gpointer user_data)
+/** \brief  Handler for the 'delete-event' event of monitor window
+ *
+ * \param[in]   window      monitor window
+ * \param[in]   event       event information (unused)
+ * \param[in]   user_data   extra event data (unused)
+ *
+ * \return  \c TRUE to stop propagating the event further
+ */
+static gboolean on_window_delete_event(GtkWidget *window,
+                                       GdkEvent  *event,
+                                       gpointer   user_data)
 {
     pthread_mutex_lock(&fixed.lock);
 
@@ -503,7 +535,8 @@ static gboolean close_window(GtkWidget *widget, GdkEvent *event, gpointer user_d
 
     pthread_mutex_unlock(&fixed.lock);
 
-    return gtk_widget_hide_on_delete(widget);
+    gtk_widget_hide(window);
+    return TRUE;
 }
 
 /* \brief Block until some monitor input event happens */
@@ -545,8 +578,13 @@ static void get_terminal_size_in_chars(VteTerminal *terminal,
     *height = vte_terminal_get_row_count(terminal);
 }
 
-static void screen_resize_window_cb (VteTerminal *terminal,
-                         gpointer* window)
+/** \brief  Handler for the 'text-modified event of the VTE terminal
+ *
+ * \param[in]   terminal    VTE terminal
+ * \param[in]   user_data   extra event data (unused)
+ */
+static void on_term_text_modified(VteTerminal *terminal,
+                                 gpointer      user_data)
 {
     glong width, height;
     get_terminal_size_in_chars(terminal, &width, &height);
@@ -554,15 +592,33 @@ static void screen_resize_window_cb (VteTerminal *terminal,
     vte_console.console_yres = (unsigned int)height;
 }
 
-/* resize the terminal when the window is resized */
-static void screen_resize_window_cb2 (VteTerminal *terminal,
-                         gpointer* window)
+/** \brief  Handler for the 'configure-event' event of the monitor window
+ *
+ * Resize the terminal when the window is resized, and store monitor window
+ * geometry in resources.
+ *
+ * \param[in]   window      terminal window (unused)
+ * \param[in]   event       event information (unused)
+ * \param[in]   user_data   extra event data (unused
+ */
+static void on_window_configure_event(GtkWidget *window,
+                                      GdkEvent  *event,
+                                      gpointer   user_data)
 {
     gint width, height;
     gint xpos;
     gint ypos;
     glong cwidth, cheight;
     glong newwidth, newheight;
+
+    if (!gtk_widget_get_visible(window)) {
+        /* bail out, otherwise Gdk will somehow restore the window position
+         * the way it was when the window was created and thus we'll get the
+         * Xpos/Ypos values from vicerc restored and the changed position will
+         * never be saved in the settings.
+         */
+        return;
+    }
 
     gtk_window_get_size (GTK_WINDOW(fixed.window), &width, &height);
     gtk_window_get_position(GTK_WINDOW(fixed.window), &xpos, &ypos);
@@ -586,7 +642,6 @@ static void screen_resize_window_cb2 (VteTerminal *terminal,
         resources_set_int("MonitorWidth", width);
         resources_set_int("MonitorHeight", height);
     }
-
 
     vte_terminal_set_size(VTE_TERMINAL(fixed.term), newwidth, newheight);
 }
@@ -732,23 +787,20 @@ static gboolean uimon_window_open_impl(gpointer user_data)
     GdkGeometry hints;
     GdkPixbuf *icon;
     int sblines;
-    int xpos = -1;
-    int ypos = -1;
-    int width = -1;
-    int height = -1;
+    int xpos = INT_MIN;
+    int ypos = INT_MIN;
 
     pthread_mutex_lock(&fixed.lock);
 
     resources_get_int("MonitorScrollbackLines", &sblines);
-    resources_get_int("MonitorXPos", &xpos);
-    resources_get_int("MonitorYPos", &ypos);
-    resources_get_int("MonitorHeight", &height);
-    resources_get_int("MonitorWidth", &width);
 
     if (fixed.window == NULL) {
         fixed.window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
         gtk_window_set_title(GTK_WINDOW(fixed.window), "VICE monitor");
-        if (xpos < 0 && ypos < 0) {
+
+        resources_get_int("MonitorXpos", &xpos);
+        resources_get_int("MonitorYpos", &ypos);
+        if (xpos == INT_MIN || ypos == INT_MIN) {
             /* Only center if we didn't get either a previous position or
              * the position was set via the command line.
              */
@@ -783,15 +835,9 @@ static gboolean uimon_window_open_impl(gpointer user_data)
                                      &hints,
                                      GDK_HINT_RESIZE_INC |
                                      GDK_HINT_MIN_SIZE |
-                                     GDK_HINT_BASE_SIZE);
-
-         if (xpos > INT_MIN && ypos > INT_MIN) {
-            gtk_window_move(GTK_WINDOW(fixed.window), xpos, ypos);
-        }
-        if (width >= 0 && height >= 0) {
-            gtk_window_resize(GTK_WINDOW(fixed.window), width, height);
-        }
-
+                                     GDK_HINT_BASE_SIZE |
+                                     GDK_HINT_USER_POS |
+                                     GDK_HINT_USER_SIZE);
 
         scrollbar = gtk_scrollbar_new(GTK_ORIENTATION_VERTICAL,
                 gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(fixed.term)));
@@ -799,30 +845,36 @@ static gboolean uimon_window_open_impl(gpointer user_data)
         horizontal_container = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
         gtk_container_add(GTK_CONTAINER(fixed.window), horizontal_container);
 
-#if 0
-        gtk_container_add(GTK_CONTAINER(horizontal_container), fixed.term);
-        gtk_container_add(GTK_CONTAINER(horizontal_container), scrollbar);
-#else
         gtk_box_pack_start(GTK_BOX(horizontal_container), fixed.term,
                 TRUE, TRUE, 0);
         gtk_box_pack_end(GTK_BOX(horizontal_container), scrollbar,
                 FALSE, FALSE, 0);
-#endif
 
-        g_signal_connect(G_OBJECT(fixed.window), "delete-event",
-            G_CALLBACK(close_window), NULL);
+        g_signal_connect(G_OBJECT(fixed.window),
+                        "delete-event",
+                        G_CALLBACK(on_window_delete_event),
+                        NULL);
 
-        g_signal_connect_unlocked(G_OBJECT(fixed.term), "key-press-event",
-            G_CALLBACK(key_press_event), NULL);
+        g_signal_connect_unlocked(G_OBJECT(fixed.term),
+                                  "key-press-event",
+                                  G_CALLBACK(on_term_key_press_event),
+                                  NULL);
 
-        g_signal_connect_unlocked(G_OBJECT(fixed.term), "button-press-event",
-            G_CALLBACK(button_press_event), NULL);
+        g_signal_connect_unlocked(G_OBJECT(fixed.term),
+                                  "button-press-event",
+                                  G_CALLBACK(on_term_button_press_event),
+                                  NULL);
 
-        g_signal_connect_unlocked(G_OBJECT(fixed.term), "text-modified",
-            G_CALLBACK (screen_resize_window_cb), NULL);
+        g_signal_connect_unlocked(G_OBJECT(fixed.term),
+                                  "text-modified",
+                                  G_CALLBACK(on_term_text_modified),
+                                  NULL);
 
-        g_signal_connect_unlocked(G_OBJECT(fixed.window), "configure-event",
-            G_CALLBACK (screen_resize_window_cb2), NULL);
+        /* can this actually be connected unlocked, we're setting resources here? */
+        g_signal_connect_unlocked(G_OBJECT(fixed.window),
+                                  "configure-event",
+                                  G_CALLBACK(on_window_configure_event),
+                                  NULL);
 
         vte_console.console_can_stay_open = 1;
 
@@ -845,8 +897,25 @@ static gboolean uimon_window_open_impl(gpointer user_data)
 
 static gboolean uimon_window_resume_impl(gpointer user_data)
 {
+    int xpos;
+    int ypos;
+    int height;
+    int width;
+
+    resources_get_int("MonitorXPos",   &xpos);
+    resources_get_int("MonitorYPos",   &ypos);
+    resources_get_int("MonitorHeight", &height);
+    resources_get_int("MonitorWidth",  &width);
+
     gtk_widget_show_all(fixed.window);
-    screen_resize_window_cb (VTE_TERMINAL(fixed.term), NULL);
+    on_term_text_modified(VTE_TERMINAL(fixed.term), NULL);
+
+    if (xpos > INT_MIN && ypos > INT_MIN) {
+        gtk_window_move(GTK_WINDOW(fixed.window), xpos, ypos);
+    }
+    if (width >= 0 && height >= 0) {
+        gtk_window_resize(GTK_WINDOW(fixed.window), width, height);
+    }
 
     /*
      * Make the monitor window appear on top of the active emulated machine
@@ -983,8 +1052,8 @@ static void fill_completions(const char *string_so_far, int initial_chars, int t
 
 static void find_next_token(const char *string_so_far, int start_of_search, int *start_of_token, int *token_len)
 {
-    for(*start_of_token = start_of_search; string_so_far[*start_of_token] && isspace((int)(string_so_far[*start_of_token])); (*start_of_token)++);
-    for(*token_len = 0; string_so_far[*start_of_token + *token_len] && !isspace((int)(string_so_far[*start_of_token + *token_len])); (*token_len)++);
+    for(*start_of_token = start_of_search; string_so_far[*start_of_token] && isspace((unsigned char)(string_so_far[*start_of_token])); (*start_of_token)++);
+    for(*token_len = 0; string_so_far[*start_of_token + *token_len] && !isspace((unsigned char)(string_so_far[*start_of_token + *token_len])); (*token_len)++);
 }
 
 static gboolean is_token_in(const char *string_so_far, int token_len, const linenoiseCompletions *lc)
@@ -1026,7 +1095,7 @@ static void monitor_completions(const char *string_so_far, linenoiseCompletions 
         struct linenoiseCompletions files_lc = {0, NULL};
         int i;
 
-        for (start_of_token += token_len; string_so_far[start_of_token] && isspace((int)(string_so_far[start_of_token])); start_of_token++);
+        for (start_of_token += token_len; string_so_far[start_of_token] && isspace((unsigned char)(string_so_far[start_of_token])); start_of_token++);
         if (string_so_far[start_of_token] != '"') {
             char *string_to_append = concat_strings(string_so_far, start_of_token, "\"");
             vte_linenoiseAddCompletion(lc, string_to_append);

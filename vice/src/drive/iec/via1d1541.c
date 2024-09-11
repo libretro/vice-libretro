@@ -61,12 +61,13 @@ typedef struct drivevia1_context_s {
 
 void via1d1541_store(diskunit_context_t *ctxptr, uint16_t addr, uint8_t data)
 {
+    ctxptr->cpu->cpu_last_data = data;
     viacore_store(ctxptr->via1d1541, addr, data);
 }
 
 uint8_t via1d1541_read(diskunit_context_t *ctxptr, uint16_t addr)
 {
-    return viacore_read(ctxptr->via1d1541, addr);
+    return ctxptr->cpu->cpu_last_data = viacore_read(ctxptr->via1d1541, addr);
 }
 
 uint8_t via1d1541_peek(diskunit_context_t *ctxptr, uint16_t addr)
@@ -84,7 +85,7 @@ static void set_ca2(via_context_t *via_context, int state)
 {
 }
 
-static void set_cb2(via_context_t *via_context, int state)
+static void set_cb2(via_context_t *via_context, int state, int offset)
 {
 }
 
@@ -370,12 +371,12 @@ void via1d1541_setup_context(diskunit_context_t *ctxptr)
     via->rmw_flag = &(ctxptr->cpu->rmw_flag);
     via->clk_ptr = ctxptr->clk_ptr;
 
-    via->myname = lib_msprintf("1541Drive%dVia1", ctxptr->mynumber);
-    via->my_module_name = lib_msprintf("1541VIA1D%d", ctxptr->mynumber);
+    via->myname = lib_msprintf("1541Drive%uVia1", ctxptr->mynumber);
+    via->my_module_name = lib_msprintf("1541VIA1D%u", ctxptr->mynumber);
 
     viacore_setup_context(via);
 
-    via->my_module_name_alt1 = lib_msprintf("VIA1D%d", ctxptr->mynumber);
+    via->my_module_name_alt1 = lib_msprintf("VIA1D%u", ctxptr->mynumber);
     via->my_module_name_alt2 = lib_msprintf("VIA1D1541");
 
     via->irq_line = IK_IRQ;

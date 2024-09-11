@@ -10,7 +10,7 @@
  * $VICERES Drive8FixedSize     -vsid
  * $VICERES Drive9FixedSize     -vsid
  * $VICERES Drive10FixedSize    -vsid
- * $VICERES Drive11fixedSize    -vsid
+ * $VICERES Drive11FixedSize    -vsid
  *
  *  (for more, see used widgets)
  */
@@ -42,6 +42,7 @@
 #include "vice_gtk3.h"
 #include "resources.h"
 
+#include "types.h"
 #include "drivefixedsizewidget.h"
 
 

@@ -10,15 +10,25 @@
 #
 # -- compyx, 2020-02-08
 
-SUBDIRS = hwsiddrv iodrv mididrv socketdrv sounddrv
+SUBDIRS = hwsiddrv mididrv socketdrv sounddrv
+if !USE_HEADLESSUI
+SUBDIRS += hotkeys
+endif
+
+# The core/rtc and lib/p64 directories are required in order to be able to
+# include drive.h
 
 AM_CPPFLAGS = \
 	@VICE_CPPFLAGS@ \
 	@ARCH_INCLUDES@ \
 	-I$(top_srcdir)/src/arch/shared \
+	-I$(top_srcdir)/src/arch/shared/hotkeys \
 	$(extra_includes) \
 	-I$(top_builddir)/src \
 	-I$(top_srcdir)/src \
+	-I$(top_srcdir)/src/core/rtc \
+	-I$(top_srcdir)/src/drive \
+	-I$(top_srcdir)/src/lib/p64 \
 	-I$(top_srcdir)/src/rs232drv \
 	-DVICE_DATADIR='"$(datadir)/$(PACKAGE)"' \
 	-DVICE_DOCDIR='"$(docdir)"'
@@ -42,11 +52,12 @@ libarchdep_a_SOURCES = \
 	archdep_close.c \
 	archdep_create_user_cache_dir.c \
 	archdep_create_user_config_dir.c \
+	archdep_create_user_state_dir.c \
 	archdep_current_dir.c \
 	archdep_default_autostart_disk_image_file_name.c \
 	archdep_default_fliplist_file_name.c \
-	archdep_default_hotkey_file_name.c \
 	archdep_default_joymap_file_name.c \
+	archdep_default_logfile.c \
 	archdep_default_logger.c \
 	archdep_default_portable_resource_file_name.c \
 	archdep_default_resource_file_name.c \
@@ -73,6 +84,7 @@ libarchdep_a_SOURCES = \
 	archdep_get_vice_datadir.c \
 	archdep_get_vice_docsdir.c \
 	archdep_get_vice_drivesdir.c \
+	archdep_get_vice_hotkeysdir.c \
 	archdep_get_vice_machinedir.c \
 	archdep_getcwd.c \
 	archdep_home_path.c \
@@ -102,6 +114,7 @@ libarchdep_a_SOURCES = \
 	archdep_set_current_drive.c \
 	archdep_set_openmp_wait_policy.c \
 	archdep_signals.c \
+	archdep_socketpeek.c \
 	archdep_sound.c \
 	archdep_spawn.c \
 	archdep_startup_log_error.c \
@@ -110,6 +123,7 @@ libarchdep_a_SOURCES = \
 	archdep_tmpnam.c \
 	archdep_user_cache_path.c \
 	archdep_user_config_path.c \
+	archdep_user_state_path.c \
 	archdep_usleep.c \
 	archdep_xdg.c \
 	console.c \
@@ -117,8 +131,17 @@ libarchdep_a_SOURCES = \
 	dynlib.c \
 	rawnetarch.c \
 	rs232dev.c \
-	signals.c \
-	uiactions.c
+	signals.c
+
+if USE_SDLUI
+libarchdep_a_SOURCES += uiactions.c
+endif
+if USE_SDL2UI
+libarchdep_a_SOURCES += uiactions.c
+endif
+if USE_GTK3UI
+libarchdep_a_SOURCES += uiactions.c
+endif
 
 if UNIX_COMPILE
 libarchdep_a_SOURCES += \
@@ -140,11 +163,12 @@ EXTRA_DIST = \
 	archdep_close.h \
 	archdep_create_user_cache_dir.h \
 	archdep_create_user_config_dir.h \
+	archdep_create_user_state_dir.h \
 	archdep_current_dir.h \
 	archdep_default_autostart_disk_image_file_name.h \
 	archdep_default_fliplist_file_name.h \
-	archdep_default_hotkey_file_name.h \
 	archdep_default_joymap_file_name.h \
+	archdep_default_logfile.h \
 	archdep_default_logger.h \
 	archdep_default_portable_resource_file_name.h \
 	archdep_default_resource_file_name.h \
@@ -172,6 +196,7 @@ EXTRA_DIST = \
 	archdep_get_vice_datadir.h \
 	archdep_get_vice_docsdir.h \
 	archdep_get_vice_drivesdir.h \
+	archdep_get_vice_hotkeysdir.h \
 	archdep_get_vice_machinedir.h \
 	archdep_getcwd.h \
 	archdep_home_path.h \
@@ -202,6 +227,7 @@ EXTRA_DIST = \
 	archdep_set_current_drive.h \
 	archdep_set_openmp_wait_policy.h \
 	archdep_signals.h \
+	archdep_socketpeek.h \
 	archdep_sound.h \
 	archdep_spawn.h \
 	archdep_startup_log_error.h \
@@ -212,6 +238,7 @@ EXTRA_DIST = \
 	archdep_unix.h \
 	archdep_user_cache_path.h \
 	archdep_user_config_path.h \
+	archdep_user_state_path.h \
 	archdep_usleep.h \
 	archdep_win32.h \
 	archdep_xdg.h \

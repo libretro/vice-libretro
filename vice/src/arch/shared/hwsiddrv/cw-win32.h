@@ -30,22 +30,11 @@
 #include "sid-snapshot.h"
 #include "types.h"
 
-extern int cw_dll_open(void);
-extern int cw_pci_open(void);
-
-extern int cw_dll_close(void);
-extern int cw_pci_close(void);
-
-extern int cw_dll_read(uint16_t addr, int chipno);
-extern int cw_pci_read(uint16_t addr, int chipno);
-
-extern void cw_dll_store(uint16_t addr, uint8_t val, int chipno);
-extern void cw_pci_store(uint16_t addr, uint8_t val, int chipno);
-
-extern int cw_dll_available(void);
-extern int cw_pci_available(void);
-
-extern void cw_dll_set_machine_parameter(long cycles_per_sec);
-extern void cw_pci_set_machine_parameter(long cycles_per_sec);
+int cw_dll_open(void);
+int cw_dll_close(void);
+int cw_dll_read(uint16_t addr, int chipno);
+void cw_dll_store(uint16_t addr, uint8_t val, int chipno);
+int cw_dll_available(void);
+void cw_dll_set_machine_parameter(long cycles_per_sec);
 
 #endif

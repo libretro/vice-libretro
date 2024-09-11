@@ -10,7 +10,7 @@ dnl a development version. Don't add any strings to the version number (such
 dnl as '-dev' or 'beta'), the '-r$SVNREV' revision string is the only thing we
 dnl alllow after the version number.
 m4_define(vice_version_major, 3)
-m4_define(vice_version_minor, 7)
+m4_define(vice_version_minor, 8)
 m4_define(vice_version_build, 0)
 
 dnl Some people lose their shit if a version ends in .0
@@ -29,6 +29,7 @@ AC_INIT([vice], [vice_version])
 dnl We save the command line options here since AM_INIT_AUTOMAKE and other
 dnl macros clobber $@:
 cmdline_options="$@"
+AC_DEFINE_UNQUOTED([CONFIGURE_FLAGS], ["$cmdline_options"],[Flags passed to configure])
 AC_CONFIG_SRCDIR([src/maincpu.c])
 AM_INIT_AUTOMAKE([-Wno-portability foreign])
 
@@ -81,89 +82,86 @@ VICE_ARG_INIT()
 dnl
 dnl Sound options
 dnl
-VICE_ARG_WITH_LIST(alsa,                [  --without-alsa          do not use the ALSA sound system])
-VICE_ARG_WITH_LIST(fastsid,             [  --with-fastsid          use the FastSID engine])
-VICE_ARG_WITH_LIST(flac,                [  --with-flac             use FLAC support])
-VICE_ARG_WITH_LIST(mpg123,              [  --with-mpg123           use MPG123 support])
-VICE_ARG_WITH_LIST(oss,                 [  --with-oss              use the OSS sound system])
-VICE_ARG_WITH_LIST(pulse,               [  --without-pulse         do not use PulseAudio sound system])
-VICE_ARG_WITH_LIST(resid,               [  --without-resid         do not use the reSID engine])
-VICE_ARG_WITH_LIST(sdlsound,            [  --with-sdlsound         use SDL sound system])
-VICE_ARG_WITH_LIST(sun,                 [  --without-sun           do not use the sun/netbsd sound system])
-VICE_ARG_WITH_LIST(vorbis,              [  --with-vorbis           use Ogg/Vorbis support])
-VICE_ARG_ENABLE_LIST(catweasel,         [  --enable-catweasel      enables CatWeasel (PCI/Zorro/Clockport SID card) support])
-VICE_ARG_ENABLE_LIST(hardsid,           [  --disable-hardsid       disables HardSID support])
-VICE_ARG_ENABLE_LIST(lame,              [  --enable-lame           Enable MP3 export with LAME])
-VICE_ARG_ENABLE_LIST(midi,              [  --enable-midi           enable MIDI support])
-VICE_ARG_ENABLE_LIST(new8580filter,     [  --disable-new8580filter disable new 8580 filters])
-VICE_ARG_ENABLE_LIST(parsid,            [  --enable-parsid         enables ParSID support])
-VICE_ARG_ENABLE_LIST(portaudio,         [  --disable-portaudio     disables PortAudio support])
-VICE_ARG_ENABLE_LIST(ssi2001,           [  --enable-ssi2001        enables SSI2001 (ISA SID card) support])
-VICE_ARG_ENABLE_LIST(static-lame,       [  --enable-static-lame    enable static LAME linking])
-
+VICE_ARG_WITH_LIST(alsa,                    [  --without-alsa          do not use the ALSA sound system])
+VICE_ARG_WITH_LIST(fastsid,                 [  --with-fastsid          use the FastSID engine])
+VICE_ARG_WITH_LIST(flac,                    [  --with-flac             use FLAC support])
+VICE_ARG_WITH_LIST(mpg123,                  [  --with-mpg123           use MPG123 for MP3 decoding])
+VICE_ARG_WITH_LIST(oss,                     [  --with-oss              use the OSS sound system])
+VICE_ARG_WITH_LIST(pulse,                   [  --without-pulse         do not use PulseAudio sound system])
+VICE_ARG_WITH_LIST(resid,                   [  --without-resid         do not use the reSID engine])
+VICE_ARG_WITH_LIST(sdlsound,                [  --with-sdlsound         use SDL sound system])
+VICE_ARG_WITH_LIST(sun,                     [  --without-sun           do not use the sun/netbsd sound system])
+VICE_ARG_WITH_LIST(vorbis,                  [  --with-vorbis           use Ogg/Vorbis support])
+VICE_ARG_WITH_LIST(lame,                    [  --with-lame             use LAME for MP3 encoding])
+VICE_ARG_WITH_LIST(static-lame,             [  --with-static-lame      statically link LAME MP3])
+VICE_ARG_WITH_LIST(portaudio,               [  --with-portaudio        use PortAudio for sound input])
+VICE_ARG_ENABLE_LIST(catweasel,             [  --enable-catweasel      enables CatWeasel (PCI/Zorro/Clockport SID card) support])
+VICE_ARG_ENABLE_LIST(hardsid,               [  --disable-hardsid       disables HardSID support])
+VICE_ARG_ENABLE_LIST(midi,                  [  --enable-midi           enable MIDI support])
+VICE_ARG_ENABLE_LIST(new8580filter,         [  --disable-new8580filter disable new 8580 filters])
+VICE_ARG_ENABLE_LIST(parsid,                [  --enable-parsid         enables ParSID support])
 
 dnl
 dnl Graphics options
 dnl
-VICE_ARG_WITH_LIST(gif,                 [  --with-gif              use GIF screenshot system])
-VICE_ARG_WITH_LIST(png,                 [  --without-png           do not use the PNG screenshot system])
-VICE_ARG_ENABLE_LIST(ffmpeg,            [  --enable-ffmpeg         enable FFmpeg support])
+VICE_ARG_WITH_LIST(gif,                     [  --with-gif              use GIF screenshot system])
+VICE_ARG_WITH_LIST(png,                     [  --without-png           do not use the PNG screenshot system])
+VICE_ARG_ENABLE_LIST(ffmpeg,                [  --enable-ffmpeg         enable FFmpeg support])
 dnl Only supported for SDL1
-VICE_ARG_ENABLE_LIST(hwscale,           [  --disable-hwscale       disables GPU scaling of emulated screen (SDL1 UI only)])
-
+VICE_ARG_ENABLE_LIST(hwscale,               [  --disable-hwscale       disables GPU scaling of emulated screen (SDL1 UI only)])
 
 dnl
 dnl Misc build options
 dnl
-
-VICE_ARG_WITH_LIST(readline,            [  --without-readline      do not try to use the system readline library])
-VICE_ARG_WITH_LIST(zlib,                [  --without-zlib          do not use the zlib support])
-VICE_ARG_ENABLE_LIST(arch,              [  --enable-arch[[=arch]]    enable architecture specific compilation [[default=yes]]], [], [enable_arch=yes])
-VICE_ARG_ENABLE_LIST(cpuhistory,        [  --disable-cpuhistory    disable the 65xx cpu history feature])
-VICE_ARG_ENABLE_LIST(ethernet,          [  --enable-ethernet       enables The Final Ethernet emulation])
-VICE_ARG_ENABLE_LIST(ipv6,              [  --disable-ipv6          disables the checking for IPv6 compatibility])
-VICE_ARG_ENABLE_LIST(libieee1284,       [  --enable-libieee1284    enables libieee1284 support])
-VICE_ARG_ENABLE_LIST(no-pic,            [  --enable-no-pic         enable the use of the no-pic switch [[default=yes]]])
-VICE_ARG_ENABLE_LIST(realdevice,        [  --disable-realdevice    disables access to real peripheral devices (CBM4Linux/OpenCBM)])
-VICE_ARG_ENABLE_LIST(rs232,             [  --disable-rs232         disable RS232 support])
-VICE_ARG_ENABLE_LIST(openmp,            [  --disable-openmp        disable OpenMP acceleration])
+VICE_ARG_WITH_LIST(zlib,                    [  --without-zlib          do not use the zlib support])
+VICE_ARG_WITH_LIST(unzip-bin,               [  --with-unzip-bin        enables distribution of unzip.exe in the windows bindist])
+VICE_ARG_WITH_LIST(libieee1284,             [  --with-libieee1284      use the libieee1284 parallel port library])
+VICE_ARG_ENABLE_LIST(arch,                  [  --enable-arch[[=arch]]  enable architecture specific compilation [[default=yes]]], [], [enable_arch=yes])
+VICE_ARG_ENABLE_LIST(cpuhistory,            [  --disable-cpuhistory    disable the 65xx cpu history feature])
+VICE_ARG_ENABLE_LIST(ethernet,              [  --enable-ethernet       enables The Final Ethernet emulation])
+VICE_ARG_ENABLE_LIST(ipv6,                  [  --disable-ipv6          disables the checking for IPv6 compatibility])
+VICE_ARG_ENABLE_LIST(no-pic,                [  --enable-no-pic         enable the use of the no-pic switch [[default=yes]]])
+VICE_ARG_ENABLE_LIST(realdevice,            [  --disable-realdevice    disables access to real peripheral devices (CBM4Linux/OpenCBM)])
+VICE_ARG_ENABLE_LIST(rs232,                 [  --disable-rs232         disable RS232 support])
+VICE_ARG_ENABLE_LIST(openmp,                [  --disable-openmp        disable OpenMP acceleration])
 
 dnl
 dnl Developer options
 dnl
-VICE_ARG_ENABLE_LIST(cmake,             [  --enable-cmake          enable generation of CMakeLists.txt files [[default=no]]])
-VICE_ARG_ENABLE_LIST(debug,             [  --enable-debug          enable debug source options])
-VICE_ARG_ENABLE_LIST(debug-gtk3ui,      [  --enable-debug-gtk3ui   enables debugging for the GTK3 UI])
-VICE_ARG_ENABLE_LIST(debug-threads,     [  --enable-debug-threads  enable debug messages about the threading code [[default=no]]])
-VICE_ARG_ENABLE_LIST(x64,               [  --enable-x64            enable building of the old x64 emulator [[default=no]]])
-VICE_ARG_ENABLE_LIST(x64-image,         [  --enable-x64-image      enable X64 image support [[default=no]]])
-VICE_ARG_ENABLE_LIST(optimization,      [  --disable-optimization  disable code optimization by passing -O0 [[default=no]]])
-VICE_ARG_ENABLE_LIST(extra-warnings,    [  --enable-extra-warnings enable anal warnings [[default=no]]])
-VICE_ARG_ENABLE_LIST(io-simulation,     [  --enable-io-simulation  enable i/o simulation devices [[default=no]]])
+VICE_ARG_ENABLE_LIST(cmake,                 [  --enable-cmake          enable generation of CMakeLists.txt files [[default=no]]])
+VICE_ARG_ENABLE_LIST(debug,                 [  --enable-debug          enable debug source options])
+VICE_ARG_ENABLE_LIST(debug-gtk3ui,          [  --enable-debug-gtk3ui   enables debugging for the GTK3 UI])
+VICE_ARG_ENABLE_LIST(debug-threads,         [  --enable-debug-threads  enable debug messages about the threading code [[default=no]]])
+VICE_ARG_ENABLE_LIST(x64,                   [  --enable-x64            enable building of the old x64 emulator [[default=no]]])
+VICE_ARG_ENABLE_LIST(x64-image,             [  --enable-x64-image      enable X64 image support [[default=no]]])
+VICE_ARG_ENABLE_LIST(optimization,          [  --disable-optimization  disable code optimization by passing -O0 [[default=no]]])
+VICE_ARG_ENABLE_LIST(extra-warnings,        [  --enable-extra-warnings enable anal warnings [[default=no]]])
+VICE_ARG_ENABLE_LIST(io-simulation,         [  --enable-io-simulation  enable i/o simulation devices [[default=no]]])
+VICE_ARG_ENABLE_LIST(experimental-devices,  [  --enable-experimental-devices    enable experimental device emulation [[default=no]]])
 
-dnl Temporary for something mysterious
-VICE_ARG_WITH_LIST(libcurl,             [  --with-libcurl          enable libcurl support [[default=no]]])
+dnl Needed for WIC64
+VICE_ARG_WITH_LIST(libcurl,                 [  --without-libcurl       disable libcurl support [[default=no]]])
 
 dnl
 dnl UI options
 dnl
-VICE_ARG_ENABLE_LIST(headlessui,        [  --enable-headlessui     enables building without a UI])
-VICE_ARG_ENABLE_LIST(sdl1ui,            [  --enable-sdl1ui         enables SDL 1.2 UI support])
-VICE_ARG_ENABLE_LIST(sdl2ui,            [  --enable-sdl2ui         enables SDL 2.x UI support])
-VICE_ARG_ENABLE_LIST(gtk3ui,            [  --enable-gtk3ui         enables GTK3 UI support])
+VICE_ARG_ENABLE_LIST(headlessui,            [  --enable-headlessui     enables building without a UI])
+VICE_ARG_ENABLE_LIST(sdl1ui,                [  --enable-sdl1ui         enables SDL 1.2 UI support])
+VICE_ARG_ENABLE_LIST(sdl2ui,                [  --enable-sdl2ui         enables SDL 2.x UI support])
+VICE_ARG_ENABLE_LIST(gtk3ui,                [  --enable-gtk3ui         enables GTK3 UI support])
 
 dnl If enabled, tries to install XDG .desktop files for running the binaries
 dnl from a desktop menu. Only supported for Unix with the exception of MacOS.
 dnl Gtk3 only.
-VICE_ARG_ENABLE_LIST(desktop-files,     [  --enable-desktop-files  enable installation of XDG desktop files (GTK3 UI only)])
-VICE_ARG_ENABLE_LIST(hidmgr,            [  --disable-hidmgr        disable IOHIDManager joystick support on Mac])
+VICE_ARG_ENABLE_LIST(desktop-files,         [  --enable-desktop-files  enable installation of XDG desktop files (GTK3 UI only)])
+VICE_ARG_ENABLE_LIST(hidmgr,                [  --disable-hidmgr        disable IOHIDManager joystick support on Mac])
 
 dnl
 dnl Documentation options
 dnl
-VICE_ARG_ENABLE_LIST(html-docs,         [  --disable-html-docs     do not generate the HTML documentation [[default=no]]])
-VICE_ARG_ENABLE_LIST(pdf-docs,          [  --enable-pdf-docs       generate the PDF documentation [[default=if possible]]])
-VICE_ARG_ENABLE_LIST(platformdox,       [  --enable-platformdox    enable generating of documentation specific to the current host])
+VICE_ARG_ENABLE_LIST(html-docs,             [  --disable-html-docs     do not generate the HTML documentation [[default=no]]])
+VICE_ARG_ENABLE_LIST(pdf-docs,              [  --enable-pdf-docs       generate the PDF documentation [[default=no]]])
+VICE_ARG_ENABLE_LIST(platformdox,           [  --enable-platformdox    enable generating of documentation specific to the current host])
 
 
 
@@ -256,6 +254,7 @@ m4_foreach([flag],
             [-Wmissing-prototypes],
             [-Wstrict-prototypes],
             [-Wuninitialized],
+            [-Wmissing-field-initializers],
             [-Wunreachable-code],
             [-Wmacro-redefined],
             [-Werror=implicit-function-declaration],
@@ -275,7 +274,6 @@ dnl Enabled by default, disable with `--disable-extra-warnings`
 if test x"$enable_extra_warnings" != "xyes"; then
     m4_foreach([flag],
                [[-Wno-sign-compare],
-                [-Wno-missing-field-initializers],
                 [-Wno-ignored-qualifiers],
                 [-Wno-unused-parameter]],
                [TEST_FLAG=flag
@@ -329,6 +327,8 @@ m4_foreach([flag],
             ])
 AC_SUBST(MONITOR_CFLAGS)
 
+AC_PROG_AWK
+AS_IF([test x"$AWK" = "x:"], [AC_MSG_ERROR([Could not find awk!])])
 AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_LEX
@@ -349,6 +349,16 @@ AC_CHECK_PROGS(MAKEINFO, makeinfo, no)
 AS_IF([test x"$MAKEINFO" = "xno"],
       [AC_MSG_ERROR([makeinfo is missing, please install texinfo])])
 
+dnl if --with-unzip-bin was given check for unzip and error out if not found
+if test x"$with_unzip_bin" = "xyes"; then
+  AC_PATH_PROGS(UNZIPBIN, unzip.exe, no)
+  if test x"$UNZIPBIN" = "xno"; then
+    AC_MSG_ERROR([unzip was requested (--with-unzip-bin), but unzip is missing])
+  fi
+else
+  UNZIPBIN="no"
+fi
+
 dnl Check for dos2unix
 AC_CHECK_PROGS(DOS2UNIX, dos2unix, no)
 AS_IF([test x"$DOS2UNIX" = "xno"],
@@ -361,7 +371,7 @@ AS_IF([test x"$XA" = "xno"],
                   distribution or build and install it using the latest source
                   from https://www.floodgap.com/retrotech/xa/])])
 
-if test x"$enable_pdf_docs" != xno; then
+if test x"$enable_pdf_docs" = xyes; then
   AC_CHECK_PROGS(TEXI2DVI, texi2dvi, no)
   if test x"$TEXI2DVI" = "xno"; then
     AC_MSG_ERROR([PDF docs were requested (--enable-pdf-docs), but texi2dvi is missing])
@@ -379,8 +389,8 @@ if test x"${enable_html_docs:-yes}" != xno -a x"$PERL" = x; then
   AC_MSG_ERROR([Perl is required to generate the HTML documentation])]
 fi
 
-AM_CONDITIONAL([ENABLE_PDF_DOCS], [test x"${enable_pdf_docs}" != xno])
-if test x"${enable_pdf_docs}" != "xno"; then
+AM_CONDITIONAL([ENABLE_PDF_DOCS], [test x"$enable_pdf_docs" = xyes])
+if test x"$enable_pdf_docs" = xyes; then
     VICE_PDF_FILE_NAME="vice.pdf"
 else
     VICE_PDF_FILE_NAME=""
@@ -422,7 +432,6 @@ is_win32_gtk3=no
 is_beos=no
 
 
-BSD_JOYSTICK_SUPPORT="no "
 DEBUG_SUPPORT="no "
 DEBUG_THREADS_SUPPORT="no "
 FEATURE_CPUMEMHISTORY_SUPPORT="no "
@@ -459,7 +468,6 @@ HAVE_RS232DEV_SUPPORT="no "
 HAVE_RS232NET_SUPPORT="no "
 HAVE_OPENMP_SUPPORT="no "
 HAVE_SDL_NUMJOYSTICKS_SUPPORT="no "
-HAVE_SSI2001_SUPPORT="no "
 HAVE_SYS_AUDIOIO_H_SUPPORT="no "
 HAVE_SYS_AUDIO_H_SUPPORT="no "
 HAVE_ZLIB_SUPPORT="no "
@@ -483,7 +491,7 @@ USE_DESKTOP_FILES="no "
 HAVE_X64_IMAGE_SUPPORT="no "
 HAVE_CAPABILITIES_SUPPORT="no "
 HAVE_LIBCURL_SUPPORT="no "
-
+HAVE_EXPERIMENTAL_DEVICES_SUPPORT="no "
 
 dnl Why do we have this?
 AM_CONDITIONAL(DUMMY_COMPILE, false)
@@ -502,6 +510,13 @@ AM_CONDITIONAL(NETBSD_COMPILE, false)
 AM_CONDITIONAL(OPENBSD_COMPILE, false)
 AM_CONDITIONAL(DRAGONFLYBSD_COMPILE, false)
 
+
+dnl Enable experimental emulation of certain devices
+AS_IF([test x"$enable_experimental_devices" = "xyes"],
+  [
+    AC_DEFINE(HAVE_EXPERIMENTAL_DEVICES,,[Enable experimental devices emulation.])
+    HAVE_EXPERIMENTAL_DEVICES_SUPPORT="yes"
+  ])
 
 AS_IF([test x"$enable_cpuhistory" != "xno"],
   [
@@ -729,6 +744,9 @@ if test x"$SVN_REVISION_OVERRIDE" != "x"; then
   AM_CONDITIONAL(USE_SVN_REVISION_OVERRIDE,true)
   AC_DEFINE(USE_SVN_REVISION,,[define when using the svn revision in addition to the version])
   AC_DEFINE(USE_SVN_REVISION_OVERRIDE,,[define when using an svn revision passed to configure via SVN_REVISION_OVERRIDE env var])
+  dnl Make SVN revision override available in Makefiles so we can pass the revision
+  dnl to make-bindist scripts:
+  AC_SUBST([SVN_REVISION_OVERRIDE], [$SVN_REVISION_OVERRIDE])
 else
   if test x"$SVN" != "x"; then
     svnrevision=`$SVN 2>dummy.tmp info $srcdir | grep Revision | cut -d " " -f 2`
@@ -745,7 +763,6 @@ JOYSTICK_DRIVERS=""
 dnl Hardware SID drivers (obsolete so disabled by default)
 AM_CONDITIONAL(HAVE_CATWEASELMKIII, false)
 AM_CONDITIONAL(HAVE_PARSID, false)
-AM_CONDITIONAL(HAVE_SSI2001, false)
 
 if test x"$is_win32" = "xyes" -o x"$is_win32_gtk3" = "xyes"; then
 
@@ -753,7 +770,7 @@ if test x"$is_win32" = "xyes" -o x"$is_win32_gtk3" = "xyes"; then
   ac_cv_prog_gcc=yes
   GCC=yes
 
-  AC_CHECK_HEADERS([commctrl.h shlobj.h winioctl.h], [], [], [#include <windows.h>])
+  AC_CHECK_HEADERS([commctrl.h shlobj.h winioctl.h winsock.h], [], [], [#include <windows.h>])
 
   AC_DEFINE(HAVE_HTONL,,[Define to 1 if you have the htonl function.])
   AC_DEFINE(HAVE_HTONS,,[Define to 1 if you have the htons function.])
@@ -780,7 +797,7 @@ if test x"$is_win32" = "xyes" -o x"$is_win32_gtk3" = "xyes"; then
     AM_CONDITIONAL(HAVE_PARSID, true)
     HAVE_PARSID_SUPPORT="yes"
 
-    if test x"$enable_libieee1284" = "xyes"; then
+    if test x"$with_libieee1284" = "xyes"; then
       LIBIEEE1284_HEADERS_PRESENT=yes
 
       dnl Check for needed io headers
@@ -797,11 +814,6 @@ if test x"$is_win32" = "xyes" -o x"$is_win32_gtk3" = "xyes"; then
         AC_MSG_ERROR([libieee1284 header is missing])
       fi
     fi
-  fi
-  if test x"$enable_ssi2001" = "xyes"; then
-    AC_DEFINE(HAVE_SSI2001,,[Support for SSI2001 (ISA SID card).])
-    AM_CONDITIONAL(HAVE_SSI2001, true)
-    HAVE_SSI2001_SUPPORT="yes"
   fi
   if test x"$enable_midi" = "xyes"; then
     AC_DEFINE(HAVE_MIDI,,[Enable support for MIDI.])
@@ -853,7 +865,7 @@ elif test x"$host_os" = "xbeos" -o x"$host_os" = "xhaiku"; then
     AM_CONDITIONAL(HAVE_PARSID, true)
     HAVE_PARSID_SUPPORT="yes"
 
-    if test x"$enable_libieee1284" = "xyes"; then
+    if test x"$with_libieee1284" = "xyes"; then
       LIBIEEE1284_HEADERS_PRESENT=yes
 
       dnl Check for needed io headers
@@ -870,12 +882,6 @@ elif test x"$host_os" = "xbeos" -o x"$host_os" = "xhaiku"; then
         AC_MSG_ERROR([libieee1284 header is missing])
       fi
     fi
-  fi
-
-  if test x"$enable_ssi2001" = "xyes"; then
-    AC_DEFINE(HAVE_SSI2001,,[Support for SSI2001 (ISA SID card).])
-    AM_CONDITIONAL(HAVE_SSI2001, true)
-    HAVE_SSI2001_SUPPORT="yes"
   fi
 
   dnl Haiku needs a few compiler flags to compile:
@@ -1157,7 +1163,6 @@ if test x"$enable_openmp" != "xno"; then
   fi
 fi
 
-
 dnl Check for threading code debugging
 AM_CONDITIONAL(HAVE_DEBUG_THREADS, test x"$enable_debug_threads" = "xyes")
 if test x"$enable_debug_threads" = x"yes"; then
@@ -1381,8 +1386,6 @@ if test x"$check_sdl2" = "xyes"; then
     dnl actually require tests.
     if test x"$enable_sdl2ui" != "xno"; then
       AC_DEFINE(USE_SDL2UI,,[Enable SDL 2.x UI support.])
-      AC_DEFINE(HAVE_FULLSCREEN,,[Enable Fullscreen support.])
-      HAVE_FULLSCREEN_SUPPORT="yes"
       AC_DEFINE(HAVE_HWSCALE,,[Enable arbitrary window scaling])
       HAVE_HWSCALE_SUPPORT="yes"
 
@@ -1519,9 +1522,6 @@ if test x"$check_sdl1" = "xyes"; then
 
       dnl only continue if SDL headers/libs are present
       if test x"$ac_cv_lib_SDL_SDL_SetVideoMode" = "xyes"; then
-        AC_DEFINE(HAVE_FULLSCREEN,,[Enable Fullscreen support.])
-        HAVE_FULLSCREEN_SUPPORT="yes"
-
         AC_CHECK_FUNCS(SDL_NumJoysticks)
 
         if test x"$enable_hwscale" != "xno"; then
@@ -2054,22 +2054,6 @@ if test x"$is_unix_x11" = "xyes" -a x"$enable_sdl1ui" != "xyes" -a x"$enable_sdl
                         JOYSTICK_DRIVERS="$JOYSTICK_DRIVERS joystick_linux.o";
                    ],[],[#include <linux/joystick.h>])],)
 
-  AC_CHECK_HEADER(machine/joystick.h,
-                  [ BSD_JOYSTICK_SUPPORT="yes";
-                    AC_DEFINE(HAVE_MACHINE_JOYSTICK_H,,
-                              [Define to 1 if you have the <machine/joystick.h> header file.])
-                    AC_DEFINE(BSD_JOYSTICK,,
-                              [Enable support for BSD style joysticks.])],)
-
-  if test x"$ac_cv_header_machine_joystick_h" != "xyes"; then
-    AC_CHECK_HEADER(sys/joystick.h,
-                    [ BSD_JOYSTICK_SUPPORT="yes";
-                      AC_DEFINE(HAVE_SYS_JOYSTICK_H,,
-                                [Define to 1 if you have the <sys/joystick.h> header file.])
-                      AC_DEFINE(BSD_JOYSTICK,,
-                                [Enable support for BSD style joysticks.])],)
-  fi
-
   dnl NetBSD/FreeBSD USB joystick support
   usbhid_header=no
   usbhid_lib=no
@@ -2163,8 +2147,13 @@ fi
 AC_SUBST(ZLIB_LIBS)
 
 
-dnl --- Curl ---
-if test x"$with_libcurl" = "xyes"; then
+dnl --- Curl / WIC64 ---
+dnl We need at least version 7.77.1 for `CURLSSLOPT_NATIVE_CA`
+dnl
+dnl 2023-11-18: check relaxed to accept any version, the wic64 code uses an
+dnl #ifdef to check for `CURLSSLOPT_NATIVE_CA` to see if the option can be
+dnl enabled. See https://sourceforge.net/p/vice-emu/bugs/1964/
+if test x"$with_libcurl" != "xno"; then
   PKG_CHECK_MODULES(libcurl, [libcurl], [have_libcurl=yes], [have_libcurl=no])
   if test x"$have_libcurl" = "xno"; then
     AC_MSG_ERROR([libcurl support requested, but libcurl was not found.])
@@ -2175,7 +2164,6 @@ if test x"$with_libcurl" = "xyes"; then
   LIBS="$LIBS $libcurl_LIBS"
   AC_DEFINE(HAVE_LIBCURL, , [libcurl support])
 fi
-
 
 dnl ----- Netplay Support -----
 NETPLAY_LIBS=
@@ -2622,8 +2610,7 @@ if test x"$is_unix" = "xyes" -a x"$is_unix_macosx" = "xno"; then
   dnl
   if test x"$with_oss" = "xyes"; then
     AC_CHECK_HEADERS(linux/soundcard.h machine/soundcard.h sys/soundcard.h soundcard.h,
-                     [SOUND_DRIVERS="$SOUND_DRIVERS sounduss.o";
-                      USE_OSS_SUPPORT="yes";
+                     [USE_OSS_SUPPORT="yes";
                       AC_DEFINE(USE_OSS,,[Enable oss support.])])
     AC_CHECK_LIB(ossaudio, _oss_ioctl,,,$SOUND_LIBS)
     if test x"$USE_OSS_SUPPORT" != "xyes"; then
@@ -2642,7 +2629,7 @@ fi
 
 dnl --- Lame ---
 
-if test x"$enable_lame" = "xyes" ; then
+if test x"$with_lame" = "xyes" ; then
 
   old_CFLAGS="$CFLAGS"
   CFLAGS="$VICE_CFLAGS"
@@ -2652,10 +2639,10 @@ if test x"$enable_lame" = "xyes" ; then
   dnl the header is available!
   if test x"$ac_cv_header_lame_lame_h" = "xyes" ; then
     AC_MSG_CHECKING([for lame lib linking])
-    if test x"$dynlib_support" = "xyes" -a x"$enable_static_lame" != "xyes" ; then
+    if test x"$dynlib_support" = "xyes" -a x"$with_static_lame" != "xyes" ; then
       dnl dynlib linking
       SOUND_DRIVERS="$SOUND_DRIVERS soundmp3.o lamelib.o"
-      AC_DEFINE(USE_LAMEMP3,,[Enable lamemp3 support.])
+      AC_DEFINE(USE_LAMEMP3,,[Use lame for MP3 encoding.])
       USE_LAMEMP3_SUPPORT="yes"
       AC_DEFINE(HAVE_EXTERNAL_LAME,,[External linking for lame libs])
       AC_MSG_RESULT([dynlib])
@@ -2673,11 +2660,11 @@ if test x"$enable_lame" = "xyes" ; then
         if test "$ADD_MPGDECODER" = "1" ; then
           SOUND_LIBS="$SOUND_LIBS -lmpgdecoder";
         fi
-        AC_DEFINE(USE_LAMEMP3,,[Enable lamemp3 support.])
+        AC_DEFINE(USE_LAMEMP3,,[Use lame for MP3 encoding.])
         USE_LAMEMP3_SUPPORT="yes"
         AC_DEFINE(HAVE_STATIC_LAME,,[Static linking for lame libs])
       fi
-      if test x"$USE_LAMEMP3_SUPPORT" != "xyes" -a x"$enable_lame" = "xyes"; then
+      if test x"$USE_LAMEMP3_SUPPORT" != "xyes" -a x"$with_lame" = "xyes"; then
         AC_MSG_ERROR([lame mp3 support is missing])
       fi
     fi
@@ -2874,7 +2861,7 @@ fi
 AC_SUBST(SOUND_DRIVERS)
 AC_SUBST(SOUND_LIBS)
 
-dnl Check for ParSID/SSI2001/HardSID/CW support
+dnl Check for ParSID/HardSID/CW support
 if test x"$is_unix" = "xyes"; then
 
   dnl Check cpu first
@@ -2883,15 +2870,14 @@ if test x"$is_unix" = "xyes"; then
       ;;
   *)
       enable_parsid=no
-      enable_ssi2001=no
       enable_hardsid=no
       enable_catweasel=no
       ;;
   esac
 
-  if test x"$enable_parsid" = "xyes" -o x"$enable_ssi2001" = "xyes" -o x"$enable_hardsid" != "xno" -o x"$enable_catweasel" = "xyes"; then
+  if test x"$enable_parsid" = "xyes" -o x"$enable_hardsid" != "xno" -o x"$enable_catweasel" = "xyes"; then
 
-    if test x"$enable_libieee1284" = "xyes"; then
+    if test x"$with_libieee1284" = "xyes"; then
       LIBIEEE1284_HEADERS_PRESENT=yes
     else
       LIBIEEE1284_HEADERS_PRESENT=no
@@ -2907,7 +2893,7 @@ if test x"$is_unix" = "xyes"; then
     PCIUTILS_LIB_PRESENT=no
 
     dnl Check for needed io headers
-    if test x"$enable_libieee1284" = "xyes"; then
+    if test x"$with_libieee1284" = "xyes"; then
       AC_CHECK_HEADERS(ieee1284.h,,[LIBIEEE1284_HEADERS_PRESENT=no],)
     fi
     AC_CHECK_HEADERS(linux/hardsid.h,,[LINUX_HARDSID_HEADER_PRESENT=no],)
@@ -2939,12 +2925,12 @@ if test x"$is_unix" = "xyes"; then
         AC_MSG_ERROR([libieee1284 is missing])
       fi
     else
-      if test x"$enable_libieee1284" = "xyes"; then
+      if test x"$with_libieee1284" = "xyes"; then
         AC_MSG_ERROR([libieee1284 header is missing])
       fi
     fi
 
-    if test x"$PARSID_SUPPORT" != "xno" -a x"$enable_ssi2001" = "xno" -a x"$enable_hardsid" = "xno"; then
+    if test x"$PARSID_SUPPORT" != "xno" -a x"$enable_hardsid" = "xno"; then
       IOSID_SUPPORT=yes
       HAVE_IOSID_SUPPORT=yes
     fi
@@ -2989,20 +2975,13 @@ if test x"$is_unix" = "xyes"; then
         AM_CONDITIONAL(HAVE_PARSID, true)
         HAVE_PARSID_SUPPORT="yes"
       fi
-      if test x"$enable_ssi2001" = "xyes"; then
-        AC_DEFINE(HAVE_SSI2001,,[Support for SSI2001 (ISA SID card).])
-        AM_CONDITIONAL(HAVE_SSI2001, true)
-        HAVE_SSI2001_SUPPORT="yes"
-      fi
       if test x"$enable_catweasel" = "xyes"; then
         AC_DEFINE(HAVE_CATWEASELMKIII,,[Support for Catweasel MKIII.])
-        AC_DEFINE(HAVE_CATWEASELMKIII_IO,,[Support for direct PCI I/O access Catweasel MKIII.])
         AM_CONDITIONAL(HAVE_CATWEASELMKIII, true)
         HAVE_CATWEASELMKIII_SUPPORT="yes"
       fi
       if test x"$enable_hardsid" != "xno"; then
         AC_DEFINE(HAVE_HARDSID,,[Support for HardSID.])
-        AC_DEFINE(HAVE_HARDSID_IO,,[Support for PCI/ISA HardSID.])
         HAVE_HARDSID_SUPPORT="yes"
       fi
     else
@@ -3083,68 +3062,6 @@ dnl Check time.h.
 dnl AC_HEADER_TIME
 dnl AC_STRUCT_TM
 
-dnl GTK3-FIXME: check if readline is even needed for GTK3 UI and disable the check if needed
-
-dnl ----- Readline -----
-dnl Check whether we have GNU readline.  If not, use our replacement.
-dnl The user can force us to use the replacement with '--without-readline'.
-READLINE_LIBS=
-EDITLINE_LIBS=
-if test x"$is_unix_x11" = "xyes"; then
-  if test x"$with_readline" != "xno" ; then
-    READLINE_HEADER_PRESENT=yes
-    AC_CHECK_HEADERS(readline/readline.h,,[READLINE_HEADER_PRESENT=no],)
-    READLINE=""
-    unset ac_cv_lib_readline_readline
-    old_LIBS="$LIBS"
-    AC_CHECK_LIB(readline, readline,
-               [ READLINE="" READLINE_LIBS="-lreadline"],
-               [],,)
-
-    if test "$ac_cv_lib_readline_readline" = "no"; then
-      unset ac_cv_lib_readline_readline
-      AC_CHECK_LIB(readline, readline,
-               [ READLINE="" READLINE_LIBS="-lreadline -ltermcap"],
-               [], [-ltermcap],)
-    fi
-
-    if test "$ac_cv_lib_readline_readline" = "no"; then
-      unset ac_cv_lib_readline_readline
-      AC_CHECK_LIB(readline, readline,
-               [ READLINE="" READLINE_LIBS="-lreadline -lncurses"],
-               [], [-lncurses],)
-    fi
-
-    if test "$ac_cv_lib_readline_readline" = "no"; then
-      unset ac_cv_lib_readline_readline
-      AC_CHECK_LIB(readline, readline,
-             [ READLINE="" READLINE_LIBS="-lreadline -lcurses"],
-             [ ],
-              [-lcurses],)
-    fi
-
-    if test x"$enable_sdl1ui" != "xno" -o x"$enable_sdl2ui" != "xno"; then
-      READLINE=""
-    fi
-
-    if test "$ac_cv_lib_readline_readline" = "yes"; then
-      AC_CHECK_LIB(readline, rl_readline_name,
-             [ AC_DEFINE(HAVE_RLNAME,,
-             [Does the 'readline' library support 'rl_readline_name'?]) ],,)
-    fi
-    LIBS="${old_LIBS}"
-  else
-    if test x"$enable_sdl1ui" != "xyes" -a x"$enable_sdl2ui" != "xyes"; then
-      READLINE="\$(top_builddir)/src/arch/unix/readline/libreadline.a"
-    fi
-  fi
-else
-  READLINE=""
-fi
-AM_CONDITIONAL(NEED_READLINE, test x"$READLINE" != "x")
-AC_SUBST(READLINE)
-AC_SUBST(READLINE_LIBS)
-
 dnl Configure graphics output drivers
 old_LIBS="$LIBS"
 GFXOUTPUT_LIBS=
@@ -3223,8 +3140,7 @@ AC_SUBST(GFXOUTPUT_LIBS)
 AC_SUBST(JOYSTICK_DRIVERS)
 
 dnl PortAudio support checks
-
-if test x"$enable_portaudio" != "xno"; then
+if test x"$with_portaudio" = "xyes"; then
   AC_CHECK_HEADERS(portaudio.h, PA_HEADERS="yes", PA_HEADERS="no")
 
   if test x"$PA_HEADERS" = "xyes"; then
@@ -3241,8 +3157,8 @@ if test x"$enable_portaudio" != "xno"; then
     fi
   fi
 
-  if test x"$enable_portaudio" = "xyes" -a x"$USE_PORTAUDIO_SUPPORT" != "xyes"; then
-    AC_MSG_ERROR([PortAudio support is missing])
+  if test x"$with_portaudio" = "xyes" -a x"$USE_PORTAUDIO_SUPPORT" != "xyes"; then
+    AC_MSG_ERROR([PortAudio support requested (--with-portaudio), but PortAudio headers are missing])
   fi
 fi
 
@@ -3334,9 +3250,6 @@ if test x"$enable_sdl1ui" = "xyes" -o x"$enable_sdl2ui" = "xyes"; then
   ARCH_SRC_DIR="\$(top_srcdir)/src/arch/sdl"
   ARCH_LIBS="$ARCH_DIR/libarch.a"
   ARCH_INCLUDES="-I$ARCH_SRC_DIR -I\$(top_srcdir)/src/arch/shared"
-  if test x"$ac_cv_lib_readline_readline" = "xyes"; then
-    AC_DEFINE(HAVE_READLINE,,[Enable the readline library])
-  fi
   AC_DEFINE(HAVE_MOUSE,,[Enable 1351 mouse support])
   HAVE_MOUSE_SUPPORT="yes"
   AC_DEFINE(HAVE_LIGHTPEN,,[Enable lightpen support])
@@ -3383,9 +3296,6 @@ if test x"$enable_gtk3ui" = "xyes"; then
   else
     ARCH_INCLUDES="-I$ARCH_SRC_DIR -I\$(top_srcdir)/src/arch/shared -I\$(top_srcdir)/src/arch"
   fi
-  if test x"$ac_cv_lib_readline_readline" = "xyes"; then
-    AC_DEFINE(HAVE_READLINE,,[Enable the readline library])
-  fi
   AC_DEFINE(HAVE_MOUSE,,[Enable 1351 mouse support])
   HAVE_MOUSE_SUPPORT="yes"
   AC_DEFINE(HAVE_LIGHTPEN,,[Enable lightpen support])
@@ -3422,9 +3332,6 @@ if test x"$enable_headlessui" = "xyes"; then
     AM_CONDITIONAL(MAKE_BINDIST, true)
   else
     ARCH_INCLUDES="-I$ARCH_SRC_DIR -I\$(top_srcdir)/src/arch/shared -I\$(top_srcdir)/src/arch"
-  fi
-  if test x"$ac_cv_lib_readline_readline" = "xyes"; then
-    AC_DEFINE(HAVE_READLINE,,[Enable the readline library])
   fi
   AC_DEFINE(HAVE_MOUSE,,[Enable 1351 mouse support])
   HAVE_MOUSE_SUPPORT="yes"
@@ -3493,7 +3400,6 @@ if test x"$GCC" = "xyes" ; then
 fi
 
 
-AC_SUBST(HAVE_READLINE)
 AC_SUBST(ARCH_INCLUDES)
 AC_SUBST(ARCH_LIBS)
 AC_SUBST(ARCH_DIR)
@@ -3502,7 +3408,6 @@ AC_SUBST(ARCH_MAKE_BINDIST_DIR)
 AC_SUBST(ARCH_EXTRA_SUBDIR)
 AC_SUBST(UI_LIBS)
 AC_SUBST(SDL_EXTRA_LIBS)
-AC_SUBST(SOUND_USS_OBJ)
 AC_SUBST(SOUND_MIDAS_OBJ)
 AC_SUBST(SOUND_SDL_OBJ)
 AC_SUBST(WINDRES_LIB)
@@ -3577,8 +3482,6 @@ fi
 AC_OUTPUT([Makefile
            build/Makefile
            build/beos/Makefile
-           build/mingw/Makefile
-           build/mingw/frankenvice/Makefile
            data/Makefile
            data/C128/Makefile
            data/C64/Makefile
@@ -3592,6 +3495,7 @@ AC_OUTPUT([Makefile
            data/VIC20/Makefile
            data/common/Makefile
            data/GLSL/Makefile
+           data/hotkeys/Makefile
            doc/Makefile
            doc/building/Makefile
            doc/html/Makefile
@@ -3614,8 +3518,8 @@ AC_OUTPUT([Makefile
            src/arch/sdl/Makefile
            src/arch/headless/Makefile
            src/arch/shared/Makefile
+           src/arch/shared/hotkeys/Makefile
            src/arch/shared/hwsiddrv/Makefile
-           src/arch/shared/iodrv/Makefile
            src/arch/shared/mididrv/Makefile
            src/arch/shared/socketdrv/Makefile
            src/arch/shared/sounddrv/Makefile
@@ -3652,6 +3556,8 @@ AC_OUTPUT([Makefile
            src/lib/Makefile
            src/lib/p64/Makefile
            src/lib/linenoise-ng/Makefile
+           src/lib/libzmbv/Makefile
+           src/lib/md5/Makefile
            src/monitor/Makefile
            src/parallel/Makefile
            src/pet/Makefile
@@ -3781,7 +3687,7 @@ echo "-----"
 echo "FastSID support              : $HAVE_FASTSID_SUPPORT (--with/without-fastsid)"
 echo "ReSID support                : $HAVE_RESID_SUPPORT (--with/without-resid)"
 echo "New 8580 filter support      : $USE_NEW_8580_FILTER (--enable/disable-new8580filter)"
-echo "PortAudio sound input support: $USE_PORTAUDIO_SUPPORT (--enable/disable-portaudio)"
+echo "PortAudio sound input support: $USE_PORTAUDIO_SUPPORT (--with/without-portaudio)"
 
 if test x"$real_arch" = "xUnix"; then
     echo "OSS sound support            : $USE_OSS_SUPPORT (--with/without-oss)"
@@ -3817,14 +3723,13 @@ fi
 
 if test x"$real_arch" = "xUnix" -o x"$real_arch" = "xDOS" -o x"$real_arch" = "xWin32"; then
     echo "ParSID support               : $HAVE_PARSID_SUPPORT (--enable/disable-parsid)"
-    echo "SSI2001 support              : $HAVE_SSI2001_SUPPORT (--enable/disable-ssi2001)"
     echo "direct I/O access support    : $HAVE_IOSID_SUPPORT"
     echo "lpt port access              : $HAVE_PORTSID_SUPPORT"
 fi
 
 echo "PCI utils support            : $HAVE_PCIUTILS_SUPPORT"
 
-echo "MP3 encoding support         : $USE_LAMEMP3_SUPPORT (--enable/disable-lame)"
+echo "MP3 encoding support         : $USE_LAMEMP3_SUPPORT (--with/without-lame)"
 echo "MP3 decoding support         : $USE_MPG123_SUPPORT (--with/without-mpg123)"
 echo "FLAC en/de-coding support    : $USE_FLAC_SUPPORT (--with/without-flac)"
 echo "Vorbis en/de-coding support  : $USE_VORBIS_SUPPORT (--with/without-vorbis)"
@@ -3859,7 +3764,6 @@ echo "Lightpen support            : $HAVE_LIGHTPEN_SUPPORT"
 if test x"$real_arch" = "xUnix"; then
     if test x"$show_gui" != "xSDL" -a x"$show_gui" != "xSDL2"; then
         echo "Linux style joystick support: $LINUX_JOYSTICK_SUPPORT"
-        echo "BSD style joystick support  : $BSD_JOYSTICK_SUPPORT"
         echo "USB joystick support        : $HAS_USB_JOYSTICK_SUPPORT"
     fi
 fi
@@ -3924,42 +3828,40 @@ fi
 echo "zlib support                      : $HAVE_ZLIB_SUPPORT (--with/without-zlib)"
 
 if test x"$real_arch" = "xUnix"; then
-    echo "libieee1284 support               : $HAVE_LIBIEEE1284_SUPPORT"
+    echo "libieee1284 support               : $HAVE_LIBIEEE1284_SUPPORT (--with/--wihout-libieee1284)"
 fi
 
 
 echo ""
 echo "DOCUMENTATION"
 echo "-------------"
-echo -n "Generate Info/text: "
 if test x"$MAKEINFO" = "x:"; then
-    echo "no (install texinfo)"
+    echo "Generate Info/text: no (install texinfo)"
 else
-    echo "yes"
+    echo "Generate Info/text: yes"
 fi
-echo -n "Generate PDF      : "
-if test x"$enable_pdf_docs" = xno; then
-    echo "no (install texinfo)"
+if test x"$enable_pdf_docs" = xyes; then
+    echo "Generate PDF      : yes"
 else
-    echo "yes"
+    echo "Generate PDF      : no"
 fi
-echo -n "Generate HTML     : "
 if test x"${enable_html_docs:-yes}" != xno; then
-    echo "yes"
+    echo "Generate HTML     : yes"
 else
-    echo "no"
+    echo "Generate HTML     : no"
 fi
 
 echo ""
 echo "MISC"
 echo "----"
 
-echo "65xx CPU history support   : $FEATURE_CPUMEMHISTORY_SUPPORT (--enable/disable-cpuhistory)"
-echo "Debug support              : $DEBUG_SUPPORT (--enable/disable-debug)"
-echo "Threading debug support    : $DEBUG_THREADS_SUPPORT (--enable/disable-debug-threads"
-echo "Build old x64 emulator     : $X64_INCLUDED (--enable/--disable-x64)"
-echo "Install XDG .desktop files : $USE_DESKTOP_FILES"
-echo "icotool for Windows found  : $ICOTOOL"
+echo "65xx CPU history support      : $FEATURE_CPUMEMHISTORY_SUPPORT (--enable/disable-cpuhistory)"
+echo "Debug support                 : $DEBUG_SUPPORT (--enable/disable-debug)"
+echo "Threading debug support       : $DEBUG_THREADS_SUPPORT (--enable/disable-debug-threads"
+echo "Build old x64 emulator        : $X64_INCLUDED (--enable/--disable-x64)"
+echo "Install XDG .desktop files    : $USE_DESKTOP_FILES"
+echo "icotool for Windows found     : $ICOTOOL"
+echo "Experimental devices emulation: $HAVE_EXPERIMENTAL_DEVICES_SUPPORT (--enable-experimental-devices)"
 
 echo ""
 echo "User CPPFLAGS:  $CPPFLAGS"

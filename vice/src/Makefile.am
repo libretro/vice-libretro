@@ -153,7 +153,8 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src/arch/shared/socketdrv \
 	-I$(top_srcdir)/src/hvsc \
 	-I$(top_srcdir)/src/lib/linenoise-ng \
-	-I$(top_srcdir)/src/cart
+	-I$(top_srcdir)/src/cart \
+	-I$(top_srcdir)/src/arch/shared/hotkeys
 
 noinst_HEADERS = \
 	6510core.h \
@@ -238,6 +239,8 @@ noinst_HEADERS = \
 	petui.h \
 	piacore.h \
 	plus4ui.h \
+	profiler.h \
+	profiler_data.h \
 	ps2mouse.h \
 	r65c02.h \
 	ram.h \
@@ -248,13 +251,13 @@ noinst_HEADERS = \
 	romset.h \
 	scpu64ui.h \
 	screenshot.h \
+	sha1.h \
 	snapshot.h \
 	serial.h \
 	sidcart.h \
 	signals.h \
 	snespad.h \
 	sound.h \
-	ssi2001.h \
 	sysfile.h \
 	tap.h \
 	tape.h \
@@ -276,6 +279,7 @@ noinst_HEADERS = \
 	vicesocket.h \
 	vicefeatures.h \
 	vicii.h \
+	vicii-colorram.h \
 	video.h \
 	viewport.h \
 	vsidui.h \
@@ -322,12 +326,14 @@ base_sources = \
 	network.c \
 	opencbmlib.c \
 	palette.c \
+	profiler.c \
 	ram.c \
 	rawfile.c \
 	rawnet.c \
 	resources.c \
 	romset.c \
 	screenshot.c \
+	sha1.c \
 	snapshot.c \
 	socket.c \
 	sound.c \
@@ -339,6 +345,7 @@ base_sources = \
 	zfile.c \
 	zipcode.c
 
+
 ps2mouse_sources = \
 	ps2mouse.c
 
@@ -348,7 +355,8 @@ midi_sources = \
 cpucore_sources = \
 	6510core.c \
 	65c02core.c \
-	65816core.c
+	65816core.c \
+	z80core.c
 
 cpudtvcore_sources = \
 	6510dtvcore.c
@@ -365,7 +373,8 @@ COMMON_EXTRA_DIST = \
 	piacore.c \
 	vice-version.sh \
 	vice-version.sh.in \
-	wrap-u-ar.sh
+	wrap-u-ar.sh \
+	z80core.c
 
 # RESID_EXTRA_DIST is a list of files in the resid directory that need to be
 # included in the source archive, this list was added to fix the fact that
@@ -561,14 +570,17 @@ drivetcbm_lib = $(top_builddir)/src/drive/tcbm/libdrivetcbm.a
 fsdevice_lib = $(top_builddir)/src/fsdevice/libfsdevice.a
 fileio_lib = $(top_builddir)/src/fileio/libfileio.a
 gfxoutputdrv_lib = $(top_builddir)/src/gfxoutputdrv/libgfxoutputdrv.a
+if !USE_HEADLESSUI
+hotkeys_lib = $(top_builddir)/src/arch/shared/hotkeys/libhotkeys.a
+endif
 hwsiddrv_lib = $(top_builddir)/src/arch/shared/hwsiddrv/libhwsiddrv.a
 hvsc_lib = $(top_builddir)/src/hvsc/libhvsc.a
 iecbus_lib = $(top_builddir)/src/iecbus/libiecbus.a
 imagecontents_lib = $(top_builddir)/src/imagecontents/libimagecontents.a
-iodrv_lib = $(top_builddir)/src/arch/shared/iodrv/libiodrv.a
 joyport_lib = $(top_builddir)/src/joyport/libjoyport.a
 linenoise_ng_lib = $(top_builddir)/src/lib/linenoise-ng/liblinenoiseng.a
 mascuerade_lib = $(top_builddir)/src/vic20/cart/libmascuerade.a
+md5_lib = $(top_builddir)/src/lib/md5/libmd5.a
 mididrv_lib = $(top_builddir)/src/arch/shared/mididrv/libmididrv.a
 monitor_lib = $(top_builddir)/src/monitor/libmonitor.a
 p64_lib = $(top_builddir)/src/lib/p64/libp64.a
@@ -610,15 +622,16 @@ xcbm2stubs_lib = $(top_builddir)/src/cbm2/libcbm2stubs.a
 cbm2cart_lib = $(top_builddir)/src/cbm2/cart/libcbm2cart.a
 xcbm5x0_lib = $(top_builddir)/src/cbm2/libcbm5x0.a
 xcbm5x0stubs_lib = $(top_builddir)/src/cbm2/libcbm5x0stubs.a
+zmbv_lib = $(top_builddir)/src/lib/libzmbv/libzmbv.a
 
-common_libs = @ARCH_LIBS@ @LIBOBJS@ @READLINE@
+common_libs = @ARCH_LIBS@ @LIBOBJS@
 resid_libs = @RESID_LIBS@
 resid_dtv_libs = @RESID_DTV_LIBS@
 
 # external libraries required for all emulators
-emu_extlibs = @UI_LIBS@ @SDL_EXTRA_LIBS@ @SOUND_LIBS@ @JOY_LIBS@ @GFXOUTPUT_LIBS@ @ZLIB_LIBS@ @DYNLIB_LIBS@ @ARCH_LIBS@ $(archdep_lib)
+emu_extlibs = @UI_LIBS@ @SDL_EXTRA_LIBS@ @SOUND_LIBS@ @JOY_LIBS@ @GFXOUTPUT_LIBS@ @ZLIB_LIBS@ @DYNLIB_LIBS@ @ARCH_LIBS@ $(archdep_lib) $(linenoise_ng_lib)
 
-driver_libs = $(joyport_lib) $(samplerdrv_lib) $(sounddrv_lib) $(mididrv_lib) $(socketdrv_lib) $(hwsiddrv_lib) $(iodrv_lib) $(gfxoutputdrv_lib) $(printerdrv_lib) $(rs232drv_lib) $(diskimage_lib) $(fsdevice_lib) $(tape_lib) $(fileio_lib) $(serial_lib) $(core_lib)
+driver_libs = $(joyport_lib) $(samplerdrv_lib) $(sounddrv_lib) $(mididrv_lib) $(socketdrv_lib) $(hwsiddrv_lib) $(gfxoutputdrv_lib) $(printerdrv_lib) $(rs232drv_lib) $(diskimage_lib) $(fsdevice_lib) $(tape_lib) $(fileio_lib) $(serial_lib) $(core_lib)
 
 if SUPPORT_X64
 x64_bin = x64
@@ -644,7 +657,6 @@ vsid_libs =  \
 	$(mididrv_lib) \
 	$(socketdrv_lib) \
 	$(hwsiddrv_lib) \
-	$(iodrv_lib) \
 	$(serial_lib) \
 	$(core_lib) \
 	$(vicii_lib) \
@@ -656,10 +668,12 @@ vsid_libs =  \
 	$(joystickdrv_lib) \
 	$(hvsc_lib) \
 	$(datasette_lib) \
-	$(vsidstubs_lib)
+	$(hotkeys_lib) \
+	$(vsidstubs_lib) \
+	$(md5_lib)
 
 vsid_SOURCES = $(base_sources) $(midi_sources)
-vsid_LDADD = $(vsid_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ @READLINE_LIBS@ $(VSID_RES)
+vsid_LDADD = $(vsid_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ $(VSID_RES)
 
 vsid_DEPENDENCIES = $(vsid_libs)
 vsid_LDFLAGS = @vsid_LDFLAGS@
@@ -706,10 +720,12 @@ x64_libs =  \
 	$(imagecontents_lib) \
 	$(c64stubs_lib) \
 	$(resid_libs) \
-	$(hvsc_lib)
+	$(hvsc_lib) \
+	$(hotkeys_lib) \
+	$(zmbv_lib)
 
 x64_SOURCES = $(base_sources) $(midi_sources)
-x64_LDADD = $(x64_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ @READLINE_LIBS@ $(X64_RES)
+x64_LDADD = $(x64_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ $(X64_RES)
 x64_DEPENDENCIES = $(x64_libs)
 x64_LDFLAGS = @x64_LDFLAGS@
 
@@ -755,10 +771,12 @@ x64sc_libs =  \
 	$(imagecontents_lib) \
 	$(c64scstubs_lib) \
 	$(resid_libs) \
-	$(hvsc_lib)
+	$(hvsc_lib) \
+	$(hotkeys_lib) \
+	$(zmbv_lib)
 
 x64sc_SOURCES = $(base_sources) $(midi_sources)
-x64sc_LDADD = $(x64sc_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ @READLINE_LIBS@ $(X64SC_RES)
+x64sc_LDADD = $(x64sc_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ $(X64SC_RES)
 x64sc_DEPENDENCIES = $(x64sc_libs)
 x64sc_LDFLAGS = @x64_LDFLAGS@
 
@@ -771,6 +789,14 @@ x64sc-program: \
 	$(BUILT_SOURCES) \
 	@RESID_DEP@ \
 	x64sc$(EXEEXT)
+
+if SUPPORT_X64
+else
+# symlink x64 -> x64sc
+install-exec-hook:
+	cd $(DESTDIR)$(bindir) && $(RM) x64$(EXEEXT)
+	cd $(DESTDIR)$(bindir) && $(LN_S) x64sc$(EXEEXT) x64$(EXEEXT)
+endif
 
 # x64dtv
 x64dtv_libs =  \
@@ -787,7 +813,6 @@ x64dtv_libs =  \
 	$(p64_lib) \
 	$(iecbus_lib) \
 	$(parallel_lib) \
-	$(userport_lib) \
 	$(diag_lib) \
 	$(vdrive_lib) \
 	$(sid_dtv_lib) \
@@ -803,10 +828,13 @@ x64dtv_libs =  \
 	$(joyport_lib) \
 	$(joystickdrv_lib) \
 	$(rtc_lib) \
-	$(hvsc_lib)
+	$(hvsc_lib) \
+	$(hotkeys_lib) \
+	$(zmbv_lib)\
+	$(userport_lib)
 
 x64dtv_SOURCES = $(base_sources) $(ps2mouse_sources)
-x64dtv_LDADD = $(x64dtv_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ @READLINE_LIBS@ $(X64DTV_RES)
+x64dtv_LDADD = $(x64dtv_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ $(X64DTV_RES)
 x64dtv_DEPENDENCIES = $(x64dtv_libs)
 x64dtv_LDFLAGS = @x64_LDFLAGS@
 
@@ -852,10 +880,12 @@ xscpu64_libs =  \
 	$(common_libs) \
 	$(imagecontents_lib) \
 	$(resid_libs) \
-	$(hvsc_lib)
+	$(hvsc_lib) \
+	$(hotkeys_lib) \
+	$(zmbv_lib)
 
 xscpu64_SOURCES = $(base_sources) $(midi_sources)
-xscpu64_LDADD = $(xscpu64_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ @READLINE_LIBS@ $(XSCPU64_RES)
+xscpu64_LDADD = $(xscpu64_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ $(XSCPU64_RES)
 xscpu64_DEPENDENCIES = $(xscpu64_libs)
 xscpu64_LDFLAGS = @xscpu64_LDFLAGS@
 
@@ -897,18 +927,20 @@ x128_libs =  \
 	$(vicii_lib) \
 	$(vdc_lib) \
 	$(raster_lib) \
-	$(userport_lib) \
 	$(diag_lib) \
+	$(userport_lib) \
 	$(rtc_lib) \
 	$(video_lib) \
 	$(common_libs) \
 	$(imagecontents_lib) \
 	$(c128stubs_lib) \
 	$(resid_libs) \
-	$(hvsc_lib)
+	$(hvsc_lib) \
+	$(hotkeys_lib) \
+	$(zmbv_lib)
 
 x128_SOURCES = $(base_sources) $(midi_sources)
-x128_LDADD = $(x128_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ @READLINE_LIBS@ $(X128_RES)
+x128_LDADD = $(x128_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ $(X128_RES)
 x128_DEPENDENCIES = $(x128_libs)
 x128_LDFLAGS = @x128_LDFLAGS@
 
@@ -952,10 +984,12 @@ xvic_libs =  \
 	$(imagecontents_lib) \
 	$(vic20stubs_lib) \
 	$(resid_libs) \
-	$(hvsc_lib)
+	$(hvsc_lib) \
+	$(hotkeys_lib) \
+	$(zmbv_lib)
 
 xvic_SOURCES = $(base_sources) $(midi_sources)
-xvic_LDADD = $(xvic_libs) $(emu_extlibs) $(mascuerade_lib) @TFE_LIBS@ @NETPLAY_LIBS@ @READLINE_LIBS@ $(XVIC_RES)
+xvic_LDADD = $(xvic_libs) $(emu_extlibs) $(mascuerade_lib) @TFE_LIBS@ @NETPLAY_LIBS@ $(XVIC_RES)
 xvic_DEPENDENCIES = $(xvic_libs)
 xvic_LDFLAGS = @xvic_LDFLAGS@
 
@@ -989,19 +1023,21 @@ xpet_libs =  \
 	$(driver_libs) \
 	$(crtc_lib) \
 	$(raster_lib) \
-	$(userport_lib) \
 	$(video_lib) \
 	$(common_libs) \
+	$(userport_lib) \
 	$(imagecontents_lib) \
 	$(joyport_lib) \
 	$(joystickdrv_lib) \
-	$(petstubs_lib) \
 	$(resid_libs) \
 	$(rtc_lib) \
-	$(hvsc_lib)
+	$(hvsc_lib) \
+	$(hotkeys_lib) \
+	$(zmbv_lib) \
+	$(petstubs_lib)
 
 xpet_SOURCES = $(base_sources)
-xpet_LDADD = $(xpet_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ @READLINE_LIBS@ $(XPET_RES)
+xpet_LDADD = $(xpet_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ $(XPET_RES)
 xpet_DEPENDENCIES = $(xpet_libs)
 xpet_LDFLAGS = @xpet_LDFLAGS@
 
@@ -1039,18 +1075,20 @@ xplus4_libs =  \
 	$(driver_libs) \
 	$(raster_lib) \
 	$(rtc_lib) \
-	$(userport_lib) \
 	$(video_lib) \
 	$(common_libs) \
+	$(userport_lib) \
 	$(imagecontents_lib) \
 	$(joyport_lib) \
 	$(joystickdrv_lib) \
-	$(plus4stubs_lib) \
 	$(resid_libs) \
-	$(hvsc_lib)
+	$(hvsc_lib) \
+	$(hotkeys_lib) \
+	$(zmbv_lib) \
+	$(plus4stubs_lib)
 
 xplus4_SOURCES = $(base_sources)
-xplus4_LDADD = $(xplus4_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ @READLINE_LIBS@ $(XPLUS4_RES)
+xplus4_LDADD = $(xplus4_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ $(XPLUS4_RES)
 xplus4_DEPENDENCIES = $(xplus4_libs)
 xplus4_LDFLAGS = @xplus4_LDFLAGS@
 
@@ -1086,18 +1124,20 @@ xcbm2_libs = \
 	$(crtc_lib) \
 	$(raster_lib) \
 	$(video_lib) \
-	$(userport_lib) \
 	$(common_libs) \
+	$(userport_lib) \
 	$(imagecontents_lib) \
 	$(joyport_lib) \
 	$(joystickdrv_lib) \
 	$(xcbm2stubs_lib) \
 	$(resid_libs) \
 	$(rtc_lib) \
-	$(hvsc_lib)
+	$(hvsc_lib) \
+	$(hotkeys_lib) \
+	$(zmbv_lib)
 
 xcbm2_SOURCES = $(base_sources)
-xcbm2_LDADD = $(xcbm2_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ @READLINE_LIBS@ $(XCBM2_RES)
+xcbm2_LDADD = $(xcbm2_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ $(XCBM2_RES)
 xcbm2_DEPENDENCIES = $(xcbm2_libs)
 xcbm2_LDFLAGS = @xcbm2_LDFLAGS@
 
@@ -1136,15 +1176,17 @@ xcbm5x0_libs = \
 	$(rtc_lib) \
 	$(video_lib) \
 	$(common_libs) \
+	$(xcbm5x0stubs_lib) \
 	$(imagecontents_lib) \
 	$(joyport_lib) \
 	$(joystickdrv_lib) \
-	$(xcbm5x0stubs_lib) \
 	$(resid_libs) \
-	$(hvsc_lib)
+	$(hvsc_lib) \
+	$(hotkeys_lib) \
+	$(zmbv_lib)
 
 xcbm5x0_SOURCES = $(base_sources)
-xcbm5x0_LDADD = $(xcbm5x0_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ @READLINE_LIBS@ $(XCBM5x0_RES)
+xcbm5x0_LDADD = $(xcbm5x0_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ $(XCBM5x0_RES)
 xcbm5x0_DEPENDENCIES = $(xcbm5x0_libs)
 xcbm5x0_LDFLAGS = @xcbm2_LDFLAGS@
 
@@ -1194,7 +1236,6 @@ c1541_libs = \
 c1541_LDADD = \
 	$(c1541_libs) \
 	@SDL_EXTRA_LIBS@ \
-	@READLINE@ @READLINE_LIBS@ \
 	@ZLIB_LIBS@ @DYNLIB_LIBS@
 
 if WINDOWS_COMPILE
@@ -1385,9 +1426,6 @@ $(iecbus_lib):
 $(imagecontents_lib):
 	@echo "making all in imagecontents"
 	@(cd imagecontents && $(MAKE))
-$(iodrv_lib):
-	@echo "making all in arch/shared/iodrv"
-	@(cd arch/shared/iodrv && $(MAKE))
 $(linenoise_ng_lib):
 	@echo "making all in lib/linenoise-ng"
 	@(cd lib/linenoise-ng && $(MAKE))
@@ -1499,6 +1537,9 @@ $(vsid_lib):
 $(vsidstubs_lib):
 	@echo "making libvsidstubs.a in c64"
 	@(cd c64 && $(MAKE) libvsidstubs.a)
+$(zmbv_lib):
+	@echo "making all in lib/libzmbv"
+	@(cd lib/libzmbv && $(MAKE))
 
 
 clean: clean-recursive

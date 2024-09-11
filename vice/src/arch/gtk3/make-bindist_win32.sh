@@ -26,18 +26,21 @@
 #  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
 #  02111-1307  USA.
 #
-# Usage: make-bindist.sh <strip> <vice-version> <--enable-arch> <zip|nozip> <x64-included> <top-srcdir> <cpu> <abs-top-builddir> <cross> <objdump> <compiler>
-#                         $1      $2             $3              $4          $5             $6           $7    $8                 $9      $10       $11
+# Usage: make-bindist.sh <strip> <vice-version> <--enable-arch> <zip|nozip> <unzip-bin> <x64-included> <top-srcdir> <cpu> <abs-top-builddir> <cross> <objdump> <compiler> <html-docs> [<svn-revision-override>]
+#                         $1      $2             $3              $4          $5          $6             $7           $8    $9                 $10     $11       $12        $13         $14
 #
 
 STRIP=$1
 VICEVERSION=$2
 ENABLEARCH=$3
 ZIPKIND=$4
-X64INC=$5
-TOPSRCDIR=$6
-CPU=$7
-TOPBUILDDIR=$8
+UNZIPBIN=$5
+X64INC=$6
+TOPSRCDIR=$7
+CPU=$8
+TOPBUILDDIR=$9
+
+shift
 CROSS=$9
 
 shift
@@ -48,6 +51,9 @@ COMPILER=$9
 
 shift
 HTML_DOCS=$9
+
+shift
+SVN_REVISION_OVERRIDE=$9
 
 
 # Try to get the SVN revision
@@ -65,10 +71,9 @@ if test "$?" = "0"; then
 fi
 
 if test "$SVN_SUFFIX" = ""; then
-  # No svnversion found, checking if there is a git svn ref
-  GIT_SVN_COMMIT_HASH=$(git -C "$TOPSRCDIR" log --grep='git-svn-id:' -n 1 --pretty=format:"%H")
-  if test "$GIT_SVN_COMMIT_HASH" != ""; then
-    SVN_SUFFIX="-r$(git svn find-rev $GIT_SVN_COMMIT_HASH)"
+  # No svnversion found, fall back to the revision override, if available
+  if test "x$SVN_REVISION_OVERRIDE" != "x"; then
+    SVN_SUFFIX="-r$SVN_REVISION_OVERRIDE"
   fi
 fi
 
@@ -137,15 +142,18 @@ if test x"$CROSS" != "xtrue"; then
   cp --parents lib/gdk-pixbuf-2.0/2.*/loaders.cache lib/gdk-pixbuf-2.0/2.*/loaders/libpixbufloader-{png,svg,xpm}.dll $BUILDPATH
   # GTK3 accepts having only scalable icons,
   # which reduces the bindist size considerably.
-  cp --parents -a share/icons/Adwaita/{index.*,scalable} $BUILDPATH
-  rm -r $BUILDPATH/share/icons/Adwaita/scalable/emotes
+  cp --parents -a share/icons/Adwaita/{index.*,scalable,symbolic} $BUILDPATH
   cp --parents share/icons/hicolor/index.theme $BUILDPATH
   cp --parents share/glib-2.0/schemas/gschemas.compiled $BUILDPATH
   cp bin/gspawn-win??-helper*.exe $BUILDPATH/bin
   cd - >/dev/null
-  if grep -q '^#define EXTERNAL_FFMPEG ' $TOPBUILDDIR/src/config.h
-    then cp -u `ntldd -R $MINGW_PREFIX/bin/avfilter-*.dll|gawk '/\\\\bin\\\\/{print $3;}'|cygpath -f -` $BUILDPATH/bin
+
+  # drop unzip.exe and its dependencies in the bin/ =)
+  if test x"$UNZIPBIN" != "xno"; then
+    cp $UNZIPBIN $BUILDPATH/bin
+    cp `ntldd -R $UNZIPBIN | gawk '/\\\\bin\\\\/{print $3;}' | cygpath -f -` $BUILDPATH/bin
   fi
+
 else
 
 # The following lines assume a cross compiler,
@@ -203,7 +211,6 @@ else
 # Empty line after even the last entry is required, otherwise the parser fails. A little sucky.
 EOF
   cp --parents -a share/icons/Adwaita/{index.*,scalable} $BUILDPATH
-  rm -r -f $BUILDPATH/share/icons/Adwaita/scalable/emotes
   # Breaks: no hicolor/ in either Debian or Fedora, but doesn't seem to matter
   cp --parents share/icons/hicolor/index.theme $BUILDPATH
   cp --parents share/glib-2.0/schemas/gschemas.compiled $BUILDPATH
@@ -231,9 +238,10 @@ cp -a $TOPSRCDIR/data/SCPU64 $TOPSRCDIR/data/VIC20 $BUILDPATH
 rm -f `find $BUILDPATH -name "Makefile*"`
 rm -f `find $BUILDPATH -name "sdl_*"`
 mkdir $BUILDPATH/common
+mkdir $BUILDPATH/hotkeys
 cp $TOPBUILDDIR/data/common/vice.gresource $BUILDPATH/common
 cp $TOPSRCDIR/data/common/C64_Pro_Mono-STYLE.ttf $BUILDPATH/common
-cp $TOPSRCDIR/data/common/*.vhk $BUILDPATH/common
+cp $TOPSRCDIR/data/hotkeys/*.vhk $BUILDPATH/hotkeys
 
 #if test x"$HTML_DOCS" = "xyes"; then
 #    cp -a $TOPSRCDIR/doc/html $BUILDPATH

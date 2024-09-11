@@ -37,10 +37,10 @@
 #include <stdbool.h>
 
 #include "basedialogs.h"
-#include "hotkeymap.h"
 #include "hotkeys.h"
 #include "resources.h"
 #include "uiactions.h"
+#include "uihotkeys.h"
 #include "uihotkeysload.h"
 #include "uihotkeyssave.h"
 #include "uistatusbar.h"
@@ -48,112 +48,108 @@
 #include "actions-hotkeys.h"
 
 
-/** \brief  Clear all hotkeys */
-static void hotkeys_clear_action(void)
+/** \brief  Clear all hotkeys action
+ *
+ * \param[in]   self    action map
+ */
+static void hotkeys_clear_action(ui_action_map_t *self)
 {
     ui_display_statustext("Clearing all hotkeys.", 1);
-    ui_clear_hotkeys();
+    ui_hotkeys_remove_all();
 }
 
-/** \brief  Load default hotkeys */
-static void hotkeys_default_action(void)
+/** \brief  Load default hotkeys action
+ *
+ * \param[in]   self    action map
+ */
+static void hotkeys_default_action(ui_action_map_t *self)
 {
     ui_display_statustext("Loading default hotkeys.", 1);
-    ui_hotkeys_load_default();
+    ui_hotkeys_load_vice_default();
 }
 
 /** \brief  Reload current hotkeys file
  *
  * Either load the file in "HotkeyFile" or load the default hotkeys.
+ *
+ * \param[in]   self    action map
  */
-static void hotkeys_load_action(void)
+static void hotkeys_load_action(ui_action_map_t *self)
 {
-    const char *hotkeys_file = NULL;
-
     ui_display_statustext("Reloading current hotkeys.", 1);
-    ui_clear_hotkeys();
-
-    resources_get_string("HotkeyFile", &hotkeys_file);
-    if (hotkeys_file != NULL && *hotkeys_file != '\0') {
-        /* parse the custom hotkeys file */
-        ui_hotkeys_parse(hotkeys_file);
-    } else {
-        ui_hotkeys_load_default();
-    }
+    ui_hotkeys_remove_all();
+    ui_hotkeys_reload();
 }
 
-/** \brief  Pop up dialog to load hotkeys from a specific file */
-static void hotkeys_load_from_action(void)
+/** \brief  Pop up dialog to load hotkeys from a specific file
+ *
+ * \param[in]   self    action map
+ */
+static void hotkeys_load_from_action(ui_action_map_t *self)
 {
     ui_hotkeys_load_dialog_show(NULL);
 }
 
 /** \brief  Save hotkeys to current hotkeys file
  *
- * If the default hotkeys are loaded, don't save anything
+ * If the default hotkeys are loaded, don't save anything.
+ *
+ * \param[in]   self    action map
  */
-static void hotkeys_save_action(void)
+static void hotkeys_save_action(ui_action_map_t *self)
 {
-    const char *hotkeyfile = NULL;
-
-    resources_get_string("HotkeyFile", &hotkeyfile);
-    if (hotkeyfile != NULL && *hotkeyfile != '\0') {
-        char buffer[1024];
-
-        if (ui_hotkeys_export(hotkeyfile)) {
-            g_snprintf(buffer, sizeof(buffer),
-                       "Succesfully wrote hotkeys to %s", hotkeyfile);
-        } else {
-            g_snprintf(buffer, sizeof(buffer),
-                       "Failed to write hotkeys to %s", hotkeyfile);
-        }
-        ui_display_statustext(buffer, 1);
+    if (ui_hotkeys_save()) {
+        ui_display_statustext("Hotkeys saved succesfully.", 1);
     } else {
-        ui_display_statustext("Writing hotkeys to default file is not allowed", 1);
+        /* TODO: a little more info on why it failed perhaps? */
+        ui_display_statustext("Failed to save hotkeys.", 1);
     }
 }
 
 /** \brief  Pop up a dialog to save hotkeys to file
+ *
+ * \param[in]   self    action map
  */
-static void hotkeys_save_to_action(void)
+static void hotkeys_save_to_action(ui_action_map_t *self)
 {
     ui_hotkeys_save_dialog_show();
 }
 
+
 /** \brief  List of actions for hotkeys management */
 static const ui_action_map_t hotkeys_actions[] = {
     {
-        .action = ACTION_HOTKEYS_CLEAR,
-        .handler = hotkeys_clear_action,
+        .action   = ACTION_HOTKEYS_CLEAR,
+        .handler  = hotkeys_clear_action,
         .uithread = true
     },
     {
-        .action = ACTION_HOTKEYS_DEFAULT,
-        .handler = hotkeys_default_action,
+        .action   = ACTION_HOTKEYS_DEFAULT,
+        .handler  = hotkeys_default_action,
         .uithread = true
     },
     {
-        .action = ACTION_HOTKEYS_LOAD,
-        .handler = hotkeys_load_action,
+        .action   = ACTION_HOTKEYS_LOAD,
+        .handler  = hotkeys_load_action,
         .uithread = true
     },
     {
-        .action = ACTION_HOTKEYS_LOAD_FROM,
-        .handler = hotkeys_load_from_action,
-        .blocks = true,
-        .dialog = true,
+        .action   = ACTION_HOTKEYS_LOAD_FROM,
+        .handler  = hotkeys_load_from_action,
+        .blocks   = true,
+        .dialog   = true,
         .uithread = true
     },
     {
-        .action = ACTION_HOTKEYS_SAVE,
-        .handler = hotkeys_save_action,
+        .action   = ACTION_HOTKEYS_SAVE,
+        .handler  = hotkeys_save_action,
         .uithread = true
     },
     {
-        .action = ACTION_HOTKEYS_SAVE_TO,
-        .handler = hotkeys_save_to_action,
-        .blocks = true,
-        .dialog = true,
+        .action   = ACTION_HOTKEYS_SAVE_TO,
+        .handler  = hotkeys_save_to_action,
+        .blocks   = true,
+        .dialog   = true,
         .uithread = true
     },
 

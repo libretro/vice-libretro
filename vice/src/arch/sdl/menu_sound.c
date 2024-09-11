@@ -32,12 +32,15 @@
 
 #include "lib.h"
 #include "menu_common.h"
-#include "menu_sound.h"
 #include "resources.h"
 #include "sound.h"
+#include "uiactions.h"
 #include "uifilereq.h"
 #include "uimenu.h"
 #include "util.h"
+
+#include "menu_sound.h"
+
 
 UI_MENU_DEFINE_TOGGLE(Sound)
 UI_MENU_DEFINE_RADIO(SoundSampleRate)
@@ -116,252 +119,154 @@ static UI_MENU_CALLBACK(custom_frequency_callback)
     return NULL;
 }
 
-static UI_MENU_CALLBACK(start_recording_callback)
+static ui_menu_entry_t sound_output_dyn_menu[SOUND_DEVICE_PLAYBACK_MAX + 1];
+
+static int sound_output_dyn_menu_init = 0;
+
+static void sdl_menu_sound_output_free(void)
 {
-    char *parameter = (char *)param;
+    int i;
 
-    if (activated) {
-        resources_set_string("SoundRecordDeviceName", "");
-        if (parameter != NULL) {
-            char *name = NULL;
-
-            name = sdl_ui_file_selection_dialog("Choose audio file to record to", FILEREQ_MODE_CHOOSE_FILE);
-            if (name != NULL) {
-                util_add_extension(&name, parameter);
-                resources_set_string("SoundRecordDeviceArg", name);
-                resources_set_string("SoundRecordDeviceName", parameter);
-                lib_free(name);
-            }
-        }
-    } else {
-        if (parameter != NULL) {
-            const char *w;
-
-            resources_get_string("SoundRecordDeviceName", &w);
-            if (!strcmp(w, parameter)) {
-                return sdl_menu_text_tick;
-            }
-        }
+    for (i = 0; sound_output_dyn_menu[i].string != NULL; i++) {
+        lib_free(sound_output_dyn_menu[i].string);
+        lib_free(sound_output_dyn_menu[i].data);
     }
-    return NULL;
 }
 
-static ui_menu_entry_t sound_output_driver_menu[] = {
-#ifdef USE_ALSA
-    { "ALSA",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundDeviceName_callback,
-      (ui_callback_data_t)"alsa" },
-#endif
-#ifdef BEOS_COMPILE
-    { "BeOS GameSound",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundDeviceName_callback,
-      (ui_callback_data_t)"beos" },
-    { "BeOS SoundPlayer",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundDeviceName_callback,
-      (ui_callback_data_t)"bsp" },
-#endif
-#ifdef USE_COREAUDIO
-    { "Core Audio",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundDeviceName_callback,
-      (ui_callback_data_t)"coreaudio" },
-#endif
-    { "Dummy",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundDeviceName_callback,
-      (ui_callback_data_t)"dummy" },
-#if defined(WINDOWS_COMPILE) && defined(USE_DXSOUND)
-    { "DirectX",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundDeviceName_callback,
-      (ui_callback_data_t)"dx" },
-#endif
-#ifdef USE_PULSE
-    { "PulseAudio",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundDeviceName_callback,
-      (ui_callback_data_t)"pulse" },
-#endif
-#ifdef USE_SDL_AUDIO
-    { "SDL",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundDeviceName_callback,
-      (ui_callback_data_t)"sdl" },
-#endif
-#ifdef USE_DMEDIA
-    { "SGI",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundDeviceName_callback,
-      (ui_callback_data_t)"sgi" },
-#endif
-#if defined(HAVE_SYS_AUDIOIO_H) && !defined(OPENBSD_COMPILE)
-# if !defined(NETBSD_COMPILE)
-    { "Sun audio",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundDeviceName_callback,
-      (ui_callback_data_t)"sun" },
-# else
-    { "NetBSD",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundDeviceName_callback,
-      (ui_callback_data_t)"netbsd" },
-# endif
-#endif
-#if defined(USE_OSS) && !defined(FREEBSD_COMPILE)
-    { "OSS",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundDeviceName_callback,
-      (ui_callback_data_t)"uss" },
-#endif
-#ifdef WINDOWS_COMPILE
-    { "WMM",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundDeviceName_callback,
-      (ui_callback_data_t)"wmm" },
-#endif
-    SDL_MENU_LIST_END
-};
+static UI_MENU_CALLBACK(SoundOutput_dynmenu_callback)
+{
+    sound_desc_t *devices = sound_get_valid_devices(SOUND_PLAYBACK_DEVICE, 1);
+    int i;
+
+    /* rebuild menu if it already exists. */
+    if (sound_output_dyn_menu_init != 0) {
+        sdl_menu_sound_output_free();
+    } else {
+        sound_output_dyn_menu_init = 1;
+    }
+
+    for (i = 0; devices[i].name; ++i) {
+        sound_output_dyn_menu[i].action   = ACTION_NONE;
+        sound_output_dyn_menu[i].string   = lib_strdup(devices[i].description);
+        sound_output_dyn_menu[i].type     = MENU_ENTRY_RESOURCE_RADIO;
+        sound_output_dyn_menu[i].callback = radio_SoundDeviceName_callback;
+        sound_output_dyn_menu[i].data     = (ui_callback_data_t)lib_strdup(devices[i].name);
+    }
+    sound_output_dyn_menu[i].string = NULL;
+
+    lib_free(devices);
+
+    return MENU_SUBMENU_STRING;
+}
 
 static ui_menu_entry_t sound_output_mode_menu[] = {
-    { "System",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundOutput_callback,
-      (ui_callback_data_t)SOUND_OUTPUT_SYSTEM },
-    { "Mono",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundOutput_callback,
-      (ui_callback_data_t)SOUND_OUTPUT_MONO },
-    { "Stereo",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundOutput_callback,
-      (ui_callback_data_t)SOUND_OUTPUT_STEREO },
+    {   .string   = "System",
+        .type     = MENU_ENTRY_RESOURCE_RADIO,
+        .callback = radio_SoundOutput_callback,
+        .data     = (ui_callback_data_t)SOUND_OUTPUT_SYSTEM
+    },
+    {   .string   = "Mono",
+        .type     = MENU_ENTRY_RESOURCE_RADIO,
+        .callback = radio_SoundOutput_callback,
+        .data     = (ui_callback_data_t)SOUND_OUTPUT_MONO
+    },
+    {   .string   = "Stereo",
+        .type     = MENU_ENTRY_RESOURCE_RADIO,
+        .callback = radio_SoundOutput_callback,
+        .data     = (ui_callback_data_t)SOUND_OUTPUT_STEREO
+    },
     SDL_MENU_LIST_END
 };
 
 static ui_menu_entry_t fragment_size_menu[] = {
-    { "Very small",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundFragmentSize_callback,
-      (ui_callback_data_t)SOUND_FRAGMENT_VERY_SMALL },
-    { "Small",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundFragmentSize_callback,
-      (ui_callback_data_t)SOUND_FRAGMENT_SMALL },
-    { "Medium",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundFragmentSize_callback,
-      (ui_callback_data_t)SOUND_FRAGMENT_MEDIUM },
-    { "Large",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundFragmentSize_callback,
-      (ui_callback_data_t)SOUND_FRAGMENT_LARGE },
-    { "Very large",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundFragmentSize_callback,
-      (ui_callback_data_t)SOUND_FRAGMENT_VERY_LARGE },
-    SDL_MENU_LIST_END
-};
-
-const ui_menu_entry_t sound_record_menu[] = {
-    { "Start recording AIFF audio file",
-      MENU_ENTRY_DIALOG,
-      start_recording_callback,
-      (ui_callback_data_t)"aiff" },
-    { "Start recording IFF audio file",
-      MENU_ENTRY_DIALOG,
-      start_recording_callback,
-      (ui_callback_data_t)"iff" },
-#ifdef USE_LAMEMP3
-    { "Start recording MP3 audio file",
-      MENU_ENTRY_DIALOG,
-      start_recording_callback,
-      (ui_callback_data_t)"mp3" },
-#endif
-#ifdef USE_FLAC
-    { "Start recording FLAC audio file",
-      MENU_ENTRY_DIALOG,
-      start_recording_callback,
-      (ui_callback_data_t)"flac" },
-#endif
-#ifdef USE_VORBIS
-    { "Start recording ogg/vorbis audio file",
-      MENU_ENTRY_DIALOG,
-      start_recording_callback,
-      (ui_callback_data_t)"ogg" },
-#endif
-    { "Start recording VOC audio file",
-      MENU_ENTRY_DIALOG,
-      start_recording_callback,
-      (ui_callback_data_t)"voc" },
-    { "Start recording WAV audio file",
-      MENU_ENTRY_DIALOG,
-      start_recording_callback,
-      (ui_callback_data_t)"wav" },
-    SDL_MENU_ITEM_SEPARATOR,
-    { "Start recording RAW audio file",
-      MENU_ENTRY_DIALOG,
-      start_recording_callback,
-      (ui_callback_data_t)"fs" },
-    SDL_MENU_ITEM_SEPARATOR,
-    { "Start recording sound dump file",
-      MENU_ENTRY_DIALOG,
-      start_recording_callback,
-      (ui_callback_data_t)"dump" },
-    SDL_MENU_ITEM_SEPARATOR,
-    { "Stop recording",
-      MENU_ENTRY_OTHER,
-      start_recording_callback,
-      NULL },
+    {   .string   = "Very small",
+        .type     = MENU_ENTRY_RESOURCE_RADIO,
+        .callback = radio_SoundFragmentSize_callback,
+        .data     = (ui_callback_data_t)SOUND_FRAGMENT_VERY_SMALL
+    },
+    {   .string   = "Small",
+        .type     = MENU_ENTRY_RESOURCE_RADIO,
+        .callback = radio_SoundFragmentSize_callback,
+        .data     = (ui_callback_data_t)SOUND_FRAGMENT_SMALL
+    },
+    {   .string   = "Medium",
+        .type     = MENU_ENTRY_RESOURCE_RADIO,
+        .callback = radio_SoundFragmentSize_callback,
+        .data     = (ui_callback_data_t)SOUND_FRAGMENT_MEDIUM
+    },
+    {   .string   = "Large",
+        .type     = MENU_ENTRY_RESOURCE_RADIO,
+        .callback = radio_SoundFragmentSize_callback,
+        .data     = (ui_callback_data_t)SOUND_FRAGMENT_LARGE
+    },
+    {   .string   = "Very large",
+        .type     = MENU_ENTRY_RESOURCE_RADIO,
+        .callback = radio_SoundFragmentSize_callback,
+        .data     = (ui_callback_data_t)SOUND_FRAGMENT_VERY_LARGE
+    },
     SDL_MENU_LIST_END
 };
 
 const ui_menu_entry_t sound_output_menu[] = {
-    { "Sound",
-      MENU_ENTRY_RESOURCE_TOGGLE,
-      toggle_Sound_callback,
-      NULL },
-    { "Volume",
-      MENU_ENTRY_DIALOG,
-      custom_volume_callback,
-      NULL },
+    {   .string   = "Sound",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_Sound_callback
+    },
+    {   .string   = "Volume",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = custom_volume_callback
+    },
     SDL_MENU_ITEM_SEPARATOR,
-    { "Output driver",
-      MENU_ENTRY_SUBMENU,
-      submenu_radio_callback,
-      (ui_callback_data_t)sound_output_driver_menu },
-    { "Output Mode",
-      MENU_ENTRY_SUBMENU,
-      submenu_radio_callback,
-      (ui_callback_data_t)sound_output_mode_menu },
-    { "Buffer size",
-      MENU_ENTRY_DIALOG,
-      custom_buffer_size_callback,
-      NULL },
-    { "Fragment size",
-      MENU_ENTRY_SUBMENU,
-      submenu_radio_callback,
-      (ui_callback_data_t)fragment_size_menu },
-    SDL_MENU_ITEM_SEPARATOR,
-    SDL_MENU_ITEM_TITLE("Frequency"),
-    { "22050 Hz",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundSampleRate_callback,
-      (ui_callback_data_t)22050 },
-    { "44100 Hz",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundSampleRate_callback,
-      (ui_callback_data_t)44100 },
-    { "48000 Hz",
-      MENU_ENTRY_RESOURCE_RADIO,
-      radio_SoundSampleRate_callback,
-      (ui_callback_data_t)48000 },
-    { "Custom frequency",
-      MENU_ENTRY_DIALOG,
-      custom_frequency_callback,
-      NULL },
 
+    {   .string   = "Output driver",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = SoundOutput_dynmenu_callback,
+        .data     = (ui_callback_data_t)sound_output_dyn_menu
+    },
+    {   .string   = "Output Mode",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_radio_callback,
+        .data     = (ui_callback_data_t)sound_output_mode_menu
+    },
+    {   .string   = "Buffer size",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = custom_buffer_size_callback
+    },
+    {   .string   = "Fragment size",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_radio_callback,
+        .data     = (ui_callback_data_t)fragment_size_menu
+    },
+    SDL_MENU_ITEM_SEPARATOR,
+
+    SDL_MENU_ITEM_TITLE("Frequency"),
+    {   .string   = "22050 Hz",
+        .type     = MENU_ENTRY_RESOURCE_RADIO,
+        .callback = radio_SoundSampleRate_callback,
+        .data     = (ui_callback_data_t)22050
+    },
+    {   .string   = "44100 Hz",
+        .type     = MENU_ENTRY_RESOURCE_RADIO,
+        .callback = radio_SoundSampleRate_callback,
+        .data     = (ui_callback_data_t)44100
+    },
+    {   .string   = "48000 Hz",
+        .type     = MENU_ENTRY_RESOURCE_RADIO,
+        .callback = radio_SoundSampleRate_callback,
+        .data     = (ui_callback_data_t)48000
+    },
+    {   .string   = "Custom frequency",
+        .type     = MENU_ENTRY_DIALOG,
+        .callback = custom_frequency_callback
+    },
     SDL_MENU_LIST_END
 };
+
+/** \brief  Clean up memory used by the dynamically created sound output menus
+ */
+void uisound_output_menu_shutdown(void)
+{
+    if (sound_output_dyn_menu_init) {
+        sdl_menu_sound_output_free();
+    }
+}

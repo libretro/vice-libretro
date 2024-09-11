@@ -45,19 +45,6 @@
 #include "resourcescale.h"
 
 
-/** \brief  Handler for the 'destroy' event of the \a scale widget
- *
- * Frees memory used by the copy of the resource name.
- *
- * \param[in,out]   widget      integer scale widget
- * \param[in]       user_data   extra event data (unused)
- */
-static void on_scale_int_destroy(GtkWidget *widget, gpointer user_data)
-{
-    resource_widget_free_resource_name(widget);
-}
-
-
 /** \brief  Handler for the 'value-changed' event of the \a scale widget
  *
  * Updates resource value.
@@ -68,13 +55,14 @@ static void on_scale_int_destroy(GtkWidget *widget, gpointer user_data)
 static void on_scale_int_changed(GtkWidget *widget, gpointer user_data)
 {
     const char *resource;
-    int old_val;
-    int new_val;
+    int         old_val = 0;
+    int         new_val;
 
     resource = resource_widget_get_resource_name(widget);
     if (resources_get_int(resource, &old_val) < 0) {
-        log_error(LOG_ERR, "failed to get value for resource '%s'\n",
-                resource);
+        log_error(LOG_ERR,
+                  "%s(): failed to get value for resource '%s'\n",
+                  __func__, resource);
         return;
     }
     new_val = (int)gtk_range_get_value(GTK_RANGE(widget));
@@ -112,9 +100,10 @@ static GtkWidget *resource_scale_int_new_helper(GtkWidget *widget)
 
     gtk_range_set_value(GTK_RANGE(widget), (gdouble)value);
 
-    g_signal_connect(widget, "value-changed", G_CALLBACK(on_scale_int_changed),
-            NULL);
-    g_signal_connect_unlocked(widget, "destroy", G_CALLBACK(on_scale_int_destroy), NULL);
+    g_signal_connect(widget,
+                     "value-changed",
+                     G_CALLBACK(on_scale_int_changed),
+                     NULL);
 
     gtk_widget_show(widget);
     return widget;
@@ -131,10 +120,11 @@ static GtkWidget *resource_scale_int_new_helper(GtkWidget *widget)
  *
  * \return  GtkScale
  */
-GtkWidget *vice_gtk3_resource_scale_int_new(
-        const char *resource,
-        GtkOrientation orientation,
-        int low, int high, int step)
+GtkWidget *vice_gtk3_resource_scale_int_new(const char *resource,
+                                            GtkOrientation orientation,
+                                            int low,
+                                            int high,
+                                            int step)
 {
     GtkWidget *scale;
 
@@ -157,22 +147,23 @@ GtkWidget *vice_gtk3_resource_scale_int_new(
  *
  * \return  GtkScale
  */
-GtkWidget *vice_gtk3_resource_scale_int_new_sprintf(
-        const char *fmt,
-        GtkOrientation orientation,
-        int low, int high, int step,
-        ...)
+GtkWidget *vice_gtk3_resource_scale_int_new_sprintf(const char *fmt,
+                                                    GtkOrientation orientation,
+                                                    int low,
+                                                    int high,
+                                                    int step,
+                                                    ...)
 {
     GtkWidget *scale;
-    char *resource;
-    va_list args;
+    va_list    args;
 
     scale = gtk_scale_new_with_range(orientation,
-            (gdouble)low, (gdouble)high, (gdouble)step);
+                                     (gdouble)low,
+                                     (gdouble)high,
+                                     (gdouble)step);
 
     va_start(args, step);
-    resource = lib_mvsprintf(fmt, args);
-    g_object_set_data(G_OBJECT(scale), "ResourceName", (gpointer)resource);
+    resource_widget_set_resource_name_valist(scale, fmt, args);
     va_end(args);
 
     return resource_scale_int_new_helper(scale);
@@ -309,7 +300,6 @@ static gdouble custom_resource_to_display(GtkWidget *self, int value);
  */
 static void on_scale_custom_destroy(GtkWidget *widget, gpointer user_data)
 {
-    resource_widget_free_resource_name(widget);
     resource_widget_free_string(widget, "DisplayFormat");
 }
 
@@ -507,24 +497,24 @@ static GtkWidget *custom_new_helper(GtkWidget *self,
     display_value = custom_get_display_value(self);
     gtk_range_set_value(GTK_RANGE(self), display_value);
 
-    g_signal_connect(self, "destroy", G_CALLBACK(on_scale_custom_destroy), NULL);
     changed_handler = g_signal_connect(self,
                                        "value-changed",
                                        G_CALLBACK(on_custom_changed),
                                        NULL);
+    format_handler = g_signal_connect_unlocked(self,
+                                               "format-value",
+                                               G_CALLBACK(on_custom_format),
+                                               NULL);
+    g_signal_connect_unlocked(self,
+                              "destroy",
+                              G_CALLBACK(on_scale_custom_destroy),
+                              NULL);
     g_object_set_data(G_OBJECT(self),
                      "ChangedHandler",
                      GULONG_TO_POINTER(changed_handler));
-
-    format_handler = g_signal_connect(self,
-                                      "format-value",
-                                      G_CALLBACK(on_custom_format),
-                                      NULL);
     g_object_set_data(G_OBJECT(self),
                      "FormatHandler",
                      GULONG_TO_POINTER(format_handler));
-
-
     return self;
 }
 
@@ -606,15 +596,12 @@ GtkWidget *vice_gtk3_resource_scale_custom_new_printf(
     /* create resource name */
     va_start(args, display_fmt);
     resource_name = lib_mvsprintf(resource, args);
+    va_end(args);
 #if 0
     debug_gtk3("Formatted resource name: '%s'.", resource_name);
 #endif
-
-    /* manually set the resource name because resource_widget_set_resource_name()
-     * creates a heap-allocated copy of its argument and we'd end up malloc'ing
-     * and free'ing twice */
-    g_object_set_data(G_OBJECT(scale), "ResourceName", (gpointer)resource_name);
-    va_end(args);
+    resource_widget_set_resource_name(scale, resource_name);
+    lib_free(resource_name);
 
     return custom_new_helper(scale, resource_low, resource_high, display_fmt);
 }
@@ -751,7 +738,6 @@ static gint exp_resource_to_slider(GtkWidget *self, gint value);
  */
 static void on_scale_exp_destroy(GtkWidget *widget, gpointer user_data)
 {
-    resource_widget_free_resource_name(widget);
     resource_widget_free_string(widget, "DisplayFormat");
 }
 
@@ -918,23 +904,24 @@ static GtkWidget *exp_new_helper(GtkWidget *self,
 
     vice_gtk3_resource_exp_range_set_value(GTK_RANGE(self), resource_value);
 
-    g_signal_connect(self, "destroy", G_CALLBACK(on_scale_exp_destroy), NULL);
     changed_handler = g_signal_connect(self,
                                        "value-changed",
                                        G_CALLBACK(on_exp_changed),
                                        NULL);
+    format_handler = g_signal_connect_unlocked(self,
+                                               "format-value",
+                                               G_CALLBACK(on_exp_format),
+                                               NULL);
+    g_signal_connect_unlocked(self,
+                              "destroy",
+                              G_CALLBACK(on_scale_exp_destroy),
+                              NULL);
     g_object_set_data(G_OBJECT(self),
                      "ChangedHandler",
                      GULONG_TO_POINTER(changed_handler));
-
-    format_handler = g_signal_connect(self,
-                                      "format-value",
-                                      G_CALLBACK(on_exp_format),
-                                      NULL);
     g_object_set_data(G_OBJECT(self),
                      "FormatHandler",
                      GULONG_TO_POINTER(format_handler));
-
 
     return self;
 }

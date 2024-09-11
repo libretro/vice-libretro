@@ -140,9 +140,9 @@ am__depfiles_remade = ./$(DEPDIR)/lamelib.Po ./$(DEPDIR)/soundaiff.Po \
 	./$(DEPDIR)/soundfs.Po ./$(DEPDIR)/soundiff.Po \
 	./$(DEPDIR)/soundmovie.Po ./$(DEPDIR)/soundmp3.Po \
 	./$(DEPDIR)/soundpulse.Po ./$(DEPDIR)/soundsdl.Po \
-	./$(DEPDIR)/soundsun.Po ./$(DEPDIR)/sounduss.Po \
-	./$(DEPDIR)/soundvoc.Po ./$(DEPDIR)/soundvorbis.Po \
-	./$(DEPDIR)/soundwav.Po ./$(DEPDIR)/soundwmm.Po
+	./$(DEPDIR)/soundsun.Po ./$(DEPDIR)/soundvoc.Po \
+	./$(DEPDIR)/soundvorbis.Po ./$(DEPDIR)/soundwav.Po \
+	./$(DEPDIR)/soundwmm.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -264,7 +264,6 @@ GLIB_LIBS = @GLIB_LIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 HAVE_CXX11 = @HAVE_CXX11@
-HAVE_READLINE = @HAVE_READLINE@
 ICONV = @ICONV@
 ICOTOOL = @ICOTOOL@
 INLINE_UNIT_GROWTH = @INLINE_UNIT_GROWTH@
@@ -311,8 +310,6 @@ PNG_LIBS = @PNG_LIBS@
 PROGRAM_PREFIX = @PROGRAM_PREFIX@
 PROGRAM_SUFFIX = @PROGRAM_SUFFIX@
 RANLIB = @RANLIB@
-READLINE = @READLINE@
-READLINE_LIBS = @READLINE_LIBS@
 RESIDDTVSUB = @RESIDDTVSUB@
 RESIDSUB = @RESIDSUB@
 RESID_DEP = @RESID_DEP@
@@ -337,7 +334,6 @@ SOUND_DRIVERS = @SOUND_DRIVERS@
 SOUND_LIBS = @SOUND_LIBS@
 SOUND_MIDAS_OBJ = @SOUND_MIDAS_OBJ@
 SOUND_SDL_OBJ = @SOUND_SDL_OBJ@
-SOUND_USS_OBJ = @SOUND_USS_OBJ@
 STRIP = @STRIP@
 SVN = @SVN@
 SVNVERSION = @SVNVERSION@
@@ -346,6 +342,7 @@ TAR = @TAR@
 TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
+UNZIPBIN = @UNZIPBIN@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -458,7 +455,6 @@ EXTRA_libsounddrv_a_SOURCES = \
 	soundpulse.c \
 	soundsdl.c \
 	soundsun.c \
-	sounduss.c \
 	soundvorbis.c \
 	soundwmm.c \
 	lamelib.c
@@ -557,7 +553,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/soundpulse.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/soundsdl.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/soundsun.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sounduss.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/soundvoc.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/soundvorbis.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/soundwav.Po@am__quote@ # am--include-marker
@@ -737,7 +732,6 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/soundpulse.Po
 	-rm -f ./$(DEPDIR)/soundsdl.Po
 	-rm -f ./$(DEPDIR)/soundsun.Po
-	-rm -f ./$(DEPDIR)/sounduss.Po
 	-rm -f ./$(DEPDIR)/soundvoc.Po
 	-rm -f ./$(DEPDIR)/soundvorbis.Po
 	-rm -f ./$(DEPDIR)/soundwav.Po
@@ -804,7 +798,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/soundpulse.Po
 	-rm -f ./$(DEPDIR)/soundsdl.Po
 	-rm -f ./$(DEPDIR)/soundsun.Po
-	-rm -f ./$(DEPDIR)/sounduss.Po
 	-rm -f ./$(DEPDIR)/soundvoc.Po
 	-rm -f ./$(DEPDIR)/soundvorbis.Po
 	-rm -f ./$(DEPDIR)/soundwav.Po

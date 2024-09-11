@@ -11,24 +11,26 @@
  * $VICERES BasicName           x64 x64sc xscpu64 xvic xplus4 xcbm5x0 xcbm2 xpet
  * $VICERES ChargenName         x64 x64sc xscpu64 xvic xcbm5x0 xcbm2 xpet
  * $VICERES SCPU64Name          xscpu64
- * $VICERES KernalIntName       x128
+ * $VICERES KernalCHName        x128
  * $VICERES KernalDEName        x128
  * $VICERES KernalFIName        x128
  * $VICERES KernalFRName        x128
  * $VICERES KernalITName        x128
+ * $VICERES KernalIntName       x128
  * $VICERES KernalNOName        x128
  * $VICERES KernalSEName        x128
- * $VICERES KernalCHName        x128
  * $VICERES BasicLoName         x128
  * $VICERES BasicHiName         x128
  * $VICERES Kernal64Name        x128
  * $VICERES Basic64Name         x128
- * $VICERES ChargenIntName      x128
- * $VICERES ChargenDEName       x128
- * $VICERES ChargenFRName       x128
- * $VICERES ChargenSEName       x128
  * $VICERES ChargenCHName       x128
+ * $VICERES ChargenDEName       x128
+ * $VICERES ChargenFIName       x128
+ * $VICERES ChargenFRName       x128
+ * $VICERES ChargenITName       x128
+ * $VICERES ChargenIntName      x128
  * $VICERES ChargenNOName       x128
+ * $VICERES ChargenSEName       x128
  * $VICERES FunctionLowName     xplus4
  * $VICERES FunctionHighName    xplus4
  * $VICERES c1loName            xplus4
@@ -190,9 +192,9 @@ static const romset_entry_t scpu64_machine_roms[] = {
  */
 static const romset_entry_t c128_machine_roms[] = {
     { "KernalIntName",  "International Kernal",     NULL },
-    { "KernalDEName",   "German Kernal",            NULL },
     { "KernalFIName",   "Finnish Kernal",           NULL },
     { "KernalFRName",   "French Kernal",            NULL },
+    { "KernalDEName",   "German Kernal",            NULL },
     { "KernalITName",   "Italian Kernal",           NULL },
     { "KernalNOName",   "Norwegian Kernal",         NULL },
     { "KernalSEName",   "Swedish Kernal",           NULL },
@@ -211,11 +213,13 @@ static const romset_entry_t c128_machine_roms[] = {
  */
 static const romset_entry_t c128_chargen_roms[] = {
     { "ChargenIntName", "International Chargen",    NULL },
-    { "ChargenDEName",  "German Chargen",           NULL },
+    { "ChargenFIName",  "Finnish Chargen",           NULL },
     { "ChargenFRName",  "French Chargen",           NULL },
+    { "ChargenDEName",  "German Chargen",           NULL },
+    { "ChargenITName",  "Italian Chargen",          NULL },
+    { "ChargenNOName",  "Norwegian Chargen",        NULL },
     { "ChargenSEName",  "Swedish Chargen",          NULL },
     { "ChargenCHName",  "Swiss Chargen",            NULL },
-    { "ChargenNOName",  "Norwegian Chargen",        NULL },
     { NULL,             NULL,                       NULL }
 };
 
@@ -319,7 +323,9 @@ static const romset_entry_t c128_drive_roms[] = {
  * Expansion roms for 1540, 1541, 1541-II and 1571.
  */
 static const romset_entry_t c64_c128_drive_exp_roms[] = {
+#ifdef HAVE_EXPERIMENTAL_DEVICES
     { "DriveProfDOS1571Name",   "ProfDOS 1571", NULL },
+#endif
     { "DriveSuperCardName",     "Supercard",    NULL },
     { "DriveStarDosName",       "StarDOS",      NULL },
     { NULL,                     NULL,           NULL }
@@ -477,7 +483,7 @@ static GtkWidget* create_roms_widget(const romset_entry_t *roms, const char *pat
                 NULL);
         /* set append-dir if given */
         if (path != NULL) {
-            vice_gtk3_resource_browser_set_append_dir(browser, path);
+            vice_gtk3_resource_browser_set_directory(browser, path);
         }
         gtk_grid_attach(GTK_GRID(grid), label, 0, row, 1,  1);
         gtk_grid_attach(GTK_GRID(grid), browser, 1, row, 1, 1);

@@ -221,12 +221,7 @@ extern unsigned int turbo_pulse;
 
 extern char *fsdevice_get_path(unsigned int unit);
 
-#if defined(__XVIC__)
-void cartridge_trigger_freeze(void) {}
-#elif defined(__XCBM2__) || defined(__XCBM5x0__)
-#elif defined(__XPET__)
-#elif defined(__XPLUS4__)
-#else
+#if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__) || defined(__X128__)
 extern int cart_getid_slotmain(void);
 #endif
 
@@ -1589,11 +1584,11 @@ void update_from_vice()
    if (dc->count == 0)
    {
 #if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__) || defined(__X128__)
-      if ((attachedImage = cartridge_get_filename(cart_getid_slotmain())) != NULL)
+      if ((attachedImage = cartridge_get_filename_by_slot(cart_getid_slotmain())) != NULL)
 #elif defined(__XVIC__)
       if ((attachedImage = generic_get_file_name(0)) != NULL)
 #else
-      if ((attachedImage = cartridge_get_filename(0)) != NULL)
+      if ((attachedImage = cartridge_get_filename_by_slot(0)) != NULL)
 #endif
       {
          dc->unit = 0;
@@ -3162,12 +3157,12 @@ static void retro_set_core_options()
          "video",
          {
             { "disabled", NULL },
-            { "enabled", NULL },
-            { "enabled_medblur", "50% blur" },
-            { "enabled_lowblur", "10% blur" },
-            { "enabled_noblur", "0% blur" },
+            { "enabled_noblur", "0%" },
+            { "enabled_lowblur", "10%" },
+            { "enabled_medblur", "50%" },
+            { "enabled", "100%" },
          },
-         "enabled"
+         "enabled_medblur"
       },
 #endif
       {
@@ -3193,15 +3188,15 @@ static void retro_set_core_options()
          "video",
          {
             { "disabled", NULL },
-            { "enabled", NULL },
-            { "enabled_medblur", "50% blur" },
-            { "enabled_lowblur", "10% blur" },
-            { "enabled_noblur", "0% blur" },
+            { "enabled_noblur", "0%" },
+            { "enabled_lowblur", "10%" },
+            { "enabled_medblur", "50%" },
+            { "enabled", "100%" },
          },
 #if defined(__X64__) || defined(PSP) || defined(VITA) || defined(__SWITCH__) || defined(DINGUX) || defined(ANDROID)
          "disabled"
 #else
-         "enabled"
+         "enabled_medblur"
 #endif
       },
       {
@@ -3265,7 +3260,7 @@ static void retro_set_core_options()
             { "colodore_vic", "Colodore" },
             { "mike-pal", "Mike (PAL)" },
             { "mike-ntsc", "Mike (NTSC)" },
-            { "palette", "PALette" },
+            { "palette", "PALette 6561-101 v1" },
             { "vice", "VICE" },
             { NULL, NULL },
          },
@@ -3282,8 +3277,11 @@ static void retro_set_core_options()
          {
             { "default", "Internal" },
             { "colodore_ted", "Colodore" },
-            { "yape-pal", "Yape (PAL)" },
-            { "yape-ntsc", "Yape (NTSC)" },
+            { "ITU-R_BT601_CRT", "ITU-R BT601 CRT" },
+            { "ITU-R_BT709_HDTV", "ITU-R BT709 HDTV" },
+            { "ITU-R_BT2020", "ITU-R BT2020" },
+            { "yape-pal", "YAPE (PAL)" },
+            { "yape-ntsc", "YAPE (NTSC)" },
             { NULL, NULL },
          },
          "default"
@@ -3332,26 +3330,31 @@ static void retro_set_core_options()
          "video",
          {
             { "default", "Internal" },
-            { "cjam", "ChristopherJam" },
             { "c64hq", "C64HQ" },
             { "c64s", "C64S" },
             { "ccs64", "CCS64" },
+            { "cjam", "Christopher Jam" },
             { "colodore", "Colodore" },
             { "community-colors", "Community Colors" },
-            { "deekay", "Deekay" },
+            { "deekay", "Deekay/Crest" },
             { "frodo", "Frodo" },
             { "godot", "Godot" },
             { "palette", "PALette" },
+            { "palette_6569R1_v1r", "PALette 6569R1" },
+            { "palette_6569R5_v1r", "PALette 6569R5" },
+            { "palette_8565R2_v1r", "PALette 8565R2" },
+            { "palette_C64_amber", "PALette Amber P3/602nm" },
+            { "palette_C64_cyan", "PALette Cyan" },
+            { "palette_C64_green", "PALette Green P1/525nm" },
             { "pc64", "PC64" },
             { "pepto-pal", "Pepto (PAL)" },
-#if 0
             { "pepto-palold", "Pepto (old PAL)" },
-#endif
             { "pepto-ntsc", "Pepto (NTSC)" },
-            { "pepto-ntsc-sony", "Pepto (NTSC, Sony)" },
-            { "pixcen", "Pixcen" },
+            { "pepto-ntsc-sony", "Pepto (NTSC, Sony Matrix)" },
+            { "pixcen", "PixCen" },
             { "ptoing", "Ptoing" },
             { "rgb", "RGB" },
+            { "the64", "THE64" },
             { "vice", "VICE" },
             { NULL, NULL },
          },
@@ -3920,7 +3923,7 @@ static void retro_set_core_options()
             { "5000", NULL },
             { NULL, NULL },
          },
-         "1500"
+         "0"
       },
 #endif
 #endif
@@ -6804,6 +6807,9 @@ static void update_variables(void)
    {
       int color_gamma = atoi(var.value);
 
+      /* Correct to new default gamma in 3.8 */
+      color_gamma /= 2.8f;
+
       if (retro_ui_finalized && vice_opt.ColorGamma != color_gamma)
 #if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__)
          log_resources_set_int("VICIIColorGamma", color_gamma);
@@ -7674,7 +7680,7 @@ void emu_reset(int type)
    {
       case 0:
          /* Hard reset before autostart */
-         machine_trigger_reset(MACHINE_RESET_MODE_HARD);
+         machine_trigger_reset(MACHINE_RESET_MODE_POWER_CYCLE);
 
          /* Check command line on autostart */
          if (dc->command || CMDFILE[0])
@@ -7730,14 +7736,14 @@ void emu_reset(int type)
          }
          break;
       case 1:
-         machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+         machine_trigger_reset(MACHINE_RESET_MODE_RESET_CPU);
 
          /* Allow restarting PRGs with RUN */
          if (autostartString != NULL && autostartString[0] != '\0' && strendswith(autostartString, "prg"))
             autostart_autodetect(autostartString, autostartProgram, 0, AUTOSTART_MODE_NONE);
          break;
       case 2:
-         machine_trigger_reset(MACHINE_RESET_MODE_HARD);
+         machine_trigger_reset(MACHINE_RESET_MODE_POWER_CYCLE);
          break;
       case 3:
          cartridge_trigger_freeze();

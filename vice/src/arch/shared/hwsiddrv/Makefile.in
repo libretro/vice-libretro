@@ -94,51 +94,32 @@ host_triplet = @host@
 # Windows drivers
 @WINDOWS_COMPILE_TRUE@am__append_1 = \
 @WINDOWS_COMPILE_TRUE@	hardsid-win32-drv.o \
-@WINDOWS_COMPILE_TRUE@	hs-win32-dll.o \
-@WINDOWS_COMPILE_TRUE@	hs-win32-isa.o \
-@WINDOWS_COMPILE_TRUE@	hs-win32-pci.o
+@WINDOWS_COMPILE_TRUE@	hs-win32-dll.o
 
 @HAVE_CATWEASELMKIII_TRUE@@WINDOWS_COMPILE_TRUE@am__append_2 = \
 @HAVE_CATWEASELMKIII_TRUE@@WINDOWS_COMPILE_TRUE@	catweaselmkiii-win32-drv.o \
-@HAVE_CATWEASELMKIII_TRUE@@WINDOWS_COMPILE_TRUE@	cw-win32-dll.o \
-@HAVE_CATWEASELMKIII_TRUE@@WINDOWS_COMPILE_TRUE@	cw-win32-pci.o
+@HAVE_CATWEASELMKIII_TRUE@@WINDOWS_COMPILE_TRUE@	cw-win32-dll.o
 
 @HAVE_PARSID_TRUE@@WINDOWS_COMPILE_TRUE@am__append_3 = \
 @HAVE_PARSID_TRUE@@WINDOWS_COMPILE_TRUE@	parsid-win32-drv.o \
-@HAVE_PARSID_TRUE@@WINDOWS_COMPILE_TRUE@	ps-ieee1284.o \
-@HAVE_PARSID_TRUE@@WINDOWS_COMPILE_TRUE@	ps-win32-dll.o \
-@HAVE_PARSID_TRUE@@WINDOWS_COMPILE_TRUE@	ps-win32-io.o
+@HAVE_PARSID_TRUE@@WINDOWS_COMPILE_TRUE@	ps-ieee1284.o
 
-@HAVE_SSI2001_TRUE@@WINDOWS_COMPILE_TRUE@am__append_4 = ssi2001-win32-drv.o
-@BEOS_COMPILE_TRUE@am__append_5 = \
-@BEOS_COMPILE_TRUE@	hardsid-beos-drv.o \
-@BEOS_COMPILE_TRUE@	hs-beos-isa.o \
-@BEOS_COMPILE_TRUE@	hs-beos-pci.o
-
-@BEOS_COMPILE_TRUE@@HAVE_CATWEASELMKIII_TRUE@am__append_6 = catweaselmkiii-beos-drv.o
-@BEOS_COMPILE_TRUE@@HAVE_PARSID_TRUE@am__append_7 = \
-@BEOS_COMPILE_TRUE@@HAVE_PARSID_TRUE@	parsid-beos-drv.o \
+@BEOS_COMPILE_TRUE@@HAVE_PARSID_TRUE@am__append_4 = \
 @BEOS_COMPILE_TRUE@@HAVE_PARSID_TRUE@	ps-ieee1284.o
 
-@BEOS_COMPILE_TRUE@@HAVE_SSI2001_TRUE@am__append_8 = ssi2001-beos-drv.o
-@UNIX_COMPILE_TRUE@am__append_9 = \
-@UNIX_COMPILE_TRUE@	hardsid-unix-drv.o \
-@UNIX_COMPILE_TRUE@	hs-unix-pci.o
+@UNIX_COMPILE_TRUE@am__append_5 = \
+@UNIX_COMPILE_TRUE@	hardsid-unix-drv.o
 
-@MACOS_COMPILE_FALSE@@UNIX_COMPILE_TRUE@am__append_10 = hs-unix-isa.o
-@LINUX_COMPILE_TRUE@@UNIX_COMPILE_TRUE@am__append_11 = hs-unix-linux.o
-@HAVE_CATWEASELMKIII_TRUE@@UNIX_COMPILE_TRUE@am__append_12 = \
+@LINUX_COMPILE_TRUE@@UNIX_COMPILE_TRUE@am__append_6 = hs-unix-linux.o
+@HAVE_CATWEASELMKIII_TRUE@@UNIX_COMPILE_TRUE@am__append_7 = \
 @HAVE_CATWEASELMKIII_TRUE@@UNIX_COMPILE_TRUE@	catweaselmkiii-unix-drv.o \
-@HAVE_CATWEASELMKIII_TRUE@@UNIX_COMPILE_TRUE@	cw-unix-device.o \
-@HAVE_CATWEASELMKIII_TRUE@@UNIX_COMPILE_TRUE@	cw-unix-pci.o
+@HAVE_CATWEASELMKIII_TRUE@@UNIX_COMPILE_TRUE@	cw-unix-device.o
 
-@HAVE_PARSID_TRUE@@UNIX_COMPILE_TRUE@am__append_13 = \
+@HAVE_PARSID_TRUE@@UNIX_COMPILE_TRUE@am__append_8 = \
 @HAVE_PARSID_TRUE@@UNIX_COMPILE_TRUE@	parsid-unix-drv.o \
 @HAVE_PARSID_TRUE@@UNIX_COMPILE_TRUE@	ps-ieee1284.o \
-@HAVE_PARSID_TRUE@@UNIX_COMPILE_TRUE@	ps-unix-file.o \
-@HAVE_PARSID_TRUE@@UNIX_COMPILE_TRUE@	ps-unix-io.o
+@HAVE_PARSID_TRUE@@UNIX_COMPILE_TRUE@	ps-unix-file.o
 
-@HAVE_SSI2001_TRUE@@UNIX_COMPILE_TRUE@am__append_14 = ssi2001-unix-drv.o
 subdir = src/arch/shared/hwsiddrv
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cxx_compile_stdcxx.m4 \
@@ -178,24 +159,14 @@ am__v_at_1 =
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/src
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/catweaselmkiii-beos-drv.Po \
-	./$(DEPDIR)/catweaselmkiii-unix-drv.Po \
+am__depfiles_remade = ./$(DEPDIR)/catweaselmkiii-unix-drv.Po \
 	./$(DEPDIR)/catweaselmkiii-win32-drv.Po \
-	./$(DEPDIR)/cw-unix-device.Po ./$(DEPDIR)/cw-unix-pci.Po \
-	./$(DEPDIR)/cw-win32-dll.Po ./$(DEPDIR)/cw-win32-pci.Po \
-	./$(DEPDIR)/hardsid-beos-drv.Po \
+	./$(DEPDIR)/cw-unix-device.Po ./$(DEPDIR)/cw-win32-dll.Po \
 	./$(DEPDIR)/hardsid-unix-drv.Po \
-	./$(DEPDIR)/hardsid-win32-drv.Po ./$(DEPDIR)/hs-beos-isa.Po \
-	./$(DEPDIR)/hs-beos-pci.Po ./$(DEPDIR)/hs-unix-isa.Po \
-	./$(DEPDIR)/hs-unix-linux.Po ./$(DEPDIR)/hs-unix-pci.Po \
-	./$(DEPDIR)/hs-win32-dll.Po ./$(DEPDIR)/hs-win32-isa.Po \
-	./$(DEPDIR)/hs-win32-pci.Po ./$(DEPDIR)/parsid-beos-drv.Po \
-	./$(DEPDIR)/parsid-unix-drv.Po ./$(DEPDIR)/parsid-win32-drv.Po \
-	./$(DEPDIR)/ps-ieee1284.Po ./$(DEPDIR)/ps-unix-file.Po \
-	./$(DEPDIR)/ps-unix-io.Po ./$(DEPDIR)/ps-win32-dll.Po \
-	./$(DEPDIR)/ps-win32-io.Po ./$(DEPDIR)/ssi2001-beos-drv.Po \
-	./$(DEPDIR)/ssi2001-unix-drv.Po \
-	./$(DEPDIR)/ssi2001-win32-drv.Po
+	./$(DEPDIR)/hardsid-win32-drv.Po ./$(DEPDIR)/hs-unix-linux.Po \
+	./$(DEPDIR)/hs-win32-dll.Po ./$(DEPDIR)/parsid-unix-drv.Po \
+	./$(DEPDIR)/parsid-win32-drv.Po ./$(DEPDIR)/ps-ieee1284.Po \
+	./$(DEPDIR)/ps-unix-file.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -303,7 +274,6 @@ GLIB_LIBS = @GLIB_LIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 HAVE_CXX11 = @HAVE_CXX11@
-HAVE_READLINE = @HAVE_READLINE@
 ICONV = @ICONV@
 ICOTOOL = @ICOTOOL@
 INLINE_UNIT_GROWTH = @INLINE_UNIT_GROWTH@
@@ -350,8 +320,6 @@ PNG_LIBS = @PNG_LIBS@
 PROGRAM_PREFIX = @PROGRAM_PREFIX@
 PROGRAM_SUFFIX = @PROGRAM_SUFFIX@
 RANLIB = @RANLIB@
-READLINE = @READLINE@
-READLINE_LIBS = @READLINE_LIBS@
 RESIDDTVSUB = @RESIDDTVSUB@
 RESIDSUB = @RESIDSUB@
 RESID_DEP = @RESID_DEP@
@@ -376,7 +344,6 @@ SOUND_DRIVERS = @SOUND_DRIVERS@
 SOUND_LIBS = @SOUND_LIBS@
 SOUND_MIDAS_OBJ = @SOUND_MIDAS_OBJ@
 SOUND_SDL_OBJ = @SOUND_SDL_OBJ@
-SOUND_USS_OBJ = @SOUND_USS_OBJ@
 STRIP = @STRIP@
 SVN = @SVN@
 SVNVERSION = @SVNVERSION@
@@ -385,6 +352,7 @@ TAR = @TAR@
 TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
+UNZIPBIN = @UNZIPBIN@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -492,51 +460,30 @@ noinst_LIBRARIES = libhwsiddrv.a
 # (HardSID is currently enabled by default on system that have drivers for it)
 HWSIDDRIVERS = $(am__append_1) $(am__append_2) $(am__append_3) \
 	$(am__append_4) $(am__append_5) $(am__append_6) \
-	$(am__append_7) $(am__append_8) $(am__append_9) \
-	$(am__append_10) $(am__append_11) $(am__append_12) \
-	$(am__append_13) $(am__append_14)
+	$(am__append_7) $(am__append_8)
 
 # Built depending on configure options:
 EXTRA_libhwsiddrv_a_SOURCES = \
-	catweaselmkiii-beos-drv.c \
 	catweaselmkiii-unix-drv.c \
 	catweaselmkiii-win32-drv.c \
 	cw-unix-device.c \
-	cw-unix-pci.c \
 	cw-win32-dll.c \
-	cw-win32-pci.c \
-	hardsid-beos-drv.c \
 	hardsid-unix-drv.c \
 	hardsid-win32-drv.c \
-	hs-beos-isa.c \
-	hs-beos-pci.c \
-	hs-unix-isa.c \
 	hs-unix-linux.c \
-	hs-unix-pci.c \
 	hs-win32-dll.c \
-	hs-win32-isa.c \
-	hs-win32-pci.c \
-	parsid-beos-drv.c \
 	parsid-unix-drv.c \
 	parsid-win32-drv.c \
 	ps-ieee1284.c \
-	ps-unix-file.c \
-	ps-unix-io.c \
-	ps-win32-dll.c \
-	ps-win32-io.c \
-	ssi2001-beos-drv.c \
-	ssi2001-unix-drv.c \
-	ssi2001-win32-drv.c
+	ps-unix-file.c
 
 EXTRA_DIST = \
 	cw-unix.h \
 	cw-win32.h \
-	hs-beos.h \
 	hs-unix.h \
 	hs-win32.h \
 	ps-unix.h \
-	ps-win32.h \
-	wininpoutp.h
+	ps-win32.h
 
 
 # Always built:
@@ -594,35 +541,18 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/catweaselmkiii-beos-drv.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/catweaselmkiii-unix-drv.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/catweaselmkiii-win32-drv.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cw-unix-device.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cw-unix-pci.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cw-win32-dll.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cw-win32-pci.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hardsid-beos-drv.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hardsid-unix-drv.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hardsid-win32-drv.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hs-beos-isa.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hs-beos-pci.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hs-unix-isa.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hs-unix-linux.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hs-unix-pci.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hs-win32-dll.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hs-win32-isa.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hs-win32-pci.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/parsid-beos-drv.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/parsid-unix-drv.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/parsid-win32-drv.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ps-ieee1284.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ps-unix-file.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ps-unix-io.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ps-win32-dll.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ps-win32-io.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ssi2001-beos-drv.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ssi2001-unix-drv.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ssi2001-win32-drv.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -767,35 +697,18 @@ clean: clean-am
 clean-am: clean-generic clean-noinstLIBRARIES mostlyclean-am
 
 distclean: distclean-am
-		-rm -f ./$(DEPDIR)/catweaselmkiii-beos-drv.Po
-	-rm -f ./$(DEPDIR)/catweaselmkiii-unix-drv.Po
+		-rm -f ./$(DEPDIR)/catweaselmkiii-unix-drv.Po
 	-rm -f ./$(DEPDIR)/catweaselmkiii-win32-drv.Po
 	-rm -f ./$(DEPDIR)/cw-unix-device.Po
-	-rm -f ./$(DEPDIR)/cw-unix-pci.Po
 	-rm -f ./$(DEPDIR)/cw-win32-dll.Po
-	-rm -f ./$(DEPDIR)/cw-win32-pci.Po
-	-rm -f ./$(DEPDIR)/hardsid-beos-drv.Po
 	-rm -f ./$(DEPDIR)/hardsid-unix-drv.Po
 	-rm -f ./$(DEPDIR)/hardsid-win32-drv.Po
-	-rm -f ./$(DEPDIR)/hs-beos-isa.Po
-	-rm -f ./$(DEPDIR)/hs-beos-pci.Po
-	-rm -f ./$(DEPDIR)/hs-unix-isa.Po
 	-rm -f ./$(DEPDIR)/hs-unix-linux.Po
-	-rm -f ./$(DEPDIR)/hs-unix-pci.Po
 	-rm -f ./$(DEPDIR)/hs-win32-dll.Po
-	-rm -f ./$(DEPDIR)/hs-win32-isa.Po
-	-rm -f ./$(DEPDIR)/hs-win32-pci.Po
-	-rm -f ./$(DEPDIR)/parsid-beos-drv.Po
 	-rm -f ./$(DEPDIR)/parsid-unix-drv.Po
 	-rm -f ./$(DEPDIR)/parsid-win32-drv.Po
 	-rm -f ./$(DEPDIR)/ps-ieee1284.Po
 	-rm -f ./$(DEPDIR)/ps-unix-file.Po
-	-rm -f ./$(DEPDIR)/ps-unix-io.Po
-	-rm -f ./$(DEPDIR)/ps-win32-dll.Po
-	-rm -f ./$(DEPDIR)/ps-win32-io.Po
-	-rm -f ./$(DEPDIR)/ssi2001-beos-drv.Po
-	-rm -f ./$(DEPDIR)/ssi2001-unix-drv.Po
-	-rm -f ./$(DEPDIR)/ssi2001-win32-drv.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -841,35 +754,18 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-		-rm -f ./$(DEPDIR)/catweaselmkiii-beos-drv.Po
-	-rm -f ./$(DEPDIR)/catweaselmkiii-unix-drv.Po
+		-rm -f ./$(DEPDIR)/catweaselmkiii-unix-drv.Po
 	-rm -f ./$(DEPDIR)/catweaselmkiii-win32-drv.Po
 	-rm -f ./$(DEPDIR)/cw-unix-device.Po
-	-rm -f ./$(DEPDIR)/cw-unix-pci.Po
 	-rm -f ./$(DEPDIR)/cw-win32-dll.Po
-	-rm -f ./$(DEPDIR)/cw-win32-pci.Po
-	-rm -f ./$(DEPDIR)/hardsid-beos-drv.Po
 	-rm -f ./$(DEPDIR)/hardsid-unix-drv.Po
 	-rm -f ./$(DEPDIR)/hardsid-win32-drv.Po
-	-rm -f ./$(DEPDIR)/hs-beos-isa.Po
-	-rm -f ./$(DEPDIR)/hs-beos-pci.Po
-	-rm -f ./$(DEPDIR)/hs-unix-isa.Po
 	-rm -f ./$(DEPDIR)/hs-unix-linux.Po
-	-rm -f ./$(DEPDIR)/hs-unix-pci.Po
 	-rm -f ./$(DEPDIR)/hs-win32-dll.Po
-	-rm -f ./$(DEPDIR)/hs-win32-isa.Po
-	-rm -f ./$(DEPDIR)/hs-win32-pci.Po
-	-rm -f ./$(DEPDIR)/parsid-beos-drv.Po
 	-rm -f ./$(DEPDIR)/parsid-unix-drv.Po
 	-rm -f ./$(DEPDIR)/parsid-win32-drv.Po
 	-rm -f ./$(DEPDIR)/ps-ieee1284.Po
 	-rm -f ./$(DEPDIR)/ps-unix-file.Po
-	-rm -f ./$(DEPDIR)/ps-unix-io.Po
-	-rm -f ./$(DEPDIR)/ps-win32-dll.Po
-	-rm -f ./$(DEPDIR)/ps-win32-io.Po
-	-rm -f ./$(DEPDIR)/ssi2001-beos-drv.Po
-	-rm -f ./$(DEPDIR)/ssi2001-unix-drv.Po
-	-rm -f ./$(DEPDIR)/ssi2001-win32-drv.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

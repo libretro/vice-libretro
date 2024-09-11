@@ -60,6 +60,8 @@
 CLOCK debug_clk;
 #endif
 
+CLOCK stolen_cycles;
+
 #define NEED_REG_PC
 
 /* ------------------------------------------------------------------------- */
@@ -492,7 +494,7 @@ if (!retro_mainloop)
      */
     bank_base_ready = true;
 
-    machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    machine_trigger_reset(MACHINE_RESET_MODE_RESET_CPU);
 }
     /*while (1)*/ {
 #define CLK maincpu_clk
@@ -520,10 +522,10 @@ if (!retro_mainloop)
         EXPORT_REGISTERS();                                           \
         tmp = machine_jam("   " CPU_STR ": JAM at $%04X   ", reg_pc); \
         switch (tmp) {                                                \
-            case JAM_RESET:                                           \
+            case JAM_RESET_CPU:                                       \
                 DO_INTERRUPT(IK_RESET);                               \
                 break;                                                \
-            case JAM_HARD_RESET:                                      \
+            case JAM_POWER_CYCLE:                                     \
                 mem_powerup();                                        \
                 DO_INTERRUPT(IK_RESET);                               \
                 break;                                                \
@@ -585,7 +587,7 @@ void maincpu_mainloop(void)
      */
     bank_base_ready = true;
 
-    machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    machine_trigger_reset(MACHINE_RESET_MODE_RESET_CPU);
 
     while (1) {
 #define CLK maincpu_clk
@@ -613,10 +615,10 @@ void maincpu_mainloop(void)
         EXPORT_REGISTERS();                                           \
         tmp = machine_jam("   " CPU_STR ": JAM at $%04X   ", reg_pc); \
         switch (tmp) {                                                \
-            case JAM_RESET:                                           \
+            case JAM_RESET_CPU:                                       \
                 DO_INTERRUPT(IK_RESET);                               \
                 break;                                                \
-            case JAM_HARD_RESET:                                      \
+            case JAM_POWER_CYCLE:                                     \
                 mem_powerup();                                        \
                 DO_INTERRUPT(IK_RESET);                               \
                 break;                                                \

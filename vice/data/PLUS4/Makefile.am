@@ -16,14 +16,15 @@ romsets = \
 palettes = \
 	yape-pal.vpl \
 	yape-ntsc.vpl \
-	colodore_ted.vpl
-
-gtk3_hotkeys = \
-	gtk3-hotkeys.vhk \
-	gtk3-hotkeys-mac.vhk
+	colodore_ted.vpl \
+	ITU-R_BT601_CRT.vpl \
+	ITU-R_BT709_HDTV.vpl \
+	ITU-R_BT2020.vpl
 
 gtk3_keymaps = \
 	gtk3_pos.vkm \
+	gtk3_pos_de.vkm \
+	gtk3_pos_es.vkm \
 	gtk3_sym.vkm \
 	gtk3_sym_fr.vkm \
 	gtk3_sym_de.vkm \
@@ -38,25 +39,22 @@ sdl_keymaps = \
 	sdl_pos_fr.vkm \
 	sdl_pos.vkm
 
-sdl_hotkeys = \
-	sdl-hotkeys.vhk
-
 if USE_SDLUI
-plus4_DATA = $(roms) $(romsets) $(palettes) $(sdl_keymaps) $(sdl_hotkeys)
-EXTRA_DIST = $(plus4_DATA) $(gtk3_keymaps) $(gtk3_hotkeys)
+plus4_DATA = $(roms) $(romsets) $(palettes) $(sdl_keymaps)
+EXTRA_DIST = $(plus4_DATA) $(gtk3_keymaps)
 endif
 
 if USE_SDL2UI
-plus4_DATA = $(roms) $(romsets) $(palettes) $(sdl_keymaps) $(sdl_hotkeys)
-EXTRA_DIST = $(plus4_DATA) $(gtk3_keymaps) $(gtk3_hotkeys)
+plus4_DATA = $(roms) $(romsets) $(palettes) $(sdl_keymaps)
+EXTRA_DIST = $(plus4_DATA) $(gtk3_keymaps)
 endif
 
 if USE_GTK3UI
-plus4_DATA = $(roms) $(romsets) $(palettes) $(gtk3_keymaps) $(gtk3_hotkeys)
-EXTRA_DIST = $(plus4_DATA) $(sdl_keymaps) $(sdl_hotkeys)
+plus4_DATA = $(roms) $(romsets) $(palettes) $(gtk3_keymaps)
+EXTRA_DIST = $(plus4_DATA) $(sdl_keymaps)
 endif
 
 if USE_HEADLESSUI
 plus4_DATA = $(roms) $(romsets) $(palettes)
-EXTRA_DIST = $(plus4_DATA) $(sdl_keymaps) $(sdl_hotkeys) $(gtk3_keymaps) $(gtk3_hotkeys)
+EXTRA_DIST = $(plus4_DATA) $(sdl_keymaps) $(gtk3_keymaps)
 endif

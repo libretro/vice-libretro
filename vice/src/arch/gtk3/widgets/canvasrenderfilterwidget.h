@@ -31,7 +31,7 @@
 
 #include <gtk/gtk.h>
 
-GtkWidget *canvas_render_filter_widget_create(void);
+GtkWidget *canvas_render_filter_widget_create(const char *chip);
 
 #endif
 

@@ -7,8 +7,6 @@
 /*
  * $VICERES FullscreenDecorations   -vsid
  * $VICERES StartMinimized          -vsid
- *
- * $VICERES VSync                   -vsid
  */
 
 /*
@@ -33,15 +31,16 @@
  */
 
 #include "vice.h"
-
 #include <gtk/gtk.h>
 
-#include "vice_gtk3.h"
-#include "resources.h"
-#include "machine.h"
-#include "videoarch.h"
 #include "canvasrenderfilterwidget.h"
-#include "settings_misc.h"
+#include "canvasrendermirrorwidget.h"
+#include "canvasrendervsyncwidget.h"
+#include "machine.h"
+#include "uivideo.h"
+#include "vice_gtk3.h"
+#include "videoarch.h"
+#include "videoaspectwidget.h"
 
 #include "settings_host_display.h"
 
@@ -63,30 +62,62 @@ static GtkWidget *create_fullscreen_decorations_widget(int index)
             "Fullscreen decorations (Show menu and statusbar in fullscreen mode)");
 }
 
-
-/** \brief  Create synchronization method widget
+/** \brief  Create grid with host rendering options
+ *
+ * Create GtkGrid with widgets controlling host GPU rendering options.
+ *
+ * <pre>
+ * +----------------------------------------------+
+ * | "${CHIP} rendering options"                  |
+ * +------------------+-----------+---------------+
+ * | AspectMode/Ratio | GL filter | Mirror/Rotate |
+ * +------------------+-----------+---------------+
+ * | Synchronization                              |
+ * +------------------+---------------------------+
+ * </pre>
+ *
+ * \param[in]   chip    chip name
  *
  * \return  GtkGrid
  */
-static GtkWidget *create_sync_widget(void)
+static GtkWidget *create_rendering_options_widget(const char *chip)
 {
     GtkWidget *grid;
-    GtkWidget *vsync;
-    GtkWidget *header;
+    GtkWidget *widget;
+    char       title[256];
+    int        row = 1;
 
-    grid = vice_gtk3_grid_new_spaced(VICE_GTK3_DEFAULT, 0);
+    g_snprintf(title, sizeof title, "<b>%s rendering options</b>", chip);
+    grid = gtk_grid_new();
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 32);
 
-    header = gtk_label_new(NULL);
-    gtk_label_set_markup(GTK_LABEL(header), "<b>Gtk sync method</b>");
-    gtk_widget_set_halign(header, GTK_ALIGN_START);
-    gtk_grid_attach(GTK_GRID(grid), header, 0, 0, 1, 1);
+    /* row 0, col 0-3: title */
+    widget = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(widget), title);
+    gtk_widget_set_halign(widget, GTK_ALIGN_START);
+    gtk_widget_set_margin_bottom(widget, 8);
+    gtk_grid_attach(GTK_GRID(grid), widget, 0, 0, 3, 1);
 
-    vsync = vice_gtk3_resource_check_button_new("VSync", "VSync");
-    gtk_widget_set_sensitive(vsync, TRUE);
-    gtk_grid_attach(GTK_GRID(grid), vsync, 0, 2, 1, 1);
-    gtk_widget_set_margin_top(vsync, 8);
-    gtk_widget_set_margin_start(vsync, 16);
+    /* row 1+2, col 0: scaling and aspect ratio resources */
+    widget = video_aspect_widget_create(chip);
+    gtk_grid_attach(GTK_GRID(grid), widget, 0, row, 1, 2);
 
+    /* row 1, col 1: glfilter */
+    widget = canvas_render_filter_widget_create(chip);
+    gtk_grid_attach(GTK_GRID(grid), widget, 1, row, 1, 1);
+
+    /* row 1, col 2: mirror options */
+    widget = canvas_render_mirror_widget_create(chip);
+    gtk_grid_attach(GTK_GRID(grid), widget, 2, row, 1, 1);
+
+    row++;
+
+    /* row 2, col 0-2: vsync */
+    widget = canvas_render_vsync_widget_create(chip);
+    gtk_widget_set_margin_top(widget, 32);
+    gtk_grid_attach(GTK_GRID(grid), widget, 0, row, 3, 1);
+
+    gtk_widget_show_all(grid);
     return grid;
 }
 
@@ -100,32 +131,35 @@ static GtkWidget *create_sync_widget(void)
 GtkWidget *settings_host_display_widget_create(GtkWidget *widget)
 {
     GtkWidget *grid;
-    GtkWidget *filter_widget = canvas_render_filter_widget_create();
-    GtkWidget *sync_widget;
 
-    grid = vice_gtk3_grid_new_spaced(VICE_GTK3_DEFAULT, VICE_GTK3_DEFAULT);
+    grid = vice_gtk3_grid_new_spaced(VICE_GTK3_DEFAULT, 0);
 
     if (machine_class != VICE_MACHINE_VSID) {
 
-        GtkWidget *decorations;
-        GtkWidget *minimized_widget;
-        int col = 0;
+        GtkWidget  *decorations;
+        GtkWidget  *minimized;
+        GtkWidget  *rendering_options;
+        GtkWidget  *rendering_options_vdc = NULL;
+        const char *chip;
 
+        chip = uivideo_chip_name();
         decorations = create_fullscreen_decorations_widget(0);
-
-        minimized_widget = vice_gtk3_resource_check_button_new(
+        minimized = vice_gtk3_resource_check_button_new(
                 "StartMinimized",
                 "Start the emulator window minimized");
+        rendering_options = create_rendering_options_widget(chip);
+        gtk_widget_set_margin_top(rendering_options, 24);
+        if (machine_class == VICE_MACHINE_C128) {
+            rendering_options_vdc = create_rendering_options_widget("VDC");
+            gtk_widget_set_margin_top(rendering_options_vdc, 24);
+        }
 
-        sync_widget = create_sync_widget();
-
-        gtk_grid_attach(GTK_GRID(grid), filter_widget, col++, 1, 2, 1);
-        gtk_widget_set_margin_start(filter_widget, 8);
-
-        gtk_grid_attach(GTK_GRID(grid), sync_widget, col++, 1, 2, 1);
-
-        gtk_grid_attach(GTK_GRID(grid), decorations, 0, 2, 2, 1);
-        gtk_grid_attach(GTK_GRID(grid), minimized_widget, 0, 3, 2, 1);
+        gtk_grid_attach(GTK_GRID(grid), decorations, 0, 1, 1, 1);
+        gtk_grid_attach(GTK_GRID(grid), minimized, 0, 2, 1, 1);
+        gtk_grid_attach(GTK_GRID(grid), rendering_options, 0, 3, 1, 1);
+        if (machine_class == VICE_MACHINE_C128) {
+            gtk_grid_attach(GTK_GRID(grid), rendering_options_vdc, 0, 4, 1, 1);
+        }
     }
     gtk_widget_show_all(grid);
     return grid;

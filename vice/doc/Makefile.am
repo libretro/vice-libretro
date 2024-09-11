@@ -7,7 +7,8 @@ MISC_DOX = \
 	Doxygen-Howto.txt \
 	iec-bus.txt \
 	Release-Howto.txt \
-	vice.texi
+	vice.texi \
+	gpl.texi
 
 TEXI_TOOLS = \
 	fixdates.sh
@@ -32,9 +33,9 @@ VICE_DOX = @VICE_PDF_FILE_NAME@
 # info_TEXINFOS = vice.texi
 # AM_MAKEINFOFLAGS = -D$(PLATFORM_DOX_FLAGS)
 
-dist_doc_DATA = $(MISC_DOX) $(VICE_DOX)
+dist_doc_DATA = $(VICE_DOX)
 
-EXTRA_DIST = $(DOC_TOOLS) $(TEXI_TOOLS) $(STYLE_TOOLS)
+EXTRA_DIST = $(MISC_DOX) $(DOC_TOOLS) $(TEXI_TOOLS) $(STYLE_TOOLS)
 
 
 if MACOS_COMPILE
@@ -44,8 +45,10 @@ endif
 
 .vice-texi-charset-ok:	$(srcdir)/vice.texi
 	@if [ "`file --mime-encoding $<`" != "$<: iso-8859-1" ]; then \
-		echo "ERROR: vice.texi contains content that is not valid iso-8859-x" >&2; \
-		false; \
+		if [ "`file --mime-encoding $<`" != "$<: us-ascii" ]; then \
+			echo "ERROR: vice.texi contains content that is not valid iso-8859-x" >&2; \
+			false; \
+		fi; \
 	fi
 	@touch .vice-texi-charset-ok
 

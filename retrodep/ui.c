@@ -164,9 +164,13 @@ ui_jam_action_t ui_jam_dialog(const char *format, ...)
    va_end(ap);
 
    log_cb(RETRO_LOG_ERROR, "%s\n", message);
-   machine_trigger_reset(MACHINE_RESET_MODE_HARD);
+   machine_trigger_reset(MACHINE_RESET_MODE_POWER_CYCLE);
 
    return UI_JAM_NONE;
+}
+
+void arch_ui_activate(void)
+{
 }
 
 int ui_emulation_is_paused(void)
@@ -201,6 +205,20 @@ void ui_actions_init(void)
 }
 
 void ui_actions_shutdown(void)
+{
+}
+
+const char *ui_action_get_name(int action)
+{
+    return "";
+}
+
+int ui_action_get_id(const char *name)
+{
+    return 0;
+}
+
+void ui_action_trigger(int action)
 {
 }
 

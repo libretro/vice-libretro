@@ -49,6 +49,7 @@ void ui_display_statustext(const char *text, int fadeout);
 
 gboolean ui_statusbar_crt_controls_enabled(GtkWidget *window);
 gboolean ui_statusbar_mixer_controls_enabled(GtkWidget *window);
+void ui_statusbar_recreate_crt_controls(void);
 
 
 void ui_statusbar_set_kbd_debug_for_window(GtkWidget *window, gboolean state);
@@ -62,10 +63,13 @@ int ui_statusbar_index_for_window(GtkWidget *window);
 void ui_update_vsid_statusbar(void);
 void ui_update_statusbars(void);
 
-void warp_led_set_active(int bar, gboolean active);
-void pause_led_set_active(int bar, gboolean active);
-void shiftlock_led_set_active(int bar, gboolean active);
-void mode4080_led_set_active(int bar, gboolean active);
-void capslock_led_set_active(int bar, gboolean active);
+void warp_led_set_active          (int bar, gboolean active);
+void pause_led_set_active         (int bar, gboolean active);
+void shiftlock_led_set_active     (int bar, gboolean active);
+void mode4080_led_set_active      (int bar, gboolean active);
+void capslock_led_set_active      (int bar, gboolean active);
+void diagnosticpin_led_set_active (int bar, gboolean active);
+void supercpu_turbo_led_set_active(int bar, gboolean active);
+void supercpu_jiffy_led_set_active(int bar, gboolean active);
 
 #endif

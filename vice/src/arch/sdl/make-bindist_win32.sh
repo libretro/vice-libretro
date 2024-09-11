@@ -26,35 +26,42 @@
 #  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
 #  02111-1307  USA.
 #
-# Usage: make-bindist.sh <strip=$1> <vice-version=$2> <--enable-arch=$3> <zip|nozip=$4> <x64-included=$5>
-#                        <top-srcdir=$6> <top-builddir=$7> <cpu=$8> <SDL-version=$9> <sdl-config=$10>
-#                        <cross=$11> <objdump=$12> <compiler=$13> <--enable-html-docs=$14>
+# Usage: make-bindist.sh <strip=$1> <vice-version=$2> <--enable-arch=$3> <zip|nozip=$4> <unzipbin=$5>
+#                        <x64-included=$6> <top-srcdir=$7> <top-builddir=$8> <cpu=$9> <SDL-version=$10>
+#                        <sdl-config=$11> <cross=$12> <objdump=$13> <compiler=$14> <--enable-html-docs=$15>
+#                        [<svn-revision-override=$16>]
 #
 
 STRIP=$1
 VICEVERSION=$2
 ENABLEARCH=$3
 ZIPKIND=$4
-X64INC=$5
-TOPSRCDIR=$6
-TOPBUILDDIR=$7
-CPU=$8
-SDLVERSION=$9
+UNZIPBIN=$5
+X64INC=$6
+TOPSRCDIR=$7
+TOPBUILDDIR=$8
+CPU=$9
 
 shift   # $10
-SDLCONFIG=$9
+SDLVERSION=$9
 
 shift   # $11
-CROSS=$9
+SDLCONFIG=$9
 
 shift   # $12
-OBJDUMP=$9
+CROSS=$9
 
 shift   # $13
-COMPILER=$9
+OBJDUMP=$9
 
 shift   # $14
+COMPILER=$9
+
+shift   # $15
 HTML_DOCS=$9
+
+shift   # $16
+SVN_REVISION_OVERRIDE=$9
 
 
 # Try to get the SVN revision
@@ -72,10 +79,9 @@ if test "$?" = "0"; then
 fi
 
 if test "$SVN_SUFFIX" = ""; then
-  # No svnversion found, checking if there is a git svn ref
-  GIT_SVN_COMMIT_HASH=$(git -C "$TOPSRCDIR" log --grep='git-svn-id:' -n 1 --pretty=format:"%H")
-  if test "$GIT_SVN_COMMIT_HASH" != ""; then
-    SVN_SUFFIX="-r$(git svn find-rev $GIT_SVN_COMMIT_HASH)"
+  # No svnversion found, fall back to the revision override, if available
+  if test "x$SVN_REVISION_OVERRIDE" != "x"; then
+    SVN_SUFFIX="-r$SVN_REVISION_OVERRIDE"
   fi
 fi
 
@@ -134,8 +140,11 @@ if test x"$CROSS" != "xtrue"; then
   # Assume MSYS2 on Windows here.
   dlls=`ntldd -R $BINDIST_DIR/x64sc.exe|gawk '/\\\\bin\\\\/{print $3;}'|cygpath -f -`
   test -n "$dlls"&&cp $dlls $BINDIST_DIR
-  if grep -q '^#define EXTERNAL_FFMPEG ' $TOPBUILDDIR/src/config.h
-    then cp -u `ntldd -R $MINGW_PREFIX/bin/avfilter-*.dll|gawk '/\\\\bin\\\\/{print $3;}'|cygpath -f -` $BINDIST_DIR
+
+  # drop unzip.exe and its dependencies in the bin/ =)
+  if test x"$UNZIPBIN" != "xno"; then
+    cp $UNZIPBIN $BINDIST_DIR
+    cp `ntldd -R $UNZIPBIN | gawk '/\\\\bin\\\\/{print $3;}' | cygpath -f -` $BINDIST_DIR
   fi
 
 else
@@ -175,12 +184,13 @@ cp -a $TOPSRCDIR/data/C64DTV $TOPSRCDIR/data/CBM-II $BINDIST_DIR
 cp -a $TOPSRCDIR/data/DRIVES $TOPSRCDIR/data/PET $BINDIST_DIR
 cp -a $TOPSRCDIR/data/PLUS4 $TOPSRCDIR/data/PRINTER $BINDIST_DIR
 cp -a $TOPSRCDIR/data/SCPU64 $TOPSRCDIR/data/VIC20 $BINDIST_DIR
-rm -f `find $BINDIST_DIR -name "Makefile*"`
-rm -f `find $BINDIST_DIR -name "gtk3_*"`
+rm -f `find $BINDIST_DIR -name 'Makefile*'`
+rm -f `find $BINDIST_DIR -name 'gtk3*'`
+mkdir $BINDIST_DIR/hotkeys
+cp -a $TOPSRCDIR/data/hotkeys/*.vhk $BINDIST_DIR/hotkeys
 
 # Icon files for SDL1
 if test x"$SDLVERSION" = "x1"; then
-    mkdir $BINDIST_DIR/common
     cp -a $TOPSRCDIR/data/common/*_32.png $BINDIST_DIR/common
 fi
 

@@ -38,7 +38,6 @@
 #include <string.h>
 #include "debug_gtk3.h"
 
-#include "hotkeymap.h"
 #include "hotkeys.h"
 #include "lib.h"
 #include "log.h"
@@ -52,6 +51,11 @@
 #include "uistatusbar.h"
 
 #include "kbd.h"
+
+/** \brief  Enable debug_gtk3() calls for the Gdk scancode/keypad fixes
+ */
+/* #define DEBUG_GDK_FIXES */
+
 
 /** \brief  Gdk keyval translation table array indexes
  */
@@ -414,13 +418,13 @@ static int removepressedkey(GdkEvent *report, int *key, int *mod)
  */
 static gboolean isresethotkey(GdkEvent *report)
 {
-    int checkaccel[2] = { ACTION_RESET_SOFT, ACTION_RESET_HARD };
+    int checkaccel[2] = { ACTION_MACHINE_RESET_CPU, ACTION_MACHINE_POWER_CYCLE };
     gboolean res = FALSE;
     int i;
     char *this_accel = gtk_accelerator_get_label(report->key.keyval,
                                                  report->key.state & VHK_ACCEPTED_MODIFIERS);
     for (i = 0; i < 2; i++) {
-        gchar *accel = hotkey_map_get_accel_label_for_action(checkaccel[i]);
+        gchar *accel = vhk_gtk_get_accel_label_by_action(checkaccel[i]);
 
         if (accel != NULL && strcmp(this_accel, accel) == 0) {
             i = 2;
@@ -503,8 +507,10 @@ static guint fix_numpad_keyval(GdkEvent *event)
     int scancode = gdk_event_get_scancode(event);
     gboolean numpad = (scancode & 0x100) ? TRUE : FALSE;
     int i = 0;
+#ifdef DEBUG_GDK_FIXES
     debug_gtk3("scancode 0x%04x numpad: %d",
                (unsigned int)scancode, numpad);
+#endif
     while (numpad_fixes[i][KV_FIXED] != 0) {
         if (keyval == numpad_fixes[i][KV_ALIAS] && numpad == numpad_fixes[i][KV_BIT8]) {
             return numpad_fixes[i][KV_FIXED];
@@ -554,7 +560,9 @@ static guint fix_numpad_aliases(GdkEvent *event)
 {
     guint keyval = event->key.keyval;
     int i = 0;
+#ifdef DEBUG_GDK_FIXES
     debug_gtk3("fix_numpad_aliases: keyval 0x%04x", (unsigned int)keyval);
+#endif
     while (numpad_aliases[i][0] != 0) {
         if (keyval == numpad_aliases[i][1]) {
             return numpad_aliases[i][0];
@@ -607,18 +615,25 @@ static gboolean kbd_event_handler(GtkWidget *w, GdkEvent *report, gpointer gp)
 #endif
 
 #ifdef WINDOWS_COMPILE
+# ifdef DEBUG_GDK_FIXES
             debug_gtk3("(press) key before numpad fix: 0x%04x (GDK_KEY_%s).",
                        (unsigned int)key, gdk_keyval_name(key));
+# endif
             key = report->key.keyval = fix_numpad_keyval(report);
+#ifdef DEBUG_GDK_FIXES
             debug_gtk3("(press) key after numpad fix : 0x%04x (GDK_KEY_%s).",
                        (unsigned int)key, gdk_keyval_name(key));
+# endif
 #endif
+#ifdef DEBUG_GDK_FIXES
             debug_gtk3("(press) key before aliases fix : 0x%04x (GDK_KEY_%s).",
                        (unsigned int)key, gdk_keyval_name(key));
+#endif
             key = report->key.keyval = fix_numpad_aliases(report);
+#ifdef DEBUG_GDK_FIXES
             debug_gtk3("(press) key after aliases fix : 0x%04x (GDK_KEY_%s).",
                        (unsigned int)key, gdk_keyval_name(key));
-
+#endif
             /* FIXME:   This still gets the unmodified keyval, but we cannot
              *          modify `report` since that's owned by Gdk.
              */
@@ -681,18 +696,25 @@ static gboolean kbd_event_handler(GtkWidget *w, GdkEvent *report, gpointer gp)
 #endif
 
 #ifdef WINDOWS_COMPILE
+# ifdef DEBUG_GDK_FIXES
             debug_gtk3("(release) key before numpad fix: 0x%04x (GDK_KEY_%s).",
                        (unsigned int)key, gdk_keyval_name(key));
+# endif
             key = report->key.keyval = fix_numpad_keyval(report);
+# ifdef DEBUG_GDK_FIXES
             debug_gtk3("(release) key after numpad fix : 0x%04x (GDK_KEY_%s).",
                        (unsigned int)key, gdk_keyval_name(key));
+# endif
 #endif
+#ifdef DEBUG_GDK_FIXES
             debug_gtk3("(release) key before aliases fix : 0x%04x (GDK_KEY_%s).",
                        (unsigned int)key, gdk_keyval_name(key));
+#endif
             key = report->key.keyval = fix_numpad_aliases(report);
+#ifdef DEBUG_GDK_FIXES
             debug_gtk3("(release) key after aliases fix : 0x%04x (GDK_KEY_%s).",
                        (unsigned int)key, gdk_keyval_name(key));
-
+#endif
             ui_statusbar_update_kbd_debug(report);
 
             if (removepressedkey(report, &key, &mod)) {

@@ -51,38 +51,42 @@ static int rom_loaded = 0;
 
 #ifdef USE_EMBEDDED
 #include "c128kernal.h"
+#include "c128kernalch.h"
 #include "c128kernalde.h"
 #include "c128kernalfi.h"
 #include "c128kernalfr.h"
 #include "c128kernalit.h"
 #include "c128kernalno.h"
 #include "c128kernalse.h"
-#include "c128kernalch.h"
 
+#include "c128chargch.h"
 #include "c128chargen.h"
 #include "c128chargde.h"
+#include "c128chargfi.h"
 #include "c128chargfr.h"
-#include "c128chargse.h"
-#include "c128chargch.h"
+#include "c128chargit.h"
 #include "c128chargno.h"
+#include "c128chargse.h"
 #else
 /* National Kernal ROM images. */
 static uint8_t kernal_int[C128_KERNAL_ROM_IMAGE_SIZE];
+static uint8_t kernal_ch[C128_KERNAL_ROM_IMAGE_SIZE];
 static uint8_t kernal_de[C128_KERNAL_ROM_IMAGE_SIZE];
 static uint8_t kernal_fi[C128_KERNAL_ROM_IMAGE_SIZE];
 static uint8_t kernal_fr[C128_KERNAL_ROM_IMAGE_SIZE];
 static uint8_t kernal_it[C128_KERNAL_ROM_IMAGE_SIZE];
 static uint8_t kernal_no[C128_KERNAL_ROM_IMAGE_SIZE];
 static uint8_t kernal_se[C128_KERNAL_ROM_IMAGE_SIZE];
-static uint8_t kernal_ch[C128_KERNAL_ROM_IMAGE_SIZE];
 
 /* National Chargen ROM images. */
 static uint8_t chargen_int[C128_CHARGEN_ROM_SIZE];
-static uint8_t chargen_de[C128_CHARGEN_ROM_SIZE];
-static uint8_t chargen_fr[C128_CHARGEN_ROM_SIZE];
-static uint8_t chargen_se[C128_CHARGEN_ROM_SIZE];
 static uint8_t chargen_ch[C128_CHARGEN_ROM_SIZE];
+static uint8_t chargen_de[C128_CHARGEN_ROM_SIZE];
+static uint8_t chargen_fi[C128_CHARGEN_ROM_SIZE];
+static uint8_t chargen_fr[C128_CHARGEN_ROM_SIZE];
+static uint8_t chargen_it[C128_CHARGEN_ROM_SIZE];
 static uint8_t chargen_no[C128_CHARGEN_ROM_SIZE];
+static uint8_t chargen_se[C128_CHARGEN_ROM_SIZE];
 #endif
 
 typedef struct
@@ -122,7 +126,7 @@ int c128rom_kernal_checksum(void)
 
     /* Check Kernal ROM.  */
     for (i = 0, sum = 0; i < C128_KERNAL_ROM_SIZE; i++) {
-        sum += c128memrom_kernal_rom[i];
+        sum = (uint16_t)(sum + c128memrom_kernal_rom[i]);
     }
     id = c128memrom_rom_read(0xff80);
     name = checkrominfo(kernalinfo, sum, id);
@@ -307,7 +311,9 @@ int c128rom_kernal_setup(void)
 {
     int machine_type;
     uint8_t *kernal = NULL;
+    static const char *last_kernal64 = NULL;
     char *name;
+    const char *kernal64 = C128_KERNAL64_NAME;
 
     if (!rom_loaded) {
         return 0;
@@ -333,9 +339,11 @@ int c128rom_kernal_setup(void)
             break;
         case C128_MACHINE_NORWEGIAN:
             kernal = kernal_no;
+            kernal64 = C128_KERNAL64_NO_NAME;
             break;
         case C128_MACHINE_SWEDISH:
             kernal = kernal_se;
+            kernal64 = C128_KERNAL64_SE_NAME;
             break;
         case C128_MACHINE_SWISS:
             kernal = kernal_ch;
@@ -344,6 +352,14 @@ int c128rom_kernal_setup(void)
             log_error(c128rom_log, "Unknown machine type %i.", machine_type);
             return -1;
     }
+#ifndef __LIBRETRO__
+        printf("kernal64:%s\n", kernal64);
+#endif
+
+    if (kernal64 != last_kernal64) {
+        resources_set_string("Kernal64Name", kernal64);
+    }
+    last_kernal64 = kernal64;
 
     /* disable traps before loading the ROM */
     get_trapflags();
@@ -458,14 +474,18 @@ int c128rom_chargen_setup(void)
         case C128_MACHINE_INT:
             chargen = chargen_int;
             break;
-        case C128_MACHINE_FRENCH:
         case C128_MACHINE_ITALIAN:
+            chargen = chargen_it;
+            break;
+        case C128_MACHINE_FRENCH:
             chargen = chargen_fr;
             break;
         case C128_MACHINE_GERMAN:
             chargen = chargen_de;
             break;
         case C128_MACHINE_FINNISH:
+            chargen = chargen_fi;
+            break;
         case C128_MACHINE_SWEDISH:
             chargen = chargen_se;
             break;
@@ -574,6 +594,38 @@ int c128rom_load_chargen_no(const char *rom_name)
     if (!util_check_null_string(rom_name)) {
         /* Load chargen ROM.  */
         if (sysfile_load(rom_name, machine_name, chargen_no, C128_CHARGEN_ROM_SIZE, C128_CHARGEN_ROM_SIZE) < 0) {
+            log_error(c128rom_log, "Couldn't load character ROM `%s'.", rom_name);
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int c128rom_load_chargen_fi(const char *rom_name)
+{
+    if (!rom_loaded) {
+        return 0;
+    }
+
+    if (!util_check_null_string(rom_name)) {
+        /* Load chargen ROM.  */
+        if (sysfile_load(rom_name, machine_name, chargen_fi, C128_CHARGEN_ROM_SIZE, C128_CHARGEN_ROM_SIZE) < 0) {
+            log_error(c128rom_log, "Couldn't load character ROM `%s'.", rom_name);
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int c128rom_load_chargen_it(const char *rom_name)
+{
+    if (!rom_loaded) {
+        return 0;
+    }
+
+    if (!util_check_null_string(rom_name)) {
+        /* Load chargen ROM.  */
+        if (sysfile_load(rom_name, machine_name, chargen_it, C128_CHARGEN_ROM_SIZE, C128_CHARGEN_ROM_SIZE) < 0) {
             log_error(c128rom_log, "Couldn't load character ROM `%s'.", rom_name);
             return -1;
         }
@@ -748,6 +800,20 @@ int mem_load(void)
         return -1;
     }
     if (c128rom_load_chargen_no(rom_name) < 0) {
+        return -1;
+    }
+
+    if (resources_get_string("ChargenFIName", &rom_name) < 0) {
+        return -1;
+    }
+    if (c128rom_load_chargen_fi(rom_name) < 0) {
+        return -1;
+    }
+
+    if (resources_get_string("ChargenITName", &rom_name) < 0) {
+        return -1;
+    }
+    if (c128rom_load_chargen_it(rom_name) < 0) {
         return -1;
     }
 

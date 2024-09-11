@@ -111,11 +111,10 @@ am__v_AR_1 =
 libwidgets_a_AR = $(AR) $(ARFLAGS)
 libwidgets_a_LIBADD =
 am_libwidgets_a_OBJECTS = aciawidget.$(OBJEXT) \
-	burstmodewidget.$(OBJEXT) c128fullbankswidget.$(OBJEXT) \
-	c128functionromwidget.$(OBJEXT) \
 	c128machinetypewidget.$(OBJEXT) \
-	c64dtvflashsettingswidget.$(OBJEXT) \
-	c64memhackswidget.$(OBJEXT) canvasrenderfilterwidget.$(OBJEXT) \
+	canvasrenderfilterwidget.$(OBJEXT) \
+	canvasrendermirrorwidget.$(OBJEXT) \
+	canvasrendervsyncwidget.$(OBJEXT) \
 	cbm2hardwiredswitcheswidget.$(OBJEXT) \
 	cbm2memorysizewidget.$(OBJEXT) cbm2rammappingwidget.$(OBJEXT) \
 	ciamodelwidget.$(OBJEXT) contentpreviewwidget.$(OBJEXT) \
@@ -126,62 +125,69 @@ am_libwidgets_a_OBJECTS = aciawidget.$(OBJEXT) \
 	driveidlemethodwidget.$(OBJEXT) drivemodelwidget.$(OBJEXT) \
 	driveparallelcablewidget.$(OBJEXT) driveramwidget.$(OBJEXT) \
 	driverpmwidget.$(OBJEXT) driveunitwidget.$(OBJEXT) \
-	drivenowidget.$(OBJEXT) drivewidgethelpers.$(OBJEXT) \
-	extendimagedialog.$(OBJEXT) ffmpegwidget.$(OBJEXT) \
-	hvscsettingswidget.$(OBJEXT) hvscstilwidget.$(OBJEXT) \
-	jamactionwidget.$(OBJEXT) jamdialog.$(OBJEXT) \
-	joystickautofirewidget.$(OBJEXT) \
+	drivenowidget.$(OBJEXT) drivesoundwidget.$(OBJEXT) \
+	drivewidgethelpers.$(OBJEXT) extendimagedialog.$(OBJEXT) \
+	ffmpegwidget.$(OBJEXT) hvscstilwidget.$(OBJEXT) \
+	jamdialog.$(OBJEXT) joystickautofirewidget.$(OBJEXT) \
 	joystickdevicewidget.$(OBJEXT) joystickmenupopup.$(OBJEXT) \
-	kbddebugwidget.$(OBJEXT) kbdlayoutwidget.$(OBJEXT) \
+	kbddebugwidget.$(OBJEXT) kbdhostlayoutwidget.$(OBJEXT) \
 	kbdmappingwidget.$(OBJEXT) kernalrevisionwidget.$(OBJEXT) \
-	keysetdialog.$(OBJEXT) machinemodelwidget.$(OBJEXT) \
+	keysetdialog.$(OBJEXT) logfilewidget.$(OBJEXT) \
+	machinemodelwidget.$(OBJEXT) \
+	machinepowerfrequencywidget.$(OBJEXT) \
 	mididevicewidget.$(OBJEXT) mixerwidget.$(OBJEXT) \
-	netplaywidget.$(OBJEXT) petcolourgraphicswidget.$(OBJEXT) \
-	petdiagpinwidget.$(OBJEXT) petdwwwidget.$(OBJEXT) \
-	pethrewidget.$(OBJEXT) petiosizewidget.$(OBJEXT) \
+	petdiagnosticpinwidget.$(OBJEXT) petiosizewidget.$(OBJEXT) \
 	petram9widget.$(OBJEXT) petramawidget.$(OBJEXT) \
 	petkeyboardtypewidget.$(OBJEXT) petmiscwidget.$(OBJEXT) \
-	petramsizewidget.$(OBJEXT) petreuwidget.$(OBJEXT) \
-	petvideosizewidget.$(OBJEXT) plus4aciawidget.$(OBJEXT) \
-	plus4digiblasterwidget.$(OBJEXT) \
-	plus4memoryexpansionwidget.$(OBJEXT) \
+	petramsizewidget.$(OBJEXT) petvideosizewidget.$(OBJEXT) \
+	plus4aciawidget.$(OBJEXT) plus4memoryexpansionwidget.$(OBJEXT) \
 	plus4memorysizewidget.$(OBJEXT) printerdriverwidget.$(OBJEXT) \
 	printeremulationtypewidget.$(OBJEXT) \
 	printeroutputdevicewidget.$(OBJEXT) \
-	printeroutputmodewidget.$(OBJEXT) \
-	romsetmanagerwidget.$(OBJEXT) scpu64settingswidget.$(OBJEXT) \
-	settings_autofire.$(OBJEXT) settings_autostart.$(OBJEXT) \
+	printeroutputmodewidget.$(OBJEXT) rommanager.$(OBJEXT) \
+	romsetmanagerwidget.$(OBJEXT) settings_autofire.$(OBJEXT) \
+	settings_autostart.$(OBJEXT) settings_burstmode.$(OBJEXT) \
+	settings_c128fullbanks.$(OBJEXT) \
+	settings_c128functionrom.$(OBJEXT) \
+	settings_c64dtvflash.$(OBJEXT) settings_c64memhacks.$(OBJEXT) \
 	settings_controlport.$(OBJEXT) settings_cpm.$(OBJEXT) \
 	settings_crt.$(OBJEXT) settings_default_cart.$(OBJEXT) \
 	settings_digimax.$(OBJEXT) settings_dqbb.$(OBJEXT) \
 	settings_drive.$(OBJEXT) settings_ds12c887.$(OBJEXT) \
-	settings_easyflash.$(OBJEXT) settings_ethernet.$(OBJEXT) \
-	settings_ethernetcart.$(OBJEXT) settings_expert.$(OBJEXT) \
-	settings_finalexpansion.$(OBJEXT) settings_fsdevice.$(OBJEXT) \
-	settings_georam.$(OBJEXT) settings_gmod2.$(OBJEXT) \
-	settings_gmod2c128.$(OBJEXT) settings_gmod3.$(OBJEXT) \
+	settings_easyflash.$(OBJEXT) settings_environment.$(OBJEXT) \
+	settings_ethernet.$(OBJEXT) settings_ethernetcart.$(OBJEXT) \
+	settings_expert.$(OBJEXT) settings_finalexpansion.$(OBJEXT) \
+	settings_fsdevice.$(OBJEXT) settings_georam.$(OBJEXT) \
+	settings_gmod2.$(OBJEXT) settings_gmod2c128.$(OBJEXT) \
+	settings_gmod3.$(OBJEXT) settings_hvsc.$(OBJEXT) \
 	settings_host_display.$(OBJEXT) settings_hotkeys.$(OBJEXT) \
 	settings_ide64.$(OBJEXT) settings_ieee488.$(OBJEXT) \
 	settings_ieeeflash64.$(OBJEXT) settings_io.$(OBJEXT) \
-	settings_isepic.$(OBJEXT) settings_joystick.$(OBJEXT) \
-	settings_keyboard.$(OBJEXT) settings_ltkernal.$(OBJEXT) \
-	settings_magicvoice.$(OBJEXT) settings_megacart.$(OBJEXT) \
-	settings_midi.$(OBJEXT) settings_misc.$(OBJEXT) \
-	settings_mixer.$(OBJEXT) settings_mmc64.$(OBJEXT) \
-	settings_mmcr.$(OBJEXT) settings_model.$(OBJEXT) \
-	settings_monitor.$(OBJEXT) settings_printer.$(OBJEXT) \
+	settings_isepic.$(OBJEXT) settings_jam.$(OBJEXT) \
+	settings_joystick.$(OBJEXT) settings_keyboard.$(OBJEXT) \
+	settings_ltkernal.$(OBJEXT) settings_magicvoice.$(OBJEXT) \
+	settings_megacart.$(OBJEXT) settings_midi.$(OBJEXT) \
+	settings_misc.$(OBJEXT) settings_mixer.$(OBJEXT) \
+	settings_mmc64.$(OBJEXT) settings_mmcr.$(OBJEXT) \
+	settings_model.$(OBJEXT) settings_monitor.$(OBJEXT) \
+	settings_netplay.$(OBJEXT) \
+	settings_petcolourgraphics.$(OBJEXT) settings_petdww.$(OBJEXT) \
+	settings_pethre.$(OBJEXT) settings_petreu.$(OBJEXT) \
+	settings_plus4digiblaster.$(OBJEXT) settings_printer.$(OBJEXT) \
 	settings_ramcart.$(OBJEXT) settings_ramlink.$(OBJEXT) \
 	settings_ramreset.$(OBJEXT) settings_retroreplay.$(OBJEXT) \
 	settings_reu.$(OBJEXT) settings_rexramfloppy.$(OBJEXT) \
 	settings_romset.$(OBJEXT) settings_rrnetmk3.$(OBJEXT) \
 	settings_rs232.$(OBJEXT) settings_sampler.$(OBJEXT) \
-	settings_sfxsoundexpander.$(OBJEXT) \
-	settings_sfxsoundsampler.$(OBJEXT) settings_snapshot.$(OBJEXT) \
-	settings_sound.$(OBJEXT) settings_soundchip.$(OBJEXT) \
-	settings_speed.$(OBJEXT) settings_supersnapshot.$(OBJEXT) \
-	settings_tapeport.$(OBJEXT) settings_ultimem.$(OBJEXT) \
-	settings_vicflashplugin.$(OBJEXT) settings_video.$(OBJEXT) \
-	sidcartwidget.$(OBJEXT) sidenginemodelwidget.$(OBJEXT) \
+	settings_scpu64.$(OBJEXT) settings_sfxsoundexpander.$(OBJEXT) \
+	settings_sfxsoundsampler.$(OBJEXT) settings_sidcart.$(OBJEXT) \
+	settings_snapshot.$(OBJEXT) settings_sound.$(OBJEXT) \
+	settings_soundchip.$(OBJEXT) settings_speed.$(OBJEXT) \
+	settings_supersnapshotv5.$(OBJEXT) settings_tapeport.$(OBJEXT) \
+	settings_ultimem.$(OBJEXT) settings_userport.$(OBJEXT) \
+	settings_vfli.$(OBJEXT) settings_vicflashplugin.$(OBJEXT) \
+	settings_vicieee488.$(OBJEXT) settings_vicioram.$(OBJEXT) \
+	settings_video.$(OBJEXT) sidenginemodelwidget.$(OBJEXT) \
 	sidmodelwidget.$(OBJEXT) sidsoundwidget.$(OBJEXT) \
 	soundbuffersizewidget.$(OBJEXT) sounddriverwidget.$(OBJEXT) \
 	soundfragmentsizewidget.$(OBJEXT) \
@@ -190,17 +196,15 @@ am_libwidgets_a_OBJECTS = aciawidget.$(OBJEXT) \
 	statusbarledwidget.$(OBJEXT) \
 	statusbarrecordingwidget.$(OBJEXT) \
 	statusbarspeedwidget.$(OBJEXT) superpetwidget.$(OBJEXT) \
-	userportdeviceswidget.$(OBJEXT) \
-	userportrsinterfacewidget.$(OBJEXT) \
-	userportprinterwidget.$(OBJEXT) v364speechwidget.$(OBJEXT) \
-	vdcmodelwidget.$(OBJEXT) vfliwidget.$(OBJEXT) \
-	vic20memoryexpansionwidget.$(OBJEXT) \
-	vicieee488widget.$(OBJEXT) vicioramwidget.$(OBJEXT) \
-	videobordermodewidget.$(OBJEXT) videomodelwidget.$(OBJEXT) \
-	videopalettewidget.$(OBJEXT) videorenderfilterwidget.$(OBJEXT) \
-	vsidcontrolwidget.$(OBJEXT) vsidmainwidget.$(OBJEXT) \
-	vsidmixerwidget.$(OBJEXT) vsidplaylistadddialog.$(OBJEXT) \
-	vsidplaylistwidget.$(OBJEXT) vsidtuneinfowidget.$(OBJEXT)
+	userportdevicecheckbutton.$(OBJEXT) \
+	userportrsinterfacewidget.$(OBJEXT) v364speechwidget.$(OBJEXT) \
+	vdcmodelwidget.$(OBJEXT) vic20memoryexpansionwidget.$(OBJEXT) \
+	videobordermodewidget.$(OBJEXT) videoaspectwidget.$(OBJEXT) \
+	videomodelwidget.$(OBJEXT) videopalettewidget.$(OBJEXT) \
+	videorenderfilterwidget.$(OBJEXT) vsidcontrolwidget.$(OBJEXT) \
+	vsidmainwidget.$(OBJEXT) vsidmixerwidget.$(OBJEXT) \
+	vsidplaylistadddialog.$(OBJEXT) vsidplaylistwidget.$(OBJEXT) \
+	vsidtuneinfowidget.$(OBJEXT)
 libwidgets_a_OBJECTS = $(am_libwidgets_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -218,13 +222,10 @@ DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/src
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/aciawidget.Po \
-	./$(DEPDIR)/burstmodewidget.Po \
-	./$(DEPDIR)/c128fullbankswidget.Po \
-	./$(DEPDIR)/c128functionromwidget.Po \
 	./$(DEPDIR)/c128machinetypewidget.Po \
-	./$(DEPDIR)/c64dtvflashsettingswidget.Po \
-	./$(DEPDIR)/c64memhackswidget.Po \
 	./$(DEPDIR)/canvasrenderfilterwidget.Po \
+	./$(DEPDIR)/canvasrendermirrorwidget.Po \
+	./$(DEPDIR)/canvasrendervsyncwidget.Po \
 	./$(DEPDIR)/cbm2hardwiredswitcheswidget.Po \
 	./$(DEPDIR)/cbm2memorysizewidget.Po \
 	./$(DEPDIR)/cbm2rammappingwidget.Po \
@@ -240,44 +241,48 @@ am__depfiles_remade = ./$(DEPDIR)/aciawidget.Po \
 	./$(DEPDIR)/drivemodelwidget.Po ./$(DEPDIR)/drivenowidget.Po \
 	./$(DEPDIR)/driveparallelcablewidget.Po \
 	./$(DEPDIR)/driveramwidget.Po ./$(DEPDIR)/driverpmwidget.Po \
-	./$(DEPDIR)/driveunitwidget.Po \
+	./$(DEPDIR)/drivesoundwidget.Po ./$(DEPDIR)/driveunitwidget.Po \
 	./$(DEPDIR)/drivewidgethelpers.Po \
 	./$(DEPDIR)/extendimagedialog.Po ./$(DEPDIR)/ffmpegwidget.Po \
-	./$(DEPDIR)/hvscsettingswidget.Po \
-	./$(DEPDIR)/hvscstilwidget.Po ./$(DEPDIR)/jamactionwidget.Po \
-	./$(DEPDIR)/jamdialog.Po ./$(DEPDIR)/joystickautofirewidget.Po \
+	./$(DEPDIR)/hvscstilwidget.Po ./$(DEPDIR)/jamdialog.Po \
+	./$(DEPDIR)/joystickautofirewidget.Po \
 	./$(DEPDIR)/joystickdevicewidget.Po \
 	./$(DEPDIR)/joystickmenupopup.Po ./$(DEPDIR)/kbddebugwidget.Po \
-	./$(DEPDIR)/kbdlayoutwidget.Po ./$(DEPDIR)/kbdmappingwidget.Po \
+	./$(DEPDIR)/kbdhostlayoutwidget.Po \
+	./$(DEPDIR)/kbdmappingwidget.Po \
 	./$(DEPDIR)/kernalrevisionwidget.Po \
-	./$(DEPDIR)/keysetdialog.Po ./$(DEPDIR)/machinemodelwidget.Po \
+	./$(DEPDIR)/keysetdialog.Po ./$(DEPDIR)/logfilewidget.Po \
+	./$(DEPDIR)/machinemodelwidget.Po \
+	./$(DEPDIR)/machinepowerfrequencywidget.Po \
 	./$(DEPDIR)/mididevicewidget.Po ./$(DEPDIR)/mixerwidget.Po \
-	./$(DEPDIR)/netplaywidget.Po \
-	./$(DEPDIR)/petcolourgraphicswidget.Po \
-	./$(DEPDIR)/petdiagpinwidget.Po ./$(DEPDIR)/petdwwwidget.Po \
-	./$(DEPDIR)/pethrewidget.Po ./$(DEPDIR)/petiosizewidget.Po \
+	./$(DEPDIR)/petdiagnosticpinwidget.Po \
+	./$(DEPDIR)/petiosizewidget.Po \
 	./$(DEPDIR)/petkeyboardtypewidget.Po \
 	./$(DEPDIR)/petmiscwidget.Po ./$(DEPDIR)/petram9widget.Po \
 	./$(DEPDIR)/petramawidget.Po ./$(DEPDIR)/petramsizewidget.Po \
-	./$(DEPDIR)/petreuwidget.Po ./$(DEPDIR)/petvideosizewidget.Po \
+	./$(DEPDIR)/petvideosizewidget.Po \
 	./$(DEPDIR)/plus4aciawidget.Po \
-	./$(DEPDIR)/plus4digiblasterwidget.Po \
 	./$(DEPDIR)/plus4memoryexpansionwidget.Po \
 	./$(DEPDIR)/plus4memorysizewidget.Po \
 	./$(DEPDIR)/printerdriverwidget.Po \
 	./$(DEPDIR)/printeremulationtypewidget.Po \
 	./$(DEPDIR)/printeroutputdevicewidget.Po \
 	./$(DEPDIR)/printeroutputmodewidget.Po \
-	./$(DEPDIR)/romsetmanagerwidget.Po \
-	./$(DEPDIR)/scpu64settingswidget.Po \
+	./$(DEPDIR)/rommanager.Po ./$(DEPDIR)/romsetmanagerwidget.Po \
 	./$(DEPDIR)/settings_autofire.Po \
 	./$(DEPDIR)/settings_autostart.Po \
+	./$(DEPDIR)/settings_burstmode.Po \
+	./$(DEPDIR)/settings_c128fullbanks.Po \
+	./$(DEPDIR)/settings_c128functionrom.Po \
+	./$(DEPDIR)/settings_c64dtvflash.Po \
+	./$(DEPDIR)/settings_c64memhacks.Po \
 	./$(DEPDIR)/settings_controlport.Po \
 	./$(DEPDIR)/settings_cpm.Po ./$(DEPDIR)/settings_crt.Po \
 	./$(DEPDIR)/settings_default_cart.Po \
 	./$(DEPDIR)/settings_digimax.Po ./$(DEPDIR)/settings_dqbb.Po \
 	./$(DEPDIR)/settings_drive.Po ./$(DEPDIR)/settings_ds12c887.Po \
 	./$(DEPDIR)/settings_easyflash.Po \
+	./$(DEPDIR)/settings_environment.Po \
 	./$(DEPDIR)/settings_ethernet.Po \
 	./$(DEPDIR)/settings_ethernetcart.Po \
 	./$(DEPDIR)/settings_expert.Po \
@@ -287,10 +292,10 @@ am__depfiles_remade = ./$(DEPDIR)/aciawidget.Po \
 	./$(DEPDIR)/settings_gmod2c128.Po \
 	./$(DEPDIR)/settings_gmod3.Po \
 	./$(DEPDIR)/settings_host_display.Po \
-	./$(DEPDIR)/settings_hotkeys.Po ./$(DEPDIR)/settings_ide64.Po \
-	./$(DEPDIR)/settings_ieee488.Po \
+	./$(DEPDIR)/settings_hotkeys.Po ./$(DEPDIR)/settings_hvsc.Po \
+	./$(DEPDIR)/settings_ide64.Po ./$(DEPDIR)/settings_ieee488.Po \
 	./$(DEPDIR)/settings_ieeeflash64.Po ./$(DEPDIR)/settings_io.Po \
-	./$(DEPDIR)/settings_isepic.Po \
+	./$(DEPDIR)/settings_isepic.Po ./$(DEPDIR)/settings_jam.Po \
 	./$(DEPDIR)/settings_joystick.Po \
 	./$(DEPDIR)/settings_keyboard.Po \
 	./$(DEPDIR)/settings_ltkernal.Po \
@@ -299,6 +304,11 @@ am__depfiles_remade = ./$(DEPDIR)/aciawidget.Po \
 	./$(DEPDIR)/settings_misc.Po ./$(DEPDIR)/settings_mixer.Po \
 	./$(DEPDIR)/settings_mmc64.Po ./$(DEPDIR)/settings_mmcr.Po \
 	./$(DEPDIR)/settings_model.Po ./$(DEPDIR)/settings_monitor.Po \
+	./$(DEPDIR)/settings_netplay.Po \
+	./$(DEPDIR)/settings_petcolourgraphics.Po \
+	./$(DEPDIR)/settings_petdww.Po ./$(DEPDIR)/settings_pethre.Po \
+	./$(DEPDIR)/settings_petreu.Po \
+	./$(DEPDIR)/settings_plus4digiblaster.Po \
 	./$(DEPDIR)/settings_printer.Po \
 	./$(DEPDIR)/settings_ramcart.Po \
 	./$(DEPDIR)/settings_ramlink.Po \
@@ -308,17 +318,20 @@ am__depfiles_remade = ./$(DEPDIR)/aciawidget.Po \
 	./$(DEPDIR)/settings_rexramfloppy.Po \
 	./$(DEPDIR)/settings_romset.Po \
 	./$(DEPDIR)/settings_rrnetmk3.Po ./$(DEPDIR)/settings_rs232.Po \
-	./$(DEPDIR)/settings_sampler.Po \
+	./$(DEPDIR)/settings_sampler.Po ./$(DEPDIR)/settings_scpu64.Po \
 	./$(DEPDIR)/settings_sfxsoundexpander.Po \
 	./$(DEPDIR)/settings_sfxsoundsampler.Po \
+	./$(DEPDIR)/settings_sidcart.Po \
 	./$(DEPDIR)/settings_snapshot.Po ./$(DEPDIR)/settings_sound.Po \
 	./$(DEPDIR)/settings_soundchip.Po \
 	./$(DEPDIR)/settings_speed.Po \
-	./$(DEPDIR)/settings_supersnapshot.Po \
+	./$(DEPDIR)/settings_supersnapshotv5.Po \
 	./$(DEPDIR)/settings_tapeport.Po \
 	./$(DEPDIR)/settings_ultimem.Po \
+	./$(DEPDIR)/settings_userport.Po ./$(DEPDIR)/settings_vfli.Po \
 	./$(DEPDIR)/settings_vicflashplugin.Po \
-	./$(DEPDIR)/settings_video.Po ./$(DEPDIR)/sidcartwidget.Po \
+	./$(DEPDIR)/settings_vicieee488.Po \
+	./$(DEPDIR)/settings_vicioram.Po ./$(DEPDIR)/settings_video.Po \
 	./$(DEPDIR)/sidenginemodelwidget.Po \
 	./$(DEPDIR)/sidmodelwidget.Po ./$(DEPDIR)/sidsoundwidget.Po \
 	./$(DEPDIR)/soundbuffersizewidget.Po \
@@ -330,13 +343,11 @@ am__depfiles_remade = ./$(DEPDIR)/aciawidget.Po \
 	./$(DEPDIR)/statusbarrecordingwidget.Po \
 	./$(DEPDIR)/statusbarspeedwidget.Po \
 	./$(DEPDIR)/superpetwidget.Po \
-	./$(DEPDIR)/userportdeviceswidget.Po \
-	./$(DEPDIR)/userportprinterwidget.Po \
+	./$(DEPDIR)/userportdevicecheckbutton.Po \
 	./$(DEPDIR)/userportrsinterfacewidget.Po \
 	./$(DEPDIR)/v364speechwidget.Po ./$(DEPDIR)/vdcmodelwidget.Po \
-	./$(DEPDIR)/vfliwidget.Po \
 	./$(DEPDIR)/vic20memoryexpansionwidget.Po \
-	./$(DEPDIR)/vicieee488widget.Po ./$(DEPDIR)/vicioramwidget.Po \
+	./$(DEPDIR)/videoaspectwidget.Po \
 	./$(DEPDIR)/videobordermodewidget.Po \
 	./$(DEPDIR)/videomodelwidget.Po \
 	./$(DEPDIR)/videopalettewidget.Po \
@@ -495,7 +506,6 @@ GLIB_LIBS = @GLIB_LIBS@
 GTK_CFLAGS = @GTK_CFLAGS@
 GTK_LIBS = @GTK_LIBS@
 HAVE_CXX11 = @HAVE_CXX11@
-HAVE_READLINE = @HAVE_READLINE@
 ICONV = @ICONV@
 ICOTOOL = @ICOTOOL@
 INLINE_UNIT_GROWTH = @INLINE_UNIT_GROWTH@
@@ -542,8 +552,6 @@ PNG_LIBS = @PNG_LIBS@
 PROGRAM_PREFIX = @PROGRAM_PREFIX@
 PROGRAM_SUFFIX = @PROGRAM_SUFFIX@
 RANLIB = @RANLIB@
-READLINE = @READLINE@
-READLINE_LIBS = @READLINE_LIBS@
 RESIDDTVSUB = @RESIDDTVSUB@
 RESIDSUB = @RESIDSUB@
 RESID_DEP = @RESID_DEP@
@@ -568,7 +576,6 @@ SOUND_DRIVERS = @SOUND_DRIVERS@
 SOUND_LIBS = @SOUND_LIBS@
 SOUND_MIDAS_OBJ = @SOUND_MIDAS_OBJ@
 SOUND_SDL_OBJ = @SOUND_SDL_OBJ@
-SOUND_USS_OBJ = @SOUND_USS_OBJ@
 STRIP = @STRIP@
 SVN = @SVN@
 SVNVERSION = @SVNVERSION@
@@ -577,6 +584,7 @@ TAR = @TAR@
 TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
+UNZIPBIN = @UNZIPBIN@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -670,8 +678,10 @@ AM_CPPFLAGS = \
 	@VICE_CPPFLAGS@ \
 	@ARCH_INCLUDES@ \
 	-I$(top_srcdir)/src/arch/shared \
+	-I$(top_srcdir)/src/arch/shared/hotkeys \
 	-I$(top_builddir)/src \
 	-I$(top_srcdir)/src \
+	-I$(top_srcdir)/src/datasette \
 	-I$(top_srcdir)/src/drive \
 	-I$(top_srcdir)/src/printerdrv \
 	-I$(top_srcdir)/src/joyport \
@@ -690,6 +700,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src/scpu64 \
 	-I$(top_srcdir)/src/vic20 \
 	-I$(top_srcdir)/src/userport \
+	-I$(top_srcdir)/src/vdc \
 	-I$(top_srcdir)/src/arch/gtk3/widgets \
 	-I$(top_srcdir)/src/arch/gtk3/widgets/base \
 	-I$(top_srcdir)/src/samplerdrv \
@@ -703,13 +714,10 @@ AM_LDFLAGS = @VICE_LDFLAGS@
 noinst_LIBRARIES = libwidgets.a
 libwidgets_a_SOURCES = \
 	aciawidget.c \
-	burstmodewidget.c \
-	c128fullbankswidget.c \
-	c128functionromwidget.c \
 	c128machinetypewidget.c \
-	c64dtvflashsettingswidget.c \
-	c64memhackswidget.c \
 	canvasrenderfilterwidget.c \
+	canvasrendermirrorwidget.c \
+	canvasrendervsyncwidget.c \
 	cbm2hardwiredswitcheswidget.c \
 	cbm2memorysizewidget.c \
 	cbm2rammappingwidget.c \
@@ -730,49 +738,49 @@ libwidgets_a_SOURCES = \
 	driverpmwidget.c \
 	driveunitwidget.c \
 	drivenowidget.c \
+	drivesoundwidget.c \
 	drivewidgethelpers.c \
 	extendimagedialog.c \
 	ffmpegwidget.c \
-	hvscsettingswidget.c \
 	hvscstilwidget.c \
-	jamactionwidget.c \
 	jamdialog.c \
 	joystickautofirewidget.c \
 	joystickdevicewidget.c \
 	joystickmenupopup.c \
 	kbddebugwidget.c \
-	kbdlayoutwidget.c \
+	kbdhostlayoutwidget.c \
 	kbdmappingwidget.c \
 	kernalrevisionwidget.c \
 	keysetdialog.c \
+	logfilewidget.c \
 	machinemodelwidget.c \
+	machinepowerfrequencywidget.c \
 	mididevicewidget.c \
 	mixerwidget.c \
-	netplaywidget.c \
-	petcolourgraphicswidget.c \
-	petdiagpinwidget.c \
-	petdwwwidget.c \
-	pethrewidget.c \
+	petdiagnosticpinwidget.c \
 	petiosizewidget.c \
 	petram9widget.c \
 	petramawidget.c \
 	petkeyboardtypewidget.c \
 	petmiscwidget.c \
 	petramsizewidget.c \
-	petreuwidget.c \
 	petvideosizewidget.c \
 	plus4aciawidget.c \
-	plus4digiblasterwidget.c \
 	plus4memoryexpansionwidget.c \
 	plus4memorysizewidget.c \
 	printerdriverwidget.c \
 	printeremulationtypewidget.c \
 	printeroutputdevicewidget.c \
 	printeroutputmodewidget.c \
+	rommanager.c \
 	romsetmanagerwidget.c \
-	scpu64settingswidget.c \
 	settings_autofire.c \
 	settings_autostart.c \
+	settings_burstmode.c \
+	settings_c128fullbanks.c \
+	settings_c128functionrom.c \
+	settings_c64dtvflash.c \
+	settings_c64memhacks.c \
 	settings_controlport.c \
 	settings_cpm.c \
 	settings_crt.c \
@@ -782,6 +790,7 @@ libwidgets_a_SOURCES = \
 	settings_drive.c \
 	settings_ds12c887.c \
 	settings_easyflash.c \
+	settings_environment.c \
 	settings_ethernet.c \
 	settings_ethernetcart.c \
 	settings_expert.c \
@@ -791,6 +800,7 @@ libwidgets_a_SOURCES = \
 	settings_gmod2.c \
 	settings_gmod2c128.c \
 	settings_gmod3.c \
+	settings_hvsc.c \
 	settings_host_display.c \
 	settings_hotkeys.c \
 	settings_ide64.c \
@@ -798,6 +808,7 @@ libwidgets_a_SOURCES = \
 	settings_ieeeflash64.c \
 	settings_io.c \
 	settings_isepic.c \
+	settings_jam.c \
 	settings_joystick.c \
 	settings_keyboard.c \
 	settings_ltkernal.c \
@@ -810,6 +821,12 @@ libwidgets_a_SOURCES = \
 	settings_mmcr.c \
 	settings_model.c \
 	settings_monitor.c \
+	settings_netplay.c \
+	settings_petcolourgraphics.c \
+	settings_petdww.c \
+	settings_pethre.c \
+	settings_petreu.c \
+	settings_plus4digiblaster.c \
 	settings_printer.c \
 	settings_ramcart.c \
 	settings_ramlink.c \
@@ -821,18 +838,23 @@ libwidgets_a_SOURCES = \
 	settings_rrnetmk3.c \
 	settings_rs232.c \
 	settings_sampler.c \
+	settings_scpu64.c \
 	settings_sfxsoundexpander.c \
 	settings_sfxsoundsampler.c \
+	settings_sidcart.c \
 	settings_snapshot.c \
 	settings_sound.c \
 	settings_soundchip.c \
 	settings_speed.c \
-	settings_supersnapshot.c \
+	settings_supersnapshotv5.c \
 	settings_tapeport.c \
 	settings_ultimem.c \
+	settings_userport.c \
+	settings_vfli.c \
 	settings_vicflashplugin.c \
+	settings_vicieee488.c \
+	settings_vicioram.c \
 	settings_video.c \
-	sidcartwidget.c \
 	sidenginemodelwidget.c \
 	sidmodelwidget.c \
 	sidsoundwidget.c \
@@ -846,16 +868,13 @@ libwidgets_a_SOURCES = \
 	statusbarrecordingwidget.c \
 	statusbarspeedwidget.c \
 	superpetwidget.c \
-	userportdeviceswidget.c \
+	userportdevicecheckbutton.c \
 	userportrsinterfacewidget.c \
-	userportprinterwidget.c \
 	v364speechwidget.c \
 	vdcmodelwidget.c \
-	vfliwidget.c \
 	vic20memoryexpansionwidget.c \
-	vicieee488widget.c \
-	vicioramwidget.c \
 	videobordermodewidget.c \
+	videoaspectwidget.c \
 	videomodelwidget.c \
 	videopalettewidget.c \
 	videorenderfilterwidget.c \
@@ -868,16 +887,13 @@ libwidgets_a_SOURCES = \
 
 EXTRA_DIST = \
 	aciawidget.h \
-	burstmodewidget.h \
-	c128fullbankswidget.h \
-	c128functionromwidget.h \
 	c128machinetypewidget.h \
-	c64dtvflashsettingswidget.h \
 	cbm2hardwiredswitcheswidget.h \
 	cbm2memorysizewidget.h \
 	cbm2rammappingwidget.h \
-	c64memhackswidget.h \
 	canvasrenderfilterwidget.h \
+	canvasrendermirrorwidget.h \
+	canvasrendervsyncwidget.h \
 	ciamodelwidget.h \
 	contentpreviewwidget.h \
 	crtcontrolwidget.h \
@@ -895,49 +911,49 @@ EXTRA_DIST = \
 	driverpmwidget.h \
 	driveunitwidget.h \
 	drivenowidget.h \
+	drivesoundwidget.h \
 	drivewidgethelpers.h \
 	extendimagedialog.h \
 	ffmpegwidget.h \
-	hvscsettingswidget.h \
 	hvscstilwidget.h \
-	jamactionwidget.h \
 	jamdialog.h \
 	joystickautofirewidget.h \
 	joystickdevicewidget.h \
 	joystickmenupopup.h \
 	kbddebugwidget.h \
-	kbdlayoutwidget.h \
+	kbdhostlayoutwidget.h \
 	kbdmappingwidget.h \
 	kernalrevisionwidget.h \
 	keysetdialog.h \
+	logfilewidget.h \
 	machinemodelwidget.h \
+	machinepowerfrequencywidget.h \
 	mididevicewidget.h \
 	mixerwidget.h \
-	netplaywidget.h \
-	petcolourgraphicswidget.h \
-	petdiagpinwidget.h \
-	petdwwwidget.h \
-	pethrewidget.h \
+	petdiagnosticpinwidget.h \
 	petiosizewidget.h \
 	petram9widget.h \
 	petramawidget.h \
 	petkeyboardtypewidget.h \
 	petmiscwidget.h \
 	petramsizewidget.h \
-	petreuwidget.h \
 	petvideosizewidget.h \
 	plus4aciawidget.h \
-	plus4digiblasterwidget.h \
 	plus4memoryexpansionwidget.h \
 	plus4memorysizewidget.h \
 	printerdriverwidget.h \
 	printeremulationtypewidget.h \
 	printeroutputdevicewidget.h \
 	printeroutputmodewidget.h \
+	rommanager.h \
 	romsetmanagerwidget.h \
-	scpu64settingswidget.h \
 	settings_autofire.h \
 	settings_autostart.h \
+	settings_burstmode.h \
+	settings_c128fullbanks.h \
+	settings_c128functionrom.h \
+	settings_c64dtvflash.h \
+	settings_c64memhacks.h \
 	settings_controlport.h \
 	settings_cpm.h \
 	settings_crt.h \
@@ -947,6 +963,7 @@ EXTRA_DIST = \
 	settings_drive.h \
 	settings_ds12c887.h \
 	settings_easyflash.h \
+	settings_environment.h \
 	settings_ethernet.h \
 	settings_ethernetcart.h \
 	settings_expert.h \
@@ -956,6 +973,7 @@ EXTRA_DIST = \
 	settings_gmod2.h \
 	settings_gmod2c128.h \
 	settings_gmod3.h \
+	settings_hvsc.h \
 	settings_host_display.h \
 	settings_hotkeys.h \
 	settings_ide64.h \
@@ -963,6 +981,7 @@ EXTRA_DIST = \
 	settings_ieeeflash64.h \
 	settings_io.h \
 	settings_isepic.h \
+	settings_jam.h \
 	settings_joystick.h \
 	settings_keyboard.h \
 	settings_ltkernal.h \
@@ -975,6 +994,12 @@ EXTRA_DIST = \
 	settings_mmcr.h \
 	settings_model.h \
 	settings_monitor.h \
+	settings_netplay.h \
+	settings_petcolourgraphics.h \
+	settings_petdww.h \
+	settings_pethre.h \
+	settings_petreu.h \
+	settings_plus4digiblaster.h \
 	settings_printer.h \
 	settings_ramcart.h \
 	settings_ramlink.h \
@@ -986,18 +1011,23 @@ EXTRA_DIST = \
 	settings_rrnetmk3.h \
 	settings_rs232.h \
 	settings_sampler.h \
+	settings_scpu64.h \
 	settings_sfxsoundexpander.h \
 	settings_sfxsoundsampler.h \
+	settings_sidcart.h \
 	settings_snapshot.h \
 	settings_sound.h \
 	settings_soundchip.h \
 	settings_speed.h \
-	settings_supersnapshot.h \
+	settings_supersnapshotv5.h \
 	settings_tapeport.h \
 	settings_ultimem.h \
+	settings_userport.h \
+	settings_vfli.h \
 	settings_vicflashplugin.h \
+	settings_vicieee488.h \
+	settings_vicioram.h \
 	settings_video.h \
-	sidcartwidget.h \
 	sidenginemodelwidget.h \
 	sidmodelwidget.h \
 	sidsoundwidget.h \
@@ -1011,16 +1041,13 @@ EXTRA_DIST = \
 	statusbarrecordingwidget.h \
 	statusbarspeedwidget.h \
 	superpetwidget.h \
-	userportdeviceswidget.h \
+	userportdevicecheckbutton.h \
 	userportrsinterfacewidget.h \
-	userportprinterwidget.h \
 	v364speechwidget.h \
 	vdcmodelwidget.h \
-	vfliwidget.h \
 	vic20memoryexpansionwidget.h \
-	vicieee488widget.h \
-	vicioramwidget.h \
 	videobordermodewidget.h \
+	videoaspectwidget.h \
 	videomodelwidget.h \
 	videopalettewidget.h \
 	videorenderfilterwidget.h \
@@ -1080,13 +1107,10 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/aciawidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/burstmodewidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/c128fullbankswidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/c128functionromwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/c128machinetypewidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/c64dtvflashsettingswidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/c64memhackswidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/canvasrenderfilterwidget.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/canvasrendermirrorwidget.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/canvasrendervsyncwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cbm2hardwiredswitcheswidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cbm2memorysizewidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cbm2rammappingwidget.Po@am__quote@ # am--include-marker
@@ -1106,50 +1130,50 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/driveparallelcablewidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/driveramwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/driverpmwidget.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/drivesoundwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/driveunitwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/drivewidgethelpers.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/extendimagedialog.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ffmpegwidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hvscsettingswidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hvscstilwidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/jamactionwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/jamdialog.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/joystickautofirewidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/joystickdevicewidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/joystickmenupopup.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/kbddebugwidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/kbdlayoutwidget.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/kbdhostlayoutwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/kbdmappingwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/kernalrevisionwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/keysetdialog.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/logfilewidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/machinemodelwidget.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/machinepowerfrequencywidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mididevicewidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mixerwidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/netplaywidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/petcolourgraphicswidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/petdiagpinwidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/petdwwwidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pethrewidget.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/petdiagnosticpinwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/petiosizewidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/petkeyboardtypewidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/petmiscwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/petram9widget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/petramawidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/petramsizewidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/petreuwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/petvideosizewidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4aciawidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4digiblasterwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4memoryexpansionwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4memorysizewidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/printerdriverwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/printeremulationtypewidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/printeroutputdevicewidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/printeroutputmodewidget.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rommanager.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/romsetmanagerwidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/scpu64settingswidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_autofire.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_autostart.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_burstmode.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_c128fullbanks.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_c128functionrom.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_c64dtvflash.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_c64memhacks.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_controlport.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_cpm.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_crt.Po@am__quote@ # am--include-marker
@@ -1159,6 +1183,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_drive.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_ds12c887.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_easyflash.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_environment.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_ethernet.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_ethernetcart.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_expert.Po@am__quote@ # am--include-marker
@@ -1170,11 +1195,13 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_gmod3.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_host_display.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_hotkeys.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_hvsc.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_ide64.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_ieee488.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_ieeeflash64.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_io.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_isepic.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_jam.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_joystick.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_keyboard.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_ltkernal.Po@am__quote@ # am--include-marker
@@ -1187,6 +1214,12 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_mmcr.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_model.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_monitor.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_netplay.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_petcolourgraphics.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_petdww.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_pethre.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_petreu.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_plus4digiblaster.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_printer.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_ramcart.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_ramlink.Po@am__quote@ # am--include-marker
@@ -1198,18 +1231,23 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_rrnetmk3.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_rs232.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_sampler.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_scpu64.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_sfxsoundexpander.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_sfxsoundsampler.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_sidcart.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_snapshot.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_sound.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_soundchip.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_speed.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_supersnapshot.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_supersnapshotv5.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_tapeport.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_ultimem.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_userport.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_vfli.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_vicflashplugin.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_vicieee488.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_vicioram.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_video.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sidcartwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sidenginemodelwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sidmodelwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sidsoundwidget.Po@am__quote@ # am--include-marker
@@ -1223,15 +1261,12 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/statusbarrecordingwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/statusbarspeedwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/superpetwidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userportdeviceswidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userportprinterwidget.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userportdevicecheckbutton.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userportrsinterfacewidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/v364speechwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vdcmodelwidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vfliwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vic20memoryexpansionwidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vicieee488widget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vicioramwidget.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/videoaspectwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/videobordermodewidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/videomodelwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/videopalettewidget.Po@am__quote@ # am--include-marker
@@ -1460,13 +1495,10 @@ clean-am: clean-generic clean-noinstLIBRARIES mostlyclean-am
 
 distclean: distclean-recursive
 		-rm -f ./$(DEPDIR)/aciawidget.Po
-	-rm -f ./$(DEPDIR)/burstmodewidget.Po
-	-rm -f ./$(DEPDIR)/c128fullbankswidget.Po
-	-rm -f ./$(DEPDIR)/c128functionromwidget.Po
 	-rm -f ./$(DEPDIR)/c128machinetypewidget.Po
-	-rm -f ./$(DEPDIR)/c64dtvflashsettingswidget.Po
-	-rm -f ./$(DEPDIR)/c64memhackswidget.Po
 	-rm -f ./$(DEPDIR)/canvasrenderfilterwidget.Po
+	-rm -f ./$(DEPDIR)/canvasrendermirrorwidget.Po
+	-rm -f ./$(DEPDIR)/canvasrendervsyncwidget.Po
 	-rm -f ./$(DEPDIR)/cbm2hardwiredswitcheswidget.Po
 	-rm -f ./$(DEPDIR)/cbm2memorysizewidget.Po
 	-rm -f ./$(DEPDIR)/cbm2rammappingwidget.Po
@@ -1486,50 +1518,50 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/driveparallelcablewidget.Po
 	-rm -f ./$(DEPDIR)/driveramwidget.Po
 	-rm -f ./$(DEPDIR)/driverpmwidget.Po
+	-rm -f ./$(DEPDIR)/drivesoundwidget.Po
 	-rm -f ./$(DEPDIR)/driveunitwidget.Po
 	-rm -f ./$(DEPDIR)/drivewidgethelpers.Po
 	-rm -f ./$(DEPDIR)/extendimagedialog.Po
 	-rm -f ./$(DEPDIR)/ffmpegwidget.Po
-	-rm -f ./$(DEPDIR)/hvscsettingswidget.Po
 	-rm -f ./$(DEPDIR)/hvscstilwidget.Po
-	-rm -f ./$(DEPDIR)/jamactionwidget.Po
 	-rm -f ./$(DEPDIR)/jamdialog.Po
 	-rm -f ./$(DEPDIR)/joystickautofirewidget.Po
 	-rm -f ./$(DEPDIR)/joystickdevicewidget.Po
 	-rm -f ./$(DEPDIR)/joystickmenupopup.Po
 	-rm -f ./$(DEPDIR)/kbddebugwidget.Po
-	-rm -f ./$(DEPDIR)/kbdlayoutwidget.Po
+	-rm -f ./$(DEPDIR)/kbdhostlayoutwidget.Po
 	-rm -f ./$(DEPDIR)/kbdmappingwidget.Po
 	-rm -f ./$(DEPDIR)/kernalrevisionwidget.Po
 	-rm -f ./$(DEPDIR)/keysetdialog.Po
+	-rm -f ./$(DEPDIR)/logfilewidget.Po
 	-rm -f ./$(DEPDIR)/machinemodelwidget.Po
+	-rm -f ./$(DEPDIR)/machinepowerfrequencywidget.Po
 	-rm -f ./$(DEPDIR)/mididevicewidget.Po
 	-rm -f ./$(DEPDIR)/mixerwidget.Po
-	-rm -f ./$(DEPDIR)/netplaywidget.Po
-	-rm -f ./$(DEPDIR)/petcolourgraphicswidget.Po
-	-rm -f ./$(DEPDIR)/petdiagpinwidget.Po
-	-rm -f ./$(DEPDIR)/petdwwwidget.Po
-	-rm -f ./$(DEPDIR)/pethrewidget.Po
+	-rm -f ./$(DEPDIR)/petdiagnosticpinwidget.Po
 	-rm -f ./$(DEPDIR)/petiosizewidget.Po
 	-rm -f ./$(DEPDIR)/petkeyboardtypewidget.Po
 	-rm -f ./$(DEPDIR)/petmiscwidget.Po
 	-rm -f ./$(DEPDIR)/petram9widget.Po
 	-rm -f ./$(DEPDIR)/petramawidget.Po
 	-rm -f ./$(DEPDIR)/petramsizewidget.Po
-	-rm -f ./$(DEPDIR)/petreuwidget.Po
 	-rm -f ./$(DEPDIR)/petvideosizewidget.Po
 	-rm -f ./$(DEPDIR)/plus4aciawidget.Po
-	-rm -f ./$(DEPDIR)/plus4digiblasterwidget.Po
 	-rm -f ./$(DEPDIR)/plus4memoryexpansionwidget.Po
 	-rm -f ./$(DEPDIR)/plus4memorysizewidget.Po
 	-rm -f ./$(DEPDIR)/printerdriverwidget.Po
 	-rm -f ./$(DEPDIR)/printeremulationtypewidget.Po
 	-rm -f ./$(DEPDIR)/printeroutputdevicewidget.Po
 	-rm -f ./$(DEPDIR)/printeroutputmodewidget.Po
+	-rm -f ./$(DEPDIR)/rommanager.Po
 	-rm -f ./$(DEPDIR)/romsetmanagerwidget.Po
-	-rm -f ./$(DEPDIR)/scpu64settingswidget.Po
 	-rm -f ./$(DEPDIR)/settings_autofire.Po
 	-rm -f ./$(DEPDIR)/settings_autostart.Po
+	-rm -f ./$(DEPDIR)/settings_burstmode.Po
+	-rm -f ./$(DEPDIR)/settings_c128fullbanks.Po
+	-rm -f ./$(DEPDIR)/settings_c128functionrom.Po
+	-rm -f ./$(DEPDIR)/settings_c64dtvflash.Po
+	-rm -f ./$(DEPDIR)/settings_c64memhacks.Po
 	-rm -f ./$(DEPDIR)/settings_controlport.Po
 	-rm -f ./$(DEPDIR)/settings_cpm.Po
 	-rm -f ./$(DEPDIR)/settings_crt.Po
@@ -1539,6 +1571,7 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/settings_drive.Po
 	-rm -f ./$(DEPDIR)/settings_ds12c887.Po
 	-rm -f ./$(DEPDIR)/settings_easyflash.Po
+	-rm -f ./$(DEPDIR)/settings_environment.Po
 	-rm -f ./$(DEPDIR)/settings_ethernet.Po
 	-rm -f ./$(DEPDIR)/settings_ethernetcart.Po
 	-rm -f ./$(DEPDIR)/settings_expert.Po
@@ -1550,11 +1583,13 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/settings_gmod3.Po
 	-rm -f ./$(DEPDIR)/settings_host_display.Po
 	-rm -f ./$(DEPDIR)/settings_hotkeys.Po
+	-rm -f ./$(DEPDIR)/settings_hvsc.Po
 	-rm -f ./$(DEPDIR)/settings_ide64.Po
 	-rm -f ./$(DEPDIR)/settings_ieee488.Po
 	-rm -f ./$(DEPDIR)/settings_ieeeflash64.Po
 	-rm -f ./$(DEPDIR)/settings_io.Po
 	-rm -f ./$(DEPDIR)/settings_isepic.Po
+	-rm -f ./$(DEPDIR)/settings_jam.Po
 	-rm -f ./$(DEPDIR)/settings_joystick.Po
 	-rm -f ./$(DEPDIR)/settings_keyboard.Po
 	-rm -f ./$(DEPDIR)/settings_ltkernal.Po
@@ -1567,6 +1602,12 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/settings_mmcr.Po
 	-rm -f ./$(DEPDIR)/settings_model.Po
 	-rm -f ./$(DEPDIR)/settings_monitor.Po
+	-rm -f ./$(DEPDIR)/settings_netplay.Po
+	-rm -f ./$(DEPDIR)/settings_petcolourgraphics.Po
+	-rm -f ./$(DEPDIR)/settings_petdww.Po
+	-rm -f ./$(DEPDIR)/settings_pethre.Po
+	-rm -f ./$(DEPDIR)/settings_petreu.Po
+	-rm -f ./$(DEPDIR)/settings_plus4digiblaster.Po
 	-rm -f ./$(DEPDIR)/settings_printer.Po
 	-rm -f ./$(DEPDIR)/settings_ramcart.Po
 	-rm -f ./$(DEPDIR)/settings_ramlink.Po
@@ -1578,18 +1619,23 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/settings_rrnetmk3.Po
 	-rm -f ./$(DEPDIR)/settings_rs232.Po
 	-rm -f ./$(DEPDIR)/settings_sampler.Po
+	-rm -f ./$(DEPDIR)/settings_scpu64.Po
 	-rm -f ./$(DEPDIR)/settings_sfxsoundexpander.Po
 	-rm -f ./$(DEPDIR)/settings_sfxsoundsampler.Po
+	-rm -f ./$(DEPDIR)/settings_sidcart.Po
 	-rm -f ./$(DEPDIR)/settings_snapshot.Po
 	-rm -f ./$(DEPDIR)/settings_sound.Po
 	-rm -f ./$(DEPDIR)/settings_soundchip.Po
 	-rm -f ./$(DEPDIR)/settings_speed.Po
-	-rm -f ./$(DEPDIR)/settings_supersnapshot.Po
+	-rm -f ./$(DEPDIR)/settings_supersnapshotv5.Po
 	-rm -f ./$(DEPDIR)/settings_tapeport.Po
 	-rm -f ./$(DEPDIR)/settings_ultimem.Po
+	-rm -f ./$(DEPDIR)/settings_userport.Po
+	-rm -f ./$(DEPDIR)/settings_vfli.Po
 	-rm -f ./$(DEPDIR)/settings_vicflashplugin.Po
+	-rm -f ./$(DEPDIR)/settings_vicieee488.Po
+	-rm -f ./$(DEPDIR)/settings_vicioram.Po
 	-rm -f ./$(DEPDIR)/settings_video.Po
-	-rm -f ./$(DEPDIR)/sidcartwidget.Po
 	-rm -f ./$(DEPDIR)/sidenginemodelwidget.Po
 	-rm -f ./$(DEPDIR)/sidmodelwidget.Po
 	-rm -f ./$(DEPDIR)/sidsoundwidget.Po
@@ -1603,15 +1649,12 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/statusbarrecordingwidget.Po
 	-rm -f ./$(DEPDIR)/statusbarspeedwidget.Po
 	-rm -f ./$(DEPDIR)/superpetwidget.Po
-	-rm -f ./$(DEPDIR)/userportdeviceswidget.Po
-	-rm -f ./$(DEPDIR)/userportprinterwidget.Po
+	-rm -f ./$(DEPDIR)/userportdevicecheckbutton.Po
 	-rm -f ./$(DEPDIR)/userportrsinterfacewidget.Po
 	-rm -f ./$(DEPDIR)/v364speechwidget.Po
 	-rm -f ./$(DEPDIR)/vdcmodelwidget.Po
-	-rm -f ./$(DEPDIR)/vfliwidget.Po
 	-rm -f ./$(DEPDIR)/vic20memoryexpansionwidget.Po
-	-rm -f ./$(DEPDIR)/vicieee488widget.Po
-	-rm -f ./$(DEPDIR)/vicioramwidget.Po
+	-rm -f ./$(DEPDIR)/videoaspectwidget.Po
 	-rm -f ./$(DEPDIR)/videobordermodewidget.Po
 	-rm -f ./$(DEPDIR)/videomodelwidget.Po
 	-rm -f ./$(DEPDIR)/videopalettewidget.Po
@@ -1668,13 +1711,10 @@ installcheck-am:
 
 maintainer-clean: maintainer-clean-recursive
 		-rm -f ./$(DEPDIR)/aciawidget.Po
-	-rm -f ./$(DEPDIR)/burstmodewidget.Po
-	-rm -f ./$(DEPDIR)/c128fullbankswidget.Po
-	-rm -f ./$(DEPDIR)/c128functionromwidget.Po
 	-rm -f ./$(DEPDIR)/c128machinetypewidget.Po
-	-rm -f ./$(DEPDIR)/c64dtvflashsettingswidget.Po
-	-rm -f ./$(DEPDIR)/c64memhackswidget.Po
 	-rm -f ./$(DEPDIR)/canvasrenderfilterwidget.Po
+	-rm -f ./$(DEPDIR)/canvasrendermirrorwidget.Po
+	-rm -f ./$(DEPDIR)/canvasrendervsyncwidget.Po
 	-rm -f ./$(DEPDIR)/cbm2hardwiredswitcheswidget.Po
 	-rm -f ./$(DEPDIR)/cbm2memorysizewidget.Po
 	-rm -f ./$(DEPDIR)/cbm2rammappingwidget.Po
@@ -1694,50 +1734,50 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/driveparallelcablewidget.Po
 	-rm -f ./$(DEPDIR)/driveramwidget.Po
 	-rm -f ./$(DEPDIR)/driverpmwidget.Po
+	-rm -f ./$(DEPDIR)/drivesoundwidget.Po
 	-rm -f ./$(DEPDIR)/driveunitwidget.Po
 	-rm -f ./$(DEPDIR)/drivewidgethelpers.Po
 	-rm -f ./$(DEPDIR)/extendimagedialog.Po
 	-rm -f ./$(DEPDIR)/ffmpegwidget.Po
-	-rm -f ./$(DEPDIR)/hvscsettingswidget.Po
 	-rm -f ./$(DEPDIR)/hvscstilwidget.Po
-	-rm -f ./$(DEPDIR)/jamactionwidget.Po
 	-rm -f ./$(DEPDIR)/jamdialog.Po
 	-rm -f ./$(DEPDIR)/joystickautofirewidget.Po
 	-rm -f ./$(DEPDIR)/joystickdevicewidget.Po
 	-rm -f ./$(DEPDIR)/joystickmenupopup.Po
 	-rm -f ./$(DEPDIR)/kbddebugwidget.Po
-	-rm -f ./$(DEPDIR)/kbdlayoutwidget.Po
+	-rm -f ./$(DEPDIR)/kbdhostlayoutwidget.Po
 	-rm -f ./$(DEPDIR)/kbdmappingwidget.Po
 	-rm -f ./$(DEPDIR)/kernalrevisionwidget.Po
 	-rm -f ./$(DEPDIR)/keysetdialog.Po
+	-rm -f ./$(DEPDIR)/logfilewidget.Po
 	-rm -f ./$(DEPDIR)/machinemodelwidget.Po
+	-rm -f ./$(DEPDIR)/machinepowerfrequencywidget.Po
 	-rm -f ./$(DEPDIR)/mididevicewidget.Po
 	-rm -f ./$(DEPDIR)/mixerwidget.Po
-	-rm -f ./$(DEPDIR)/netplaywidget.Po
-	-rm -f ./$(DEPDIR)/petcolourgraphicswidget.Po
-	-rm -f ./$(DEPDIR)/petdiagpinwidget.Po
-	-rm -f ./$(DEPDIR)/petdwwwidget.Po
-	-rm -f ./$(DEPDIR)/pethrewidget.Po
+	-rm -f ./$(DEPDIR)/petdiagnosticpinwidget.Po
 	-rm -f ./$(DEPDIR)/petiosizewidget.Po
 	-rm -f ./$(DEPDIR)/petkeyboardtypewidget.Po
 	-rm -f ./$(DEPDIR)/petmiscwidget.Po
 	-rm -f ./$(DEPDIR)/petram9widget.Po
 	-rm -f ./$(DEPDIR)/petramawidget.Po
 	-rm -f ./$(DEPDIR)/petramsizewidget.Po
-	-rm -f ./$(DEPDIR)/petreuwidget.Po
 	-rm -f ./$(DEPDIR)/petvideosizewidget.Po
 	-rm -f ./$(DEPDIR)/plus4aciawidget.Po
-	-rm -f ./$(DEPDIR)/plus4digiblasterwidget.Po
 	-rm -f ./$(DEPDIR)/plus4memoryexpansionwidget.Po
 	-rm -f ./$(DEPDIR)/plus4memorysizewidget.Po
 	-rm -f ./$(DEPDIR)/printerdriverwidget.Po
 	-rm -f ./$(DEPDIR)/printeremulationtypewidget.Po
 	-rm -f ./$(DEPDIR)/printeroutputdevicewidget.Po
 	-rm -f ./$(DEPDIR)/printeroutputmodewidget.Po
+	-rm -f ./$(DEPDIR)/rommanager.Po
 	-rm -f ./$(DEPDIR)/romsetmanagerwidget.Po
-	-rm -f ./$(DEPDIR)/scpu64settingswidget.Po
 	-rm -f ./$(DEPDIR)/settings_autofire.Po
 	-rm -f ./$(DEPDIR)/settings_autostart.Po
+	-rm -f ./$(DEPDIR)/settings_burstmode.Po
+	-rm -f ./$(DEPDIR)/settings_c128fullbanks.Po
+	-rm -f ./$(DEPDIR)/settings_c128functionrom.Po
+	-rm -f ./$(DEPDIR)/settings_c64dtvflash.Po
+	-rm -f ./$(DEPDIR)/settings_c64memhacks.Po
 	-rm -f ./$(DEPDIR)/settings_controlport.Po
 	-rm -f ./$(DEPDIR)/settings_cpm.Po
 	-rm -f ./$(DEPDIR)/settings_crt.Po
@@ -1747,6 +1787,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/settings_drive.Po
 	-rm -f ./$(DEPDIR)/settings_ds12c887.Po
 	-rm -f ./$(DEPDIR)/settings_easyflash.Po
+	-rm -f ./$(DEPDIR)/settings_environment.Po
 	-rm -f ./$(DEPDIR)/settings_ethernet.Po
 	-rm -f ./$(DEPDIR)/settings_ethernetcart.Po
 	-rm -f ./$(DEPDIR)/settings_expert.Po
@@ -1758,11 +1799,13 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/settings_gmod3.Po
 	-rm -f ./$(DEPDIR)/settings_host_display.Po
 	-rm -f ./$(DEPDIR)/settings_hotkeys.Po
+	-rm -f ./$(DEPDIR)/settings_hvsc.Po
 	-rm -f ./$(DEPDIR)/settings_ide64.Po
 	-rm -f ./$(DEPDIR)/settings_ieee488.Po
 	-rm -f ./$(DEPDIR)/settings_ieeeflash64.Po
 	-rm -f ./$(DEPDIR)/settings_io.Po
 	-rm -f ./$(DEPDIR)/settings_isepic.Po
+	-rm -f ./$(DEPDIR)/settings_jam.Po
 	-rm -f ./$(DEPDIR)/settings_joystick.Po
 	-rm -f ./$(DEPDIR)/settings_keyboard.Po
 	-rm -f ./$(DEPDIR)/settings_ltkernal.Po
@@ -1775,6 +1818,12 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/settings_mmcr.Po
 	-rm -f ./$(DEPDIR)/settings_model.Po
 	-rm -f ./$(DEPDIR)/settings_monitor.Po
+	-rm -f ./$(DEPDIR)/settings_netplay.Po
+	-rm -f ./$(DEPDIR)/settings_petcolourgraphics.Po
+	-rm -f ./$(DEPDIR)/settings_petdww.Po
+	-rm -f ./$(DEPDIR)/settings_pethre.Po
+	-rm -f ./$(DEPDIR)/settings_petreu.Po
+	-rm -f ./$(DEPDIR)/settings_plus4digiblaster.Po
 	-rm -f ./$(DEPDIR)/settings_printer.Po
 	-rm -f ./$(DEPDIR)/settings_ramcart.Po
 	-rm -f ./$(DEPDIR)/settings_ramlink.Po
@@ -1786,18 +1835,23 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/settings_rrnetmk3.Po
 	-rm -f ./$(DEPDIR)/settings_rs232.Po
 	-rm -f ./$(DEPDIR)/settings_sampler.Po
+	-rm -f ./$(DEPDIR)/settings_scpu64.Po
 	-rm -f ./$(DEPDIR)/settings_sfxsoundexpander.Po
 	-rm -f ./$(DEPDIR)/settings_sfxsoundsampler.Po
+	-rm -f ./$(DEPDIR)/settings_sidcart.Po
 	-rm -f ./$(DEPDIR)/settings_snapshot.Po
 	-rm -f ./$(DEPDIR)/settings_sound.Po
 	-rm -f ./$(DEPDIR)/settings_soundchip.Po
 	-rm -f ./$(DEPDIR)/settings_speed.Po
-	-rm -f ./$(DEPDIR)/settings_supersnapshot.Po
+	-rm -f ./$(DEPDIR)/settings_supersnapshotv5.Po
 	-rm -f ./$(DEPDIR)/settings_tapeport.Po
 	-rm -f ./$(DEPDIR)/settings_ultimem.Po
+	-rm -f ./$(DEPDIR)/settings_userport.Po
+	-rm -f ./$(DEPDIR)/settings_vfli.Po
 	-rm -f ./$(DEPDIR)/settings_vicflashplugin.Po
+	-rm -f ./$(DEPDIR)/settings_vicieee488.Po
+	-rm -f ./$(DEPDIR)/settings_vicioram.Po
 	-rm -f ./$(DEPDIR)/settings_video.Po
-	-rm -f ./$(DEPDIR)/sidcartwidget.Po
 	-rm -f ./$(DEPDIR)/sidenginemodelwidget.Po
 	-rm -f ./$(DEPDIR)/sidmodelwidget.Po
 	-rm -f ./$(DEPDIR)/sidsoundwidget.Po
@@ -1811,15 +1865,12 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/statusbarrecordingwidget.Po
 	-rm -f ./$(DEPDIR)/statusbarspeedwidget.Po
 	-rm -f ./$(DEPDIR)/superpetwidget.Po
-	-rm -f ./$(DEPDIR)/userportdeviceswidget.Po
-	-rm -f ./$(DEPDIR)/userportprinterwidget.Po
+	-rm -f ./$(DEPDIR)/userportdevicecheckbutton.Po
 	-rm -f ./$(DEPDIR)/userportrsinterfacewidget.Po
 	-rm -f ./$(DEPDIR)/v364speechwidget.Po
 	-rm -f ./$(DEPDIR)/vdcmodelwidget.Po
-	-rm -f ./$(DEPDIR)/vfliwidget.Po
 	-rm -f ./$(DEPDIR)/vic20memoryexpansionwidget.Po
-	-rm -f ./$(DEPDIR)/vicieee488widget.Po
-	-rm -f ./$(DEPDIR)/vicioramwidget.Po
+	-rm -f ./$(DEPDIR)/videoaspectwidget.Po
 	-rm -f ./$(DEPDIR)/videobordermodewidget.Po
 	-rm -f ./$(DEPDIR)/videomodelwidget.Po
 	-rm -f ./$(DEPDIR)/videopalettewidget.Po

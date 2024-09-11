@@ -21,6 +21,14 @@
 #include "snapshot_stream.h"
 #include "libretro-core.h"
 
+/* #define DEBUG_SNAPSHOT */
+
+#ifdef DEBUG_SNAPSHOT
+#define DBG(x)  printf x
+#else
+#define DBG(x)
+#endif
+
 #ifndef offsetof
 #define offsetof(type, member) ((size_t)((char*)&(((type*)0)->member) - (char*)0))
 #endif
@@ -53,6 +61,7 @@ static char *current_module = NULL;
 static char read_name[SNAPSHOT_MACHINE_NAME_LEN];
 static char *current_machine_name = NULL;
 static char *current_filename = NULL;
+static size_t current_fpos = 0;
 
 char snapshot_magic_string[] = "VICE Snapshot File\032";
 char snapshot_version_magic_string[] = "VICE Version\032";
@@ -155,6 +164,12 @@ struct snapshot_s {
     /* Flag: are we writing it?  */
     int write_mode;
 };
+
+int snapshot_free(snapshot_t *s)
+{
+    lib_free(s);
+    return 0;
+}
 
 /* ------------------------------------------------------------------------- */
 /* FILE based stream */
@@ -498,6 +513,7 @@ static const char* snapshot_filename(snapshot_stream_t *f)
 
 static int snapshot_write_byte(snapshot_stream_t *f, uint8_t data)
 {
+    current_fpos = snapshot_ftell(f);
     if (snapshot_write(f, &data, 1) != 1) {
         snapshot_error = SNAPSHOT_WRITE_EOF_ERROR;
         return -1;
@@ -508,6 +524,7 @@ static int snapshot_write_byte(snapshot_stream_t *f, uint8_t data)
 
 static int snapshot_write_word(snapshot_stream_t *f, uint16_t data)
 {
+    current_fpos = snapshot_ftell(f);
     if (snapshot_write_byte(f, (uint8_t)(data & 0xff)) < 0
         || snapshot_write_byte(f, (uint8_t)(data >> 8)) < 0) {
         return -1;
@@ -518,6 +535,7 @@ static int snapshot_write_word(snapshot_stream_t *f, uint16_t data)
 
 static int snapshot_write_dword(snapshot_stream_t *f, uint32_t data)
 {
+    current_fpos = snapshot_ftell(f);
     if (snapshot_write_word(f, (uint16_t)(data & 0xffff)) < 0
         || snapshot_write_word(f, (uint16_t)(data >> 16)) < 0) {
         return -1;
@@ -528,6 +546,7 @@ static int snapshot_write_dword(snapshot_stream_t *f, uint32_t data)
 
 static int snapshot_write_qword(snapshot_stream_t *f, uint64_t data)
 {
+    current_fpos = snapshot_ftell(f);
     if (snapshot_write_dword(f, (uint32_t)(data & 0xffffffff)) < 0
         || snapshot_write_dword(f, (uint32_t)(data >> 32)) < 0) {
         return -1;
@@ -541,6 +560,7 @@ static int snapshot_write_double(snapshot_stream_t *f, double data)
     uint8_t *byte_data = (uint8_t *)&data;
     int i;
 
+    current_fpos = snapshot_ftell(f);
     for (i = 0; i < sizeof(double); i++) {
         if (snapshot_write_byte(f, byte_data[i]) < 0) {
             return -1;
@@ -555,6 +575,7 @@ static int snapshot_write_padded_string(snapshot_stream_t *f, const char *s, uin
     int i, found_zero;
     uint8_t c;
 
+    current_fpos = snapshot_ftell(f);
     for (i = found_zero = 0; i < len; i++) {
         if (!found_zero && s[i] == 0) {
             found_zero = 1;
@@ -570,6 +591,7 @@ static int snapshot_write_padded_string(snapshot_stream_t *f, const char *s, uin
 
 static int snapshot_write_byte_array(snapshot_stream_t *f, const uint8_t *data, unsigned int num)
 {
+    current_fpos = snapshot_ftell(f);
     if (num > 0 && snapshot_write(f, data, (size_t)num) != 1) {
         snapshot_error = SNAPSHOT_WRITE_BYTE_ARRAY_ERROR;
         return -1;
@@ -582,6 +604,7 @@ static int snapshot_write_word_array(snapshot_stream_t *f, const uint16_t *data,
 {
     unsigned int i;
 
+    current_fpos = snapshot_ftell(f);
     for (i = 0; i < num; i++) {
         if (snapshot_write_word(f, data[i]) < 0) {
             return -1;
@@ -595,6 +618,7 @@ static int snapshot_write_dword_array(snapshot_stream_t *f, const uint32_t *data
 {
     unsigned int i;
 
+    current_fpos = snapshot_ftell(f);
     for (i = 0; i < num; i++) {
         if (snapshot_write_dword(f, data[i]) < 0) {
             return -1;
@@ -611,6 +635,7 @@ static int snapshot_write_string(snapshot_stream_t *f, const char *s)
 
     len = s ? (strlen(s) + 1) : 0;      /* length includes nullbyte */
 
+    current_fpos = snapshot_ftell(f);
     if (snapshot_write_word(f, (uint16_t)len) < 0) {
         return -1;
     }
@@ -628,6 +653,7 @@ static int snapshot_read_byte(snapshot_stream_t *f, uint8_t *b_return)
 {
     uint8_t b;
 
+    current_fpos = snapshot_ftell(f);
     if (snapshot_read(f, &b, 1) != 1) {
         snapshot_error = SNAPSHOT_READ_EOF_ERROR;
         return -1;
@@ -640,6 +666,7 @@ static int snapshot_read_word(snapshot_stream_t *f, uint16_t *w_return)
 {
     uint8_t lo, hi;
 
+    current_fpos = snapshot_ftell(f);
     if (snapshot_read_byte(f, &lo) < 0 || snapshot_read_byte(f, &hi) < 0) {
         return -1;
     }
@@ -652,6 +679,7 @@ static int snapshot_read_dword(snapshot_stream_t *f, uint32_t *dw_return)
 {
     uint16_t lo, hi;
 
+    current_fpos = snapshot_ftell(f);
     if (snapshot_read_word(f, &lo) < 0 || snapshot_read_word(f, &hi) < 0) {
         return -1;
     }
@@ -664,6 +692,7 @@ static int snapshot_read_qword(snapshot_stream_t *f, uint64_t *qw_return)
 {
     uint32_t lo, hi;
 
+    current_fpos = snapshot_ftell(f);
     if (snapshot_read_dword(f, &lo) < 0 || snapshot_read_dword(f, &hi) < 0) {
         return -1;
     }
@@ -679,6 +708,7 @@ static int snapshot_read_double(snapshot_stream_t *f, double *d_return)
     double val;
     uint8_t *byte_val = (uint8_t *)&val;
 
+    current_fpos = snapshot_ftell(f);
     for (i = 0; i < sizeof(double); i++) {
         if (snapshot_read(f, &b, 1) != 1) {
             snapshot_error = SNAPSHOT_READ_EOF_ERROR;
@@ -692,6 +722,7 @@ static int snapshot_read_double(snapshot_stream_t *f, double *d_return)
 
 static int snapshot_read_byte_array(snapshot_stream_t *f, uint8_t *b_return, unsigned int num)
 {
+    current_fpos = snapshot_ftell(f);
     if (num > 0 && snapshot_read(f, b_return, (size_t)num) != 1) {
         snapshot_error = SNAPSHOT_READ_BYTE_ARRAY_ERROR;
         return -1;
@@ -704,6 +735,7 @@ static int snapshot_read_word_array(snapshot_stream_t *f, uint16_t *w_return, un
 {
     unsigned int i;
 
+    current_fpos = snapshot_ftell(f);
     for (i = 0; i < num; i++) {
         if (snapshot_read_word(f, w_return + i) < 0) {
             return -1;
@@ -717,6 +749,7 @@ static int snapshot_read_dword_array(snapshot_stream_t *f, uint32_t *dw_return, 
 {
     unsigned int i;
 
+    current_fpos = snapshot_ftell(f);
     for (i = 0; i < num; i++) {
         if (snapshot_read_dword(f, dw_return + i) < 0) {
             return -1;
@@ -736,6 +769,7 @@ static int snapshot_read_string(snapshot_stream_t *f, char **s)
     lib_free(*s);
     *s = NULL;      /* don't leave a bogus pointer */
 
+    current_fpos = snapshot_ftell(f);
     if (snapshot_read_word(f, &w) < 0) {
         return -1;
     }
@@ -754,12 +788,6 @@ static int snapshot_read_string(snapshot_stream_t *f, char **s)
         }
         p[len - 1] = 0;   /* just to be save */
     }
-    return 0;
-}
-
-int snapshot_free(snapshot_t *s)
-{
-    lib_free(s);
     return 0;
 }
 
@@ -872,6 +900,7 @@ int snapshot_module_write_string(snapshot_module_t *m, const char *s)
 
 int snapshot_module_read_byte(snapshot_module_t *m, uint8_t *b_return)
 {
+    current_fpos = snapshot_ftell(m->file);
     if (snapshot_ftell(m->file) + sizeof(uint8_t) > m->offset + m->size) {
         snapshot_error = SNAPSHOT_READ_OUT_OF_BOUNDS_ERROR;
         return -1;
@@ -882,6 +911,7 @@ int snapshot_module_read_byte(snapshot_module_t *m, uint8_t *b_return)
 
 int snapshot_module_read_word(snapshot_module_t *m, uint16_t *w_return)
 {
+    current_fpos = snapshot_ftell(m->file);
     if (snapshot_ftell(m->file) + sizeof(uint16_t) > m->offset + m->size) {
         snapshot_error = SNAPSHOT_READ_OUT_OF_BOUNDS_ERROR;
         return -1;
@@ -892,6 +922,7 @@ int snapshot_module_read_word(snapshot_module_t *m, uint16_t *w_return)
 
 int snapshot_module_read_dword(snapshot_module_t *m, uint32_t *dw_return)
 {
+    current_fpos = snapshot_ftell(m->file);
     if (snapshot_ftell(m->file) + sizeof(uint32_t) > m->offset + m->size) {
         snapshot_error = SNAPSHOT_READ_OUT_OF_BOUNDS_ERROR;
         return -1;
@@ -902,6 +933,7 @@ int snapshot_module_read_dword(snapshot_module_t *m, uint32_t *dw_return)
 
 int snapshot_module_read_qword(snapshot_module_t *m, uint64_t *qw_return)
 {
+    current_fpos = snapshot_ftell(m->file);
     if (snapshot_ftell(m->file) + sizeof(uint64_t) > m->offset + m->size) {
         snapshot_error = SNAPSHOT_READ_OUT_OF_BOUNDS_ERROR;
         return -1;
@@ -912,6 +944,7 @@ int snapshot_module_read_qword(snapshot_module_t *m, uint64_t *qw_return)
 
 int snapshot_module_read_double(snapshot_module_t *m, double *db_return)
 {
+    current_fpos = snapshot_ftell(m->file);
     if (snapshot_ftell(m->file) + sizeof(double) > m->offset + m->size) {
         snapshot_error = SNAPSHOT_READ_OUT_OF_BOUNDS_ERROR;
         return -1;
@@ -922,6 +955,7 @@ int snapshot_module_read_double(snapshot_module_t *m, double *db_return)
 
 int snapshot_module_read_byte_array(snapshot_module_t *m, uint8_t *b_return, unsigned int num)
 {
+    current_fpos = snapshot_ftell(m->file);
     if ((long)(snapshot_ftell(m->file) + num) > (long)(m->offset + m->size)) {
         snapshot_error = SNAPSHOT_READ_OUT_OF_BOUNDS_ERROR;
         return -1;
@@ -932,6 +966,7 @@ int snapshot_module_read_byte_array(snapshot_module_t *m, uint8_t *b_return, uns
 
 int snapshot_module_read_word_array(snapshot_module_t *m, uint16_t *w_return, unsigned int num)
 {
+    current_fpos = snapshot_ftell(m->file);
     if ((long)(snapshot_ftell(m->file) + num * sizeof(uint16_t)) > (long)(m->offset + m->size)) {
         snapshot_error = SNAPSHOT_READ_OUT_OF_BOUNDS_ERROR;
         return -1;
@@ -942,6 +977,7 @@ int snapshot_module_read_word_array(snapshot_module_t *m, uint16_t *w_return, un
 
 int snapshot_module_read_dword_array(snapshot_module_t *m, uint32_t *dw_return, unsigned int num)
 {
+    current_fpos = snapshot_ftell(m->file);
     if ((long)(snapshot_ftell(m->file) + num * sizeof(uint32_t)) > (long)(m->offset + m->size)) {
         snapshot_error = SNAPSHOT_READ_OUT_OF_BOUNDS_ERROR;
         return -1;
@@ -952,6 +988,7 @@ int snapshot_module_read_dword_array(snapshot_module_t *m, uint32_t *dw_return, 
 
 int snapshot_module_read_string(snapshot_module_t *m, char **charp_return)
 {
+    current_fpos = snapshot_ftell(m->file);
     if (snapshot_ftell(m->file) + sizeof(uint16_t) > m->offset + m->size) {
         snapshot_error = SNAPSHOT_READ_OUT_OF_BOUNDS_ERROR;
         return -1;
@@ -1089,6 +1126,7 @@ snapshot_module_t *snapshot_module_open(snapshot_t *s, const char *name, uint8_t
 
     if (snapshot_fseek(s->file, s->first_module_offset, SEEK_SET) < 0) {
         snapshot_error = SNAPSHOT_FIRST_MODULE_NOT_FOUND_ERROR;
+        DBG(("snapshot_module_open error: name: '%s' NOT found\n", name));
         return NULL;
     }
 
@@ -1097,6 +1135,8 @@ snapshot_module_t *snapshot_module_open(snapshot_t *s, const char *name, uint8_t
     m->write_mode = 0;
 
     m->offset = s->first_module_offset;
+
+    DBG(("snapshot_module_open name: '%s'\n", name));
 
     /* Search for the module name.  This is quite inefficient, but I don't
        think we care.  */
@@ -1124,32 +1164,37 @@ snapshot_module_t *snapshot_module_open(snapshot_t *s, const char *name, uint8_t
     }
 
     m->size_offset = snapshot_ftell(s->file) - sizeof(uint32_t);
-
+    DBG(("snapshot_module_open name: '%s', version %u.%u found\n", name, *major_version_return, *minor_version_return));
     return m;
 
 fail:
     snapshot_fseek(s->file, s->first_module_offset, SEEK_SET);
     lib_free(m);
+    DBG(("snapshot_module_open error: name: '%s' NOT found\n", name));
     return NULL;
 }
 
 int snapshot_module_close(snapshot_module_t *m)
 {
+    DBG(("snapshot_module_close name: '%s'\n", current_module));
     /* Backpatch module size if writing.  */
     if (m->write_mode
         && (snapshot_fseek(m->file, m->size_offset, SEEK_SET) < 0
             || snapshot_write_dword(m->file, m->size) < 0)) {
         snapshot_error = SNAPSHOT_MODULE_CLOSE_ERROR;
+        DBG(("snapshot_module_close error\n"));
         return -1;
     }
 
     /* Skip module.  */
     if (snapshot_fseek(m->file, m->offset + m->size, SEEK_SET) < 0) {
         snapshot_error = SNAPSHOT_MODULE_SKIP_ERROR;
+        DBG(("snapshot_module_close error\n"));
         return -1;
     }
 
     lib_free(m);
+    DBG(("snapshot_module_close ok\n"));
     return 0;
 }
 
@@ -1235,13 +1280,13 @@ snapshot_t *snapshot_open_from_stream(snapshot_stream_t *f, uint8_t *major_versi
     int machine_name_len;
     size_t offs;
 
+    current_machine_name = (char *)snapshot_machine_name;
+    current_module = NULL;
+
     if (f == NULL) {
         snapshot_error = SNAPSHOT_CANNOT_OPEN_FOR_READ_ERROR;
         return NULL;
     }
-
-    current_machine_name = (char *)snapshot_machine_name;
-    current_module = NULL;
 
     /* Magic string.  */
     if (snapshot_read_byte_array(f, (uint8_t *)magic, SNAPSHOT_MAGIC_LEN) < 0
@@ -1437,7 +1482,8 @@ void snapshot_display_error(void)
             ui_error("Cannot find first module in snapshot %s", current_filename);
             break;
         case SNAPSHOT_MODULE_HEADER_READ_ERROR:
-            ui_error("Error while reading module header in snapshot %s", current_filename);
+            ui_error("Error while reading module header (after module '%s' at pos 0x%" PRI_SIZE_T ") in snapshot %s",
+                     current_module, current_fpos, current_filename);
             break;
         case SNAPSHOT_MODULE_NOT_FOUND_ERROR:
             ui_error("Cannot find module %s in snapshot %s", current_module, current_filename);
@@ -1497,7 +1543,8 @@ void snapshot_display_error(void)
     }
 #if 0
     if (snapshot_error != SNAPSHOT_NO_ERROR) {
-        log_error(LOG_DEFAULT, "snapshot error at module '%s' in file '%s'", current_module, current_filename);
+        log_error(LOG_DEFAULT, "snapshot error at position 0x%llx module '%s' in file '%s'",
+                  (unsigned long long)current_fpos, current_module, current_filename);
     }
 #endif
 }
@@ -1654,17 +1701,15 @@ fail:
         snapshot_free(s);
     }
 
-    machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    machine_trigger_reset(MACHINE_RESET_MODE_RESET_CPU);
     emu_reset(0);
 
     return -1;
 }
 
-int machine_write_snapshot_to_stream(snapshot_stream_t *stream, int save_roms,
-                                     int save_disks, int event_mode)
+int machine_write_snapshot_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks, int event_mode)
 {
-    return c64_snapshot_write_to_stream(stream, save_roms, save_disks,
-                                        event_mode);
+    return c64_snapshot_write_to_stream(stream, save_roms, save_disks, event_mode);
 }
 
 int machine_read_snapshot_from_stream(snapshot_stream_t *stream, int event_mode)
@@ -1675,8 +1720,7 @@ int machine_read_snapshot_from_stream(snapshot_stream_t *stream, int event_mode)
 #elif defined(__X64DTV__)
 #include "c64dtv-snapshot.c"
 
-int c64dtv_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks,
-                                    int event_mode)
+int c64dtv_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks, int event_mode)
 {
     snapshot_t *s;
 
@@ -1766,17 +1810,15 @@ fail:
         snapshot_free(s);
     }
 
-    machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    machine_trigger_reset(MACHINE_RESET_MODE_RESET_CPU);
     emu_reset(0);
 
     return -1;
 }
 
-int machine_write_snapshot_to_stream(snapshot_stream_t *stream, int save_roms,
-                                     int save_disks, int event_mode)
+int machine_write_snapshot_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks, int event_mode)
 {
-    return c64dtv_snapshot_write_to_stream(stream, save_roms, save_disks,
-                                           event_mode);
+    return c64dtv_snapshot_write_to_stream(stream, save_roms, save_disks, event_mode);
 }
 
 int machine_read_snapshot_from_stream(snapshot_stream_t *stream, int event_mode)
@@ -1869,17 +1911,15 @@ fail:
         snapshot_free(s);
     }
 
-    machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    machine_trigger_reset(MACHINE_RESET_MODE_RESET_CPU);
     emu_reset(0);
 
     return -1;
 }
 
-int machine_write_snapshot_to_stream(snapshot_stream_t *stream, int save_roms,
-                                     int save_disks, int event_mode)
+int machine_write_snapshot_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks, int event_mode)
 {
-    return c128_snapshot_write_to_stream(stream, save_roms, save_disks,
-                                         event_mode);
+    return c128_snapshot_write_to_stream(stream, save_roms, save_disks, event_mode);
 }
 
 int machine_read_snapshot_from_stream(snapshot_stream_t *stream, int event_mode)
@@ -1890,8 +1930,7 @@ int machine_read_snapshot_from_stream(snapshot_stream_t *stream, int event_mode)
 #elif defined(__XCBM2__)
 #include "cbm2-snapshot.c"
 
-int cbm2_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks,
-                                  int event_mode)
+int cbm2_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks, int event_mode)
 {
     snapshot_t *s;
 
@@ -1971,17 +2010,15 @@ fail:
         snapshot_free(s);
     }
 
-    machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    machine_trigger_reset(MACHINE_RESET_MODE_RESET_CPU);
     emu_reset(0);
 
     return -1;
 }
 
-int machine_write_snapshot_to_stream(snapshot_stream_t *stream, int save_roms,
-                                     int save_disks, int event_mode)
+int machine_write_snapshot_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks, int event_mode)
 {
-    return cbm2_snapshot_write_to_stream(stream, save_roms, save_disks,
-                                         event_mode);
+    return cbm2_snapshot_write_to_stream(stream, save_roms, save_disks, event_mode);
 }
 
 int machine_read_snapshot_from_stream(snapshot_stream_t *stream, int event_mode)
@@ -1992,8 +2029,7 @@ int machine_read_snapshot_from_stream(snapshot_stream_t *stream, int event_mode)
 #elif defined(__XCBM5x0__)
 #include "cbm5x0-snapshot.c"
 
-int cbm2_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks,
-                                  int event_mode)
+int cbm2_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks, int event_mode)
 {
     snapshot_t *s;
 
@@ -2081,17 +2117,15 @@ fail:
         snapshot_free(s);
     }
 
-    machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    machine_trigger_reset(MACHINE_RESET_MODE_RESET_CPU);
     emu_reset(0);
 
     return -1;
 }
 
-int machine_write_snapshot_to_stream(snapshot_stream_t *stream, int save_roms,
-                                     int save_disks, int event_mode)
+int machine_write_snapshot_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks, int event_mode)
 {
-    return cbm2_snapshot_write_to_stream(stream, save_roms, save_disks,
-                                         event_mode);
+    return cbm2_snapshot_write_to_stream(stream, save_roms, save_disks, event_mode);
 }
 
 int machine_read_snapshot_from_stream(snapshot_stream_t *stream, int event_mode)
@@ -2102,8 +2136,7 @@ int machine_read_snapshot_from_stream(snapshot_stream_t *stream, int event_mode)
 #elif defined(__XPET__)
 #include "pet-snapshot.c"
 
-int pet_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks,
-                                 int event_mode)
+int pet_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks, int event_mode)
 {
     snapshot_t *s;
     int ef = 0;
@@ -2133,7 +2166,7 @@ int pet_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int s
         ef = -1;
     }
 
-    if ((!ef) && petres.superpet) {
+    if ((!ef) && petres.model.superpet) {
         ef = acia1_snapshot_write_module(s);
     }
 
@@ -2185,7 +2218,7 @@ int pet_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
     snapshot_free(s);
 
     if (ef) {
-        machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+        machine_trigger_reset(MACHINE_RESET_MODE_RESET_CPU);
         emu_reset(0);
     }
 
@@ -2194,11 +2227,9 @@ int pet_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
     return ef;
 }
 
-int machine_write_snapshot_to_stream(snapshot_stream_t *stream, int save_roms,
-                                     int save_disks, int event_mode)
+int machine_write_snapshot_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks, int event_mode)
 {
-    return pet_snapshot_write_to_stream(stream, save_roms, save_disks,
-                                        event_mode);
+    return pet_snapshot_write_to_stream(stream, save_roms, save_disks, event_mode);
 }
 
 int machine_read_snapshot_from_stream(snapshot_stream_t *stream, int event_mode)
@@ -2209,8 +2240,7 @@ int machine_read_snapshot_from_stream(snapshot_stream_t *stream, int event_mode)
 #elif defined(__XPLUS4__)
 #include "plus4-snapshot.c"
 
-int plus4_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks,
-                                   int event_mode)
+int plus4_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks, int event_mode)
 {
     snapshot_t *s;
 
@@ -2291,17 +2321,15 @@ fail:
         snapshot_free(s);
     }
 
-    machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    machine_trigger_reset(MACHINE_RESET_MODE_RESET_CPU);
     emu_reset(0);
 
     return -1;
 }
 
-int machine_write_snapshot_to_stream(snapshot_stream_t *stream, int save_roms,
-                                     int save_disks, int event_mode)
+int machine_write_snapshot_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks, int event_mode)
 {
-    return plus4_snapshot_write_to_stream(stream, save_roms, save_disks,
-                                          event_mode);
+    return plus4_snapshot_write_to_stream(stream, save_roms, save_disks, event_mode);
 }
 
 int machine_read_snapshot_from_stream(snapshot_stream_t *stream, int event_mode)
@@ -2397,17 +2425,15 @@ fail:
         snapshot_free(s);
     }
 
-    machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    machine_trigger_reset(MACHINE_RESET_MODE_RESET_CPU);
     emu_reset(0);
 
     return -1;
 }
 
-int machine_write_snapshot_to_stream(snapshot_stream_t *stream, int save_roms,
-                                     int save_disks, int event_mode)
+int machine_write_snapshot_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks, int event_mode)
 {
-    return scpu64_snapshot_write_to_stream(stream, save_roms, save_disks,
-                                           event_mode);
+    return scpu64_snapshot_write_to_stream(stream, save_roms, save_disks, event_mode);
 }
 
 int machine_read_snapshot_from_stream(snapshot_stream_t *stream, int event_mode)
@@ -2418,8 +2444,7 @@ int machine_read_snapshot_from_stream(snapshot_stream_t *stream, int event_mode)
 #elif defined(__XVIC__)
 #include "vic20-snapshot.c"
 
-int vic20_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks,
-                                   int event_mode)
+int vic20_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks, int event_mode)
 {
     snapshot_t *s;
     int ieee488;
@@ -2516,17 +2541,15 @@ fail:
         snapshot_free(s);
     }
 
-    machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
+    machine_trigger_reset(MACHINE_RESET_MODE_RESET_CPU);
     emu_reset(0);
 
     return -1;
 }
 
-int machine_write_snapshot_to_stream(snapshot_stream_t *stream, int save_roms,
-                                     int save_disks, int event_mode)
+int machine_write_snapshot_to_stream(snapshot_stream_t *stream, int save_roms, int save_disks, int event_mode)
 {
-    return vic20_snapshot_write_to_stream(stream, save_roms, save_disks,
-                                          event_mode);
+    return vic20_snapshot_write_to_stream(stream, save_roms, save_disks, event_mode);
 }
 
 int machine_read_snapshot_from_stream(snapshot_stream_t *stream, int event_mode)
