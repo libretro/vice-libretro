@@ -50,11 +50,11 @@
 #include "crtc_white_vpl.h"
 
 static embedded_t cbm2files[] = {
-    { CBM2_BASIC128_NAME, 0x4000, 0x4000, 0x4000, cbm2basic128_embedded },
-    { CBM2_BASIC256_NAME, 0x4000, 0x4000, 0x4000, cbm2basic256_embedded },
-    { CBM2_CHARGEN600_NAME, 0x1000, 0x1000, 0x1000, cbm2chargen600_embedded },
-    { CBM2_CHARGEN700_NAME, 0x1000, 0x1000, 0x1000, cbm2chargen700_embedded },
-    { CBM2_KERNAL_NAME, 0x2000, 0x2000, 0x2000, cbm2kernal_embedded },
+    { CBM2_BASIC128_NAME, 0x4000, 0x4000, 0x4000, cbm2_basic128_rom },
+    { CBM2_BASIC256_NAME, 0x4000, 0x4000, 0x4000, cbm2_basic256_rom },
+    { CBM2_CHARGEN600_NAME, 0x1000, 0x1000, 0x1000, cbm2_chargen600_rom },
+    { CBM2_CHARGEN700_NAME, 0x1000, 0x1000, 0x1000, cbm2_chargen700_rom },
+    { CBM2_KERNAL_NAME, 0x2000, 0x2000, 0x2000, cbm2_kernal_rom },
     EMBEDDED_LIST_END
 };
 

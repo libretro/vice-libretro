@@ -31,12 +31,8 @@
 #include "vic20rom.h"
 #include "types.h"
 
-#ifdef USE_EMBEDDED
-uint8_t vic20memrom_kernal_rom[VIC20_KERNAL_ROM_SIZE];
-#else
 uint8_t vic20memrom_basic_rom[VIC20_BASIC_ROM_SIZE];
 uint8_t vic20memrom_kernal_rom[VIC20_KERNAL_ROM_SIZE];
-#endif
 
 uint8_t vic20memrom_kernal_trap_rom[VIC20_KERNAL_ROM_SIZE];
 

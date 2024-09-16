@@ -41,16 +41,12 @@
 
 static log_t scpu64rom_log = LOG_ERR;
 
-#ifndef __LIBRETRO__
 uint8_t scpu64rom_scpu64_rom[SCPU64_SCPU64_ROM_MAXSIZE];
-#endif
 
 /* added to resolve linking issues with LTK. LTK will disable itself if
    xscpu64 attempts to attach to it. */
-#ifndef USE_EMBEDDED
 uint8_t *c64memrom_basic64_rom = NULL;
 uint8_t *c64memrom_kernal64_rom = NULL;
-#endif
 uint8_t *c64memrom_kernal64_trap_rom = NULL;
 
 /* Flag: nonzero if the ROMs have been loaded.  */

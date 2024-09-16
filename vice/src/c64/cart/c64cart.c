@@ -533,9 +533,6 @@ static int set_cartridge_file(const char *name, void *param)
 
     if (name == NULL || !strlen(name)) {
         cartridge_detach_image(-1);
-#ifdef __LIBRETRO__
-        util_string_set(&cartridge_file, ""); /* resource value modified */
-#endif /* __LIBRETRO__ */
         return 0;
     }
 

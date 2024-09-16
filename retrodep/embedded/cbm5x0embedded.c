@@ -71,9 +71,9 @@
 #include "vicii_vice_vpl.h"
 
 static embedded_t cbm2files[] = {
-    { CBM2_BASIC500_NAME, 0x4000, 0x4000, 0x4000, cbm2basic500_embedded },
-    { CBM2_CHARGEN500_NAME, 0x1000, 0x1000, 0x1000, cbm2chargen500_embedded },
-    { CBM2_KERNAL500_NAME, 0x2000, 0x2000, 0x2000, cbm2kernal500_embedded },
+    { CBM2_BASIC500_NAME, 0x4000, 0x4000, 0x4000, cbm2_basic500_rom },
+    { CBM2_CHARGEN500_NAME, 0x1000, 0x1000, 0x1000, cbm2_chargen500_rom },
+    { CBM2_KERNAL500_NAME, 0x2000, 0x2000, 0x2000, cbm2_kernal500_rom },
     EMBEDDED_LIST_END
 };
 

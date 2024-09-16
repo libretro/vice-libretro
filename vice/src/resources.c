@@ -1432,7 +1432,7 @@ static char* disabled_resources[] =
     "VICIIFilter", "VICIIPALBlur", "VICIIBorderMode", "VICIIPALOddLinePhase", "VICIIPALOddLineOffset",
     "VICFilter", "VICPALBlur", "VICBorderMode", "VICPALOddLinePhase", "VICPALOddLineOffset",
     "TEDPALOddLinePhase", "TEDPALOddLineOffset", "TEDFilter", "TEDPALBlur", "TEDBorderMode",
-    "CrtcPALOddLinePhase", "CrtcPALOddLineOffset", "CrtcFilter", "CrtcPALBlur",
+    "CrtcFilter", "CrtcPALBlur",
     "VDCFilter", "VDCPALBlur", "VDC64KB", "Go64Mode", "C128ColumnKey",
     "AutostartWarp", "AttachDevice8Readonly", "EasyFlashWriteCRT",
     "JoyDevice1", "JoyDevice2", "JoyDevice3", "JoyDevice4", "JoyDevice5",

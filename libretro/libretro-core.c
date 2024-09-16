@@ -28,6 +28,7 @@
 #include "keyboard.h"
 #include "keymap.h"
 #include "kbdbuf.h"
+#include "joystick.h"
 #include "resources.h"
 #include "sid.h"
 #include "sid-resources.h"
@@ -185,11 +186,11 @@ unsigned int opt_read_vicerc = 0;
 unsigned int opt_work_disk_type = 0;
 unsigned int opt_work_disk_unit = 8;
 bool opt_floppy_multidrive = false;
-#if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__) || defined(__X128__)
-static unsigned int opt_jiffydos_allow = 1;
-unsigned int opt_jiffydos = 0;
-unsigned int opt_jiffydos_kernal_skip = 0;
-static bool opt_reu_allow = 1;
+#if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
+static bool opt_jiffydos_allow = true;
+bool opt_jiffydos = false;
+bool opt_jiffydos_kernal_skip = false;
+static bool opt_reu_allow = true;
 #endif
 #if defined(__XSCPU64__)
 unsigned int opt_supercpu_kernal = 0;
@@ -842,9 +843,7 @@ static int process_cmdline(const char* argv)
       /* Do not allow JiffyDOS with non-floppies */
       if (dc_get_image_type(argv) == DC_IMAGE_TYPE_TAPE
        || dc_get_image_type(argv) == DC_IMAGE_TYPE_MEM)
-         opt_jiffydos_allow = 0;
-      else
-         opt_jiffydos_allow = 1;
+         opt_jiffydos_allow = false;
 
 #if defined(__X64__) || defined(__X64SC__) || defined(__X128__)
       /* Do not allow REU with cartridges */
@@ -1152,7 +1151,7 @@ static int process_cmdline(const char* argv)
          {
             if (dc_get_image_type(dc->files[0]) == DC_IMAGE_TYPE_TAPE
              || dc_get_image_type(dc->files[0]) == DC_IMAGE_TYPE_MEM)
-               opt_jiffydos_allow = 0;
+               opt_jiffydos_allow = false;
          }
 #if defined(__X64__) || defined(__X64SC__) || defined(__X128__)
          /* Do not allow REU with cartridges */
@@ -1320,7 +1319,7 @@ static int process_cmdline(const char* argv)
 
 #if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
    if (!opt_jiffydos_allow)
-      opt_jiffydos = 0;
+      opt_jiffydos = false;
 #endif
 
    return 0;
@@ -1625,12 +1624,19 @@ void update_from_vice(void)
    /* If flip list is empty, get current tape or floppy image name and add to the list */
    if (dc->count == 0)
    {
+      /* Do not add core option cartridges to the list */
 #if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__) || defined(__X128__)
-      if ((attachedImage = cartridge_get_filename_by_slot(cart_getid_slotmain())) != NULL)
+      if ((attachedImage = cartridge_get_filename_by_slot(cart_getid_slotmain())) != NULL
+            && strcmp(vice_opt.CartridgeFile, attachedImage))
 #elif defined(__XVIC__)
-      if ((attachedImage = generic_get_file_name(0)) != NULL)
+      if ((attachedImage = generic_get_file_name(0)) != NULL
+            && strcmp(vice_opt.CartridgeFile, attachedImage))
 #else
-      if ((attachedImage = cartridge_get_filename_by_slot(0)) != NULL)
+      if ((attachedImage = cartridge_get_filename_by_slot(0)) != NULL
+#if !defined(__XPET__)
+            && strcmp(vice_opt.CartridgeFile, attachedImage)
+#endif
+         )
 #endif
       {
          dc->unit = 0;
@@ -1664,7 +1670,7 @@ void update_from_vice(void)
    /* Disable JiffyDOS with tapes and carts */
    if (opt_jiffydos && dc->unit <= 1 && dc->count > 0)
    {
-      opt_jiffydos_allow = opt_jiffydos = 0;
+      opt_jiffydos_allow = opt_jiffydos = false;
       reload_restart();
       return;
    }
@@ -2084,7 +2090,7 @@ static void content_exceptions(void)
    {
 #if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
       /* No JiffyDOS without TDE */
-      opt_jiffydos_allow = opt_jiffydos = 0;
+      opt_jiffydos_allow = opt_jiffydos = false;
 #endif
 #if defined(__XSCPU64__)
       /* SuperCPU kernal must be "internal" */
@@ -2101,6 +2107,9 @@ void reload_restart(void)
 {
    /* Clear request */
    request_reload_restart = false;
+
+   /* Reset tick */
+   retro_now = 0;
 
    /* Reset autoloadwarp audio ignore */
    audio_is_ignored = false;
@@ -3219,12 +3228,13 @@ static void retro_set_core_options()
             { "enabled_medblur", "50%" },
             { "enabled", "100%" },
          },
-#if defined(__X64__) || defined(PSP) || defined(VITA) || defined(__SWITCH__) || defined(DINGUX) || defined(ANDROID)
+#if defined(__X64__) || defined(__XPET__) || defined(__XCBM2__) || defined(PSP) || defined(VITA) || defined(__SWITCH__) || defined(DINGUX) || defined(ANDROID)
          "disabled"
 #else
          "enabled_medblur"
 #endif
       },
+#if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__) || defined(__XVIC__) || defined(__XPLUS4__)
       {
 #if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__)
          "vice_vicii_filter_oddline_offset",
@@ -3238,10 +3248,6 @@ static void retro_set_core_options()
          "vice_ted_filter_oddline_offset",
          "Video > TED Filter Oddline Offset",
          "TED Filter Oddline Offset",
-#elif defined(__XPET__) || defined(__XCBM2__)
-         "vice_crtc_filter_oddline_offset",
-         "Video > CRTC Filter Oddline Offset",
-         "CRTC Filter Oddline Offset",
 #endif
          "PAL emulation filter oddline offset.",
          NULL,
@@ -3249,6 +3255,8 @@ static void retro_set_core_options()
          PALETTE_COLOR_OPTIONS,
          "1000"
       },
+#endif
+#if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__) || defined(__XVIC__) || defined(__XPLUS4__)
       {
 #if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__)
          "vice_vicii_filter_oddline_phase",
@@ -3262,10 +3270,6 @@ static void retro_set_core_options()
          "vice_ted_filter_oddline_phase",
          "Video > TED Filter Oddline Phase",
          "TED Filter Oddline Phase",
-#elif defined(__XPET__) || defined(__XCBM2__)
-         "vice_crtc_filter_oddline_phase",
-         "Video > CRTC Filter Oddline Phase",
-         "CRTC Filter Oddline Phase",
 #endif
          "PAL emulation filter oddline phase. Applies with 'Internal' palette only!",
          NULL,
@@ -3273,6 +3277,7 @@ static void retro_set_core_options()
          PALETTE_COLOR_OPTIONS,
          "1000"
       },
+#endif
 #if defined(__XVIC__)
       {
          "vice_vic20_external_palette",
@@ -5485,18 +5490,10 @@ void retro_set_options_display(void)
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
    option_display.key = "vice_crtc_filter";
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
-   option_display.key = "vice_crtc_filter_oddline_phase";
-   environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
-   option_display.key = "vice_crtc_filter_oddline_offset";
-   environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 #elif defined(__XCBM2__)
    option_display.key = "vice_cbm2_external_palette";
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
    option_display.key = "vice_crtc_filter";
-   environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
-   option_display.key = "vice_crtc_filter_oddline_phase";
-   environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
-   option_display.key = "vice_crtc_filter_oddline_offset";
    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &option_display);
 #else
    option_display.key = "vice_external_palette";
@@ -5634,7 +5631,8 @@ static void update_variables(void)
 #else
             cartridge_attach_image(0, cart_full);
 #endif
-         request_reload_restart = true;
+
+         request_restart = true;
       }
 
       sprintf(vice_opt.CartridgeFile, "%s", cart_full);
@@ -5656,7 +5654,7 @@ static void update_variables(void)
       if (retro_ui_finalized)
       {
          if (vice_opt.AutostartWarp != autostartwarp)
-            log_resources_set_int("AutostartWarp", autostartwarp);
+            resources_set_int("AutostartWarp", autostartwarp);
 
          noautostart = (noautostart_locked) ? noautostart : !opt_autostart;
       }
@@ -5684,7 +5682,11 @@ static void update_variables(void)
 
       /* Also enable AutostartWarp for faster startup */
       if (opt_autoloadwarp)
+      {
          vice_opt.AutostartWarp = 1;
+         if (retro_ui_finalized)
+            resources_set_int("AutostartWarp", vice_opt.AutostartWarp);
+      }
 
 #if !defined(__XSCPU64__) && !defined(__X64DTV__)
       /* Silently restore tape sounds when autoloadwarp is disabled */
@@ -6537,6 +6539,7 @@ static void update_variables(void)
       else                                crop_delay = true;
    }
 
+#if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__) || defined(__XVIC__) || defined(__XPLUS4__)
    var.key = "vice_aspect_ratio";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -6556,6 +6559,7 @@ static void update_variables(void)
       if (opt_aspect_ratio != opt_aspect_ratio_prev)
          crop_id_prev = -1;
    }
+#endif
 
    var.key = "vice_manual_crop_top";
    var.value = NULL;
@@ -6681,8 +6685,6 @@ static void update_variables(void)
    var.key = "vice_vic_filter_oddline_phase";
 #elif defined(__XPLUS4__)
    var.key = "vice_ted_filter_oddline_phase";
-#elif defined(__XPET__) || defined(__XCBM2__)
-   var.key = "vice_crtc_filter_oddline_phase";
 #endif
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -6696,8 +6698,6 @@ static void update_variables(void)
          log_resources_set_int("VICPALOddLinePhase", oddline_phase);
 #elif defined(__XPLUS4__)
          log_resources_set_int("TEDPALOddLinePhase", oddline_phase);
-#elif defined(__XPET__) || defined(__XCBM2__)
-         log_resources_set_int("CrtcPALOddLinePhase", oddline_phase);
 #endif
 
       vice_opt.FilterOddLinePhase = oddline_phase;
@@ -6709,8 +6709,6 @@ static void update_variables(void)
    var.key = "vice_vic_filter_oddline_offset";
 #elif defined(__XPLUS4__)
    var.key = "vice_ted_filter_oddline_offset";
-#elif defined(__XPET__) || defined(__XCBM2__)
-   var.key = "vice_crtc_filter_oddline_offset";
 #endif
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -6724,8 +6722,6 @@ static void update_variables(void)
          log_resources_set_int("VICPALOddLineOffset", oddline_offset);
 #elif defined(__XPLUS4__)
          log_resources_set_int("TEDPALOddLineOffset", oddline_offset);
-#elif defined(__XPET__) || defined(__XCBM2__)
-         log_resources_set_int("CrtcPALOddLineOffset", oddline_offset);
 #endif
 
       vice_opt.FilterOddLineOffset = oddline_offset;
@@ -7285,15 +7281,15 @@ static void update_variables(void)
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
    {
       int opt_jiffydos_prev = opt_jiffydos;
-      if (!strcmp(var.value, "disabled")) opt_jiffydos = 0;
-      else                                opt_jiffydos = 1;
+      if (!strcmp(var.value, "disabled")) opt_jiffydos = false;
+      else                                opt_jiffydos = true;
 
       /* Forcefully disable JiffyDOS if TDE is disabled */
       if (!vice_opt.DriveTrueEmulation)
-         opt_jiffydos_allow = 0;
+         opt_jiffydos_allow = false;
 
       if (!opt_jiffydos_allow)
-         opt_jiffydos = 0;
+         opt_jiffydos = false;
 
       if (retro_ui_finalized)
          request_reload_restart = (opt_jiffydos != opt_jiffydos_prev || request_restart) ? true : request_reload_restart;
@@ -7697,8 +7693,9 @@ void emu_reset(int type)
    /* Reset Datasette or autostart from tape will fail */
    datasette_control(TAPEPORT_PORT_1, DATASETTE_CONTROL_RESET);
 
-   /* Release keyboard keys */
+   /* Release keyboard keys and joystick switches */
    keyboard_clear_keymatrix();
+   joystick_clear_all();
 
    /* Reset autoloadwarp audio ignore */
    audio_is_ignored = false;
@@ -7812,6 +7809,7 @@ bool retro_disk_set_eject_state(bool ejected)
             case 0:
                cartridge_unset_default();
                cartridge_detach_image(-1);
+               sound_volume_counter_reset();
                break;
             case 1:
                tape_image_detach(unit);
@@ -8012,6 +8010,8 @@ void retro_reset(void)
 
    /* Trigger autostart-reset in retro_run() */
    request_restart = true;
+   /* Do full reload */
+   request_reload_restart = true;
 }
 
 static void fallback_log(enum retro_log_level level, const char *fmt, ...)
@@ -8582,9 +8582,6 @@ void retro_run(void)
    {
       /* Load content was called while core was already running, just do a reset with autostart */
       runstate = RUNSTATE_RUNNING;
-      reload_restart();
-      /* Autostart reset */
-      request_restart = true;
    }
    else if (runstate == RUNSTATE_RUNNING)
    {
@@ -8773,6 +8770,7 @@ void retro_run(void)
        * reset for a longer period.. */
       if (!vice_opt.DriveTrueEmulation && opt_model_auto_locked)
          retro_max = 3000000;
+
       if (retro_now > retro_max)
       {
          request_restart = false;
@@ -8903,8 +8901,8 @@ void retro_unload_game(void)
    request_model_auto_set = -1;
    request_model_prev = -1;
    opt_model_auto = true;
-#if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__) || defined(__X128__)
-   opt_jiffydos_allow = 1;
+#if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
+   opt_jiffydos_allow = true;
 #endif
 }
 

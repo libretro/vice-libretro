@@ -39,14 +39,11 @@
 #include "c128rom.h"
 #include "c128mem.h"
 #include "c128memrom.h"
-#include "c128kernal.h"
-#include "c128kernal64.h"
 #elif defined(__XSCPU64__)
 #include "c64model.h"
 #include "scpu64.h"
 #include "scpu64mem.h"
 #include "scpu64rom.h"
-BYTE scpu64rom_scpu64_rom_original[SCPU64_SCPU64_ROM_MAXSIZE] = {0};
 #elif defined(__X64DTV__)
 #include "c64dtvmodel.h"
 #else
@@ -54,11 +51,10 @@ BYTE scpu64rom_scpu64_rom_original[SCPU64_SCPU64_ROM_MAXSIZE] = {0};
 #include "c64rom.h"
 #include "c64mem.h"
 #include "c64memrom.h"
-BYTE c64memrom_kernal64_rom_original[C64_KERNAL_ROM_SIZE] = {0};
 #endif
 
 #if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
-extern unsigned int opt_jiffydos_kernal_skip;
+extern bool opt_jiffydos_kernal_skip;
 #endif
 
 #if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__) || defined(__X128__) || defined(__XVIC__)
@@ -75,8 +71,8 @@ extern unsigned int opt_supercpu_kernal;
 
 extern dc_storage* dc;
 extern bool retro_ui_finalized;
-extern unsigned int opt_jiffydos;
-extern unsigned int opt_autoloadwarp;
+extern bool opt_jiffydos;
+extern bool opt_autoloadwarp;
 extern char full_path[RETRO_PATH_MAX];
 extern char retro_system_data_directory[RETRO_PATH_MAX];
 extern bool log_resource_set;
@@ -234,73 +230,6 @@ int ui_init_finalize(void)
    if (!util_file_exists(resources_dump_path))
       resources_dump(resources_dump_path);
 
-   /* ROM */
-#if defined(__XSCPU64__)
-   /* Replace kernal always from backup, because kernal loading replaces embedded data */
-   memcpy(scpu64rom_scpu64_rom, scpu64rom_scpu64_rom_original, SCPU64_SCPU64_ROM_MAXSIZE);
-   switch (opt_supercpu_kernal)
-   {
-      case 2:
-         log_resources_set_string("SCPU64Name", "scpu-dos-2.04.bin");
-         break;
-      case 1:
-         log_resources_set_string("SCPU64Name", "scpu-dos-1.4.bin");
-         break;
-      default:
-         log_resources_set_string("SCPU64Name", "scpu64");
-         break;
-   }
-#endif
-
-   /* JiffyDOS */
-#if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
-   /* Replace kernal always from backup, because kernal loading replaces embedded data */
-#if defined(__X64__) || defined(__X64SC__)
-   memcpy(c64memrom_kernal64_rom, c64memrom_kernal64_rom_original, C64_KERNAL_ROM_SIZE);
-#endif
-   opt_jiffydos_kernal_skip = 0;
-   if (opt_jiffydos)
-   {
-      char tmp_str[RETRO_PATH_MAX] = {0};
-      int drive_type;
-      resources_get_int("Drive8Type", &drive_type);
-
-      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, ARCHDEP_DIR_SEP_CHR, "JiffyDOS_1541-II.bin");
-      log_resources_set_string("DosName1541ii", (const char*)tmp_str);
-      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, ARCHDEP_DIR_SEP_CHR, "JiffyDOS_1571_repl310654.bin");
-      log_resources_set_string("DosName1571", (const char*)tmp_str);
-      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, ARCHDEP_DIR_SEP_CHR, "JiffyDOS_1581.bin");
-      log_resources_set_string("DosName1581", (const char*)tmp_str);
-
-#if defined(__X64__) || defined(__X64SC__)
-      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, ARCHDEP_DIR_SEP_CHR, "JiffyDOS_C64.bin");
-      log_resources_set_string("KernalName", (const char*)tmp_str);
-#elif defined(__X128__)
-      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, ARCHDEP_DIR_SEP_CHR, "JiffyDOS_C64.bin");
-      log_resources_set_string("Kernal64Name", (const char*)tmp_str);
-      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, ARCHDEP_DIR_SEP_CHR, "JiffyDOS_C128.bin");
-      log_resources_set_string("KernalIntName", (const char*)tmp_str);
-#endif
-
-#if defined(__X64__) || defined(__X64SC__) || defined(__XSCPU64__)
-      /* 1541-II ROM will not work unless drive type is set back to whatever it already is ?! */
-      log_resources_set_int("Drive8Type", drive_type);
-#endif
-   }
-   else
-   {
-      log_resources_set_string("DosName1541ii", DRIVE_ROM1541II_NAME);
-      log_resources_set_string("DosName1571", DRIVE_ROM1571_NAME);
-      log_resources_set_string("DosName1581", DRIVE_ROM1581_NAME);
-#if defined(__X64__) || defined(__X64SC__)
-      log_resources_set_string("KernalName", C64_KERNAL_REV3_NAME);
-#elif defined(__X128__)
-      log_resources_set_string("Kernal64Name", C64_KERNAL_REV3_NAME);
-      log_resources_set_string("KernalIntName", C128_KERNAL_NAME);
-#endif
-   }
-#endif
-
    /* Model */
 #if defined(__XPET__)
    petmodel_set(vice_opt.Model);
@@ -318,11 +247,39 @@ int ui_init_finalize(void)
    c64model_set(opt_model_auto && request_model_auto_set > -1 ? request_model_auto_set : vice_opt.Model);
 #endif
 
-#if defined(__X64__) || defined(__X64SC__)
-   /* JiffyDOS SX-64 requires setting kernal after model change */
+   /* ROM */
+#if defined(__XSCPU64__)
+   switch (opt_supercpu_kernal)
+   {
+      case 2:
+         log_resources_set_string("SCPU64Name", "scpu-dos-2.04.bin");
+         break;
+      case 1:
+         log_resources_set_string("SCPU64Name", "scpu-dos-1.4.bin");
+         break;
+      default:
+         log_resources_set_string("SCPU64Name", "scpu64");
+         break;
+   }
+#endif
+
+   /* JiffyDOS */
+#if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
+   opt_jiffydos_kernal_skip = false;
    if (opt_jiffydos)
    {
       char tmp_str[RETRO_PATH_MAX] = {0};
+      int drive_type;
+      resources_get_int("Drive8Type", &drive_type);
+
+      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, ARCHDEP_DIR_SEP_CHR, "JiffyDOS_1541-II.bin");
+      log_resources_set_string("DosName1541ii", (const char*)tmp_str);
+      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, ARCHDEP_DIR_SEP_CHR, "JiffyDOS_1571_repl310654.bin");
+      log_resources_set_string("DosName1571", (const char*)tmp_str);
+      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, ARCHDEP_DIR_SEP_CHR, "JiffyDOS_1581.bin");
+      log_resources_set_string("DosName1581", (const char*)tmp_str);
+
+#if defined(__X64__) || defined(__X64SC__)
       switch (vice_opt.Model)
       {
          case C64MODEL_C64SX_PAL:
@@ -331,11 +288,51 @@ int ui_init_finalize(void)
             log_resources_set_string("KernalName", (const char*)tmp_str);
 
             /* Also must prevent `set_kernal_rom_name()` resetting to default kernel after restart */
-            opt_jiffydos_kernal_skip = 1;
+            opt_jiffydos_kernal_skip = true;
             break;
          default:
+            snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, ARCHDEP_DIR_SEP_CHR, "JiffyDOS_C64.bin");
+            log_resources_set_string("KernalName", (const char*)tmp_str);
             break;
       }
+#elif defined(__X128__)
+      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, ARCHDEP_DIR_SEP_CHR, "JiffyDOS_C64.bin");
+      log_resources_set_string("Kernal64Name", (const char*)tmp_str);
+      snprintf(tmp_str, sizeof(tmp_str), "%s%c%s", retro_system_data_directory, ARCHDEP_DIR_SEP_CHR, "JiffyDOS_C128.bin");
+      log_resources_set_string("KernalIntName", (const char*)tmp_str);
+#endif
+
+      /* 1541-II ROM will not work unless drive type is set back to whatever it already is ?! */
+      log_resources_set_int("Drive8Type", drive_type);
+   }
+   else
+   {
+      int drive_type;
+      resources_get_int("Drive8Type", &drive_type);
+
+      log_resources_set_string("DosName1541ii", DRIVE_ROM1541II_NAME);
+      log_resources_set_string("DosName1571", DRIVE_ROM1571_NAME);
+      log_resources_set_string("DosName1581", DRIVE_ROM1581_NAME);
+#if defined(__X64__) || defined(__X64SC__)
+      switch (vice_opt.Model)
+      {
+         case C64MODEL_C64SX_PAL:
+         case C64MODEL_C64SX_NTSC:
+            log_resources_set_string("KernalName", C64_KERNAL_SX64_NAME);
+
+            opt_jiffydos_kernal_skip = false;
+            break;
+         default:
+            log_resources_set_string("KernalName", C64_KERNAL_REV3_NAME);
+            break;
+      }
+#elif defined(__X128__)
+      log_resources_set_string("Kernal64Name", C64_KERNAL_REV3_NAME);
+      log_resources_set_string("KernalIntName", C128_KERNAL_NAME);
+#endif
+
+      /* 1541-II ROM will not work unless drive type is set back to whatever it already is ?! */
+      log_resources_set_int("Drive8Type", drive_type);
    }
 #endif
 
@@ -591,19 +588,11 @@ int ui_init_finalize(void)
 
 
 #if defined(__X64__)
-int c64ui_init_early(void)
-{
-   memcpy(c64memrom_kernal64_rom_original, c64memrom_kernal64_rom, C64_KERNAL_ROM_SIZE);
-   return 0;
-}
+int c64ui_init_early(void) { return 0; }
 int c64ui_init(void) { return 0; }
 void c64ui_shutdown(void) {}
 #elif defined(__X64SC__)
-int c64scui_init_early(void)
-{
-   memcpy(c64memrom_kernal64_rom_original, c64memrom_kernal64_rom, C64_KERNAL_ROM_SIZE);
-   return 0;
-}
+int c64scui_init_early(void) { return 0; }
 int c64scui_init(void) { return 0; }
 void c64scui_shutdown(void) {}
 #elif defined(__X64DTV__)
@@ -611,11 +600,7 @@ int c64dtvui_init_early(void) { return 0; }
 int c64dtvui_init(void) { return 0; }
 void c64dtvui_shutdown(void) {}
 #elif defined(__XSCPU64__)
-int scpu64ui_init_early(void)
-{
-   memcpy(scpu64rom_scpu64_rom_original, scpu64rom_scpu64_rom, SCPU64_SCPU64_ROM_MAXSIZE);
-   return 0;
-}
+int scpu64ui_init_early(void) { return 0; }
 int scpu64ui_init(void) { return 0; }
 void scpu64ui_shutdown(void) {}
 #elif defined(__X128__)

@@ -90,7 +90,7 @@ static int set_chargen_rom_name(const char *val, void *param)
 
 #ifdef __LIBRETRO__
 #if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__)
-extern unsigned int opt_jiffydos_kernal_skip;
+extern bool opt_jiffydos_kernal_skip;
 #endif
 #endif
 
