@@ -8088,10 +8088,6 @@ void retro_deinit(void)
    /* Clean dynamic cartridge info */
    free_vice_carts();
 
-   /* Clean ZIP temp */
-   if (!string_is_empty(retro_temp_directory) && path_is_directory(retro_temp_directory))
-      remove_recurse(retro_temp_directory);
-
    /* Free buffers uses by libretro-graph */
    libretro_graph_free();
 
@@ -8099,10 +8095,10 @@ void retro_deinit(void)
    free_output_audio_buffer();
 
    /* 'Reset' troublesome static variables */
+   pix_bytes_initialized = false;
    libretro_supports_bitmasks = false;
    libretro_supports_ff_override = false;
    libretro_supports_option_categories = false;
-   pix_bytes_initialized = false;
 }
 
 unsigned retro_api_version(void)
@@ -8887,6 +8883,10 @@ void retro_unload_game(void)
    file_system_detach_disk_shutdown();
 
    dc_reset(dc);
+
+   /* Clean ZIP temp */
+   if (!string_is_empty(retro_temp_directory) && path_is_directory(retro_temp_directory))
+      remove_recurse(retro_temp_directory);
 
    free(autostartString);
    autostartString = NULL;
