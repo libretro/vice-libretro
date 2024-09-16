@@ -636,24 +636,22 @@ const char* cmdline_get_autostart_string(void)
     return autostart_string;
 }
 
-int initcmdline_cleanup()
+void initcmdline_cleanup(bool set_defaults)
 {
-    cmdline_free_autostart_string();
+    if (!set_defaults)
+        cmdline_free_autostart_string();
 
-    /* Detach all tapes and disks from previous content */
-    tape_image_detach(1);
+    /* Detach everything */
+    cartridge_unset_default();
     cartridge_detach_image(-1);
-    file_system_detach_disk(8, 0);
+    tape_image_detach_all();
+    file_system_detach_disk_all();
     file_system_detach_disk_shutdown();
 
-    /* Detach cartridge and reset default name */
-    if (resources_query_type("CartridgeFile") == RES_STRING) {
-        resources_set_string("CartridgeFile", "");
-    }
-
-    /* Reset resources to defaults */
-    resources_set_defaults();
-    resources_reset_and_load(NULL);
+    /* Reset resources to defaults and reload */
+    if (set_defaults)
+        resources_set_defaults();
+    resources_load(NULL);
 }
 
 int initcmdline_restart(int argc, char **argv)

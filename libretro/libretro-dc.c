@@ -546,7 +546,6 @@ bool dc_replace_file(dc_storage* dc, int index, const char* filename)
                   log_cb(RETRO_LOG_INFO, "Attaching disk '%s' to drive #%d\n", dc->files[i], dc->unit + i);
                   file_system_attach_disk(dc->unit + i, 0, dc->files[i]);
                   autodetect_drivetype(dc->unit + i);
-                  tick_sleep(5);
                }
                else
                {

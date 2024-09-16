@@ -719,7 +719,7 @@ static void display_joyport(void)
     /* Memory */
     unsigned memory = 0;
     const char *memory_unit = "K";
-    memory = (vic20mem_forced > -1) ? vic20mem_forced : vice_opt.VIC20Memory;
+    memory = (vic20mem_forced > -1) ? vic20mem_forced : (vice_opt.VIC20Memory > -1) ? vice_opt.VIC20Memory : 0;
     if (!memory && vice_opt.Model == VIC20MODEL_VIC21)
         memory = 3;
 

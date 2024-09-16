@@ -349,7 +349,6 @@ int ui_init_finalize(void)
    log_resources_set_int("SoundFragmentSize", SOUND_FRAGMENT_SMALL);
    log_resources_set_int("AutostartPrgMode", 1);
    log_resources_set_int("AutostartDelayRandom", 0);
-   log_resources_set_int("AutostartHandleTrueDriveEmulation", 0);
    log_resources_set_int("FSDeviceLongNames", 1);
    log_resources_set_int("Mouse", 1);
 

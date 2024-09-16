@@ -37,7 +37,7 @@ void initcmdline_shutdown(void);
 
 #ifdef __LIBRETRO__
 extern const char* cmdline_get_autostart_string(void);
-extern int initcmdline_cleanup();
+extern void initcmdline_cleanup(bool set_defaults);
 extern int initcmdline_restart(int argc, char **argv);
 #endif /* __LIBRETRO__ */
 

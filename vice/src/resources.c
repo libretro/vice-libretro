@@ -1441,7 +1441,7 @@ static char* disabled_resources[] =
     "JoyPort6Device", "JoyPort7Device", "JoyPort8Device", "JoyPort9Device", "JoyPort10Device",
     "PaddlesInput1", "PaddlesInput2",
     "DriveSoundEmulation", "DriveSoundEmulationVolume",
-    "VICIIAudioLeak", "VICAudioLeak", "TEDAudioLeak", "SidStereo", "Sid2AddressStart",
+    "VICIIAudioLeak", "VICAudioLeak", "TEDAudioLeak",
     "SidEngine", "SidModel", "SidResidSampling", "SidResidPassband", "SidResidGain", "SidResidFilterBias",
     "SidResid8580Passband", "SidResid8580Gain", "SidResid8580FilterBias", "SFXSoundExpander", "SFXSoundExpanderChip",
     "RAMBlock0", "RAMBlock1", "RAMBlock2", "RAMBlock3", "RAMBlock5", "REU", "REUsize",
