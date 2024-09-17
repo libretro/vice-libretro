@@ -381,7 +381,6 @@ SOURCES_C += \
 	$(RETRODEP)/joy.c \
 	$(RETRODEP)/lightpendrv.c \
 	$(RETRODEP)/kbd.c \
-	$(RETRODEP)/main.c \
 	$(RETRODEP)/mousedrv.c \
 	$(RETRODEP)/signals.c \
 	$(RETRODEP)/soundretro.c \

@@ -5,6 +5,7 @@
 #include "encodings/utf.h"
 
 #include "archdep.h"
+#include "main.h"
 #include "mem.h"
 #include "machine.h"
 #include "maincpu.h"
@@ -286,8 +287,6 @@ void display_retro_message(const char *message)
 extern bool retro_statusbar;
 extern void display_current_image(const char *image, bool inserted);
 extern int ui_init_finalize(void);
-
-extern int skel_main(int argc, char *argv[]);
 
 static char* x_strdup(const char* str)
 {
@@ -1867,7 +1866,7 @@ int pre_main(void)
    build_params();
 
    *archdep_startup_error = 0;
-   if (skel_main(argc, (char**)xargv_cmd) < 0)
+   if (main_program(argc, (char**)xargv_cmd) < 0)
    {
       log_cb(RETRO_LOG_WARN, "Core startup failed with error:\n");
       archdep_startup_error_log_lines();
@@ -1888,7 +1887,7 @@ int pre_main(void)
       argc = 1;
 
       *archdep_startup_error = 0;
-      if (skel_main(argc, (char**)xargv_cmd) < 0)
+      if (main_program(argc, (char**)xargv_cmd) < 0)
       {
          log_cb(RETRO_LOG_ERROR, "Core startup without parameters failed with error:\n");
          archdep_startup_error_log_lines();
