@@ -154,11 +154,13 @@ static void video_canvas_crop(struct video_canvas_s *canvas)
 #elif defined(__XVIC__)
    if (retroh == 234)
       crop_top_border = CROP_TOP_BORDER_NTSC;
+
+   vice_raster.blanked = 0;
 #endif
 
    /* Reset to maximum crop */
-   vice_raster.first_line = crop_top_border;
-   vice_raster.last_line  = vice_raster.first_line + crop_height_max;
+   vice_raster.first_line = (!crop_id_prev) ? 0 : crop_top_border;
+   vice_raster.last_line  = (!crop_id_prev) ? retroh : vice_raster.first_line + crop_height_max;
 
    switch (crop_id)
    {
@@ -205,10 +207,12 @@ static void video_canvas_crop(struct video_canvas_s *canvas)
                break;
          }
 
+#if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__)
          /* Allow bottom border upwards a few rows if top border is not used much.
           * For oddly shifted cases: Alien Syndrome, Out Run Europa */
          if (vice_raster.first_line > 20)
             crop_bottom_border -= 5;
+#endif
 
 #if defined(__X128__)
          if (c128_vdc)

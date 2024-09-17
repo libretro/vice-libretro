@@ -8371,7 +8371,7 @@ void update_geometry(int mode)
                {
                   case CROP_AUTO:
                      /* Reset autocentering depending on mode */
-                     if (crop_height > 0 && vice_raster.first_line > 0)
+                     if (crop_height > 0 && vice_raster.first_line >= 0)
                         retroYS_crop_offset = vice_raster.first_line + (crop_height - crop_height_o) / 2;
                      break;
                }
@@ -8721,6 +8721,12 @@ void retro_run(void)
       }
    }
 
+   /* Update geometry if model or crop mode changes */
+   if ((defaultw == retrow && defaulth == retroh) && crop_id != crop_id_prev)
+      update_geometry(1);
+   else if (defaultw != retrow || defaulth != retroh)
+      update_geometry(0);
+
    /* Virtual keyboard */
    /* Moved to retrodep video_canvas_refresh() in order to stop flashing during warping */
 
@@ -8749,12 +8755,6 @@ void retro_run(void)
 
    /* Audio output */
    upload_output_audio_buffer();
-
-   /* Update geometry if model or crop mode changes */
-   if ((defaultw == retrow && defaulth == retroh) && crop_id != crop_id_prev)
-      update_geometry(1);
-   else if (defaultw != retrow || defaulth != retroh)
-      update_geometry(0);
 
    /* retro_reset() postponed here for proper JiffyDOS+vicerc core option refresh operation
     * Restart does nothing if done too early, therefore only allow it after the first frame */
