@@ -713,6 +713,8 @@ static void libretro_keyboard()
 
             keyboard_parse_set_pos_row(RETROK_HELP,         8, 0, 8);   /*         Help -> HELP         */
             keyboard_parse_set_pos_row(RETROK_END,          9, 3, 8);   /*          End -> LINE FEED    */
+            keyboard_parse_set_neg_row(RETROK_F9,          -4, 0, 0);   /*           F9 -> 40/80        */
+            keyboard_parse_set_pos_row(RETROK_F10,         10, 7, 8);   /*          F10 -> NO SCROLL    */
 
             keyboard_parse_set_pos_row(RETROK_BACKQUOTE,    7, 1, 32);  /*            ` -> Left Arrow   */
             keyboard_parse_set_pos_row(RETROK_BACKQUOTE,    6, 6, 1);   /*            ~ -> Pi           */

@@ -55,6 +55,8 @@ extern unsigned int opt_joyport_type;
 extern unsigned int opt_autoloadwarp;
 extern int RGBc(int r, int g, int b);
 extern bool retro_statusbar;
+extern bool retro_capslock;
+extern bool c128_capslock;
 extern float retro_refresh;
 extern int runstate;
 extern dc_storage *dc;
@@ -587,21 +589,11 @@ static void display_joyport(void)
         snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 3, joystick_value_human(get_joystick_value(3-1), 0));
         snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 4, joystick_value_human(get_joystick_value(4-1), 0));
     }
-    else
-    {
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%5s", "");
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%5s", "");
-    }
 #elif defined(__XVIC__)
     if (vice_opt.UserportJoyType != -1)
     {
         snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 2, joystick_value_human(get_joystick_value(2-1), 0));
         snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 3, joystick_value_human(get_joystick_value(3-1), 0));
-    }
-    else
-    {
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%5s", "");
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%5s", "");
     }
 #elif defined(__XPET__) || defined(__XCBM2__)
     if (vice_opt.UserportJoyType != -1)
@@ -609,12 +601,27 @@ static void display_joyport(void)
         snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 1, joystick_value_human(get_joystick_value(1-1), 0));
         snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 2, joystick_value_human(get_joystick_value(2-1), 0));
     }
-    else
-    {
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%5s", "");
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%5s", "");
-    }
 #endif
+
+    if (vice_opt.UserportJoyType == -1)
+    {
+#if defined(__X128__)
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%6s %2s %2s", "", "CL", "SL");
+
+        if (c128_capslock)
+        {
+            tmpstr[6+6+6+1] |= 0x80;
+            tmpstr[6+6+6+2] |= 0x80;
+        }
+#else
+        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%6s %2s %2s", "", "", "SL");
+#endif
+        if (retro_capslock)
+        {
+            tmpstr[6+6+6+3+1] |= 0x80;
+            tmpstr[6+6+6+3+2] |= 0x80;
+        }
+    }
 
     if (opt_statusbar & STATUSBAR_BASIC)
         snprintf(tmpstr, sizeof(tmpstr), "%24s", "");

@@ -15,6 +15,7 @@
 #include "datasette.h"
 #include "tapeport.h"
 #include "kbd.h"
+#include "keymap.h"
 #include "mousedrv.h"
 #include "cartridge.h"
 
@@ -52,6 +53,9 @@ int mapper_keys[RETRO_MAPPER_LAST] = {0};
 static long mapper_keys_pressed_time = 0;
 static int mapper_flag[RETRO_DEVICES][128] = {0};
 bool retro_capslock = false;
+#if defined(__X128__)
+bool c128_capslock = false;
+#endif
 unsigned int retro_warpmode = 0;
 
 unsigned int cur_port = 2;
@@ -426,6 +430,13 @@ void retro_key_down(int key)
          kbd_handle_keydown(RETROK_LSHIFT);
       retro_capslock = !retro_capslock;
    }
+#if defined(__X128__)
+   else if (key == key_ctrl_caps)
+   {
+      c128_capslock = !c128_capslock;
+      kbd_handle_keydown(key);
+   }
+#endif
    else
       kbd_handle_keydown(key);
 }

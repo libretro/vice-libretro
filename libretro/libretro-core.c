@@ -8684,7 +8684,7 @@ void retro_run(void)
       /* VDC toggle key enforcing */
       {
          static unsigned column_key_state = 0;
-         unsigned toggle_state = retro_key_state_internal[RETROK_F7];
+         unsigned toggle_state = retro_key_state_internal[key_ctrl_column4080];
 
          if (toggle_state && toggle_state != column_key_state)
             set_vdc(!c128_vdc);

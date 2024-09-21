@@ -4,6 +4,8 @@
 #include "libretro-mapper.h"
 
 #include "kbd.h"
+#include "keyboard.h"
+#include "keymap.h"
 
 bool retro_vkbd = false;
 static bool retro_vkbd_page = false;
@@ -13,6 +15,7 @@ static int vkflag[10] = {0};
 
 #ifdef __X128__
 extern int c128_vdc;
+extern bool c128_capslock;
 #endif
 
 #define POINTER_DEBUG 0
@@ -740,7 +743,8 @@ void print_vkbd(void)
           ||(retro_capslock && vkeys[(y * VKBDX) + x + page].value == VKBD_SHIFTLOCK)
           ||(retro_key_state_internal[current_key])
 #ifdef __X128__
-          ||(c128_vdc && vkeys[(y * VKBDX) + x + page].value == RETROK_F7) /* 40/80 display toggle */
+          ||(c128_vdc && vkeys[(y * VKBDX) + x + page].value == key_ctrl_column4080) /* 40/80 display toggle */
+          ||(c128_capslock && vkeys[(y * VKBDX) + x + page].value == key_ctrl_caps) /* Caps Lock toggle */
 #endif
           ||(vkflag[RETRO_DEVICE_ID_JOYPAD_START] && vkeys[(y * VKBDX) + x + page].value == RETROK_RETURN)
           ||(vkflag[RETRO_DEVICE_ID_JOYPAD_X]     && vkeys[(y * VKBDX) + x + page].value == RETROK_SPACE)
