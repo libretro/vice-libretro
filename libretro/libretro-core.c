@@ -8013,8 +8013,6 @@ void retro_reset(void)
 
    /* Trigger autostart-reset in retro_run() */
    request_restart = true;
-   /* Do full reload */
-   request_reload_restart = true;
 }
 
 static void fallback_log(enum retro_log_level level, const char *fmt, ...)
