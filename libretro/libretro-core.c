@@ -1359,7 +1359,11 @@ void autodetect_drivetype(int unit)
             set_drive_type = DRIVE_TYPE_1571;
          /* Force 1541 to 1541-II */
          else if (diskimg->type == DRIVE_TYPE_1541)
+#if defined(__X128__)
+            set_drive_type = DRIVE_TYPE_DEFAULT;
+#else
             set_drive_type = DRIVE_TYPE_1541II;
+#endif
          else
             set_drive_type = diskimg->type;
 
