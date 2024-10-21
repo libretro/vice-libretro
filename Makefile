@@ -199,10 +199,13 @@ else ifneq (,$(findstring ios,$(platform)))
    CXXFLAGS += -DHAVE_STRLCPY -DHAVE_VSNPRINTF -DHAVE_SNPRINTF -DHAVE_STPCPY -D_INTTYPES_H
    OSXVER = `sw_vers -productVersion | cut -d. -f 2`
    OSX_LT_MAVERICKS = `(( $(OSXVER) <= 9)) && echo "YES"`
-   ifeq ($(OSX_LT_MAVERICKS),"YES")
+   ifeq ($(platform),$(filter $(platform),ios9 ios-arm64))
+      MINVERSION = -miphoneos-version-min=8.0
+   else
       MINVERSION = -miphoneos-version-min=5.0
    endif
    COMMONFLAGS += $(MINVERSION)
+   LDFLAGS += $(MINVERSION)
 
 else ifeq ($(platform), tvos-arm64)
    TARGET := $(TARGET_NAME)_libretro_tvos.dylib
@@ -217,6 +220,9 @@ else ifeq ($(platform), tvos-arm64)
    CXXFLAGS += $(COMMONFLAGS)
    CC = clang -arch arm64 -isysroot $(IOSSDK)
    CXX = clang++ -arch arm64 -isysroot $(IOSSDK)
+   MINVERSION = -mappletvos-version-min=11.0
+   COMMONFLAGS += $(MINVERSION)
+   LDFLAGS += $(MINVERSION)
 
 else ifeq ($(platform), theos_ios)
    DEPLOYMENT_IOSVERSION = 5.0
