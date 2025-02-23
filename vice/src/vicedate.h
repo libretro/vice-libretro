@@ -37,6 +37,6 @@
 #define VICEDATE_MONTH_SHORT "Dec"
 #define VICEDATE_MONTH_LONG "December"
 
-#define VICEDATE_YEAR 2023
-#define VICEDATE_YEAR_STR "2023"
+#define VICEDATE_YEAR 2024
+#define VICEDATE_YEAR_STR "2024"
 #endif

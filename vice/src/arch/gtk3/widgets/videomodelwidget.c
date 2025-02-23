@@ -9,6 +9,7 @@
  *          a little more involved to figure out exacly what resources are
  *          set for which video chip.
  * Controls the following resource(s):
+ * $VICERES MachineVideoStandard all
  */
 
 /*
@@ -85,7 +86,7 @@ static void on_model_toggled(GtkWidget *widget, gpointer user_data)
 
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
         if (resources_set_int(resource_name, model_id) < 0) {
-            log_error(LOG_ERR,
+            log_error(LOG_DEFAULT,
                       "%s(): failed to set %s to %d\n",
                       __func__, resource_name, model_id);
         } else {

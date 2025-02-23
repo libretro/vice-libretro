@@ -47,7 +47,7 @@
 /* #define DEBUG_PRINTER */
 
 #ifdef DEBUG_PRINTER
-#define DBG(x)  log_debug x
+#define DBG(x) log_printf  x
 #else
 #define DBG(x)
 #endif
@@ -135,8 +135,7 @@ static const cmdline_option_t cmdline_options_userport[] =
 
 int output_text_init_cmdline_options(void)
 {
-    if (machine_class != VICE_MACHINE_C64DTV
-        && machine_class != VICE_MACHINE_PLUS4) {
+    if (machine_class != VICE_MACHINE_C64DTV) {
         if (cmdline_register_options(cmdline_options_userport) < 0) {
             return -1;
         }
@@ -188,11 +187,13 @@ static FILE *fopen_or_pipe(char *name, vice_pid_t *pid)
 static int output_text_open(unsigned int prnr,
                             output_parameter_t *output_parameter)
 {
+    DBG(("output_text_open(prnr:%u) device:%u", prnr, prnr + 4));
     switch (printer_device[prnr]) {
         case 0:
         case 1:
         case 2:
             if (PrinterDev[printer_device[prnr]] == NULL) {
+                DBG(("output_text_open PrinterDev == NULL"));
                 return -1;
             }
 
@@ -200,6 +201,7 @@ static int output_text_open(unsigned int prnr,
                 FILE *fd;
                 vice_pid_t pid;
                 output_pid[printer_device[prnr]] = 0;
+                DBG(("output_text_open PrinterDev:%s", PrinterDev[printer_device[prnr]]));
                 fd = fopen_or_pipe(PrinterDev[printer_device[prnr]], &pid);
                 if (fd == NULL) {
                     return -1;
@@ -215,6 +217,7 @@ static int output_text_open(unsigned int prnr,
 
 static void output_text_close(unsigned int prnr)
 {
+    DBG(("output_text_close(prnr:%u) device:%u", prnr, prnr + 4));
     if (output_fd[printer_device[prnr]] != NULL) {
         fclose(output_fd[printer_device[prnr]]);
     }
@@ -228,6 +231,8 @@ static void output_text_close(unsigned int prnr)
 
 static int output_text_putc(unsigned int prnr, uint8_t b)
 {
+    DBG(("output_text_putc(prnr:%u) byte:0x%02x fd:%s", prnr, b,
+         (output_fd[printer_device[prnr]] == NULL) ? "NULL" : "ok"));
     if (output_fd[printer_device[prnr]] == NULL) {
         return -1;
     }
@@ -247,7 +252,7 @@ static int output_text_getc(unsigned int prnr, uint8_t *b)
 
 static int output_text_flush(unsigned int prnr)
 {
-    DBG(("output_text_flush:%u", prnr));
+    DBG(("output_text_flush(prnr:%u) device:%u", prnr, prnr + 4));
     if (output_fd[printer_device[prnr]] == NULL) {
         return -1;
     }
@@ -258,7 +263,7 @@ static int output_text_flush(unsigned int prnr)
 
 static int output_text_formfeed(unsigned int prnr)
 {
-    DBG(("output_text_formfeed:%u", prnr));
+    DBG(("output_text_formfeed(prnr:%u) device:%u", prnr, prnr + 4));
     return output_text_flush(prnr);
 }
 
@@ -282,8 +287,7 @@ int output_text_init_resources(void)
         return -1;
     }
 
-    if (machine_class != VICE_MACHINE_C64DTV
-        && machine_class != VICE_MACHINE_PLUS4) {
+    if (machine_class != VICE_MACHINE_C64DTV) {
         if (resources_register_int(resources_int_userport) < 0) {
             return -1;
         }

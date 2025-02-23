@@ -302,6 +302,9 @@
 /* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
 
+/* Enable support for Linux evdev joysticks. */
+#undef HAVE_LINUX_EVDEV
+
 /* Define to 1 if you have the <linux/hardsid.h> header file. */
 #undef HAVE_LINUX_HARDSID_H
 

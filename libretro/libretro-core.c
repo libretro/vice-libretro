@@ -3371,6 +3371,7 @@ static void retro_set_core_options()
             { "deekay", "Deekay/Crest" },
             { "frodo", "Frodo" },
             { "godot", "Godot" },
+            { "lemon64", "Lemon64" },
             { "palette", "PALette" },
             { "palette_6569R1_v1r", "PALette 6569R1" },
             { "palette_6569R5_v1r", "PALette 6569R5" },
@@ -5607,7 +5608,7 @@ static void update_variables(void)
    log_cb(RETRO_LOG_INFO, "Updating variables, UI finalized = %d\n", retro_ui_finalized);
 #endif
 
-#if !defined(__XPET__)
+#if !defined(__XPET__) && !defined(__X64DTV__)
    var.key = "vice_cartridge";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -5641,6 +5642,7 @@ static void update_variables(void)
    }
 #endif
 
+#if !defined(__X64DTV__)
    var.key = "vice_autostart";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -5663,7 +5665,9 @@ static void update_variables(void)
 
       vice_opt.AutostartWarp = autostartwarp;
    }
+#endif
 
+#if !defined(__X64DTV__)
    var.key = "vice_autoloadwarp";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -5690,21 +5694,23 @@ static void update_variables(void)
             resources_set_int("AutostartWarp", vice_opt.AutostartWarp);
       }
 
-#if !defined(__XSCPU64__) && !defined(__X64DTV__)
+#if !defined(__XSCPU64__)
       /* Silently restore tape sounds when autoloadwarp is disabled */
       if (retro_ui_finalized && vice_opt.DatasetteSound &&
           (!(opt_autoloadwarp & AUTOLOADWARP_TAPE) && !(opt_autoloadwarp & AUTOLOADWARP_MUTE)))
          resources_set_int("DatasetteSound", vice_opt.DatasetteSound);
 #endif
 
-#if defined(__X64__) || defined(__X64SC__) || defined(__X64DTV__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__) || defined(__XVIC__) || defined(__XPLUS4__)
+#if defined(__X64__) || defined(__X64SC__) || defined(__X128__) || defined(__XSCPU64__) || defined(__XCBM5x0__) || defined(__XVIC__) || defined(__XPLUS4__)
       /* Silently restore audio leak when autoloadwarp is disabled */
       if (retro_ui_finalized && vice_opt.AudioLeak &&
           (!opt_autoloadwarp || opt_autoloadwarp & AUTOLOADWARP_MUTE))
          resources_set_int(AUDIOLEAK_RESOURCE, vice_opt.AudioLeak);
 #endif
    }
+#endif
 
+#if !defined(__X64DTV__)
    var.key = "vice_floppy_multidrive";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -5730,6 +5736,7 @@ static void update_variables(void)
 
       vice_opt.AttachDevice8Readonly = readonly;
    }
+#endif
 
 #if defined(__X64__) || defined(__X64SC__) || defined(__X128__)
    var.key = "vice_easyflash_write_protection";
@@ -5748,6 +5755,7 @@ static void update_variables(void)
    }
 #endif
 
+#if !defined(__X64DTV__)
    var.key = "vice_work_disk";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -5800,8 +5808,9 @@ static void update_variables(void)
       if (!strcmp(var.value, "disabled")) vice_opt.VirtualDevices = 0;
       else                                vice_opt.VirtualDevices = 1;
    }
+#endif
 
-#if !defined(__XPET__) && !defined(__XPLUS4__) && !defined(__XVIC__)
+#if !defined(__XPET__) && !defined(__XPLUS4__) && !defined(__XVIC__) && !defined(__X64DTV__)
    var.key = "vice_warp_boost";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -6348,6 +6357,7 @@ static void update_variables(void)
       vice_opt.SidEngine = sid_engine;
    }
 
+#if !defined(__X64DTV__)
    var.key = "vice_sid_model";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -6402,6 +6412,7 @@ static void update_variables(void)
 
       vice_opt.SidExtra = sid_extra;
    }
+#endif
 
    var.key = "vice_resid_sampling";
    var.value = NULL;
@@ -6462,6 +6473,7 @@ static void update_variables(void)
       vice_opt.SidResidFilterBias = val;
    }
 
+#if !defined(__X64DTV__)
    var.key = "vice_resid_8580filterbias";
    var.value = NULL;
 
@@ -6474,6 +6486,7 @@ static void update_variables(void)
 
       vice_opt.SidResid8580FilterBias = val;
    }
+#endif
 #endif
 
 #if defined(__X64__) || defined(__X64SC__) || defined(__X128__)
@@ -6801,7 +6814,7 @@ static void update_variables(void)
 
       sprintf(vice_opt.ExternalPalette, "%s", var.value);
    }
-#else
+#elif !defined(__X64DTV__)
    var.key = "vice_external_palette";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -7136,6 +7149,7 @@ static void update_variables(void)
       else                                opt_keyboard_pass_through = true;
    }
 
+#if !defined(__X64DTV__)
    var.key = "vice_reset";
    var.value = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -7145,6 +7159,7 @@ static void update_variables(void)
       else if (!strcmp(var.value, "hard"))      opt_reset_type = 2;
       else if (!strcmp(var.value, "freeze"))    opt_reset_type = 3;
    }
+#endif
 
    var.key = "vice_vkbd_theme";
    var.value = NULL;

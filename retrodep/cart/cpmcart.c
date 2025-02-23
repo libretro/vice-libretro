@@ -325,3 +325,13 @@ int cpmcart_snapshot_read_module(snapshot_t *s)
 {
     return -1;
 }
+
+int cpmcart_enable(void)
+{
+    return 0;
+}
+
+int cpmcart_disable(void)
+{
+    return 0;
+}

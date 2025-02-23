@@ -50,6 +50,8 @@ libc64cart_a_SOURCES = \
 	blackbox8.h \
 	blackbox9.c \
 	blackbox9.h \
+	bmpdataturbo.c \
+	bmpdataturbo.h \
 	bisplus.c \
 	bisplus.h \
 	c64-generic.c \
@@ -210,6 +212,10 @@ libc64cart_a_SOURCES = \
 	supersnapshot4.h \
 	turtlegraphics.c \
 	turtlegraphics.h \
+	uc1.c \
+	uc1.h \
+	uc2.c \
+	uc2.h \
 	warpspeed.c \
 	warpspeed.h \
 	westermann.c \

@@ -103,17 +103,17 @@ static GtkWidget *autostart_button;
 
 /** \brief  Trigger autostart
  *
- * \param[in]   widget      dialog
+ * \param[in]   dialog      dialog
  * \param[in]   index       file index in the directory preview
  * \param[in]   autostart   flag: 0: just load, 1: autostart
  */
-static void do_autostart(GtkWidget *widget, int index, int autostart)
+static void do_autostart(GtkWidget *dialog, int index, int autostart)
 {
     gchar *filename;
     gchar *filename_locale;
 
-    lastdir_update(widget, &last_dir, &last_file);
-    filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(widget));
+    lastdir_update(dialog, &last_dir, &last_file);
+    filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
     filename_locale = file_chooser_convert_to_locale(filename);
 
     /* if this function exists, why is there no attach_autodetect()
@@ -125,13 +125,10 @@ static void do_autostart(GtkWidget *widget, int index, int autostart)
                            in the preview widget to load the proper
                            file in an image */
                 autostart ? AUTOSTART_MODE_RUN : AUTOSTART_MODE_LOAD) < 0) {
-        /* oeps
-         *
-         * I currently can't find a way to use a non-blocking Gtk Error dialog
-         * to report the error, so this will have to do, for now. -- compyx
-         */
-        log_error(LOG_ERR, "Failed to smart attach '%s'", filename_locale);
-        ui_error("Failed to smart attach '%s'", filename_locale);
+        vice_gtk3_message_error(GTK_WINDOW(dialog),
+                                "Autodetect error",
+                                "Failed to smart attach '%s'",
+                                filename_locale);
     }
     g_free(filename);
     g_free(filename_locale);
@@ -156,7 +153,7 @@ static int try_attach_disk(int unit_number, int drive_number, char *filename_loc
         struct disk_image_s *diskimg = file_system_get_image(unit_number, drive_number);
 
         if (diskimg == NULL) {
-            log_error(LOG_ERR, "Failed to get disk image for unit %d.", unit_number);
+            log_error(LOG_DEFAULT, "Failed to get disk image for unit %d.", unit_number);
             return -1;
         } else {
             int chk = drive_check_image_format(diskimg->type, 0);
@@ -165,7 +162,7 @@ static int try_attach_disk(int unit_number, int drive_number, char *filename_loc
             /* change drive type only when image does not work in current drive */
             if (chk < 0) {
                 if (resources_set_int_sprintf("Drive%dType", drive_image_type_to_drive_type(diskimg->type), unit_number) < 0) {
-                    log_error(LOG_ERR, "Failed to set drive type.");
+                    log_error(LOG_DEFAULT, "Failed to set drive type.");
                 }
             }
 
@@ -195,19 +192,19 @@ static int try_attach_tapecart(char *filename)
 
     /* get current tapeport device */
     if (resources_get_int("TapePort1Device", &tapedevice_temp) < 0) {
-        log_error(LOG_ERR, "Failed to get tape port device.");
+        log_error(LOG_DEFAULT, "Failed to get tape port device.");
         return -1;
     }
 
     /* first disable all devices, so we dont get any conflicts */
     if (resources_set_int("TapePort1Device", TAPEPORT_DEVICE_NONE) < 0) {
-        log_error(LOG_ERR, "Failed to disable the tape port device.");
+        log_error(LOG_DEFAULT, "Failed to disable the tape port device.");
         goto exiterror;
     }
 
     /* enable the tape cart */
     if (resources_set_int("TapePort1Device", TAPEPORT_DEVICE_TAPECART) < 0) {
-        log_error(LOG_ERR, "Failed to enable the Tapecart.");
+        log_error(LOG_DEFAULT, "Failed to enable the Tapecart.");
         goto exiterror;
     }
 
@@ -219,7 +216,7 @@ static int try_attach_tapecart(char *filename)
 exiterror:
     /* restore tape port device */
     if (resources_set_int("TapePort1Device", tapedevice_temp) < 0) {
-        log_error(LOG_ERR, "Failed to restore tape port device.");
+        log_error(LOG_DEFAULT, "Failed to restore tape port device.");
     }
     return -1;
 }
@@ -255,16 +252,18 @@ static void do_smart_attach(GtkWidget *widget, gpointer data)
                 && cartridge_attach_image(CARTRIDGE_CRT, filename_locale) < 0
                 && autostart_prg(filename_locale, AUTOSTART_MODE_LOAD) < 0) {
             /* failed */
-            log_error(LOG_ERR, "smart attach failed for '%s' failed", filename);
+            log_error(LOG_DEFAULT, "smart attach failed for '%s' failed", filename);
         }
-    } else if (machine_class == VICE_MACHINE_VIC20) {
+    } else if ((machine_class == VICE_MACHINE_VIC20)
+            || (machine_class == VICE_MACHINE_CBM5x0)
+            || (machine_class == VICE_MACHINE_CBM6x0)) {
         if (try_attach_disk(DRIVE_UNIT_DEFAULT, 0, filename_locale) < 0
                 && tape_image_attach(1, filename_locale) < 0
                 && autostart_snapshot(filename_locale, NULL) < 0
                 /* && autostart_prg(filename_locale, AUTOSTART_MODE_LOAD) < 0 */
                 && cartridge_attach_image(CARTRIDGE_CRT, filename_locale) < 0) {
             /* failed */
-            log_error(LOG_ERR, "smart attach failed for '%s' failed", filename);
+            log_error(LOG_DEFAULT, "smart attach failed for '%s' failed", filename);
         }
     } else {
         /* Smart attach for other emulators: don't try to attach a file
@@ -274,7 +273,7 @@ static void do_smart_attach(GtkWidget *widget, gpointer data)
                 && tape_image_attach(1, filename_locale) < 0
                 && autostart_snapshot(filename_locale, NULL) < 0)
         {
-            log_error(LOG_ERR, "Failed to smart attach '%s'",
+            log_error(LOG_DEFAULT, "Failed to smart attach '%s'",
                     filename_locale);
         }
     }
@@ -365,9 +364,7 @@ static void on_readonly_toggled(GtkWidget *widget, gpointer user_data)
  * \param[in]   response_id response ID
  * \param[in]   user_data   unit number
  *
- * TODO:    proper (error) messages, which requires implementing ui_error() and
- *          ui_message() and moving them into gtk3/widgets to avoid circular
- *          references
+ * TODO:    proper (error) messages
  */
 static void on_response(GtkWidget *widget, gint response_id, gpointer user_data)
 {
@@ -375,7 +372,7 @@ static void on_response(GtkWidget *widget, gint response_id, gpointer user_data)
     int index = content_preview_widget_get_index(preview_widget);
     int autostart = 0;
 
-    resources_get_int("AutostartOnDoubleclick", &autostart);
+    resources_get_int("AutostartOnDoubleClick", &autostart);
 
     /* first, to make the following logic less funky, map some events to others,
        depending on whether autostart-on-doubleclick is enabled or not, and
@@ -539,7 +536,7 @@ static GtkWidget *create_smart_attach_dialog(void)
     size_t i;
     int autostart = 0;
 
-    resources_get_int("AutostartOnDoubleclick", &autostart);
+    resources_get_int("AutostartOnDoubleClick", &autostart);
 
     /* create new dialog */
     dialog = gtk_file_chooser_dialog_new(

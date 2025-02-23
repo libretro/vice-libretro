@@ -50,12 +50,12 @@
  */
 
 #ifdef FSDRIVE_DEBUG
-#define DBG(_x_)        log_debug _x_
+#define DBG(_x_) log_printf  _x_
 #else
 #define DBG(_x_)
 #endif
 
-static log_t fsdrive_log = LOG_ERR;
+static log_t fsdrive_log = LOG_DEFAULT;
 
 uint8_t SerialBuffer[SERIAL_NAMELENGTH + 1];
 int SerialPtr;

@@ -878,3 +878,9 @@ void monitor_resources_shutdown(void)
 void monitor_cpu_type_set_value(int searchcpu)
 {
 }
+
+/* 3.9 -> */
+bool monitor_is_inside_monitor(void)
+{
+   return false;
+}

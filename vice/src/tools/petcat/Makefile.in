@@ -373,6 +373,8 @@ install_sh = @install_sh@
 libcurl_CFLAGS = @libcurl_CFLAGS@
 libcurl_LIBS = @libcurl_LIBS@
 libdir = @libdir@
+libevdev_CFLAGS = @libevdev_CFLAGS@
+libevdev_LIBS = @libevdev_LIBS@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
@@ -403,6 +405,8 @@ xpet_LDFLAGS = @xpet_LDFLAGS@
 xplus4_LDFLAGS = @xplus4_LDFLAGS@
 xscpu64_LDFLAGS = @xscpu64_LDFLAGS@
 xvic_LDFLAGS = @xvic_LDFLAGS@
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_FALSE@petcat_LDFLAGS = @petcat_LDFLAGS@ -Wl,-Map=petcat.map
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_TRUE@petcat_LDFLAGS = @petcat_LDFLAGS@ -Wl,-map -Wl,petcat.map
 @WINDOWS_COMPILE_FALSE@petcat_LDFLAGS = 
 
 # Make sure we use Windows' console mode since this is a command line tool

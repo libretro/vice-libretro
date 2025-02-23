@@ -439,7 +439,7 @@ static void playlist_load_callback(GtkDialog *dialog,
         lastdir_update(GTK_WIDGET(dialog), &playlist_last_dir, NULL);
 
         g_snprintf(buf, sizeof buf, "Loading playlist %s", filename);
-        ui_display_statustext(buf, 1);
+        ui_display_statustext(buf, true);
 
         if (m3u_open(filename, playlist_entry_handler, playlist_directive_handler)) {
             /* clear playlist now */
@@ -451,7 +451,7 @@ static void playlist_load_callback(GtkDialog *dialog,
             /* run the parser to populate the playlist */
             if (!m3u_parse()) {
                 g_snprintf(buf, sizeof buf, "Error parsing %s.", filename);
-                ui_display_statustext(buf, 0);
+                ui_display_statustext(buf, false);
             }
             /* remember path for the playlist-save dialog */
             vsid_playlist_set_path(filename);
@@ -506,8 +506,8 @@ static GtkWidget *create_save_content_area(void)
  * \param[in]   data        extra event data (ignored)
  */
 static void playlist_save_dialog_callback(GtkDialog *dialog,
-                                          gchar *filename,
-                                          gpointer data)
+                                          gchar     *filename,
+                                          gpointer   data)
 {
     if (filename != NULL) {
         GtkTreeIter iter;
@@ -534,7 +534,10 @@ static void playlist_save_dialog_callback(GtkDialog *dialog,
 
         /* try to open playlist file for writing */
         if (!m3u_create(filename_ext)) {
-            ui_error("Failed to open '%s' for writing.", filename_ext);
+            vice_gtk3_message_error(GTK_WINDOW(dialog),
+                                    "VICE error",
+                                    "Failed to open '%s' for writing.",
+                                    filename_ext);
             lib_free(filename_ext);
             gtk_widget_destroy(GTK_WIDGET(dialog));
             return;
@@ -610,7 +613,9 @@ static void playlist_save_dialog_callback(GtkDialog *dialog,
     return;
 
 save_error:
-    ui_error("I/O error while writing playlist.");
+    vice_gtk3_message_error(GTK_WINDOW(dialog),
+                            "VICE error",
+                            "I/O error while writing playlist.");
     m3u_close();
     gtk_widget_destroy(GTK_WIDGET(dialog));
     ui_action_finish(ACTION_PSID_PLAYLIST_SAVE);
@@ -718,7 +723,7 @@ static void on_row_activated(GtkTreeView *view,
         char msg[1024];
 
         g_snprintf(msg, sizeof(msg), "'%s' is not a valid PSID file", filename);
-        ui_display_statustext(msg, 10);
+        ui_display_statustext(msg, true);
     }
     update_current_and_total();
 
@@ -748,6 +753,7 @@ static void clear_playlist_callback(GtkDialog *dialog, gboolean result)
 {
     if (result) {
         vsid_playlist_clear();
+        update_current_and_total();
     }
     gtk_widget_destroy(GTK_WIDGET(dialog));
     ui_action_finish(ACTION_PSID_PLAYLIST_CLEAR);
@@ -1212,9 +1218,10 @@ gboolean vsid_playlist_append_file(const gchar *path)
 
     /* Attempt to parse sid header for title & composer */
     if (!hvsc_psid_open(path, &psid)) {
-        vice_gtk3_message_error("VSID",
-                "Failed to parse PSID header of '%s'.",
-                path);
+        vice_gtk3_message_error(NULL,   /* use VSID window as parent */
+                                "VSID",
+                                "Failed to parse PSID header of '%s'.",
+                                path);
 
 
          debug_gtk3("Perhaps it's a MUS?");
@@ -1500,16 +1507,12 @@ void vsid_playlist_add(void)
  */
 void vsid_playlist_clear(void)
 {
-    GtkWidget *dialog;
-
     mainlock_assert_is_not_vice_thread();
 
-    dialog = vice_gtk3_message_confirm(
-            clear_playlist_callback,
-            "VSID",
-            "Are you sure you wish to clear the playlist?");
-    gtk_widget_show_all(dialog);
-    update_current_and_total();
+    vice_gtk3_message_confirm(NULL, /* VSID window as parent */
+                              clear_playlist_callback,
+                              "VSID",
+                              "Are you sure you wish to clear the playlist?");
 }
 
 
@@ -1549,7 +1552,7 @@ void vsid_playlist_save(void)
     /* don't try to save an empty playlist */
     rows = gtk_tree_model_iter_n_children(GTK_TREE_MODEL(playlist_model), NULL);
     if (rows < 1) {
-        ui_display_statustext("Error: cannot save empty playlist.", 1);
+        ui_display_statustext("Error: cannot save empty playlist.", true);
         return;
     }
 

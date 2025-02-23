@@ -82,10 +82,10 @@ static void quit_action(ui_action_map_t *self)
         return;
     }
 
-    vice_gtk3_message_confirm(
-            confirm_exit_callback,
-            "Exit VICE",
-            "Do you really wish to exit VICE?");
+    vice_gtk3_message_confirm(NULL, /* current window as parent */
+                             confirm_exit_callback,
+                             "Exit VICE",
+                             "Do you really wish to exit VICE?");
 }
 
 /** \brief  Open the monitor action
@@ -180,11 +180,11 @@ static const ui_action_map_t machine_actions[] = {
     },
     {   .action  = ACTION_MACHINE_RESET_CPU,
         .handler = machine_reset_action,
-        .data    = int_to_void_ptr(MACHINE_RESET_MODE_RESET_CPU)
+        .data    = vice_int_to_ptr(MACHINE_RESET_MODE_RESET_CPU)
     },
     {   .action  = ACTION_MACHINE_POWER_CYCLE,
         .handler = machine_reset_action,
-        .data    = int_to_void_ptr(MACHINE_RESET_MODE_POWER_CYCLE)
+        .data    = vice_int_to_ptr(MACHINE_RESET_MODE_POWER_CYCLE)
     },
     {   .action  = ACTION_DIAGNOSTIC_PIN_TOGGLE,
         .handler = diagnostic_pin_toggle_action,

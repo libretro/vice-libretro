@@ -58,6 +58,11 @@
 
 #define DRIVE_CPU
 
+#ifdef __LIBRETRO__
+#define ANE_LOG_LEVEL 0
+#define LXA_LOG_LEVEL 0
+#endif
+
 /* Global clock counters.  */
 CLOCK diskunit_clk[NUM_DISK_UNITS];
 
@@ -190,6 +195,7 @@ void drivecpu_reset_clk(diskunit_context_t *drv)
     drv->cpu->stop_clk = 0;
 }
 
+/* called by drive_reset() (via machine_specific_reset()) */
 void drivecpu_reset(diskunit_context_t *drv)
 {
     int preserve_monitor;
@@ -209,6 +215,7 @@ void drivecpu_reset(diskunit_context_t *drv)
     interrupt_trigger_reset(drv->cpu->int_status, *(drv->clk_ptr));
 }
 
+/* called by drive_cpu_trigger_reset() */
 void drivecpu_trigger_reset(unsigned int dnr)
 {
     interrupt_trigger_reset(drivecpu_int_status_ptr[dnr], diskunit_clk[dnr] + 1);
@@ -365,7 +372,7 @@ void drivecpu_execute(diskunit_context_t *drv, CLOCK clk_value)
 #define reg_p   (cpu->cpu_regs.p)
 #define flag_z  (cpu->cpu_regs.z)
 #define flag_n  (cpu->cpu_regs.n)
-#define origin  (drv->mynumber + 1)
+#define ORIGIN_MEMSPACE  (drv->mynumber + e_disk8_space)
 
     cpu = drv->cpu;
 
@@ -390,6 +397,10 @@ void drivecpu_execute(diskunit_context_t *drv, CLOCK clk_value)
     /* Run drive CPU emulation until the stop_clk clock has been reached. */
     while (*drv->clk_ptr < cpu->stop_clk) {
 /* Include the 6502/6510 CPU emulation core.  */
+#define CPU_LOG_ID (drv->log)
+/* #define ANE_LOG_LEVEL ane_log_level */
+/* #define LXA_LOG_LEVEL lxa_log_level */
+#define CPU_IS_JAMMED cpu->is_jammed
 
 #define CLK (*(drv->clk_ptr))
 #define RMW_FLAG (cpu->rmw_flag)

@@ -114,36 +114,38 @@ am_libc64cart_a_OBJECTS = actionreplay2.$(OBJEXT) \
 	actionreplay3.$(OBJEXT) actionreplay4.$(OBJEXT) \
 	actionreplay.$(OBJEXT) atomicpower.$(OBJEXT) \
 	blackbox3.$(OBJEXT) blackbox4.$(OBJEXT) blackbox8.$(OBJEXT) \
-	blackbox9.$(OBJEXT) bisplus.$(OBJEXT) c64-generic.$(OBJEXT) \
-	c64-midi.$(OBJEXT) c64tpi.$(OBJEXT) capture.$(OBJEXT) \
-	clockport.$(OBJEXT) clockport-mp3at64.$(OBJEXT) \
-	clockport-rrnet.$(OBJEXT) comal80.$(OBJEXT) cpmcart.$(OBJEXT) \
-	daa.$(OBJEXT) debugcart.$(OBJEXT) delaep256.$(OBJEXT) \
-	delaep64.$(OBJEXT) delaep7x8.$(OBJEXT) diashowmaker.$(OBJEXT) \
-	dinamic.$(OBJEXT) dqbb.$(OBJEXT) drean.$(OBJEXT) \
-	easycalc.$(OBJEXT) easyflash.$(OBJEXT) epyxfastload.$(OBJEXT) \
-	exos.$(OBJEXT) expert.$(OBJEXT) final.$(OBJEXT) \
-	final3.$(OBJEXT) finalplus.$(OBJEXT) formel64.$(OBJEXT) \
-	freezeframe.$(OBJEXT) freezeframe2.$(OBJEXT) \
-	freezemachine.$(OBJEXT) funplay.$(OBJEXT) gamekiller.$(OBJEXT) \
-	gmod2.$(OBJEXT) gmod3.$(OBJEXT) gs.$(OBJEXT) \
-	hyperbasic.$(OBJEXT) ide64.$(OBJEXT) ieeeflash64.$(OBJEXT) \
-	isepic.$(OBJEXT) kcs.$(OBJEXT) kingsoft.$(OBJEXT) \
-	ltkernal.$(OBJEXT) mach5.$(OBJEXT) magicdesk.$(OBJEXT) \
-	magicformel.$(OBJEXT) magicvoice.$(OBJEXT) maxbasic.$(OBJEXT) \
-	mikroass.$(OBJEXT) mmcreplay.$(OBJEXT) mmc64.$(OBJEXT) \
-	multimax.$(OBJEXT) ocean.$(OBJEXT) pagefox.$(OBJEXT) \
-	partner64.$(OBJEXT) prophet64.$(OBJEXT) ramcart.$(OBJEXT) \
-	ramlink.$(OBJEXT) retroreplay.$(OBJEXT) reu.$(OBJEXT) \
-	rexep256.$(OBJEXT) rexramfloppy.$(OBJEXT) rexutility.$(OBJEXT) \
-	rgcd.$(OBJEXT) ross.$(OBJEXT) rrnetmk3.$(OBJEXT) \
-	sdbox.$(OBJEXT) shortbus.$(OBJEXT) shortbus_digimax.$(OBJEXT) \
+	blackbox9.$(OBJEXT) bmpdataturbo.$(OBJEXT) bisplus.$(OBJEXT) \
+	c64-generic.$(OBJEXT) c64-midi.$(OBJEXT) c64tpi.$(OBJEXT) \
+	capture.$(OBJEXT) clockport.$(OBJEXT) \
+	clockport-mp3at64.$(OBJEXT) clockport-rrnet.$(OBJEXT) \
+	comal80.$(OBJEXT) cpmcart.$(OBJEXT) daa.$(OBJEXT) \
+	debugcart.$(OBJEXT) delaep256.$(OBJEXT) delaep64.$(OBJEXT) \
+	delaep7x8.$(OBJEXT) diashowmaker.$(OBJEXT) dinamic.$(OBJEXT) \
+	dqbb.$(OBJEXT) drean.$(OBJEXT) easycalc.$(OBJEXT) \
+	easyflash.$(OBJEXT) epyxfastload.$(OBJEXT) exos.$(OBJEXT) \
+	expert.$(OBJEXT) final.$(OBJEXT) final3.$(OBJEXT) \
+	finalplus.$(OBJEXT) formel64.$(OBJEXT) freezeframe.$(OBJEXT) \
+	freezeframe2.$(OBJEXT) freezemachine.$(OBJEXT) \
+	funplay.$(OBJEXT) gamekiller.$(OBJEXT) gmod2.$(OBJEXT) \
+	gmod3.$(OBJEXT) gs.$(OBJEXT) hyperbasic.$(OBJEXT) \
+	ide64.$(OBJEXT) ieeeflash64.$(OBJEXT) isepic.$(OBJEXT) \
+	kcs.$(OBJEXT) kingsoft.$(OBJEXT) ltkernal.$(OBJEXT) \
+	mach5.$(OBJEXT) magicdesk.$(OBJEXT) magicformel.$(OBJEXT) \
+	magicvoice.$(OBJEXT) maxbasic.$(OBJEXT) mikroass.$(OBJEXT) \
+	mmcreplay.$(OBJEXT) mmc64.$(OBJEXT) multimax.$(OBJEXT) \
+	ocean.$(OBJEXT) pagefox.$(OBJEXT) partner64.$(OBJEXT) \
+	prophet64.$(OBJEXT) ramcart.$(OBJEXT) ramlink.$(OBJEXT) \
+	retroreplay.$(OBJEXT) reu.$(OBJEXT) rexep256.$(OBJEXT) \
+	rexramfloppy.$(OBJEXT) rexutility.$(OBJEXT) rgcd.$(OBJEXT) \
+	ross.$(OBJEXT) rrnetmk3.$(OBJEXT) sdbox.$(OBJEXT) \
+	shortbus.$(OBJEXT) shortbus_digimax.$(OBJEXT) \
 	shortbus_etfe.$(OBJEXT) silverrock128.$(OBJEXT) \
 	simonsbasic.$(OBJEXT) snapshot64.$(OBJEXT) stardos.$(OBJEXT) \
 	stb.$(OBJEXT) superexplode5.$(OBJEXT) supergames.$(OBJEXT) \
 	supersnapshot.$(OBJEXT) supersnapshot4.$(OBJEXT) \
-	turtlegraphics.$(OBJEXT) warpspeed.$(OBJEXT) \
-	westermann.$(OBJEXT) zaxxon.$(OBJEXT) zippcode48.$(OBJEXT)
+	turtlegraphics.$(OBJEXT) uc1.$(OBJEXT) uc2.$(OBJEXT) \
+	warpspeed.$(OBJEXT) westermann.$(OBJEXT) zaxxon.$(OBJEXT) \
+	zippcode48.$(OBJEXT)
 libc64cart_a_OBJECTS = $(am_libc64cart_a_OBJECTS)
 libc64cartsystem_a_AR = $(AR) $(ARFLAGS)
 libc64cartsystem_a_LIBADD =
@@ -177,11 +179,12 @@ am__depfiles_remade = ./$(DEPDIR)/actionreplay.Po \
 	./$(DEPDIR)/actionreplay4.Po ./$(DEPDIR)/atomicpower.Po \
 	./$(DEPDIR)/bisplus.Po ./$(DEPDIR)/blackbox3.Po \
 	./$(DEPDIR)/blackbox4.Po ./$(DEPDIR)/blackbox8.Po \
-	./$(DEPDIR)/blackbox9.Po ./$(DEPDIR)/c64-generic.Po \
-	./$(DEPDIR)/c64-midi.Po ./$(DEPDIR)/c64acia1.Po \
-	./$(DEPDIR)/c64cart.Po ./$(DEPDIR)/c64carthooks.Po \
-	./$(DEPDIR)/c64cartmem.Po ./$(DEPDIR)/c64tpi.Po \
-	./$(DEPDIR)/capture.Po ./$(DEPDIR)/clockport-mp3at64.Po \
+	./$(DEPDIR)/blackbox9.Po ./$(DEPDIR)/bmpdataturbo.Po \
+	./$(DEPDIR)/c64-generic.Po ./$(DEPDIR)/c64-midi.Po \
+	./$(DEPDIR)/c64acia1.Po ./$(DEPDIR)/c64cart.Po \
+	./$(DEPDIR)/c64carthooks.Po ./$(DEPDIR)/c64cartmem.Po \
+	./$(DEPDIR)/c64tpi.Po ./$(DEPDIR)/capture.Po \
+	./$(DEPDIR)/clockport-mp3at64.Po \
 	./$(DEPDIR)/clockport-rrnet.Po ./$(DEPDIR)/clockport.Po \
 	./$(DEPDIR)/comal80.Po ./$(DEPDIR)/cpmcart.Po \
 	./$(DEPDIR)/cs8900io.Po ./$(DEPDIR)/daa.Po \
@@ -222,8 +225,9 @@ am__depfiles_remade = ./$(DEPDIR)/actionreplay.Po \
 	./$(DEPDIR)/stb.Po ./$(DEPDIR)/superexplode5.Po \
 	./$(DEPDIR)/supergames.Po ./$(DEPDIR)/supersnapshot.Po \
 	./$(DEPDIR)/supersnapshot4.Po ./$(DEPDIR)/turtlegraphics.Po \
-	./$(DEPDIR)/warpspeed.Po ./$(DEPDIR)/westermann.Po \
-	./$(DEPDIR)/zaxxon.Po ./$(DEPDIR)/zippcode48.Po
+	./$(DEPDIR)/uc1.Po ./$(DEPDIR)/uc2.Po ./$(DEPDIR)/warpspeed.Po \
+	./$(DEPDIR)/westermann.Po ./$(DEPDIR)/zaxxon.Po \
+	./$(DEPDIR)/zippcode48.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -470,6 +474,8 @@ install_sh = @install_sh@
 libcurl_CFLAGS = @libcurl_CFLAGS@
 libcurl_LIBS = @libcurl_LIBS@
 libdir = @libdir@
+libevdev_CFLAGS = @libevdev_CFLAGS@
+libevdev_LIBS = @libevdev_LIBS@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
@@ -547,6 +553,8 @@ libc64cart_a_SOURCES = \
 	blackbox8.h \
 	blackbox9.c \
 	blackbox9.h \
+	bmpdataturbo.c \
+	bmpdataturbo.h \
 	bisplus.c \
 	bisplus.h \
 	c64-generic.c \
@@ -707,6 +715,10 @@ libc64cart_a_SOURCES = \
 	supersnapshot4.h \
 	turtlegraphics.c \
 	turtlegraphics.h \
+	uc1.c \
+	uc1.h \
+	uc2.c \
+	uc2.h \
 	warpspeed.c \
 	warpspeed.h \
 	westermann.c \
@@ -802,6 +814,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/blackbox4.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/blackbox8.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/blackbox9.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bmpdataturbo.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/c64-generic.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/c64-midi.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/c64acia1.Po@am__quote@ # am--include-marker
@@ -892,6 +905,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/supersnapshot.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/supersnapshot4.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/turtlegraphics.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/uc1.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/uc2.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/warpspeed.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/westermann.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/zaxxon.Po@am__quote@ # am--include-marker
@@ -1050,6 +1065,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/blackbox4.Po
 	-rm -f ./$(DEPDIR)/blackbox8.Po
 	-rm -f ./$(DEPDIR)/blackbox9.Po
+	-rm -f ./$(DEPDIR)/bmpdataturbo.Po
 	-rm -f ./$(DEPDIR)/c64-generic.Po
 	-rm -f ./$(DEPDIR)/c64-midi.Po
 	-rm -f ./$(DEPDIR)/c64acia1.Po
@@ -1140,6 +1156,8 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/supersnapshot.Po
 	-rm -f ./$(DEPDIR)/supersnapshot4.Po
 	-rm -f ./$(DEPDIR)/turtlegraphics.Po
+	-rm -f ./$(DEPDIR)/uc1.Po
+	-rm -f ./$(DEPDIR)/uc2.Po
 	-rm -f ./$(DEPDIR)/warpspeed.Po
 	-rm -f ./$(DEPDIR)/westermann.Po
 	-rm -f ./$(DEPDIR)/zaxxon.Po
@@ -1199,6 +1217,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/blackbox4.Po
 	-rm -f ./$(DEPDIR)/blackbox8.Po
 	-rm -f ./$(DEPDIR)/blackbox9.Po
+	-rm -f ./$(DEPDIR)/bmpdataturbo.Po
 	-rm -f ./$(DEPDIR)/c64-generic.Po
 	-rm -f ./$(DEPDIR)/c64-midi.Po
 	-rm -f ./$(DEPDIR)/c64acia1.Po
@@ -1289,6 +1308,8 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/supersnapshot.Po
 	-rm -f ./$(DEPDIR)/supersnapshot4.Po
 	-rm -f ./$(DEPDIR)/turtlegraphics.Po
+	-rm -f ./$(DEPDIR)/uc1.Po
+	-rm -f ./$(DEPDIR)/uc2.Po
 	-rm -f ./$(DEPDIR)/warpspeed.Po
 	-rm -f ./$(DEPDIR)/westermann.Po
 	-rm -f ./$(DEPDIR)/zaxxon.Po

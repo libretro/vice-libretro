@@ -44,7 +44,7 @@
 #include "util.h"
 #include "z80mem.h"
 
-static log_t c128rom_log = LOG_ERR;
+static log_t c128rom_log = LOG_DEFAULT;
 
 /* Flag: nonzero if the Kernal and BASIC ROMs have been loaded.  */
 static int rom_loaded = 0;
@@ -332,9 +332,8 @@ int c128rom_kernal_setup(void)
             log_error(c128rom_log, "Unknown machine type %i.", machine_type);
             return -1;
     }
-#ifndef __LIBRETRO__
-        printf("kernal64:%s\n", kernal64);
-#endif
+
+    log_verbose(c128rom_log, "kernal64:%s", kernal64);
 
     if (kernal64 != last_kernal64) {
         resources_set_string("Kernal64Name", kernal64);
@@ -661,7 +660,7 @@ int mem_load(void)
 {
     const char *rom_name = NULL;
 
-    if (c128rom_log == LOG_ERR) {
+    if (c128rom_log == LOG_DEFAULT) {
         c128rom_log = log_open("C128MEM");
     }
 

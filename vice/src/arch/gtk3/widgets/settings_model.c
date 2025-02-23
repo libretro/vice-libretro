@@ -13,6 +13,11 @@
  * $VICERES VICIINewLuminances  x64dtv
  * $VICERES HummerADC           x64dtv
  *
+ * following are set internally:
+ *
+ * $VICERES BoardType           x64 x64sc xscpu64
+ * $VICERES DTVFlashRevision    x64dtv
+ *
  *  (for more, see used widgets)
  */
 
@@ -910,6 +915,8 @@ static void machine_model_handler_cbm5x0(int model)
 {
     video_model_widget_update(video_widget);
     cbm2_memory_size_widget_update(ram_widget);
+    /* synchronize machine power frequency widget */
+    machine_power_frequency_widget_sync(power_frequency_widget);
 }
 
 /** \brief  Callback for CBM 6x0/7x0 model changes
@@ -920,6 +927,8 @@ static void machine_model_handler_cbm6x0(int model)
 {
     video_model_widget_update(video_widget);
     cbm2_memory_size_widget_update(ram_widget);
+    /* synchronize machine power frequency widget */
+    machine_power_frequency_widget_sync(power_frequency_widget);
 }
 
 /** \brief  Set sensitivity of PET Ram9 and RamA widgets
@@ -954,7 +963,7 @@ static void machine_model_handler_pet(int model)
     pet_io_size_widget_sync(pet_io_widget);
     pet_ram9_widget_sync(pet_ram9_widget);
     pet_rama_widget_sync(pet_rama_widget);
-    pet_superpet_enable_widget_sync(superpet_enable_widget);
+    pet_superpet_enable_widget_sync();
     pet_set_ram9a_sensitivity();
 }
 
@@ -1576,6 +1585,12 @@ static GtkWidget *create_cbm5x0_layout(GtkWidget *grid)
             cbm2_switches_callback);
     gtk_grid_attach(GTK_GRID(grid), switches_widget, 2, 0, 1, 1);
 
+    /* machine power frequency */
+    power_frequency_widget = machine_power_frequency_widget_new();
+    machine_power_frequency_widget_add_callback(power_frequency_widget,
+                                                power_frequency_callback);
+    gtk_grid_attach(GTK_GRID(grid), power_frequency_widget, 2, 1, 2, 1);
+
     /* SID widget */
     sid_widget = sid_model_widget_create(machine_widget);
     sid_model_widget_set_callback(sid_widget, sid_model_callback);
@@ -1627,6 +1642,12 @@ static GtkWidget *create_cbm6x0_layout(GtkWidget *grid)
     cbm2_hardwired_switches_widget_set_callback(switches_widget,
                                                 cbm2_switches_callback);
     gtk_grid_attach(GTK_GRID(grid), switches_widget, 2, 0, 1, 1);
+
+    /* machine power frequency */
+    power_frequency_widget = machine_power_frequency_widget_new();
+    machine_power_frequency_widget_add_callback(power_frequency_widget,
+                                                power_frequency_callback);
+    gtk_grid_attach(GTK_GRID(grid), power_frequency_widget, 2, 1, 2, 1);
 
     /* SID widget */
     sid_widget = sid_model_widget_create(machine_widget);

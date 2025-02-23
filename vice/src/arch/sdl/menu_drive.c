@@ -27,6 +27,7 @@
 #include "vice.h"
 
 #include "attach.h"
+#include "autostart.h"
 #include "autostart-prg.h"
 #include "charset.h"
 #include "drive.h"
@@ -538,20 +539,20 @@ DRIVE_PARALLEL_MENU(9)
 DRIVE_PARALLEL_MENU(10)
 DRIVE_PARALLEL_MENU(11)
 
-UI_MENU_DEFINE_SLIDER(Drive8RPM, 26000, 34000)
-UI_MENU_DEFINE_SLIDER(Drive9RPM, 26000, 34000)
-UI_MENU_DEFINE_SLIDER(Drive10RPM, 26000, 34000)
-UI_MENU_DEFINE_SLIDER(Drive11RPM, 26000, 34000)
+UI_MENU_DEFINE_SLIDER(Drive8RPM, DRIVE_RPM_MIN, DRIVE_RPM_MAX)
+UI_MENU_DEFINE_SLIDER(Drive9RPM, DRIVE_RPM_MIN, DRIVE_RPM_MAX)
+UI_MENU_DEFINE_SLIDER(Drive10RPM, DRIVE_RPM_MIN, DRIVE_RPM_MAX)
+UI_MENU_DEFINE_SLIDER(Drive11RPM, DRIVE_RPM_MIN, DRIVE_RPM_MAX)
 
-UI_MENU_DEFINE_SLIDER(Drive8WobbleAmplitude, 0, 5000)
-UI_MENU_DEFINE_SLIDER(Drive9WobbleAmplitude, 0, 5000)
-UI_MENU_DEFINE_SLIDER(Drive10WobbleAmplitude, 0, 5000)
-UI_MENU_DEFINE_SLIDER(Drive11WobbleAmplitude, 0, 5000)
+UI_MENU_DEFINE_SLIDER(Drive8WobbleAmplitude, 0, DRIVE_WOBBLE_AMPLITUDE_MAX)
+UI_MENU_DEFINE_SLIDER(Drive9WobbleAmplitude, 0, DRIVE_WOBBLE_AMPLITUDE_MAX)
+UI_MENU_DEFINE_SLIDER(Drive10WobbleAmplitude, 0, DRIVE_WOBBLE_AMPLITUDE_MAX)
+UI_MENU_DEFINE_SLIDER(Drive11WobbleAmplitude, 0, DRIVE_WOBBLE_AMPLITUDE_MAX)
 
-UI_MENU_DEFINE_SLIDER(Drive8WobbleFrequency, 0, 10000)
-UI_MENU_DEFINE_SLIDER(Drive9WobbleFrequency, 0, 10000)
-UI_MENU_DEFINE_SLIDER(Drive10WobbleFrequency, 0, 10000)
-UI_MENU_DEFINE_SLIDER(Drive11WobbleFrequency, 0, 10000)
+UI_MENU_DEFINE_SLIDER(Drive8WobbleFrequency, 0, DRIVE_WOBBLE_FREQ_MAX)
+UI_MENU_DEFINE_SLIDER(Drive9WobbleFrequency, 0, DRIVE_WOBBLE_FREQ_MAX)
+UI_MENU_DEFINE_SLIDER(Drive10WobbleFrequency, 0, DRIVE_WOBBLE_FREQ_MAX)
+UI_MENU_DEFINE_SLIDER(Drive11WobbleFrequency, 0, DRIVE_WOBBLE_FREQ_MAX)
 
 extern ui_menu_entry_t reset_menu[];
 
@@ -1223,6 +1224,7 @@ UI_MENU_DEFINE_TOGGLE(AutostartDelayRandom)
 UI_MENU_DEFINE_TOGGLE(AutostartBasicLoad)
 UI_MENU_DEFINE_TOGGLE(AutostartTapeBasicLoad)
 UI_MENU_DEFINE_TOGGLE(AutostartRunWithColon)
+UI_MENU_DEFINE_RADIO(AutostartDropMode)
 UI_MENU_DEFINE_RADIO(AutostartPrgMode)
 UI_MENU_DEFINE_STRING(AutostartPrgDiskImage)
 
@@ -1259,28 +1261,34 @@ static UI_MENU_CALLBACK(custom_AutostartDelay_callback)
     return NULL;
 }
 
-
-static const ui_menu_entry_t autostart_settings_menu[] = {
+/* CAUTION: the position of the menu items is hardcoded in uidrive_menu_create() */
+static ui_menu_entry_t autostart_settings_menu[] = {
+/* 0  */
     {   .string   = "Handle TDE on autostart",
         .type     = MENU_ENTRY_RESOURCE_TOGGLE,
         .callback = toggle_AutostartHandleTrueDriveEmulation_callback
     },
+/* 1  */
     {   .string   = "Autostart warp",
         .type     = MENU_ENTRY_RESOURCE_TOGGLE,
         .callback = toggle_AutostartWarp_callback
     },
+/* 2  */
     {   .string   = "Autostart delay",
         .type     = MENU_ENTRY_RESOURCE_INT,
         .callback = custom_AutostartDelay_callback
     },
+/* 3  */
     {   .string   = "Autostart random delay",
         .type     = MENU_ENTRY_RESOURCE_TOGGLE,
         .callback = toggle_AutostartDelayRandom_callback
     },
+/* 4  */
     {   .string   = "Load to BASIC start (tape)",
         .type     = MENU_ENTRY_RESOURCE_TOGGLE,
         .callback = toggle_AutostartTapeBasicLoad_callback
     },
+/* 5  */
     {   .string   = "Load to BASIC start (disk)",
         .type     = MENU_ENTRY_RESOURCE_TOGGLE,
         .callback = toggle_AutostartBasicLoad_callback
@@ -1291,7 +1299,7 @@ static const ui_menu_entry_t autostart_settings_menu[] = {
     },
     SDL_MENU_ITEM_SEPARATOR,
 
-    SDL_MENU_ITEM_TITLE("Autostart PRG mode"),
+    SDL_MENU_ITEM_TITLE("PRG Autostart mode"),
     {   .string   = "VirtualFS",
         .type     = MENU_ENTRY_RESOURCE_RADIO,
         .callback = radio_AutostartPrgMode_callback,
@@ -1309,11 +1317,30 @@ static const ui_menu_entry_t autostart_settings_menu[] = {
     },
     SDL_MENU_ITEM_SEPARATOR,
 
-    {   .string   = "Autostart disk image",
+    {   .string   = "Autostart disk",
         .type     = MENU_ENTRY_RESOURCE_STRING,
         .callback = string_AutostartPrgDiskImage_callback,
         .data     = (ui_callback_data_t)"Disk image for autostarting PRG files"
     },
+    SDL_MENU_ITEM_SEPARATOR,
+
+    SDL_MENU_ITEM_TITLE("Autostart drag'n drop mode"),
+    {   .string   = "Attach image",
+        .type     = MENU_ENTRY_RESOURCE_RADIO,
+        .callback = radio_AutostartDropMode_callback,
+        .data     = (ui_callback_data_t)AUTOSTART_DROP_MODE_ATTACH
+    },
+    {   .string   = "Load",
+        .type     = MENU_ENTRY_RESOURCE_RADIO,
+        .callback = radio_AutostartDropMode_callback,
+        .data     = (ui_callback_data_t)AUTOSTART_DROP_MODE_LOAD
+    },
+    {   .string   = "Load and Run",
+        .type     = MENU_ENTRY_RESOURCE_RADIO,
+        .callback = radio_AutostartDropMode_callback,
+        .data     = (ui_callback_data_t)AUTOSTART_DROP_MODE_RUN
+    },
+
     SDL_MENU_LIST_END
 };
 
@@ -1538,6 +1565,14 @@ void uidrive_menu_create(int has_driveport)
     int ieee_bus = iec_available_busses() & IEC_BUS_IEEE;
 
     had_driveport = has_driveport;
+
+    if ((machine_class == VICE_MACHINE_CBM5x0) ||
+        (machine_class == VICE_MACHINE_CBM6x0) ||
+        (machine_class == VICE_MACHINE_PET)) {
+        autostart_settings_menu[4].type = MENU_ENTRY_TEXT;
+        autostart_settings_menu[4].status = MENU_STATUS_INACTIVE;
+        autostart_settings_menu[4].callback = seperator_callback;
+    }
 
     if (!has_driveport && !ieee_bus) {
 

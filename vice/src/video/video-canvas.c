@@ -27,7 +27,7 @@
 /* #define DEBUG_VIDEO */
 
 #ifdef DEBUG_VIDEO
-#define DBG(_x_) log_debug _x_
+#define DBG(_x_) log_printf  _x_
 #else
 #define DBG(_x_)
 #endif
@@ -88,7 +88,7 @@ video_canvas_t *video_canvas_init(void)
     }
 
     if (i == TRACKED_CANVAS_MAX) {
-        log_error(LOG_ERR, "Creating more than expected video_canvas_t, monitor will not refresh this canvas after each command");
+        log_error(LOG_DEFAULT, "Creating more than expected video_canvas_t, monitor will not refresh this canvas after each command");
     }
 
     return canvas;

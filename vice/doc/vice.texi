@@ -210,6 +210,8 @@ This is the documentation for VICE, the Versatile Commodore Emulator.
 
 * Basics::                      Simple things you can do.
 
+* Quick setup::                 Some quick hints on setting up VICE.
+
 * Settings and resources::      Emulator parameters you can change.
 
 * Machine-specific features::   Peculiar characteristics of the emulators.
@@ -521,7 +523,9 @@ C64 keyboard).  Likewise, pressing @key{'} on the same U.S. keyboard
 without any shift key will cause the combination @kbd{Shift-7} to be
 pressed in the emulated C64.  This way, it becomes quite obvious what
 keys should be typed to obtain all the symbols. @dfn{The key printed on the 
-host keyboard will be pressed in the emulator}. 
+host keyboard will be pressed in the emulator}. (A not so obvious exception to
+this rule are keypads attached to the joystick port - since various different
+devices with different layouts exist, these are always mapped "positional".)
  
  Note that while these mappings will allow easier typing if you are used
  to your host keymap, it might cause various problems in the emulation and not all
@@ -590,6 +594,13 @@ correct positions. On the other hand it can be quite confusing if you are not
 very familiar with the original emulated keyboards. Also not all keys can be
 mapped exactly this way either, which means some of them still need to be
 mapped to other keys (see further down).
+
+One perhaps not so obvious exception to the above is the mapping of the cursor-up
+(mapped to arrow-up) and cursor-left (mapped to arrow-left) keys. These are still
+mapped "symbolic" - which means the virtual shift might lead to odd unexpected
+behaviour. Because of this, if you require the shift keys to work exactly like
+on the real hardware, please use shift+arrow-down and shift+arrow-right - just
+like you would do on the real thing.
 
 Like with symbolic mapping, some keys really need to be mapped specially
 regardless (eg @key{RUN/STOP}). The exact mapping depends on your host layout,
@@ -1206,12 +1217,13 @@ specified afterwards on the command line.
 
 @findex -config
 @item -config <filename>
-Specify config file
+Specify config file (see @pxref{Settings and resources}).
 
 @findex -addconfig
 @item -addconfig <filename>
 Specify extra config file for loading additional resources. This can be used to
-add "patch sets" for various configurations.
+add "patch sets" for various configurations. This file uses the same format as
+the regular config file (see @pxref{Settings and resources}).
 
 @findex -dumpconfig
 @item -dumpconfig <filename>
@@ -1230,13 +1242,44 @@ settings tree (see src/arch/gtk3/uisettings.c).
 Specify log file name
 (@code{LogFileName}).
 
+@findex -logtofile, +logtofile
+@item -logtofile
+@itemx +logtofile
+Enable/disable logging to the log file.
+(@code{LogToFile=1}, @code{LogToFile=0}).
+
+@findex -logtostdout, +logtostdout
+@item -logtostdout
+@itemx +logtostdout
+Enable/disable logging to stdout.
+(@code{LogToStdout=1}, @code{LogToStdout=0}).
+
+@findex -logtomonitor, +logtomonitor
+@item -logtomonitor
+@itemx +logtomonitor
+Enable/disable logging to the monitor.
+(@code{LogToMonitor=1}, @code{LogToMonitor=0}).
+
+@findex -logcolorize, +logcolorize
+@item -logcolorize
+@itemx +logcolorize
+Enable/disable colorizing the log output.
+(@code{LogColorize=1}, @code{LogColorize=0}).
+
 @findex -verbose
 @item -verbose
 Enable verbose log output.
+(@code{LogLimit}).
 
 @findex -silent
 @item -silent
 Disable all log output (except errors).
+(@code{LogLimit}).
+
+@findex -loglimit
+@item -loglimit <level>
+Set log level.
+(@code{LogLimit}).
 
 @findex -no-redirect-streams
 @item -no-redirect-streams
@@ -1251,7 +1294,8 @@ Set the random seed (for debugging).
 
 @findex -keybuf
 @item -keybuf <string>
-Put the specified string into the keyboard buffer.
+Put the specified string into the keyboard buffer. Note that you can specify
+specific keycodes by using C-style escaped hexcodes ("\x0a").
 
 @findex -console
 @item -console
@@ -3216,7 +3260,7 @@ in Vim.
 
 
 
-@node Basics, Settings and resources, System files, Top
+@node Basics, Quick setup, System files, Top
 @chapter Basic operation
 
 This section describes the basic things you can do once the emulator
@@ -3355,13 +3399,16 @@ from its name and size, and attaches it to the most reasonable device.
 Supported formats are @code{D64}, @code{G64}, @code{P64} for disk images
 (devices 8, 9, 10 and 11) and @code{T64} and @code{TAP} for tape images.  
 
-The ancient @code{X64} format is deprecated and subject for removal.
+The ancient @code{X64} format is deprecated and subject for removal (and support
+for it is disabled at compile time by default).
 
-Notice that @code{T64} support is @emph{read-only}, and that the cassette is 
+The legacy @code{T64} format is supported partially, and it has several drawbacks. (@pxref{T64})
+It is only supported @emph{read-only}, and the cassette is
 automatically rewound when you reach its end. Most importantly @code{T64} support
-is only available via virtual device traps, which have to be permanently enabled
-for multiload programs running from these containers. For actually emulating tape, the
-@code{TAP} format is highly recommended.
+is only available via virtual device traps, which have to be enabled in the options.
+(The emulator will temporarily enable it when autostarting programs from these containers.)
+
+For actually emulating tape, the @code{TAP} format is highly recommended.
 
 You can attach a disk for which you do not have write permissions: when this
 happens, the 1541 emulator will emulate a write-protected disk.  This is
@@ -3538,7 +3585,53 @@ examine a memory location and if they find a certain "magic" value they
 only do what you know from the C64 as @code{Run/Stop-Restore}.
 Therefore, to really reset a CBM-II use power cycle.
 
-@node Settings and resources, Machine-specific features, Basics, Top
+@node Quick setup, Settings and resources, Basics, Top
+@chapter Quick setup
+
+This chapter is mostly aimed at people who are used to older VICE releases. The
+default configuration has shifted from "make the emulator fast enough to work
+on consumer hardware" to "pedantic focus on emulation accuracy", which is why
+newer releases have been perceived as "slower" by some people.
+
+However, a couple things can be reverted and "improved" - if better performance
+is what you can afford to trade for a little less emulation accuracy.
+@strong{Note that if you encounter any strange problems, you should always try to
+reset settings to default first.}
+
+@itemize @bullet
+
+@item
+To speed up loading .prg files, enable
+Options->Host->Autostart->Autostart PRG Settings->Autostart mode->Inject into RAM
+(@code{AutostartPrgMode} = 0)
+
+@item
+To speed up loading .d64 files,
+enable Options->Peripherial devices->Drive->Virtual device
+(@code{VirtualDevice8..11} = 1)
+and enable Options->Host->Autostart->Handle True Drive Emulation on autostart
+(@code{AutostartHandleTrueDriveEmulation} = 1)
+
+@item
+To speed up warp mode,
+disable Options->Audio->Sound driver->Enable sound emulation in warpmode
+(@code{SoundEmulateOnWarp} = 0)
+
+@end itemize
+
+Last not least (does not really fit into the above list):
+
+@itemize @bullet
+
+@item
+If you are coming from WinVICE to GTK3, you might want to restore the original
+WinVICE hotkeys. Go to
+Options->Host->Hotkeys->Load From,
+and navigate to data/hotkeys/hotkeys-winvice-legacy.vhk
+
+@end itemize
+
+@node Settings and resources, Machine-specific features, Quick setup, Top
 @chapter Settings and resources
 
 In the VICE emulators, all the settings are stored in entities known as
@@ -3726,6 +3819,13 @@ that is too small results in autostart not happening.
 Use autostart when double clicking on a file in the file list.
 (only in the GTK3 GUI) (all emulators except vsid)
 
+@vindex AutostartDropMode
+@item AutostartDropMode
+Integer specifying autostart behaviour when dropping an image on the emulator
+window using drag-n-drop
+(all emulators except vsid).
+(0: attach only, 1: attach and load, 2: attach, load and run)
+
 @end table
 
 @c @node FIXME
@@ -3819,6 +3919,12 @@ that is too small results in autostart not happening.
 Enable/disable using autostart when double clicking on a file in the file list.
 (@code{AutostartOnDoubleClick}) (only in the GTK3 GUI) (all emulators except vsid)
 
+@findex -autostart-drop-mode
+@item -autostart-drop-mode <mode>
+Set autostart behaviour on dropping an image onto the emulator window
+(@code{AutostartDropMode})
+(all emulators exceot vsid).
+(0/"attach": attach only, 1/"load": attach and load, 2/"run": attach, load and run)
 
 @end table
 
@@ -4493,6 +4599,10 @@ x64/x64sc/xscpu64 control ports and devices:
 @tab Dongle (Paperclip2)
 @tab X
 @tab X
+@item 42
+@tab Chalkboard Powerpad
+@tab X
+@tab X
 @end multitable
 
 x128 control ports and devices:
@@ -4722,6 +4832,10 @@ x128 control ports and devices:
 @tab X
 @item 41
 @tab Dongle (Paperclip2)
+@tab X
+@tab X
+@item 42
+@tab Chalkboard Powerpad
 @tab X
 @tab X
 @end multitable
@@ -5258,6 +5372,19 @@ xplus4 control ports and devices:
 @tab
 @tab
 @tab X
+@item 42
+@tab Chalkboard Powerpad
+@tab
+@tab
+@tab
+@tab
+@tab
+@tab
+@tab
+@tab
+@tab
+@tab
+@tab X
 @end multitable
 
 xvic control ports and devices:
@@ -5465,6 +5592,9 @@ xvic control ports and devices:
 @tab X
 @item 38
 @tab Microflyte joystick
+@tab X
+@item 42
+@tab Chalkboard Powerpad
 @tab X
 @end multitable
 
@@ -6083,6 +6213,11 @@ the 'file' method/device.
 @item Sound
 Boolean specifying whether audio emulation is turned on.
 
+@vindex SoundEmulateOnWarp
+@item SoundEmulateOnWarp
+Boolean specifying whether sound chips should be emulated in warp mode.
+(0: do not emulate sound chips in warp mode, 1: emulate sound chips also in warp mode)
+
 @vindex SoundSampleRate
 @item SoundSampleRate
 Integer specifying the sampling frequency in Hz
@@ -6242,6 +6377,12 @@ source for the 'file' sampler device.
 @itemx +sound
 Enable/disable sound emulation
 (@code{Sound=1}, @code{Sound=0}).
+
+@findex -soundwarpmode
+@item -soundwarpmode <mode>
+Specify if sound chips should be emulated in warp mode.
+(@code{SoundEmulateOnWarp}).
+(0: do not emulate sound chips in warp mode, 1: emulate sound chips also in warp mode)
 
 @findex -soundrate
 @item -soundrate <value>
@@ -8556,13 +8697,13 @@ Set the device attached to the userport (see table below):
 @tab x64, x64sc, x128, xscpu64, xvic, xpet, xcbm2
 @item 4
 @tab PET userport joy adapter
-@tab x64, x64sc, x128, xscpu64, xvic, xplus4, xpet, xcbm2
+@tab x64, x64sc, x128, xscpu64, xvic, xpet, xcbm2
 @item 5
 @tab Hummer userport joy adapter
-@tab x64, x64sc, x128, xscpu64, x64dtv, xvic, xplus4, xpet, xcbm2
+@tab x64dtv
 @item 6
 @tab OEM userport joy adapter
-@tab x64, x64sc, x128, xscpu64, xvic, xplus4, xpet, xcbm2
+@tab x64, x64sc, x128, xscpu64, xvic, xpet, xcbm2
 @item 7
 @tab HIT userport joy adapter
 @tab x64, x64sc, x128, xscpu64
@@ -8574,13 +8715,13 @@ Set the device attached to the userport (see table below):
 @tab x64, x64sc, x128, xscpu64
 @item 10
 @tab Synergy userport joy adapter
-@tab x64, x64sc, x128, xscpu64, xvic, xplus4, xpet, xcbm2
+@tab xplus4
 @item 11
 @tab Wheel of joystick 8-joy userport joy adapter
 @tab x64, x64sc, x128, xscpu64, xvic, xplus4, xpet, xcbm2
 @item 12
 @tab Userport DAC
-@tab x64, x64sc, x128, xscpu64, xvic, xplus4, xpet, xcbm2
+@tab x64, x64sc, x128, xscpu64, xvic, xpet, xcbm2
 @item 13
 @tab Userport DigiMAX
 @tab x64, x64sc, x128, xscpu64, xcbm2
@@ -8620,6 +8761,9 @@ Set the device attached to the userport (see table below):
 @item 25
 @tab Userport Stupid Pet Tricks joystick adapter
 @tab x64, x64sc, x128, xscpu64, xcbm2, xpet, xvic
+@item 26
+@tab PET Userport diagnostic pin
+@tab xpet
 @end multitable
 
 @table @code
@@ -8668,7 +8812,7 @@ Integer, 1: user selected WiC64 tracing, 0: no tracing
 
 @vindex WIC64Resetuser
 @item WIC64Resetuser
-Integer 1: user credentials shall be reseted if WiC64 is reseted, 0:
+Integer, 1: user credentials shall be reseted if WiC64 is reseted, 0:
 user credentials are preseved
 (vic20, x64, x64sc, xscpu64 and x128 only).
 
@@ -8677,9 +8821,15 @@ user credentials are preseved
 Integer number of lines to hexdump, 0: unlimited
 (vic20, x64, x64sc, xscpu64 and x128 only).
 
-@vindex WIC64ColorizeLog
-@item WIC64ColorizeLog
-Integer, 1: WiC64 tracing using ANSI colorizing, 0: no colorizing
+@vindex WIC64RemoteTimeout
+@item WIC64RemoteTimeout
+Integer, 1-255: Timeout to wait for URLs in seconds
+(vic20, x64, x64sc, xscpu64 and x128 only).
+
+@vindex WIC64LogLevel
+@item WIC64LogLevel
+Integer, WiC64 trace level, 0: no trace, 1: standard, 2: verbose,
+3: debug
 (vic20, x64, x64sc, xscpu64 and x128 only).
 
 @end table
@@ -8738,11 +8888,9 @@ Integer to specify WIC64 trace level (0: off, 1: commands, >2: debug), implicitl
 Integer to specify number of lines to hexdump, 0: unlimited,
 (vic20, x64, x64sc, xscpu64 and x128 only).
 
-@findex -wic64colorizetrace
-@item -wic64colorizetrace
-@itemx +wic64colorizetrace
-Enable/disable ANSI color codes for terminals to colorize the WiC64 log for
-better readability
+@findex -wic64remotetimeout
+@item -wic64remotetimeout <value>
+Timeout to wait for URLs in seconds, 1 - 255
 (vic20, x64, x64sc, xscpu64 and x128 only).
 
 @end table
@@ -8861,7 +9009,7 @@ Integer specifying the Gtk3 VTE-monitor window's height.
 Execute the commands from the file <Name> in the monitor after starting up. All
 monitor commands are supported, including playback of other command files via
 @code{pb}. By default, the monitor opens and starts executing the commands just
-before the kernal reset routine starts. The kernal starup sequence may interfere
+before the kernal reset routine starts. The kernal startup sequence may interfere
 with what you are trying to achieve, for example by clearing any basic listing
 you may have loaded. In this case, use the @code{-initbreak} option to control
 when the monitor will open and execute your script. You can choose an address,
@@ -9122,7 +9270,21 @@ Set the chance of any bit to randomly toggle (0-4096)
 @item DebugCartEnable
 Boolean specifying whether the debug "cartridge" used for the test suite is enabled.
 
+@vindex LogLevelANE
+@item LogLevelANE
+Integer specifying the log mode (0=none 1=only unstable 2=all)
+(x64sc, xvic).
+
+@vindex LogLevelLXA
+@item LogLevelLXA
+Integer specifying the log mode (0=none 1=only unstable 2=all)
+(x64sc, xvic).
+
+@end table
+
 @b{The following are only available when the emulators were compiled in DEBUG mode:}
+
+@table @code
 
 @vindex TraceMode
 @item TraceMode
@@ -9151,6 +9313,9 @@ Trace the drive 3 CPU / Do not trace the drive 3 CPU
 @vindex IEC_TRACE
 @item IEC_TRACE
 Trace IEC bus activity / Do not trace IEC bus activity
+@vindex IEEE_TRACE
+@item IEEE_TRACE
+Trace IEEE bus activity / Do not trace IEEE bus activity
 
 @end table
 
@@ -9178,7 +9343,23 @@ Disable/enable calling of the exception handler
 @itemx +debugcart
 Enable/disable the debug "cartridge" used for the test suite.
 
+@findex -aneloglevel
+@item -aneloglevel <mode>
+Set the log mode (0=none 1=only unstable 2=all)
+(@code{LogLevelANE})
+(x64sc, xvic).
+
+@findex -lxaloglevel
+@item -lxaloglevel <mode>
+Set the log mode (0=none 1=only unstable 2=all)
+(@code{LogLevelLXA})
+(x64sc, xvic).
+
+@end table
+
 @b{The following are only available when the emulators were compiled in DEBUG mode:}
+
+@table @code
 
 @findex -trace_maincpu, +trace_maincpu
 @item -trace_maincpu
@@ -9506,6 +9687,8 @@ Blackbox V8
 @item
 Blackbox V9
 @item
+BMP Data Turbo 2000
+@item
 C64 Games System
 @item
 Capture
@@ -9617,6 +9800,8 @@ Super Snapshot V4
 Super Snapshot V5
 @item
 Turtle Graphics II
+@item
+Universal Cartridge
 @item
 Warp Speed
 @item
@@ -9991,6 +10176,12 @@ The following cartridge types are valid:
 78: Partner 64
 @item
 79: Hyper-BASIC
+@item
+80: Universal Cartridge 1
+@item
+81: Universal Cartridge 1.5
+@item
+82: Universal Cartridge 2
 @end itemize
 
 @vindex CartridgeFile
@@ -10000,6 +10191,14 @@ String specifying the filename of the image for the cartridge emulated in the "m
 @vindex DQBB
 @item DQBB
 Boolean specifying whether the Double Quick Brown Box should be emulated or not.
+
+@vindex DQBBSize
+@item DQBBSize
+Integer specifying the RAM size (16, 32, 64, 128, 256kiB).
+
+@vindex DQBBMode
+@item DQBBMode
+Boolean specifying the position of the slide/mode switch (0: C128, 1: C64).
 
 @vindex DQBBfilename
 @item DQBBfilename
@@ -10494,6 +10693,10 @@ Attach raw 32/64KiB Blackbox V8 cartridge image.
 @item -cartbb9 <name>
 Attach raw 32KiB Blackbox V9 cartridge image.
 
+@findex -cartbdt
+@item -cartbdt <name>
+Attach raw 16KiB BMP Data Turbo 2000 cartridge image.
+
 @findex -cartcap
 @item -cartcap <name>
 Attach raw 8KiB Capture cartridge image.
@@ -10531,6 +10734,14 @@ Attach raw 16KiB Double Quick Brown Box cartridge image.
 @itemx +dqbb
 Enable/disable Double Quick Brown Box
 (@code{DQBB=1}, @code{DQBB=0}).
+
+@findex -dqbbsize
+@item -dqbbsize <size>
+Specify the RAM size (16, 32, 64, 128, 256kiB) (@code{DQBBsize}).
+
+@findex -dqbbmode
+@item -dqbbmode <mode>
+Specify the position of the slide/mode switch (@code{DQBBmode=0}: C128, @code{DQBBmode=1}: C64).
 
 @findex -dqbbimage
 @item -dqbbimage <name>
@@ -10804,23 +11015,25 @@ Attach CBM IEEE-488 cartridge image.
 @findex -ieee488, +ieee488
 @item -ieee488
 @itemx +ieee488
-Enable/disable emulation of the IEEE488 interface
+Enable/disable emulation of the IEEE488 interface.
+Remember to attach a suitable ROM image before enabling the module.
 (@code{IEEE488=1}, @code{IEEE488=0}).
 
 @findex -ieee488image
 @item -ieee488image <name>
-Set IEEE488 interface image name
+Set IEEE488 interface ROM image name
 (@code{IEEE488Image}).
 
 @findex -ieeeflash64, +ieeeflash64
 @item -ieeeflash64
 @itemx +ieeeflash64
-Enable/disable IEEE Flash! 64 interface
+Enable/disable IEEE Flash! 64 interface.
+Remember to attach a suitable ROM image before enabling the module.
 (@code{IEEEFlash64}).
 
 @findex -ieeeflash64image
 @item -ieeeflash64image
-Set IEEE Flash! 64 ROM image name
+Set IEEE Flash! 64 ROM image name.
 (@code{IEEEFlash64Image}).
 
 @findex -ieeeflash64dev8, +ieeeflash64dev8
@@ -11071,7 +11284,8 @@ Specify Magic Voice cartridge ROM image filename
 @findex -magicvoice, +magicvoice
 @item -magicvoice
 @itemx +magicvoice
-Enable/disable Magic Voice cartridge
+Enable/disable Magic Voice cartridge.
+Remember to attach a suitable Magic Voice ROM image before enabling the module.
 (@code{MagicVoiceCartridgeEnabled=1}, @code{MagicVoiceCartridgeEnabled=0}).
 
 @findex -cartocean
@@ -11131,7 +11345,8 @@ Set the RamCart switch to read-only
 @item -ramlink
 @itemx +ramlink
 Enable/disable emulation of the RAMLink module. This option emulates the
-behavior of the enable/disable switch on the unit
+behavior of the enable/disable switch on the unit.
+Remember to attach a suitable BIOS image before enabling the module.
 (@code{RAMLINK=1}, @code{RAMLINK=0}).
 
 @findex -cartramlink
@@ -11143,25 +11358,20 @@ Attach the raw 64 KiB ROM image.
 Specify name of RAMLink BIOS image
 (@code{RAMLINKBIOSfilename}).
 
-@findex -ramlinkbios
-@item -ramlinkbios <name>
-Specify name of RAMLink BIOS image
-(@code{RAMLINKBIOSfilename}).
-
 @findex -ramlinkimage
 @item -ramlinkimage <name>
-Specify name of RAMLink RAMCard image
+Specify name of RAMLink RAM image
 (@code{RAMLINKfilename}).
 
 @findex -ramlinkimagerw, +ramlinkimagerw
 @item -ramlinkimagerw
 @itemx +ramlinkimagerw
-Allow/disallow writing to RAMCard image on detach
+Allow/disallow writing to RAMLink RAM image on detach
 (@code{RAMLINKImageWrite=1}, @code{RAMLINKImageWrite=0}).
 
 @findex -ramlinksize
 @item -ramlinksize <size in MiB>
-Size of the RAMCard unit
+Size of the RAMLink RAM
 (@code{RAMLINKsize}).
 (0..16; default is 0)
 
@@ -11316,6 +11526,18 @@ Attach raw 16KiB Stardos cartridge image.
 @findex -cartturtle
 @item -cartturtle <name>
 Attach raw 16KiB Turtle Graphics II cartridge image.
+
+@findex -cartuc1
+@item -cartuc1 <name>
+Attach raw 128KiB Universal Cartridge 1 image.
+
+@findex -cartuc15
+@item -cartuc15 <name>
+Attach raw 512KiB Universal Cartridge 1.5 image.
+
+@findex -cartuc2
+@item -cartuc2 <name>
+Attach raw 512KiB Universal Cartridge 2 image.
 
 @findex -cartwl
 @item -cartwl <name>
@@ -12211,6 +12433,18 @@ HardSID: 768/hardsid/hard/hs,
 ParSID Port 1: 1024/parsid/parsid1/par1/lpt1,
 ParSID Port 2: 1280/parsid2/par2/lpt2
 ParSID Port 3: 1536/parsid3/par3/lpt3)
+
+@findex -sidengine
+@item -sidengine <engine>
+Specify engine for the emulated SID chip
+(@code{SidEngine}).
+(FastSID: 0, ReSID: 1, DTVSID: 2, HardSID: 3, ParSID Port 1: 4, ParSID Port 2: 5, ParSID Port 3: 6)
+
+@findex -sidmodel
+@item -sidmodel <model>
+Specify model for the emulated SID chip
+(@code{SidModel}).
+(6581: 0, 8580: 1, ReSID 8580 + digiboost: 2, DTVSID: 3)
 
 @findex -sidfilters, +sidfilters
 @item -sidfilters
@@ -14211,6 +14445,12 @@ The following cartridge types are valid:
 @item
      5: Final Expansion
 @item
+     6: Rabbit tape turbo
+@item
+     7: Super Expander
+@item
+     8: Mikro Assembler
+@item
   - 10: SID Cartridge
 @item
   - 11: IEEE-4888
@@ -14480,6 +14720,18 @@ Specify Vic Flash Plugin extension ROM name
 @itemx +fpwriteback
 Enable/Disable Vic Flash Plugin write back to ROM file
 (@code{VicFlashPluginWriteBack=1}, @code{VicFlashPluginWriteBack=0}).
+
+@findex -cartrabbit
+@item -cartrabbit <name>
+Specify Rabit Tape extension ROM name
+
+@findex -cartse
+@item -cartse <name>
+Specify Super Expander cartridge ROM name
+
+@findex -cartma
+@item -cartma <name>
+Specify Mikro Assembler cartridge ROM name
 
 @findex -ultimem
 @item -ultimem <name>
@@ -15773,7 +16025,7 @@ Integer specifying the size of the memory in KiB.
 @vindex MemoryHack
 @item MemoryHack
 Integer specifying what memory expansion hack is active.
-(0: None, 1: C256K, 2: H256K, 3: H1024K, 4: H4096K)
+(0: None, 1: C256K, 2: H256K, 3: H1024K)
 
 @vindex Acia1Enable
 @item Acia1Enable
@@ -15814,7 +16066,7 @@ Specify size of RAM installed in KiB
 @item -memoryexphack <device>
 Set active memory expansion hack
 (@code{MemoryHack}).
-(0: None, 1: C256K, 2: H256K, 3: H1024K, 4: H4096K)
+(0: None, 1: C256K, 2: H256K, 3: H1024K)
 
 @findex -acia, +acia
 @item -acia
@@ -17428,6 +17680,27 @@ Boolean specifying whether the emulator should dump core when it gets a signal
 @vindex LogFileName
 @item LogFileName
 String specifying the filename of the current log file.
+
+@vindex LogLimit
+@item LogLimit
+Integer specifying the "verbosity" of the log output. Higher numbers mean more
+verbosity (0: no log, 255: all messages)
+
+@vindex LogToFile
+@item LogToFile
+Boolean that specifies whether the log should go to the log file.
+
+@vindex LogToStdout
+@item LogToStdout
+Boolean that specifies whether the log should go stdout (usually the launching terminal).
+
+@vindex LogToMonitor
+@item LogToMonitor
+Boolean that specifies whether the log should go to the monitor console.
+
+@vindex LogColorize
+@item LogColorize
+Boolean that specifies whether the log in the terminal should be colorized.
 
 @vindex ExitScreenshotName
 @item ExitScreenshotName
@@ -20148,9 +20421,7 @@ the respective register at the time it is used, and thus can not be used as
 a regular label.
 
 @item prompt
-The prompt has the format [x:y].  If x is -, memory reads from the
-monitor do not have side effects.  Otherwise, x is S.  The second part
-of the prompt, y, shows the default address space.
+The prompt has the format (address space:current address).
 
 @item checkpoint
 The monitor has the ability to setup triggers that perform an action
@@ -20491,7 +20762,11 @@ current rasterline, and CY refers to the current cycle in the line.
 
 Full expressions are also supported (+, -, *, /, &, |, &&, ||). This lets
 you for example check specific bits in the FL register using the bitwise
-boolean operators (& and |). Parentheses are also supported in the expression.
+boolean operators (& and |).
+
+Please note that currently expressions are evaluated strictly left to right, so
+use parentheses in complex expressions to indicate the desired evaluation order.
+
 Registers can be the registers of other devices; this is denoted by
 a memspace prefix (i.e., c:, 8:, 9:, 10:, 11:)
 Examples: A == $0, X == Y, 8:X == X
@@ -20658,6 +20933,9 @@ If device is 0, the file is read from the file system.
 Control the datasette. @code{command}:
 0 = stop, 1 = start, 2 = forward, 3 = rewind, 4 = record,
 5 = reset, 6 = reset counter.
+
+@item tapeoffs <offset>
+Set the attached .tap to the given @code{offset}. When no offset is given, show the current offset.
 
 @item screenshot "<filename>" [<format>]
 @itemx scrsh "<filename>" [<format>]
@@ -22722,6 +23000,8 @@ Blackbox V4 .crt file
 Blackbox V8 .crt file
 @item bb9
 Blackbox V9 .crt file
+@item bdt
+BMP Data Turbo 2000 .crt file
 @item cap
 Capture .crt file
 @item comal
@@ -22846,6 +23126,12 @@ Super Snapshot V5 .crt file
 Stardos .crt file
 @item turtle
 Turtle Graphics II .crt file
+@item uc1
+Universal Cartridge 1 .crt file
+@item uc15
+Universal Cartridge 1.5 .crt file
+@item uc2
+Universal Cartridge 2 .crt file
 @item wl
 Westermann Learning .crt file
 @item ws
@@ -22890,6 +23176,12 @@ Behr Bonz
 Final Expansion
 @item mega
 Mega-Cart
+@item ma
+Mikro Assembler
+@item rabbit
+Rabbit tape turbo
+@item se
+Super Expander
 @item um
 UltiMem
 @item vicfp
@@ -22919,7 +23211,10 @@ Plus4 multi cart
 
 @b{CBM2 cartridges:}
 
-@b{TODO - not implemented yet}
+@table @code
+@item cbm2
+Generic 4KiB/8KiB/16KiB/24KiB/32KiB cartridge
+@end table
 
 @c @node FIXME
 @section cartconv examples
@@ -23109,6 +23404,18 @@ Basic v2.0 with Xbasic (C64)
 @end table
 
 @c @node FIXME
+@section petcat extra features
+
+@itemize
+@item If a line does not begin with a line number, a new line number is created by
+taking the line number of the previous line and incrementing it by two.
+@item Lines starting with a semicolon will be treated as comments and are ignored
+@item Unlike the BASIC editor, petcat can create BASIC files that contain lines
+numbered in arbitrary order, and also duplicate line numbers.
+@end itemize
+
+
+@c @node FIXME
 @section petcat examples
 
 @table @code
@@ -23142,6 +23449,11 @@ supported by the emulators.
 * DHD::                         The DHD disk image format
 * P00::                         The P00 image format
 @end menu
+
+@c FIXME: add D67 CBM2040 (DOS1) disk image file structure
+@c FIXME: add D1M FD2000/FD4000 DD disk image file structure
+@c FIXME: add D2M FD2000/FD4000 HD disk image file structure
+@c FIXME: add D4M FD4000 ED disk image file structure
 
 @node TAP, T64, File formats, File formats
 @section The raw tape image format
@@ -23217,46 +23529,46 @@ derived from the given computer platform and video standard, as in the following
 @tab @b{Timer clock speed}
 @item 0 = C64
 @tab 0 = PAL
-@tab 985248 kHz
+@tab 985248 Hz
 @item
 @tab 1 = NTSC
-@tab 1022730 kHz
+@tab 1022730 Hz
 @item
 @tab 2 = OLD NTSC
-@tab 1022730 kHz
+@tab 1022730 Hz
 @item
 @tab 3 = PAL N
-@tab 1023440 kHz
+@tab 1023440 Hz
 @item 1 = VIC-20
 @tab 0 = PAL
-@tab 1108405 kHz
+@tab 1108405 Hz
 @item
 @tab 1 = NTSC
-@tab 1022727 kHz
+@tab 1022727 Hz
 @item 2 = C16 / Plus4 (*)
 @tab 0 = PAL
-@tab 886724 kHz
+@tab 886724 Hz
 @item
 @tab 1 = NTSC
-@tab 894886 kHz
+@tab 894886 Hz
 @item 3 = PET
 @tab 0 = PAL
-@tab 1000000 kHz
+@tab 1000000 Hz
 @item
 @tab 1 = NTSC
-@tab 1000000 kHz
+@tab 1000000 Hz
 @item 4 = C5x0
 @tab 0 = PAL
-@tab 985248 kHz
+@tab 985248 Hz
 @item
 @tab 1 = NTSC
-@tab 1022730 kHz
+@tab 1022730 Hz
 @item 5 = C6x0 / C7x0
 @tab 0 = PAL
-@tab 2000000 kHz
+@tab 2000000 Hz
 @item
 @tab 1 = NTSC
-@tab 2000000 kHz
+@tab 2000000 Hz
 @end multitable
 
 (*) The TED timers always run with the slower clock rate (886724 Hz for PAL
@@ -23295,21 +23607,18 @@ and start counting whenever a 0->1 transition happens.
 @node T64, G64, TAP, File formats
 @section The T64 tape image format
 
-(This section was taken from the C64S distribution.)
+(This section is based on the documentation of the C64S distribution, and contains
+extra information and edits added by the VICE authors.)
 
 The @code{T64} File Structure was developed by Miha Peternel for use in the
-C64S emulator. It is easy to use and allows future extensions.
+C64S emulator. Since the format has various drawbacks (see further below), we
+recommend to use other formats (D64, TAP, P00 - depending on the usecase).
 
 @menu
 * T64 file structure::
 * T64 tape record::
 * T64 file record::
 @end menu
-
-@c FIXME: add D67 CBM2040 (DOS1) disk image file structure
-@c FIXME: add D1M FD2000/FD4000 DD disk image file structure
-@c FIXME: add D2M FD2000/FD4000 HD disk image file structure
-@c FIXME: add D4M FD4000 ED disk image file structure
 
 @node T64 file structure, T64 tape record, T64, T64
 @subsection T64 File structure
@@ -23320,7 +23629,7 @@ C64S emulator. It is easy to use and allows future extensions.
 @tab @b{Description}
 @item 0
 @tab 64
-@tab tape record
+@tab tape record (T64 header)
 @item 64
 @tab 32*n
 @tab file records for n directory entries
@@ -23330,7 +23639,7 @@ C64S emulator. It is easy to use and allows future extensions.
 @end multitable
 
 @node T64 tape record, T64 file record, T64 file structure, T64
-@subsection Tape Record
+@subsection Tape Record (T64 header)
 
 @multitable @columnfractions .1 .1 .8
 @item @b{Offset}
@@ -23338,22 +23647,22 @@ C64S emulator. It is easy to use and allows future extensions.
 @tab @b{Description}
 @item 0
 @tab 32
-@tab DOS tape description + EOF (for type)
+@tab "C64S tape image file", padded with zeros
 @item 32
 @tab 2
-@tab tape version ($0200)
+@tab T64 format version (v1.0: $0100, v1.1: $0101, v2.0: $0200)
 @item 34
 @tab 2
-@tab number of directory entries
+@tab number of directory entries (C64S supports a maximum of 63 files only)
 @item 36
 @tab 2
-@tab number of used entries (can be 0 in my loader)
+@tab number of used entries
 @item 38
 @tab 2
 @tab free
 @item 40
 @tab 24
-@tab user description as displayed in tape menu
+@tab user description (displayed in C64S tape menu), padded with spaces ($20)
 @end multitable
 
 @node T64 file record,  , T64 tape record, T64
@@ -23368,13 +23677,13 @@ C64S emulator. It is easy to use and allows future extensions.
 @tab entry type (see below)
 @item 1
 @tab 1
-@tab C64 file type
+@tab CBM file type (0x82 for PRG, 0x81 for  SEQ,  etc). 0 indicates the special C64S "FRZ" session snapshot.
 @item 2
 @tab 2
-@tab start address
+@tab start address. 0 if the files is a C64S session snapshot.
 @item 4
 @tab 2
-@tab end address
+@tab end address. 0 if the files is a C64S session snapshot. (*)
 @item 6
 @tab 2
 @tab free
@@ -23386,8 +23695,13 @@ C64S emulator. It is easy to use and allows future extensions.
 @tab free
 @item 16
 @tab 16
-@tab C64 file name
+@tab CBM file name, padded with spaces ($20)
 @end multitable
+
+(*) In the early days of emulation, an utility called "conv64" was around, which
+created faulty T64 files that had an end address of $c3c6 regardless of the actual
+file size. Since these files are still around, VICE tries to detect and fix this when
+such T64 file is attached.
 
 Valid entry types are:
 
@@ -23399,23 +23713,37 @@ Valid entry types are:
 @item @code{1}
 @tab normal tape file
 @item @code{2}
-@tab tape file with header: header is saved just before file data
+@tab tape file with header: header is saved just before file data (added in v1.1)
 @item @code{3}
-@tab memory snapshot v0.9, uncompressed
+@tab memory snapshot v0.9, uncompressed (C64S specific)
 @item @code{4}
-@tab tape block
+@tab tape block (added in v2.0)
 @item @code{5}
-@tab digitized stream
-@item @code{6} @dots{} @code{255}
-@tab reserved
+@tab digitized stream (added in v2.0)
 @end multitable
+
+VICE only supports file type @code{1}. This also seems to be the only type
+that is in wide use "in the wild". All other types are unsupported in VICE, and
+practically non existent.
 
 Notes:
 
 @itemize @bullet
-@item VICE only supports file type @code{1}.
-@item Types @code{3}, @code{4} and @code{5} are subject to change (and
-are rarely  used).
+@item The actual CBM tape format has info on whether a file is "relocatable" (BASIC
+programs, tape header type 1) or "binary" (tape header type 3). Since the T64 format
+does not contain this info, it is not really suited for actual tape emulation (like what
+VICE does - C64S originally only used them as containers for loading single files).
+VICE will always use "binary" by default, unless "load to basic start (tape)" is
+selected in the autostart options, which will make it switch to "BASIC" type only for the
+first file that is being loaded. Note that originally C64S did not support multi-load
+programs using T64 at all!
+@item Handling of empty directory entries (ie deleting a file) from a T64 was poorly
+handled by C64S - the directory entry must be completely removed.
+@item While in theory all CBM filetypes can be used, in practise only PRG and SEQ will
+actually work.
+@item Since file names are padded with spaces ($20) rather than shifted spaces ($A0) like on disk,
+the file names can't have trailing spaces.
+@item Zero length files are not allowed (minimum length is 2 bytes).
 @end itemize
 
 @node G64, D64 , T64, File formats
@@ -28915,7 +29243,7 @@ F0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 
 This is very similar to the D80/D82 header in placement but without the DOS
 version value.
-Also note that the dos version bytes are "3A".
+Also note that the DOS version bytes are "3A".
 For the D90, it is believed that the $FF at offset $3 in the configuration
 sector dictates the DOS version.
 
@@ -28955,7 +29283,7 @@ examining LBA X+2 (starting at X=0) and checking for a special
 signature in the block. If it does not find it, X will increase by
 128, and it will try again. It will do this until it finds the
 signature, or until it gets a read error from the HD signaling the end
-of disk space. The device will the switch to installation mode.
+of disk space. The device will then switch to installation mode.
 
 The following is an example configuration block of a 40 MB drive:
 
@@ -29017,7 +29345,7 @@ CMD HD signature.
 @item (X*$200+$400+n*$40)+$01
 @tab Number of pages
 @item (X*$200+$400+n*$40)+$02-$03
-@tab Location of data offset from X in sectors (256 bytes); MSB format
+@tab Location of data offset from X*$200 in sectors (256 bytes); MSB format
 @item (X*$200+$400+n*$40)+$04-$05
 @tab Checksum of data; MSB format
 @item (X*$200+$400+n*$40)+$06-$0F
@@ -29028,31 +29356,29 @@ CMD HD signature.
 @tab ASCII of date
 @item (X*$200+$400+n*$40)+$20-$3F
 @tab All 0x00
-@item (X*$200+$500+d*$38)+$00
+@item (X*$200+$500)+d+$00
 @tab SCSI ID of HD in bits 7-4, LUN in bits 3-0; $FF means not present
-@item (X*$200+$500+d*$38)+$38
+@item (X*$200+$500)+d+$38
 @tab MSB of disk location in drive map
-@item (X*$200+$500+d*$38)+$70
+@item (X*$200+$500)+d+$70
 @tab Middle byte of disk location in drive map
-@item (X*$200+$500+d*$38)+$A8
+@item (X*$200+$500)+d+$A8
 @tab LSB of disk location in drive map
 @item (X*$200+$500)+$E0
 @tab 0x00 (unknown)
 @item (X*$200+$500)+$E1
 @tab Device number (12 or 0x0C by default)
 @item (X*$200+$500)+$E2
-@tab 0x01 (unknown)
+@tab Default partition number (1 by default)
 @item (X*$200+$500)+$E3
-@tab 0x01 (unknown)
+@tab Default partition number (1 by default)
 @item (X*$200+$500)+$E4
 @tab Device number (12 or 0x0C by default)
 @item (X*$200+$500)+$E5
 @tab 0x80: 2 to the power of the SCSI ID of host (which is always 7)
 @item (X*$200+$500)+$E6-$E7
-@tab Location of CMD partition table offset from X in sectors (256 bytes); MSB format
-@item (X*$200+$500)+$E8
-@tab Default partition number
-@item (X*$200+$500)+$E9-$EF
+@tab Location of CMD partition table offset from X*$200 in sectors (256 bytes); MSB format
+@item (X*$200+$500)+$E8-$EF
 @tab All 0x00
 @item (X*$200+$500)+$F0-$F7
 @tab 0x43 0x4D 0x44 0x20 0x48 0x44 0x20 0x20: First half of signature
@@ -29104,11 +29430,11 @@ The standard partition entry:
 @item $05-$14
 @tab 16 character partition name (in PETASCII, padded with $A0)
 @item $15-$17
-@tab Location of the partition data offset from X in sectors (256 bytes); MSB format; partition 0, the system partition always starts a 0.
+@tab Location of the partition (in blocks) in MSB format. Partition 0, the system partition, always starts at X*$200.
 @item $18-$1D
 @tab All 0x00
 @item $1E-$1F
-@tab Size of partition (in blocks) in MSB format. Partition 0, the system partition is always 0x90 blocks, which includes blocks from X to the end of the partition table.
+@tab Size of partition (in blocks) in MSB format. Partition 0, the system partition is always 0x90 blocks, which includes blocks from X*$200 to the end of the partition table.
 @end multitable
 
 When a partition is deleted, its entry is removed and all others stay
@@ -29489,6 +29815,14 @@ $0010- xxxx - ROM data
 @tab Partner 64
 @item 79
 @tab Hyper-BASIC
+@item 80
+@tab Universal Cartridge 1
+@item 81
+@tab Universal Cartridge 1.5
+@item 82
+@tab Universal Cartridge 2
+@item 83
+@tab BMP Data Turbo 2000
 @end multitable
 
 (*Note: Ocean type 1 includes Navy Seals, Robocop 2 & 3, Shadow of the Beast,
@@ -32442,7 +32776,7 @@ rom bank 0x00 - 0x03 (0x04) 8192* 4 32KiB mapped to e000
 MC6821 registers mapped to io2 at dfc0..dfc4
 
 - press reset and hold delete to get the main menu
-- press reset and hold control to skip cbm80 check 
+- press reset and hold control to skip cbm80 check
   (dont start additional cartridge)
 
 - press RESTORE, then...
@@ -33014,7 +33348,7 @@ and runs the original sd2iec firmware.
 @example
       00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F       ASCII
       -----------------------------------------------  ----------------
-0000: 43 36 34 20 43 41 52 54 52 49 44 47 45 20 20 20  C64 CARTRIDGE   
+0000: 43 36 34 20 43 41 52 54 52 49 44 47 45 20 20 20  C64 CARTRIDGE
 0010: 00 00 00 40 01 00 00 46 01 00 00 00 00 00 00 00  ...@@...F........
 0020: 4d 55 4c 54 49 4d 41 58 00 00 00 00 00 00 00 00  MULTIMAX........
 0030: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
@@ -33378,7 +33712,7 @@ the IO lines all the time.
 @end example
 
     This cartridge type was found in an argentinian H.E.R.O. clone cartridge,
-    ROM  memory is  organized in 8KiB ($2000) banks located at $8000-$9FFF. 
+    ROM  memory is  organized in 8KiB ($2000) banks located at $8000-$9FFF.
     There appears to be one register mirrored over IO2 (the software uses $DFFF).
     Banks are selected by writing to the lower 2 bits of the register, bit 5
     disables the cartridge.
@@ -33430,7 +33764,7 @@ the IO lines all the time.
 @example
       00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F       ASCII
       -----------------------------------------------  ----------------
-0000: 43 36 34 20 43 41 52 54 52 49 44 47 45 20 20 20  C64 CARTRIDGE   
+0000: 43 36 34 20 43 41 52 54 52 49 44 47 45 20 20 20  C64 CARTRIDGE
 0010: 00 00 00 40 01 00 00 4c 00 01 00 00 00 00 00 00  ...@...L........
 0020: 48 45 53 20 54 75 72 74 6c 65 20 47 72 61 70 68  HES Turtle Graph
 0030: 69 63 73 20 49 49 00 00 00 00 00 00 00 00 00 00  ics II..........
@@ -33482,7 +33816,7 @@ incorrect, any further information and/or corrections are appreciated.
 When the cart starts, the first half of the active ROM is banked to ROML ($8000-$9fff).
 When reading from  the  I/O-2  range  the second half of the active ROM  bank
 is enabled in RMH ($A000-$BFFF). When  reading from the I/O-1 range the cart is
-disabled. 
+disabled.
 
 When a freeze happens the first half of the ROM is mapped to ROML ($8000-$9FFF) and
 the second half to ROMH ($E000-$FFFF).
@@ -33584,6 +33918,220 @@ E0C0: 2C CA 91 AD 0A 03 AE 0B 03 8D B8 02 8E B9 02 A9  ,...............
     bit 5 - A14
     bit 6 and/or 7 - _EXROM,  0 = make cart visible
 @end example
+
+@c @node FIXME
+@subsubsection 80 - Universal Cartridge 1
+
+@multitable @columnfractions .3 .7
+@item Size
+@tab 32KiB, 64KiB or 128KiB sizes (2 to 8 banks of 16KiB each)
+@item EXROM
+@tab active (lo) (0)
+@item GAME
+@tab inactive (lo) (0)
+@item Startup mode
+@tab 16KiB Game
+@item Load address
+@tab (banks 00-07) - $8000-BFFF
+@end multitable
+
+@example
+      00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F       ASCII
+      -----------------------------------------------  ----------------
+0000: 43 36 34 20 43 41 52 54 52 49 44 47 45 20 20 20  C64 CARTRIDGE
+0010: 00 00 00 40 01 00 00 50 00 00 01 00 00 00 00 00  ...@@...........
+0020: 75 63 2d 6c 4f 41 44 45 52 00 00 00 00 00 00 00  uc-lOADER.......
+0030: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+0040: 43 48 49 50 00 00 20 10 00 02 00 00 80 00 20 00  CHIP.. ....... .
+0050: 19 80 9e 82 c3 c2 cd 38 30 4c 55 84 4c 64 84 4c  .......80... ..
+..
+2050: 43 48 49 50 00 00 20 10 00 02 00 00 a0 00 20 00  CHIP.. ....... .
+2060: 00 3F 0A 01 00 86 4E 24 28 31 30 29 3A 4A 4F 59  .?....N$(10):JOY
+..
+4060: 43 48 49 50 00 00 20 10 00 02 00 01 80 00 20 00  CHIP.. ....... .
+4070: 00 8B C9 28 4E 24 2C 31 29 B3 B1 22 FF 22 A7 32  ...(N$,1)..".".2
+..
+6070: 43 48 49 50 00 00 20 10 00 02 00 01 a0 00 20 00  CHIP.. ....... .
+6080: AE 01 83 33 2C 37 2C 22 32 29 20 44 45 4C 20 4B  ...3,7,"2) DEL K
+@end example
+
+    This cartridge type has up to 128K ROM memory and 32K SRAM memory. Each
+    Bank is  organized  in 16KiB  ($4000), banks  are located at $8000-$BFFF.
+    Bank switching is done by writing the bank number to $DE00 (Bit 0 to 2).
+
+@example
+    Register at IO1 ($DE00):
+    Bit 0-2   bank number
+    Bit 3 --- IO Register disable (1 - Register is invisible)
+    Bit 4 --- SRAM write enable   (1 - SRAM is writable)
+    Bit 5 --- SRAM select         (1 - RAM, 0 - ROM)
+    Bit 6 --- Signal /GAME        (C64 Cartridge Mode)
+    Bit 7 --- Signal /EXROM       (C64 Cartridge Mode)
+
+    UC1 Documentation:
+    https://oe7twj.at/index.php?title=Universal_Cartridge_1
+@end example
+
+    In the cartridge header, EXROM ($18) is set to 0, GAME ($19) is set  to
+    0 to indicate the RESET/power-up configuration of 16 KiB ROM.
+
+    There is a Windows Tool which can create RAW Image file and UC1 CRT file.
+    The content of the image file is configurable using a CSV file.
+
+    Since UC1 cartridge can set /EXROM and /GAME signal, all known C64 basic
+    configurations for cartridges (Off, 8K, 16K, UltiMax) are configurable.
+
+    Cartridge memory can be either ROM or SRAM.
+    SRAM can be protected, so it appears as ROM memory.
+    IO Register can be disabled, so configuration cannot be overwritten.
+    Basic CRT files (8K, 16K, UltiMax) can be loaded into UC1 SRAM from
+    ROM or Disk and ececuted by a Reset.
+
+
+@c @node FIXME
+@subsubsection 81 - Universal Cartridge 1.5
+
+@multitable @columnfractions .3 .7
+@item Size
+@tab 128KiB, 256KiB or 512KiB sizes (8 to 32 banks of 16KiB each)
+@item EXROM
+@tab active (lo) (0)
+@item GAME
+@tab inactive (lo) (0)
+@item Startup mode
+@tab 16KiB Game
+@item Load address
+@tab (banks 00-07) - $8000-BFFF
+@end multitable
+
+@example
+      00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F       ASCII
+      -----------------------------------------------  ----------------
+0000: 43 36 34 20 43 41 52 54 52 49 44 47 45 20 20 20  C64 CARTRIDGE
+0010: 00 00 00 40 01 00 00 51 00 00 01 00 00 00 00 00  ...@@...........
+0020: 75 63 2d 6c 4f 41 44 45 52 00 00 00 00 00 00 00  uc-lOADER.......
+0030: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+0040: 43 48 49 50 00 00 20 10 00 02 00 00 80 00 20 00  CHIP.. ....... .
+0050: 19 80 9e 82 c3 c2 cd 38 30 4c 55 84 4c 64 84 4c  .......80... ..
+..
+2050: 43 48 49 50 00 00 20 10 00 02 00 00 a0 00 20 00  CHIP.. ....... .
+2060: 00 3F 0A 01 00 86 4E 24 28 31 30 29 3A 4A 4F 59  .?....N$(10):JOY
+..
+4060: 43 48 49 50 00 00 20 10 00 02 00 01 80 00 20 00  CHIP.. ....... .
+4070: 00 8B C9 28 4E 24 2C 31 29 B3 B1 22 FF 22 A7 32  ...(N$,1)..".".2
+..
+6070: 43 48 49 50 00 00 20 10 00 02 00 01 a0 00 20 00  CHIP.. ....... .
+6080: AE 01 83 33 2C 37 2C 22 32 29 20 44 45 4C 20 4B  ...3,7,"2) DEL K
+@end example
+
+    This cartridge has nearly the same hardware spec as an UC2 cartridge.
+    The difference is in the hardware components.
+    UC2 is controlled by an CPLD and UC15 uses GAL and TTL.
+
+    From the software side the difference is:
+    UC2 can read back the register values.
+    UC15 cannot readback cause register are simple TTL FF.
+
+
+@c @node FIXME
+@subsubsection 82 - Universal Cartridge 2
+
+@multitable @columnfractions .3 .7
+@item Size
+@tab 128KiB, 256KiB or 512KiB sizes (8 to 32 banks of 16KiB each)
+@item EXROM
+@tab active (lo) (0)
+@item GAME
+@tab inactive (lo) (0)
+@item Startup mode
+@tab 16KiB Game
+@item Load address
+@tab (banks 00-07) - $8000-BFFF
+@end multitable
+
+@example
+      00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F       ASCII
+      -----------------------------------------------  ----------------
+0000: 43 36 34 20 43 41 52 54 52 49 44 47 45 20 20 20  C64 CARTRIDGE
+0010: 00 00 00 40 01 00 00 52 00 00 01 00 00 00 00 00  ...@@...........
+0020: 75 63 2d 6c 4f 41 44 45 52 00 00 00 00 00 00 00  uc-lOADER.......
+0030: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+0040: 43 48 49 50 00 00 20 10 00 02 00 00 80 00 20 00  CHIP.. ....... .
+0050: 19 80 9e 82 c3 c2 cd 38 30 4c 55 84 4c 64 84 4c  .......80... ..
+..
+2050: 43 48 49 50 00 00 20 10 00 02 00 00 a0 00 20 00  CHIP.. ....... .
+2060: 00 3F 0A 01 00 86 4E 24 28 31 30 29 3A 4A 4F 59  .?....N$(10):JOY
+..
+4060: 43 48 49 50 00 00 20 10 00 02 00 01 80 00 20 00  CHIP.. ....... .
+4070: 00 8B C9 28 4E 24 2C 31 29 B3 B1 22 FF 22 A7 32  ...(N$,1)..".".2
+..
+6070: 43 48 49 50 00 00 20 10 00 02 00 01 a0 00 20 00  CHIP.. ....... .
+6080: AE 01 83 33 2C 37 2C 22 32 29 20 44 45 4C 20 4B  ...3,7,"2) DEL K
+@end example
+
+    This cartridge type has up to 512K ROM memory and 512K SRAM memory. Each
+    Bank is  organized  in 16KiB  ($4000), banks  are located at $8000-$BFFF.
+    Bank switching is done by writing the bank number to $DE02 (Bit 0 to 4).
+
+@example
+    Register A at IO1 ($DE02):
+    Bit 0-4   bank number
+
+    Register B at IO1 ($DE03):
+    Bit 3 --- IO Register disable (1 - Register is invisible)
+    Bit 4 --- SRAM write enable   (1 - SRAM is writable)
+    Bit 5 --- SRAM select         (1 - RAM, 0 - ROM)
+    Bit 6 --- Signal /GAME        (C64 Cartridge Mode)
+    Bit 7 --- Signal /EXROM       (C64 Cartridge Mode)
+
+    UC2 Documentation:
+    https://oe7twj.at/index.php?title=Universal_Cartridge_2
+@end example
+
+    In the cartridge header, EXROM ($18) is set to 0, GAME ($19) is set  to
+    0 to indicate the RESET/power-up configuration of 16 KiB ROM.
+
+    There is a Windows Tool which can create RAW Image file and UC2 CRT file.
+    The content of the image file is configurable using a CSV file.
+
+    Since UC2 cartridge can set /EXROM and /GAME signal, all known C64 basic
+    configurations for cartridges (Off, 8K, 16K, UltiMax) are configurable.
+
+    Cartridge memory can be either ROM or SRAM.
+    SRAM can be protected, so it appears as ROM memory.
+    IO Register can be disabled, so configuration cannot be overwritten.
+    Basic CRT files (8K, 16K, UltiMax) can be loaded into UC2 SRAM from
+    ROM or Disk and ececuted by a Reset.
+
+@c @node FIXME
+@subsubsection 83 - BMP Data Turbo 2000
+
+@multitable @columnfractions .3 .7
+@item Size
+@tab 16KiB
+@item EXROM
+@tab active (lo) (0)
+@item GAME
+@tab active (lo) (0)
+@item Load address
+@tab $8000-BFFF
+@end multitable
+
+@example
+      00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F       ASCII
+      -----------------------------------------------  ----------------
+0000: 43 36 34 20 43 41 52 54 52 49 44 47 45 20 20 20  C64 CARTRIDGE
+0010: 00 00 00 40 01 00 00 53 00 00 00 00 00 00 00 00  ...@...S........
+0020: 42 4d 50 20 44 61 74 61 20 54 75 72 62 6f 20 32  BMP Data Turbo 2
+0030: 30 30 30 00 00 00 00 00 00 00 00 00 00 00 00 00  000.............
+0040: 43 48 49 50 00 00 40 10 00 00 00 00 80 00 40 00  CHIP..@.......@.
+0050: 09 80 00 08 c3 c2 cd 38 30 a2 0b 8e 11 d0 20 a3  .......80.......
+
+@end example
+
+    After  RESET  or  POWER  ON,  16KiB  of  cartridge  ROM  is  visible  at
+    $8000-$BFFF. ROM  at  $8000-$BFFF  is  disabled by writing into the I/O-2
+    area (typically $DF00) and may be re-enabled by writing into  I/O-1 ($DE00).
 
 @c @node FIXME
 @subsection C128 Cartridge Specifics
@@ -33864,6 +34412,12 @@ is used for banking
 @tab UltiMem
 @item 5
 @tab Final Expansion
+@item 6
+@tab Rabbit tape turbo
+@item 7
+@tab Super Expander
+@item 8
+@tab Mikro Assembler
 @end multitable
 
 @c @node FIXME
@@ -34082,6 +34636,98 @@ $9c03
 
 @c FIXME: cartridge details
 
+@c @node FIXME
+@subsubsection 6 - Rabbit tape turbo
+
+@multitable @columnfractions .3 .7
+@item Size
+@tab 2KiB (ROM)
+@end multitable
+
+@example
+       00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F       ASCII
+       -----------------------------------------------  ----------------
+ 0000: 56 49 43 32 30 20 43 41 52 54 52 49 44 47 45 20  VIC20 CARTRIDGE
+ 0010: 00 00 00 40 02 00 00 06 00 00 00 00 00 00 00 00  ...@............
+ 0020: 52 61 62 62 69 74 20 54 61 70 65 00 00 00 00 00  Rabbit Tape.....
+ 0030: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+ 0040: 43 48 49 50 00 00 08 10 00 00 00 00 98 00 08 00  CHIP............
+ 0050: a9 4c 85 73 a9 12 85 74 a9 98 85 75 a2 00 20 f9  .L.s...t...u.. .
+ 0060: 9b 60 ea e6 7a d0 02 e6 7b 86 fb ba bd 01 01 c9  .`..z...........
+ 0070: 8c d0 21 bd 02 01 c9 c4 d0 1a a5 7a d0 18 a5 7b  ..!........z....
+ 0080: c9 02 d0 12 a0 00 b1 7a c9 2a d0 0a 20 6c 98 a0  .......z.*.. l..
+ 0090: 00 98 91 7a a6 fb ad 8f 99 c9 4c d0 0d c6 7a a5  ...z......L...z.
+@dots{}
+ 0830: aa aa aa aa aa aa aa aa aa aa aa aa aa aa aa aa  ................
+ 0840: aa aa aa aa aa aa aa aa aa aa aa aa aa aa aa fe  ................
+@end example
+
+This cartridge maps 2KiB ROM into the IO2 and IO3 area ($9800 - $9fff). It can
+be started by SYS38912.
+
+@c FIXME: cartridge details
+
+@c @node FIXME
+@subsubsection 7 - Super Expander
+
+@multitable @columnfractions .3 .7
+@item Size
+@tab 4KiB (ROM)
+@tab 3KiB (RAM)
+@end multitable
+
+@example
+       00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F       ASCII
+       -----------------------------------------------  ----------------
+ 0000: 56 49 43 32 30 20 43 41 52 54 52 49 44 47 45 20  VIC20 CARTRIDGE
+ 0010: 00 00 00 40 02 00 00 07 00 00 00 00 00 00 00 00  ...@............
+ 0020: 53 75 70 65 72 20 45 78 70 61 6e 64 65 72 00 00  Super Expander..
+ 0030: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+ 0040: 43 48 49 50 00 00 10 10 00 00 00 00 a0 00 10 00  CHIP............
+ 0050: 09 a0 a8 a0 41 30 c3 c2 cd 20 8d fd 20 52 fd 20  ....A0... .. R.
+ 0060: f9 fd 20 18 e5 ad 84 02 c9 21 b0 0a a0 10 a2 00  .. ......!......
+ 0070: 20 7b fe 4c 35 a0 a0 20 a2 00 20 8a fe a9 1e 8d   ..L5.. .. .....
+ 0080: 88 02 20 18 e5 a9 35 8d d8 02 20 f7 ad a9 04 8d  .. ...5... .....
+ 0090: d5 02 a9 01 8d b0 02 a9 03 8d b1 02 a9 00 8d b5  ................
+@dots{}
+ 1030: 34 a7 4c 67 a8 4c 57 a8 4c fc a7 4c cc a8 4c 71  4.Lg.LW.L..L..Lq
+ 1040: a9 4c d3 a9 4c 31 ab 4c a6 a8 4c 89 a8 4c 8b af  .L..L1.L..L..L..
+@end example
+
+This cartridge maps 4KiB ROM into block5 ($a000-$afff), and 3Kib RAM to RAM123 ($0400 - $0fff).
+
+@c FIXME: cartridge details
+
+@c @node FIXME
+@subsubsection 8 - Mikro Assembler
+
+@multitable @columnfractions .3 .7
+@item Size
+@tab 8KiB (ROM)
+@tab 3KiB (RAM)
+@end multitable
+
+@example
+       00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F       ASCII
+       -----------------------------------------------  ----------------
+ 0000: 56 49 43 32 30 20 43 41 52 54 52 49 44 47 45 20  VIC20 CARTRIDGE
+ 0010: 00 00 00 40 02 00 00 08 00 00 00 00 00 00 00 00  ...@............
+ 0020: 4d 69 6b 72 6f 20 41 73 73 65 6d 62 6c 65 72 00  Mikro Assembler.
+ 0030: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+ 0040: 43 48 49 50 00 00 10 10 00 00 00 00 60 00 10 00  CHIP........`...
+ 0050: 01 0d 39 55 61 00 00 00 69 75 00 7d 00 8d 91 95  ..9Ua...iu......
+ 0060: 00 a5 b5 d1 00 00 ed 00 00 00 f1 44 43 47 61 4e  ...........DCGaN
+ 0070: 44 52 61 53 4c 5d 61 43 43 90 00 43 53 b0 00 45  DRaSL]aCC..CS..E
+ 0080: 51 f0 00 49 54 68 61 4d 49 30 00 4e 45 d0 00 50  Q..IThaMI0.NE..P
+ 0090: 4c 10 00 52 4b 00 00 56 43 50 00 56 53 70 00 59  L..RK..VCP.VSp.Y
+@dots{}
+ 2040: a7 69 aa 69 ad 69 b0 69 de 6a f3 6a 53 4d 20 20  .i.i.i.i.j.jSM
+ 2050: 07 01 04 f9 7f 20 20 20 20 00 05 33 02 88 00 00  .....    ..3....
+@end example
+
+This cartridge maps 4KiB ROM into block3 and 5 ($6000-$6fff, $a000-$afff), and 3Kib RAM to RAM123 ($0400 - $0fff).
+
+@c FIXME: cartridge details
 
 @c @node FIXME
 @subsection PLUS4 Cartridge Specifics
@@ -34105,7 +34751,7 @@ c1lo first, then all banks of c1hi, c2lo, c2hi.
 @c @node FIXME
 @subsubsection 0 - generic cartridge
 
-generic cartridges can use 4 different ROM spaces, which are c1lo, c1hi, c2lo,
+Generic cartridges can use 4 different ROM spaces, which are c1lo, c1hi, c2lo,
 c2hi. most cartridges will use c1lo only, c2 is really uncommon. to indicate
 which chip chunk goes where, the bank number is used - bank 1 means c2.
 
@@ -34213,13 +34859,19 @@ This cartridge has one banking register at $fe00.
 @c @node FIXME
 @subsection CBM2 Cartridge Specifics
 
-@b{TODO}
+
+@multitable @columnfractions .1 .9
+@item @b{CRT ID}
+@tab @b{Cartridge Type}
+@item 0
+@tab generic cartridge
+@end multitable
 
 @c @node FIXME
 @subsubsection 0 - generic cartridge
 
-@b{TODO}
-
+Generic cartridges can use 4 different ROM spaces, one 4k block at $1000, and 3
+8k blocks at $2000, $4000 and $6000 respectively.
 
 @c @node FIXME
 @section The PSID image format for ripped SID tunes

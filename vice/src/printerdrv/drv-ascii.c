@@ -33,9 +33,11 @@
 #include "driver-select.h"
 #include "drv-ascii.h"
 #include "log.h"
+#include "userport.h"
 #include "output-select.h"
 #include "output.h"
 #include "palette.h"
+#include "printer.h"
 #include "types.h"
 
 /* #define DEBUG_PRINTER */
@@ -50,10 +52,10 @@ typedef struct ascii_s ascii_t;
 
 static ascii_t drv_ascii[NUM_OUTPUT_SELECT];
 
-static log_t drv_ascii_log = LOG_ERR;
+static log_t drv_ascii_log = LOG_DEFAULT;
 
 #ifdef DEBUG_PRINTER
-#define DBG(x) log_debug x
+#define DBG(x) log_printf  x
 #else
 #define DBG(x)
 #endif
@@ -145,11 +147,13 @@ static int print_char(ascii_t *ascii, unsigned int prnr, uint8_t c)
 
 static int drv_ascii_open(unsigned int prnr, unsigned int secondary)
 {
-    DBG(("drv_ascii_open device:%u", 4 + prnr));
     if (secondary == 7) {
+        DBG(("drv_ascii_open(prnr:%u secondary:%u) device:%u", prnr, secondary, 4 + prnr));
         print_char(&drv_ascii[prnr], prnr, 17);
     } else if (secondary == DRIVER_FIRST_OPEN) {
         output_parameter_t output_parameter;
+
+        DBG(("drv_ascii_open(prnr:%u secondary: DRIVER_FIRST_OPEN) device:%u", prnr, 4 + prnr));
 
         /* these are unused for non gfx output */
         output_parameter.maxcol = 480;
@@ -165,7 +169,7 @@ static int drv_ascii_open(unsigned int prnr, unsigned int secondary)
 
 static void drv_ascii_close(unsigned int prnr, unsigned int secondary)
 {
-    DBG(("drv_ascii_close device:%u", 4 + prnr));
+    DBG(("drv_ascii_close(prnr:%u secondary:%u) device:%u", prnr, secondary, 4 + prnr));
     if (secondary == DRIVER_LAST_CLOSE) {
         output_select_close(prnr);
     }
@@ -174,8 +178,8 @@ static void drv_ascii_close(unsigned int prnr, unsigned int secondary)
 static int drv_ascii_putc(unsigned int prnr, unsigned int secondary, uint8_t b)
 {
 #ifdef DEBUG_PRINTER
-    log_message(drv_ascii_log, "Print device #%u secondary %u data %02x.",
-                prnr + 4, secondary, b);
+    log_message(drv_ascii_log, "drv_ascii_putc(prnr:%u secondary:%u data %02x) device:%u",
+                prnr, secondary, b, prnr + 4);
 #endif
 
     if (print_char(&drv_ascii[prnr], prnr, b) < 0) {
@@ -193,7 +197,7 @@ static int drv_ascii_getc(unsigned int prnr, unsigned int secondary, uint8_t *b)
 static int drv_ascii_flush(unsigned int prnr, unsigned int secondary)
 {
 #ifdef DEBUG_PRINTER
-    log_message(drv_ascii_log, "drv_ascii_flush device #%u secondary %u.", prnr + 4, secondary);
+    log_message(drv_ascii_log, "drv_ascii_flush(prnr:%u secondary:%u) device #%u", prnr, secondary, prnr + 4);
 #endif
     return output_select_flush(prnr);
 }
@@ -201,14 +205,17 @@ static int drv_ascii_flush(unsigned int prnr, unsigned int secondary)
 static int drv_ascii_formfeed(unsigned int prnr)
 {
 #ifdef DEBUG_PRINTER
-    log_message(drv_ascii_log, "drv_ascii_formfeed device #%u.", prnr + 4);
+    log_message(drv_ascii_log, "drv_ascii_formfeed(prnr:%u) device #%u", prnr, prnr + 4);
 #endif
     return output_select_formfeed(prnr);
 }
 
 static int drv_ascii_select(unsigned int prnr)
 {
-    DBG(("drv_ascii_select device:%u", 4 + prnr));
+    DBG(("drv_ascii_select(prnr:%u) device:%u", prnr, 4 + prnr));
+    if ((prnr == PRINTER_USERPORT) && (userport_get_device() == USERPORT_DEVICE_PRINTER)) {
+        return drv_ascii_open(prnr, DRIVER_FIRST_OPEN);
+    }
     return 0;
 }
 

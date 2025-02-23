@@ -64,7 +64,7 @@
 /* #define DEBUG_KEYS */
 
 #ifdef DEBUG_KEYS
-#define DBGKEY(x) log_debug x
+#define DBGKEY(x) log_printf  x
 #else
 #define DBGKEY(x)
 #endif
@@ -88,7 +88,7 @@ static int force_c64_mode = 0;
 static int mmu_config64 = 0;
 
 /* Logging goes here.  */
-static log_t mmu_log = LOG_ERR;
+static log_t mmu_log = LOG_DEFAULT;
 
 /* ------------------------------------------------------------------------- */
 

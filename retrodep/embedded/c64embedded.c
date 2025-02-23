@@ -50,6 +50,7 @@
 #include "vicii_deekay_vpl.h"
 #include "vicii_frodo_vpl.h"
 #include "vicii_godot_vpl.h"
+#include "vicii_lemon64_vpl.h"
 #include "vicii_palette_vpl.h"
 #include "vicii_palette_6569R1_v1r_vpl.h"
 #include "vicii_palette_6569R5_v1r_vpl.h"
@@ -108,6 +109,7 @@ static embedded_palette_t palette_files[] = {
     { "deekay", "deekay.vpl", 16, vicii_deekay_vpl },
     { "frodo", "frodo.vpl", 16, vicii_frodo_vpl },
     { "godot", "godot.vpl", 16, vicii_godot_vpl },
+    { "lemon64", "lemon64.vpl", 16, vicii_lemon64_vpl },
     { "palette", "palette.vpl", 16, vicii_palette_vpl },
     { "palette_6569R1_v1r", "palette_6569R1_v1r.vpl", 16, vicii_palette_6569R1_v1r_vpl },
     { "palette_6569R5_v1r", "palette_6569R5_v1r.vpl", 16, vicii_palette_6569R5_v1r_vpl },

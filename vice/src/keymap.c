@@ -477,7 +477,7 @@ static void keyboard_parse_entry(char *buffer, int line, const char *filename)
 
     sym = kbd_arch_keyname_to_keynum(key);
 
-    /* log_debug("%s: %s %i", __func__, key, sym); */
+    /* log_debug(LOG_DEFAULT, "%s: %s %i", __func__, key, sym); */
 
     if (sym < 0) {
         log_error(keyboard_log, "Could not find key `%s'!", key);
@@ -1490,6 +1490,8 @@ int keymap_resources_init(void)
     int nsym, npos, mapping, idx, type;
     const char *name;
 
+    keyboard_log = log_open("Keymap");
+
     /* VSID doesn't have a keyboard */
     if (machine_class == VICE_MACHINE_VSID) {
         return 0;
@@ -1510,7 +1512,7 @@ int keymap_resources_init(void)
 
     if (npos && nsym) {
         mapping = archdep_kbd_get_host_mapping();
-        log_verbose("Setting up default keyboard mapping for host type %d (%s)",
+        log_verbose(keyboard_log, "Setting up default keyboard mapping for host type %d (%s)",
                     mapping, keyboard_get_mapping_name(mapping));
         if (resources_set_int("KeymapIndex", KBD_INDEX_SYM) < 0) {
             /* return -1; */
@@ -1528,13 +1530,13 @@ int keymap_resources_init(void)
         util_string_set(&resources_string_d1, name);
         util_string_set(&resources_string_d3, name);
 
-        log_verbose("Default positional map is: %s", name);
+        log_verbose(keyboard_log, "Default positional map is: %s", name);
         keyboard_set_default_keymap_file(KBD_INDEX_SYM);
         if (resources_get_string("KeymapSymFile", &name) < 0) {
             DBG(("<<keyboard_resources_init(error)\n"));
             return -1;
         }
-        log_verbose("Default symbolic map is: %s", name);
+        log_verbose(keyboard_log, "Default symbolic map is: %s", name);
 
         util_string_set(&resources_string_d0, name);
         util_string_set(&resources_string_d2, name);

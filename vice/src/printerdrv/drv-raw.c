@@ -34,18 +34,20 @@
 #include "log.h"
 #include "output-select.h"
 #include "output.h"
+#include "printer.h"
 #include "types.h"
+#include "userport.h"
 
 #ifdef DEBUG_PRINTER
-#define DBG(x) log_debug x
+#define DBG(x) log_printf  x
 #else
 #define DBG(x)
 #endif
 
 static int drv_raw_open(unsigned int prnr, unsigned int secondary)
 {
-    DBG(("drv_raw_open device:%u", 4 + prnr));
     if (secondary == DRIVER_FIRST_OPEN) {
+        DBG(("drv_raw_open(prnr:%u secondary:DRIVER_FIRST_OPEN) device:%u", prnr, 4 + prnr));
         output_parameter_t output_parameter;
         /* these are unused for non gfx output */
         output_parameter.maxcol = 480;
@@ -55,7 +57,7 @@ static int drv_raw_open(unsigned int prnr, unsigned int secondary)
 
         return output_select_open(prnr, &output_parameter);
     }
-
+    DBG(("drv_raw_open(prnr:%u secondary:%u) device:%u", prnr, secondary, 4 + prnr));
     return 0;
 }
 
@@ -69,7 +71,7 @@ static void drv_raw_close(unsigned int prnr, unsigned int secondary)
 
 static int drv_raw_putc(unsigned int prnr, unsigned int secondary, uint8_t b)
 {
-    DBG(("Print device #%u secondary %u data %02x.", prnr + 4, secondary, b));
+    DBG(("drv_raw_putc(prnr:%u) secondary %u data %02x.", prnr + 4, secondary, b));
 
     if (output_select_putc(prnr, b) < 0) {
         return -1;
@@ -84,21 +86,24 @@ static int drv_raw_getc(unsigned int prnr, unsigned int secondary, uint8_t *b)
 
 static int drv_raw_flush(unsigned int prnr, unsigned int secondary)
 {
-    DBG(("drv_raw_flush device #%u secondary %u.", prnr + 4, secondary));
+    DBG(("drv_raw_flush(prnr:%u) device #%u secondary %u.", prnr, prnr + 4, secondary));
 
     return output_select_flush(prnr);
 }
 
 static int drv_raw_formfeed(unsigned int prnr)
 {
-    DBG(("drv_raw_formfeed device #%u.", prnr + 4));
+    DBG(("drv_raw_formfeed(prnr:%u) device #%u.", prnr, prnr + 4));
 
     return output_select_formfeed(prnr);
 }
 
 static int drv_raw_select(unsigned int prnr)
 {
-    DBG(("drv_raw_select device:%u", 4 + prnr));
+    DBG(("drv_raw_select(prnr:%u) device:%u", prnr, 4 + prnr));
+    if ((prnr == PRINTER_USERPORT) && (userport_get_device() == USERPORT_DEVICE_PRINTER)) {
+        return drv_raw_open(prnr, DRIVER_FIRST_OPEN);
+    }
     return 0;
 }
 

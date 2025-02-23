@@ -47,7 +47,7 @@
 #include "wdc65816.h"
 
 #ifdef DEBUG_TRAPS
-#define DBG(x)  log_debug x
+#define DBG(x) log_printf  x
 #else
 #define DBG(x)
 #endif
@@ -62,7 +62,9 @@ static traplist_t *traplist = NULL;
 static int install_trap(const trap_t *t);
 static int remove_trap(const trap_t *t);
 
-static log_t traps_log = LOG_ERR;
+log_t traps_log = LOG_DEFAULT;
+
+static int trapsready = 0;
 
 /* ------------------------------------------------------------------------- */
 
@@ -274,6 +276,13 @@ int traps_cmdline_options_init(void)
 void traps_init(void)
 {
     traps_log = log_open("Traps");
+    trapsready = 1;
+}
+
+/* returns 1 if traps are ready to be used */
+int traps_ready(void)
+{
+    return trapsready;
 }
 
 void traps_shutdown(void)
@@ -302,7 +311,7 @@ static int install_trap(const trap_t *t)
         }
     }
 
-    log_verbose("Trap '%s' installed.", t->name);
+    log_verbose(traps_log, "Trap '%s' installed.", t->name);
     (t->storefunc)(t->address, TRAP_OPCODE);
 
     return 0;
@@ -318,10 +327,10 @@ int traps_add(const trap_t *trap)
     traplist = p;
 
     if (traps_enabled) {
-        log_verbose("Trap '%s' added.", trap->name);
+        log_verbose(traps_log, "Trap '%s' added.", trap->name);
         install_trap(trap);
     } else {
-        log_verbose("Traps are disabled, trap '%s' not installed.", trap->name);
+        log_verbose(traps_log, "Traps are disabled, trap '%s' not installed.", trap->name);
     }
 
     return 0;
@@ -334,7 +343,7 @@ static int remove_trap(const trap_t *trap)
                   trap->address, trap->name);
         return -1;
     }
-    log_verbose("Trap '%s' disabled.", trap->name);
+    log_verbose(traps_log, "Trap '%s' disabled.", trap->name);
 
     (trap->storefunc)(trap->address, trap->check[0]);
     return 0;

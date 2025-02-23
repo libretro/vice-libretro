@@ -83,7 +83,7 @@ static void remove_checkpoint_from_list(checkpoint_list_t **head, mon_checkpoint
     }
 
     if (!cur_entry) {
-        log_error(LOG_ERR, "Invalid checkpoint entry!");
+        log_error(LOG_DEFAULT, "Invalid checkpoint entry!");
         return;
     } else {
         if (!prev_entry) {
@@ -437,11 +437,11 @@ static int compare_checkpoints(mon_checkpoint_t *bp1, mon_checkpoint_t *bp2)
 }
 
 static void mon_breakpoint_event(mon_checkpoint_t *checkpt) {
-    #ifdef HAVE_NETWORK
-        if (monitor_is_binary()) {
-            monitor_binary_response_checkpoint_info(0xffffffff, checkpt, 1);
-        }
-    #endif
+#ifdef HAVE_NETWORK
+    if (monitor_is_binary()) {
+        monitor_binary_response_checkpoint_info(0xffffffff, checkpt, 1);
+    }
+#endif
 }
 
 bool mon_breakpoint_check_checkpoint(MEMSPACE mem, unsigned int addr, unsigned int lastpc, MEMORY_OP op)

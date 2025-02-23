@@ -42,30 +42,16 @@
 #endif
 
 #include "archdep.h"
-#include "behrbonz.h"
-#include "c64acia.h"
 #include "cartridge.h"
 #include "cmdline.h"
 #include "crt.h"
-#include "debugcart.h"
-#include "digimax.h"
-#include "ds12c887rtc.h"
 #include "export.h"
-#include "finalexpansion.h"
-#include "georam.h"
-#include "ioramcart.h"
 #include "lib.h"
 #include "log.h"
 #include "mem.h"
-#include "ultimem.h"
-#include "vic-fp.h"
-#include "megacart.h"
 #include "monitor.h"
 #include "resources.h"
-#include "sfx_soundexpander.h"
-#include "sfx_soundsampler.h"
 #include "sid-snapshot.h"
-#include "sidcart.h"
 #include "snapshot.h"
 #ifdef HAVE_RAWNET
 #define CARTRIDGE_INCLUDE_PRIVATE_API
@@ -82,6 +68,24 @@
 #include "vic20-ieee488.h"
 #include "vic20-midi.h"
 #include "zfile.h"
+
+#include "behrbonz.h"
+#include "c64acia.h"
+#include "debugcart.h"
+#include "digimax.h"
+#include "ds12c887rtc.h"
+#include "finalexpansion.h"
+#include "georam.h"
+#include "ioramcart.h"
+#include "megacart.h"
+#include "mikroassembler.h"
+#include "rabbit.h"
+#include "sfx_soundexpander.h"
+#include "sfx_soundsampler.h"
+#include "superexpander.h"
+#include "sidcart.h"
+#include "ultimem.h"
+#include "vic-fp.h"
 
 #ifdef DEBUGCART
 #define DBG(x)  printf x
@@ -105,6 +109,35 @@ static char *cartfile = NULL;
 static int cartres_flags = 0;
 
 static int cartridge_attach_from_resource(int type, const char *filename);
+
+static cartridge_info_t cartlist[] = {
+    /* standard cartridges with CRT ID = 0 */
+    { "Auto detect",                        CARTRIDGE_VIC20_DETECT,             CARTRIDGE_GROUP_GENERIC },
+
+    { "32KiB cartridge at $2000",           CARTRIDGE_VIC20_32KB_2000,          CARTRIDGE_GROUP_GENERIC },
+    { "4/8/16KiB cartridge at $2000",       CARTRIDGE_VIC20_16KB_2000,          CARTRIDGE_GROUP_GENERIC },
+    { "4/8/16KiB cartridge at $4000",       CARTRIDGE_VIC20_16KB_4000,          CARTRIDGE_GROUP_GENERIC },
+    { "4/8/16KiB cartridge at $6000",       CARTRIDGE_VIC20_16KB_6000,          CARTRIDGE_GROUP_GENERIC },
+    { "4/8KiB cartridge at $A000",          CARTRIDGE_VIC20_8KB_A000,           CARTRIDGE_GROUP_GENERIC },
+    { "4KiB cartridge at $B000",            CARTRIDGE_VIC20_4KB_B000,           CARTRIDGE_GROUP_GENERIC },
+
+    /* all cartridges with a CRT ID > 0, alphabetically sorted */
+    { CARTRIDGE_VIC20_NAME_BEHRBONZ,        CARTRIDGE_VIC20_BEHRBONZ,           CARTRIDGE_GROUP_UTIL },
+    { CARTRIDGE_VIC20_NAME_FINAL_EXPANSION, CARTRIDGE_VIC20_FINAL_EXPANSION,    CARTRIDGE_GROUP_UTIL },
+    { CARTRIDGE_VIC20_NAME_FP,              CARTRIDGE_VIC20_FP,                 CARTRIDGE_GROUP_UTIL },
+    { CARTRIDGE_VIC20_NAME_MEGACART,        CARTRIDGE_VIC20_MEGACART,           CARTRIDGE_GROUP_UTIL },
+    { CARTRIDGE_VIC20_NAME_MIKRO_ASSEMBLER, CARTRIDGE_VIC20_MIKRO_ASSEMBLER,    CARTRIDGE_GROUP_UTIL },
+    { CARTRIDGE_VIC20_NAME_RABBIT,          CARTRIDGE_VIC20_RABBIT,             CARTRIDGE_GROUP_UTIL },
+    { CARTRIDGE_VIC20_NAME_SUPEREXPANDER,   CARTRIDGE_VIC20_SUPEREXPANDER,      CARTRIDGE_GROUP_UTIL },
+    { CARTRIDGE_VIC20_NAME_UM,              CARTRIDGE_VIC20_UM,                 CARTRIDGE_GROUP_UTIL },
+
+    { NULL, 0, 0 }
+};
+
+cartridge_info_t *cartridge_get_info_list(void)
+{
+    return &cartlist[0];
+}
 
 void reset_try_flags(void)
 {
@@ -131,14 +164,17 @@ static int set_cartridge_type(int val, void *param)
     DBG(("set_cartridge_type '%d'\n", val));
     switch (val) {
         case CARTRIDGE_NONE:
-        case CARTRIDGE_VIC20_BEHRBONZ:
         case CARTRIDGE_VIC20_GENERIC:
+
+        case CARTRIDGE_VIC20_BEHRBONZ:
         case CARTRIDGE_VIC20_MEGACART:
+        case CARTRIDGE_VIC20_RABBIT:
         case CARTRIDGE_VIC20_FINAL_EXPANSION:
         case CARTRIDGE_VIC20_UM:
         case CARTRIDGE_VIC20_FP:
         case CARTRIDGE_VIC20_IEEE488:
         case CARTRIDGE_VIC20_SIDCART:
+
         case CARTRIDGE_VIC20_DETECT:
         case CARTRIDGE_VIC20_4KB_2000:
         case CARTRIDGE_VIC20_8KB_2000:
@@ -302,6 +338,16 @@ static const cmdline_option_t cmdline_options[] =
     { "-cartfp", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
       attach_cartridge_cmdline, (void *)CARTRIDGE_VIC20_FP, NULL, NULL,
       "<Name>", "Specify Vic Flash Plugin extension ROM name" },
+    { "-cartrabbit", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
+      attach_cartridge_cmdline, (void *)CARTRIDGE_VIC20_RABBIT, NULL, NULL,
+      "<Name>", "Specify Rabit Tape extension ROM name" },
+    { "-cartse", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
+      attach_cartridge_cmdline, (void *)CARTRIDGE_VIC20_SUPEREXPANDER, NULL, NULL,
+      "<Name>", "Specify " CARTRIDGE_VIC20_NAME_SUPEREXPANDER " cartridge ROM name" },
+    { "-cartma", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
+      attach_cartridge_cmdline, (void *)CARTRIDGE_VIC20_MIKRO_ASSEMBLER, NULL, NULL,
+      "<Name>", "Specify " CARTRIDGE_VIC20_NAME_MIKRO_ASSEMBLER " cartridge ROM name" },
+
     { "+cart", CALL_FUNCTION, CMDLINE_ATTRIB_NONE,
       detach_cartridge_cmdline, NULL, NULL, NULL,
       NULL, "Disable default cartridge" },
@@ -312,6 +358,7 @@ int cartridge_cmdline_options_init(void)
 {
     mon_cart_cmd.cartridge_attach_image = cartridge_attach_image;
     mon_cart_cmd.cartridge_detach_image = cartridge_detach_image;
+    mon_cart_cmd.export_dump = export_dump;
 
     if (cmdline_register_options(cmdline_options) < 0
         || finalexpansion_cmdline_options_init() < 0
@@ -389,20 +436,29 @@ static int crt_attach(const char *filename, uint8_t *rawcart)
                 new_crttype = ret;
             }
             break;
-        case CARTRIDGE_VIC20_MEGACART:
-            ret = megacart_crt_attach(fd, rawcart);
-            break;
         case CARTRIDGE_VIC20_BEHRBONZ:
             ret = behrbonz_crt_attach(fd, rawcart);
             break;
+        case CARTRIDGE_VIC20_FINAL_EXPANSION:
+            ret = finalexpansion_crt_attach(fd, rawcart, filename);
+            break;
         case CARTRIDGE_VIC20_FP:
-            ret = vic_fp_crt_attach(fd, rawcart);
+            ret = vic_fp_crt_attach(fd, rawcart, filename);
+            break;
+        case CARTRIDGE_VIC20_MEGACART:
+            ret = megacart_crt_attach(fd, rawcart);
+            break;
+        case CARTRIDGE_VIC20_MIKRO_ASSEMBLER:
+            ret = mikroassembler_crt_attach(fd, rawcart);
+            break;
+        case CARTRIDGE_VIC20_RABBIT:
+            ret = rabbit_crt_attach(fd, rawcart);
+            break;
+        case CARTRIDGE_VIC20_SUPEREXPANDER:
+            ret = superexpander_crt_attach(fd, rawcart);
             break;
         case CARTRIDGE_VIC20_UM:
-            ret = vic_um_crt_attach(fd, rawcart);
-            break;
-        case CARTRIDGE_VIC20_FINAL_EXPANSION:
-            ret = finalexpansion_crt_attach(fd, rawcart);
+            ret = vic_um_crt_attach(fd, rawcart, filename);
             break;
         default:
             archdep_startup_log_error("unknown CRT ID: %d\n", new_crttype);
@@ -445,17 +501,26 @@ static int cart_bin_attach(int type, const char *filename, uint8_t *rawcart)
         case CARTRIDGE_VIC20_BEHRBONZ:
             ret = behrbonz_bin_attach(filename);
             break;
-        case CARTRIDGE_VIC20_UM:
-            ret = vic_um_bin_attach(filename);
-            break;
         case CARTRIDGE_VIC20_FP:
             ret = vic_fp_bin_attach(filename);
+            break;
+        case CARTRIDGE_VIC20_FINAL_EXPANSION:
+            ret = finalexpansion_bin_attach(filename);
             break;
         case CARTRIDGE_VIC20_MEGACART:
             ret = megacart_bin_attach(filename);
             break;
-        case CARTRIDGE_VIC20_FINAL_EXPANSION:
-            ret = finalexpansion_bin_attach(filename);
+        case CARTRIDGE_VIC20_MIKRO_ASSEMBLER:
+            ret = mikroassembler_bin_attach(filename);
+            break;
+        case CARTRIDGE_VIC20_RABBIT:
+            ret = rabbit_bin_attach(filename);
+            break;
+        case CARTRIDGE_VIC20_SUPEREXPANDER:
+            ret = superexpander_bin_attach(filename);
+            break;
+        case CARTRIDGE_VIC20_UM:
+            ret = vic_um_bin_attach(filename);
             break;
     }
     DBG(("cart_bin_attach type: %d ret: %d\n", type, ret));
@@ -632,7 +697,7 @@ int cartridge_enable(int type)
     if (cart_type_enabled(type)) {
         return 0;
     }
-    log_error(LOG_ERR, "Failed to enable cartridge with ID %d.\n", type);
+    log_error(LOG_DEFAULT, "Failed to enable cartridge with ID %d.", type);
     return -1;
 #endif
     return 0;
@@ -686,7 +751,7 @@ int cartridge_disable(int type)
     if (!cart_type_enabled(type)) {
         return 0;
     }
-    log_error(LOG_ERR, "Failed to disable cartridge with ID %d.\n", type);
+    log_error(LOG_DEFAULT, "Failed to disable cartridge with ID %d.\n", type);
     return -1;
 #endif
     return 0;
@@ -740,12 +805,17 @@ int cartridge_bin_save(int type, const char *filename)
     switch (type) {
         case CARTRIDGE_VIC20_GEORAM:
             return georam_bin_save(filename);
+        case CARTRIDGE_VIC20_FP:
+            return vic_fp_bin_save(filename);
+        case CARTRIDGE_VIC20_UM:
+            return vic_um_bin_save(filename);
+        case CARTRIDGE_VIC20_FINAL_EXPANSION:
+            return finalexpansion_bin_save(filename);
     }
+    log_error(LOG_DEFAULT, "Failed saving binary cartridge image for cartridge ID %d.", type);
     return -1;
 }
 
-/* FIXME: this can be used once we implement a crt like format for vic20 */
-#if 0
 /*
     save cartridge to crt file
 
@@ -757,10 +827,16 @@ int cartridge_bin_save(int type, const char *filename)
 int cartridge_crt_save(int type, const char *filename)
 {
     switch (type) {
+        case CARTRIDGE_VIC20_FP:
+            return vic_fp_crt_save(filename);
+        case CARTRIDGE_VIC20_UM:
+            return vic_um_crt_save(filename);
+        case CARTRIDGE_VIC20_FINAL_EXPANSION:
+            return finalexpansion_crt_save(filename);
     }
+    log_error(LOG_DEFAULT, "Failed saving .crt cartridge image for cartridge ID %d.", type);
     return -1;
 }
-#endif
 
 /*
     flush cart image
@@ -772,29 +848,40 @@ int cartridge_flush_image(int type)
     switch (type) {
         case CARTRIDGE_VIC20_GEORAM:
             return georam_flush_image();
+        case CARTRIDGE_VIC20_FP:
+            return vic_fp_flush_image();
+        case CARTRIDGE_VIC20_UM:
+            return vic_um_flush_image();
+        case CARTRIDGE_VIC20_FINAL_EXPANSION:
+            return finalexpansion_flush_image();
     }
     return -1;
 }
 
 int cartridge_flush_secondary_image(int type)
 {
+    switch (type) {
+        case CARTRIDGE_VIC20_MEGACART:
+            return megacart_flush_nvram();
+    }
     return -1;
 }
 
 int cartridge_save_image(int type, const char *filename)
 {
-/* FIXME: this can be used once we implement a crt like format for vic20 */
-#if 0
     char *ext = util_get_extension((char *)filename);
     if (ext != NULL && !strcmp(ext, "crt")) {
         return cartridge_crt_save(type, filename);
     }
-#endif
     return cartridge_bin_save(type, filename);
 }
 
 int cartridge_save_secondary_image(int type, const char *filename)
 {
+    switch (type) {
+        case CARTRIDGE_VIC20_MEGACART:
+            return megacart_save_nvram(filename);
+    }
     return -1;
 }
 
@@ -826,6 +913,14 @@ int cartridge_can_flush_image(int crtid)
 
 int cartridge_can_flush_secondary_image(int crtid)
 {
+    if (!cartridge_type_enabled(crtid)) {
+        return 0;
+    }
+
+    switch (crtid) {
+        case CARTRIDGE_VIC20_MEGACART:
+            return megacart_can_flush_nvram();
+    }
     return 0;
 }
 
@@ -840,19 +935,24 @@ int cartridge_can_save_image(int crtid)
 
 int cartridge_can_save_secondary_image(int crtid)
 {
-    return 0;
-}
+    if (!cartridge_type_enabled(crtid)) {
+        return 0;
+    }
 
-cartridge_info_t *cartridge_get_info_list(void)
-{
-    return NULL;
+    switch (crtid) {
+        case CARTRIDGE_VIC20_MEGACART:
+            return 1;
+    }
+    return 0;
 }
 
 /* return cartridge type of main slot
    returns 0 (CARTRIDGE_CRT) if crt file */
 int cartridge_get_id(int slot)
 {
-    return CARTRIDGE_NONE;
+    int type = cartridge_type;
+    /*DBG(("cartridge_get_id(slot:%d): type:%d\n", slot, type));*/
+    return type;
 }
 
 /* FIXME: slot arg is ignored right now.
@@ -874,11 +974,13 @@ char *cartridge_get_filename_by_slot(int slot)
 */
 char *cartridge_get_secondary_filename_by_slot(int slot)
 {
+    log_error(LOG_DEFAULT, "FIXME: cartridge_get_secondary_filename_by_slot not implemented yet");
     return NULL;
 }
 
 void cartridge_trigger_freeze(void)
 {
+    /* We have no freezer on VIC20 :) */
 }
 
 /* ------------------------------------------------------------------------- */
@@ -952,13 +1054,8 @@ int vic20cart_snapshot_write_module(snapshot_t *s)
                     return -1;
                 }
                 break;
-            case CARTRIDGE_VIC20_IO2_RAM:
-                if (ioramcart_io2_snapshot_write_module(s) < 0) {
-                    return -1;
-                }
-                break;
-            case CARTRIDGE_VIC20_IO3_RAM:
-                if (ioramcart_io3_snapshot_write_module(s) < 0) {
+            case CARTRIDGE_VIC20_FP:
+                if (vic_fp_snapshot_write_module(s) < 0) {
                     return -1;
                 }
                 break;
@@ -967,8 +1064,34 @@ int vic20cart_snapshot_write_module(snapshot_t *s)
                     return -1;
                 }
                 break;
+            case CARTRIDGE_VIC20_MIKRO_ASSEMBLER:
+                if (mikroassembler_snapshot_write_module(s) < 0) {
+                    return -1;
+                }
+                break;
+            case CARTRIDGE_VIC20_RABBIT:
+                if (rabbit_snapshot_write_module(s) < 0) {
+                    return -1;
+                }
+                break;
+            case CARTRIDGE_VIC20_SUPEREXPANDER:
+                if (superexpander_snapshot_write_module(s) < 0) {
+                    return -1;
+                }
+                break;
             case CARTRIDGE_VIC20_UM:
                 if (vic_um_snapshot_write_module(s) < 0) {
+                    return -1;
+                }
+                break;
+
+            case CARTRIDGE_VIC20_IO2_RAM:
+                if (ioramcart_io2_snapshot_write_module(s) < 0) {
+                    return -1;
+                }
+                break;
+            case CARTRIDGE_VIC20_IO3_RAM:
+                if (ioramcart_io3_snapshot_write_module(s) < 0) {
                     return -1;
                 }
                 break;
@@ -986,11 +1109,6 @@ int vic20cart_snapshot_write_module(snapshot_t *s)
 #endif
             case CARTRIDGE_VIC20_SIDCART:
                 if (sidcart_snapshot_write_module(s) < 0) {
-                    return -1;
-                }
-                break;
-            case CARTRIDGE_VIC20_FP:
-                if (vic_fp_snapshot_write_module(s) < 0) {
                     return -1;
                 }
                 break;
@@ -1124,13 +1242,8 @@ int vic20cart_snapshot_read_module(snapshot_t *s)
                     return -1;
                 }
                 break;
-            case CARTRIDGE_VIC20_IO2_RAM:
-                if (ioramcart_io2_snapshot_read_module(s) < 0) {
-                    return -1;
-                }
-                break;
-            case CARTRIDGE_VIC20_IO3_RAM:
-                if (ioramcart_io3_snapshot_read_module(s) < 0) {
+            case CARTRIDGE_VIC20_FP:
+                if (vic_fp_snapshot_read_module(s) < 0) {
                     return -1;
                 }
                 break;
@@ -1139,8 +1252,34 @@ int vic20cart_snapshot_read_module(snapshot_t *s)
                     return -1;
                 }
                 break;
+            case CARTRIDGE_VIC20_MIKRO_ASSEMBLER:
+                if (mikroassembler_snapshot_read_module(s) < 0) {
+                    return -1;
+                }
+                break;
+            case CARTRIDGE_VIC20_RABBIT:
+                if (rabbit_snapshot_read_module(s) < 0) {
+                    return -1;
+                }
+                break;
+            case CARTRIDGE_VIC20_SUPEREXPANDER:
+                if (superexpander_snapshot_read_module(s) < 0) {
+                    return -1;
+                }
+                break;
             case CARTRIDGE_VIC20_UM:
                 if (vic_um_snapshot_read_module(s) < 0) {
+                    return -1;
+                }
+                break;
+
+            case CARTRIDGE_VIC20_IO2_RAM:
+                if (ioramcart_io2_snapshot_read_module(s) < 0) {
+                    return -1;
+                }
+                break;
+            case CARTRIDGE_VIC20_IO3_RAM:
+                if (ioramcart_io3_snapshot_read_module(s) < 0) {
                     return -1;
                 }
                 break;
@@ -1158,11 +1297,6 @@ int vic20cart_snapshot_read_module(snapshot_t *s)
 #endif
             case CARTRIDGE_VIC20_SIDCART:
                 if (sidcart_snapshot_read_module(s) < 0) {
-                    return -1;
-                }
-                break;
-            case CARTRIDGE_VIC20_FP:
-                if (vic_fp_snapshot_read_module(s) < 0) {
                     return -1;
                 }
                 break;

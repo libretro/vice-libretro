@@ -11,10 +11,11 @@
  * $VICERES AutostartPrgDiskImage               -vsid
  * $VICERES AutostartRunWithColon               -vsid
  * $VICERES AutostartBasicLoad                  -vsid
- * $VICERES AutostartTapeBasicLoad              -vsid
+ * $VICERES AutostartTapeBasicLoad              -vsid -xpet -xcbm2 -xcbm5x0
  * $VICERES AutostartWarp                       -vsid
  * $VICERES AutostartHandleTrueDriveEmulation   -vsid
  * $VICERES AutostartOnDoubleClick              -vsid
+ * $VICERES AutostartDropMode                   -vsid
  */
 
 /*
@@ -47,6 +48,7 @@
 #include "vice_gtk3.h"
 #include "machine.h"
 #include "resources.h"
+#include "autostart.h"
 #include "autostart-prg.h"
 #include "uisettings.h"
 
@@ -60,6 +62,14 @@ static const vice_gtk3_radiogroup_entry_t autostart_modes[] = {
     { "Inject into RAM",    AUTOSTART_PRG_MODE_INJECT },
     { "Copy to disk",       AUTOSTART_PRG_MODE_DISK },
     { NULL,                 -1 }
+};
+
+/** \brief  Autostart behaviour when dropping image on the emulator window */
+static const vice_gtk3_radiogroup_entry_t autostart_drop_modes[] = {
+    { "Attach image only",          AUTOSTART_DROP_MODE_ATTACH },
+    { "Attach image and LOAD",      AUTOSTART_DROP_MODE_LOAD },
+    { "Attach image, LOAD and RUN", AUTOSTART_DROP_MODE_RUN },
+    { NULL,                         -1 }
 };
 
 
@@ -153,10 +163,14 @@ static int create_prg_layout(GtkWidget *grid, int row, int columns)
     row++;
 
     /* BASIC start load for tape */
-    tapebasic = vice_gtk3_resource_check_button_new("AutostartTapeBasicLoad",
-                                                    "Load to BASIC start (Tape)");
-    gtk_grid_attach(GTK_GRID(grid), tapebasic, 0, row, columns, 1);
-    row++;
+    if ((machine_class != VICE_MACHINE_CBM5x0) &&
+        (machine_class != VICE_MACHINE_CBM6x0) &&
+        (machine_class != VICE_MACHINE_PET)) {
+        tapebasic = vice_gtk3_resource_check_button_new("AutostartTapeBasicLoad",
+                                                        "Load to BASIC start (Tape)");
+        gtk_grid_attach(GTK_GRID(grid), tapebasic, 0, row, columns, 1);
+        row++;
+    }
 
     /* BASIC start load for disk */
     diskbasic = vice_gtk3_resource_check_button_new("AutostartBasicLoad",
@@ -167,10 +181,23 @@ static int create_prg_layout(GtkWidget *grid, int row, int columns)
     /* autostart mode for PRGs */
     label = gtk_label_new("Autostart mode");
     gtk_widget_set_halign(label, GTK_ALIGN_START);
+    gtk_widget_set_valign(label, GTK_ALIGN_START);
     group = vice_gtk3_resource_radiogroup_new("AutostartPrgMode",
                                               autostart_modes,
-                                              GTK_ORIENTATION_HORIZONTAL);
-    gtk_grid_set_column_homogeneous(GTK_GRID(group), TRUE);
+                                              GTK_ORIENTATION_VERTICAL);
+    gtk_widget_set_margin_top(label, 8);
+    gtk_widget_set_margin_top(group, 8);
+    gtk_grid_attach(GTK_GRID(grid), label, 0, row, 1,           1);
+    gtk_grid_attach(GTK_GRID(grid), group, 1, row, columns - 1, 1);
+    row++;
+
+    /* autostart drop mode */
+    label = gtk_label_new("Drag and Drop mode");
+    gtk_widget_set_valign(label, GTK_ALIGN_START);
+    gtk_widget_set_halign(label, GTK_ALIGN_START);
+    group = vice_gtk3_resource_radiogroup_new("AutostartDropMode",
+                                              autostart_drop_modes,
+                                              GTK_ORIENTATION_VERTICAL);
     gtk_widget_set_margin_top(label, 8);
     gtk_widget_set_margin_top(group, 8);
     gtk_grid_attach(GTK_GRID(grid), label, 0, row, 1,           1);
@@ -189,8 +216,8 @@ static int create_prg_layout(GtkWidget *grid, int row, int columns)
                                               "Disk images",
                                               patterns,
                                               TRUE);
-    gtk_widget_set_margin_top(label, 8);
-    gtk_widget_set_margin_top(image, 8);
+    gtk_widget_set_margin_top(label, 16);
+    gtk_widget_set_margin_top(image, 16);
     gtk_grid_attach(GTK_GRID(grid), label, 0, row, 1,           1);
     gtk_grid_attach(GTK_GRID(grid), image, 1, row, columns - 1, 1);
 

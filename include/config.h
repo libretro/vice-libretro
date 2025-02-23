@@ -148,7 +148,7 @@
 #define PACKAGE_NAME "VICE"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.8"
+#define PACKAGE_VERSION "3.9"
 
 /* Define to the full name and version of this package. */
 #define PACKAGE_STRING PACKAGE_NAME " " PACKAGE_VERSION

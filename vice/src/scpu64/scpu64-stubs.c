@@ -30,6 +30,7 @@
 #include "c64mem.h"
 #include "pet/petpia.h"
 #include "snapshot.h"
+#include "datasette.h"
 #include "tap.h"
 #include "tape.h"
 #include "tapecart.h"
@@ -70,6 +71,11 @@ int tape_seek_to_file(tape_image_t *tape_image, unsigned int file_number)
 int tape_seek_to_offset(tape_image_t *tape_image, unsigned long offset)
 {
     return 0;
+}
+
+unsigned long tape_get_offset(tape_image_t *tape_image)
+{
+    return -1;
 }
 
 void tape_image_event_playback(unsigned int unit, const char *filename)
@@ -204,4 +210,17 @@ bool pia1_get_diagnostic_pin(void)
 int tapeport_get_active_state(void)
 {
     return 0;
+}
+
+void machine_set_tape_write_in(int port, int val)
+{
+}
+void machine_set_tape_motor_in(int port, int val)
+{
+}
+void machine_trigger_flux_change(int port, unsigned int on)
+{
+}
+void machine_set_tape_sense(int port, int sense)
+{
 }

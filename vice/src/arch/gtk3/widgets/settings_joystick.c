@@ -16,6 +16,7 @@
  * $VICERES JoyDevice8      -xplus4 -xpet -vsid
  * $VICERES JoyDevice9      -xplus4 -xpet -vsid
  * $VICERES JoyDevice10     -xplus4 -xpet -vsid
+ * $VICERES JoyDevice11     -xplus4
  *
  * Only altered when two control ports are available, so not for xvic:
  * $VICERES JoyPort1Device  -xcbm2 -xpet -xvic -vsid
@@ -90,13 +91,8 @@
 #define ADAPTER_PORT_COUNT_VIC20    8
 
 /** \brief  Number of joystick adapter ports for Plus4
- *
- * The xplus4 code currently supports three userport joysticks and one joystick
- * via the SIDCard expansion.
- *
- * Should this change in the future, just change the value (to 8).
  */
-#define ADAPTER_PORT_COUNT_PLUS4    3
+#define ADAPTER_PORT_COUNT_PLUS4    8
 
 /** \brief  Number of joystick adapter ports for CBM-II 5x0/P
  */
@@ -333,11 +329,11 @@ static int layout_add_adapter_ports(GtkGrid *layout, int row, int count)
  */
 static int layout_add_sidcard_port(GtkGrid *layout, int row)
 {
-    /* not JOYPORT_5 because the API is retarded: JOYPORT_5 == 4 */
-    if (joyport_has_mapping(5)) {
-        device_widgets[JOYPORT_5] = joystick_device_widget_create(
-                JOYPORT_5, "SIDCard Joystick");
-        gtk_grid_attach(layout, device_widgets[JOYPORT_5], 0, row, 1, 1);
+    /* not JOYPORT_PLUS4_SIDCART because the API is retarded: JOYPORT_PLUS4_SIDCART == JOYPORT_11 == 10 */
+    if (joyport_has_mapping(10)) {
+        device_widgets[JOYPORT_PLUS4_SIDCART] = joystick_device_widget_create(
+                JOYPORT_PLUS4_SIDCART, "SIDCard Joystick");
+        gtk_grid_attach(layout, device_widgets[JOYPORT_PLUS4_SIDCART], 0, row, 1, 1);
     }
     return row + 1;
 }

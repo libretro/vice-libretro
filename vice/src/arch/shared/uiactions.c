@@ -210,8 +210,8 @@ static const ui_action_info_private_t action_info_list[] = {
     { ACTION_CART_ATTACH_RAW_C2_FULL,   "cart-attach-raw-c2-full",  "Attach full C2 cartridge image",       VICE_MACHINE_PLUS4 },
     { ACTION_CART_ATTACH_RAW_C2_LOW,    "cart-attach-raw-c2-low",   "Attach low C2 cartridge image",        VICE_MACHINE_PLUS4 },
     { ACTION_CART_ATTACH_RAW_C2_HIGH,   "cart-attach-raw-c2-high",  "Attach high C2 cartridge image",       VICE_MACHINE_PLUS4 },
-    { ACTION_CART_DETACH,               "cart-detach",              "Detach cartridge",                     (VICE_MACHINE_C64|VICE_MACHINE_C64SC|VICE_MACHINE_SCPU64|
-                                                                                                             VICE_MACHINE_C128|VICE_MACHINE_PLUS4|VICE_MACHINE_CBM6x0) },
+    { ACTION_CART_DETACH,               "cart-detach",              "Detach cartridge",                     (VICE_MACHINE_C64|VICE_MACHINE_C64SC|VICE_MACHINE_SCPU64|VICE_MACHINE_C128|
+                                                                                                             VICE_MACHINE_VIC20|VICE_MACHINE_PLUS4|VICE_MACHINE_CBM6x0) },
     { ACTION_CART_FREEZE,               "cart-freeze",              "Press cartridge freeze button",        (VICE_MACHINE_C64|VICE_MACHINE_C64SC|VICE_MACHINE_SCPU64|VICE_MACHINE_C128) },
     { ACTION_CART_DETACH_1000,          "cart-detach-1000",         "Detach cartridge image at $1000",      VICE_MACHINE_CBM6x0 },
     { ACTION_CART_DETACH_2000,          "cart-detach-2000",         "Detach cartridge image at $2000",      VICE_MACHINE_CBM6x0 },
@@ -399,7 +399,7 @@ static const ui_action_info_private_t action_info_list[] = {
     { ACTION_PRINTER_FORMFEED_4,        "printer-formfeed-4",       "Send form feed to printer #4",         VICE_MACHINE_ALL^VICE_MACHINE_VSID },
     { ACTION_PRINTER_FORMFEED_5,        "printer-formfeed-5",       "Send form feed to printer #5",         VICE_MACHINE_ALL^VICE_MACHINE_VSID },
     { ACTION_PRINTER_FORMFEED_6,        "printer-formfeed-6",       "Send form feed to plotter #6",         VICE_MACHINE_ALL^VICE_MACHINE_VSID },
-    { ACTION_PRINTER_FORMFEED_USERPORT, "printer-formfeed-userport", "Send form feed to userport printer",  VICE_MACHINE_C64|VICE_MACHINE_C64SC|VICE_MACHINE_SCPU64|VICE_MACHINE_C128|VICE_MACHINE_VIC20|VICE_MACHINE_PET|VICE_MACHINE_CBM6x0 },
+    { ACTION_PRINTER_FORMFEED_USERPORT, "printer-formfeed-userport", "Send form feed to userport printer",  VICE_MACHINE_C64|VICE_MACHINE_C64SC|VICE_MACHINE_SCPU64|VICE_MACHINE_C128|VICE_MACHINE_VIC20|VICE_MACHINE_PET|VICE_MACHINE_CBM6x0|VICE_MACHINE_PLUS4 },
 
     { ACTION_VIRTUAL_KEYBOARD,          "virtual-keyboard",         "Activate virtual keyboard",            VICE_MACHINE_ALL^VICE_MACHINE_VSID },
 
@@ -960,7 +960,7 @@ void ui_actions_register(const ui_action_map_t *mappings)
 
         /* first check if the action is already registered */
         if (action_mappings[map->action].handler != NULL) {
-            log_error(LOG_ERR,
+            log_error(LOG_DEFAULT,
                       "Handler for action %d (%s) already present, skipping.",
                       map->action, ui_action_get_name(map->action));
             map++;
@@ -1041,7 +1041,7 @@ void ui_action_trigger(int action)
             map->handler(map);
         }
     } else {
-        log_error(LOG_ERR, "no handler for action %d\n", action);
+        log_error(LOG_DEFAULT, "no handler for action %d\n", action);
     }
 }
 

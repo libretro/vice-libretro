@@ -43,6 +43,7 @@
 #define vte_terminal_feed novte_terminal_feed
 #define vte_terminal_get_column_count novte_terminal_get_column_count
 #define vte_terminal_copy_clipboard novte_terminal_copy_clipboard
+#define vte_terminal_copy_clipboard_format novte_terminal_copy_clipboard_format
 #define vte_terminal_get_row_count novte_terminal_get_row_count
 #define vte_terminal_set_scrollback_lines novte_terminal_set_scrollback_lines
 #define vte_terminal_set_scroll_on_output novte_terminal_set_scroll_on_output
@@ -60,6 +61,7 @@
 #endif
 
 #include "archdep.h"
+#include "charset.h"
 #include "console.h"
 #include "debug_gtk3.h"
 #include "machine.h"
@@ -70,11 +72,13 @@
 #include "log.h"
 #include "ui.h"
 #include "linenoise.h"
+#include "unicodehelpers.h"
 #include "uimon.h"
 #include "uimon-fallback.h"
 #include "mon_command.h"
 #include "vsync.h"
 #include "vsyncapi.h"
+#include "widgethelpers.h"
 #include "uidata.h"
 
 static gboolean uimon_window_open_impl(gpointer user_data);
@@ -98,10 +102,20 @@ static struct console_private_s {
     size_t output_buffer_used_size;
 } fixed;
 
-static console_t vte_console;
+#define DEFAULT_COLUMNS     80
+#define DEFAULT_ROWS        50
+
+static console_t vte_console = { DEFAULT_COLUMNS, DEFAULT_ROWS, 0, 1, NULL }; /* bare minimum */
 static linenoiseCompletions command_lc = {0, NULL};
 static linenoiseCompletions need_filename_lc = {0, NULL};
 
+#define FONT_TYPE_ASCII     0
+#define FONT_TYPE_C64PRO    1
+#define FONT_TYPE_PETME     2 /* https://www.kreativekorp.com/software/fonts/c64/ */
+#define FONT_TYPE_PETME64   3 /* https://www.kreativekorp.com/software/fonts/c64/ */
+static int font_type = FONT_TYPE_ASCII;
+
+static log_t monui_log = LOG_DEFAULT;
 
 /* FIXME: this should perhaps be done using some function from archdep */
 static int is_dir(struct dirent *de)
@@ -210,13 +224,335 @@ int uimon_out(const char *buffer)
     return 0;
 }
 
+int uimon_petscii_out(const char *buffer, int len)
+{
+    unsigned char *utf = NULL;
+    uint8_t b;
+    int n = 0;
+    uint8_t c;
+
+    if (native_monitor()) {
+        return uimonfb_petscii_out(buffer, len);
+    }
+
+    while (n < len) {
+        c = buffer[n];
+
+        if (font_type == FONT_TYPE_ASCII) {
+            /* regular ASCII font */
+            c = charset_p_toascii(c, CONVERT_WITH_CTRLCODES);
+        } else if (font_type == FONT_TYPE_C64PRO) {
+            /* regular PETSCII capable ("C64 Pro") font */
+#if 0
+            /* c0-df   AB...|}~ */
+            } else if ((c >= 0xc0) && (c <= 0xdf)) {
+                if (c == 0xc0) {
+                    c = '@';
+                } else if (c == 0xdb) {
+                    c = '[';
+                } else if (c == 0xdd) {
+                    c = ']';
+#endif
+            /* 20-3f  !"#...=>? */
+            if (((c >= 0x20) && (c <= 0x2f)) ||
+                ((c >= 0x30) && (c <= 0x3f))
+            ) {
+                /* exclude some ranges from utf conversion */
+            /* 40-5a  @ab... */
+            } else if (c == 0x40) {
+                    c = '@';
+            } else if ((c >= 0x41) && (c <= 0x5a)) {
+                c += 0x20;
+            } else if (c == 0x5b) {
+                c = '[';
+            } else if (c == 0x5d) {
+                c = ']';
+            /* 60-7f   AB...|}~ */
+            } else if ((c >= 0x61) && (c <= 0x7a)) {
+                c -= 0x20;
+            } else {
+                /* convert the rest to utf8 */
+                if (c == 0) {
+                    /* 0 is a petscii control code, which we display as inverted @ */
+                    c = '@';
+                    b = c;
+                    utf = vice_gtk3_petscii_to_utf8(&b, true, true);
+                    uimon_write_to_terminal(&fixed, (const char*)&utf[0], 3);
+                } else {
+                    b = c;
+                    utf = vice_gtk3_petscii_to_utf8(&b, false, true);
+                    uimon_write_to_terminal(&fixed, (const char*)&utf[0], 3);
+                }
+            }
+        } else if (font_type == FONT_TYPE_PETME) {
+            if (c == 0) {
+                /* 0 is a petscii control code, which we display as inverted @ */
+                c = '@';
+                b = c;
+                utf = vice_gtk3_petscii_to_utf8_petme(&b, true, true);
+                uimon_write_to_terminal(&fixed, (const char*)&utf[0], 3);
+            } else {
+                b = c;
+                utf = vice_gtk3_petscii_to_utf8_petme(&b, false, true);
+                uimon_write_to_terminal(&fixed, (const char*)&utf[0], 3);
+            }
+        } else if (font_type == FONT_TYPE_PETME64) {
+            if (c == 0) {
+                /* 0 is a petscii control code, which we display as inverted @ */
+                c = '@';
+                b = c;
+                utf = vice_gtk3_petscii_to_utf8_petme64(&b, true, true);
+                uimon_write_to_terminal(&fixed, (const char*)&utf[0], 3);
+            } else {
+                b = c;
+                utf = vice_gtk3_petscii_to_utf8_petme64(&b, false, true);
+                uimon_write_to_terminal(&fixed, (const char*)&utf[0], 3);
+            }
+        }
+
+        if (utf) {
+            lib_free(utf);
+            utf = NULL;
+        } else {
+            uimon_write_to_terminal(&fixed, (const char*)&c, 1);
+        }
+        n++;
+    }
+
+    return 0;
+}
+
+int uimon_petscii_upper_out(const char *buffer, int len)
+{
+    unsigned char *utf = NULL;
+    uint8_t b;
+    int n = 0;
+    uint8_t c;
+
+    if (native_monitor()) {
+        return uimonfb_petscii_upper_out(buffer, len);
+    }
+
+    while (n < len) {
+        c = buffer[n];
+
+        if (font_type == FONT_TYPE_ASCII) {
+            /* regular ASCII font */
+            c = buffer[n];
+            if ((c >= 0x01) && (c <= 0x1a)) {
+                c += 0x60; /* lower */
+            } else if ((c >= 0x41) && (c <= 0x5a)) {
+                c += 0x20; /* upper */
+            }
+            c = charset_p_toascii(c, CONVERT_WITH_CTRLCODES);
+        } else if (font_type == FONT_TYPE_C64PRO) {
+            /* regular PETSCII capable ("C64 Pro") font */
+
+            /* 20-3f  !"#...=>? */
+            if (((c >= 0x20) && (c <= 0x2f)) ||
+                ((c >= 0x30) && (c <= 0x3f))
+            ) {
+                /* exclude some ranges from utf conversion */
+            /* 40-5a  @ab... */
+            } else if (c == 0x40) {
+                c = '@';
+            } else if ((c >= 0x41) && (c <= 0x5a)) {
+                c += 0x20;
+            } else if (c == 0x5b) {
+                c = '[';
+            } else if (c == 0x5d) {
+                c = ']';
+            /* 51-7a  AB... */
+            } else if ((c >= 0x61) && (c <= 0x7a)) {
+                c -= 0x20;
+            } else {
+                /* convert the rest to utf8 */
+                if (c == 0) {
+                    /* 0 is a petscii control code, which we display as inverted @ */
+                    c = '@';
+                    b = c;
+                    utf = vice_gtk3_petscii_upper_to_utf8(&b, true);
+                    uimon_write_to_terminal(&fixed, (const char*)&utf[0], 3);
+                } else {
+                    b = c;
+                    utf = vice_gtk3_petscii_upper_to_utf8(&b, false);
+                    uimon_write_to_terminal(&fixed, (const char*)&utf[0], 3);
+                }
+            }
+        } else if (font_type == FONT_TYPE_PETME) {
+            /* FIXME */
+            if (c == 0) {
+                /* 0 is a petscii control code, which we display as inverted @ */
+                c = '@';
+                b = c;
+                utf = vice_gtk3_petscii_upper_to_utf8_petme(&b, true);
+                uimon_write_to_terminal(&fixed, (const char*)&utf[0], 3);
+            } else {
+                b = c;
+                utf = vice_gtk3_petscii_upper_to_utf8_petme(&b, false);
+                uimon_write_to_terminal(&fixed, (const char*)&utf[0], 3);
+            }
+        } else if (font_type == FONT_TYPE_PETME64) {
+            /* FIXME */
+            if (c == 0) {
+                /* 0 is a petscii control code, which we display as inverted @ */
+                c = '@';
+                b = c;
+                utf = vice_gtk3_petscii_upper_to_utf8_petme64(&b, true);
+                uimon_write_to_terminal(&fixed, (const char*)&utf[0], 3);
+            } else {
+                b = c;
+                utf = vice_gtk3_petscii_upper_to_utf8_petme64(&b, false);
+                uimon_write_to_terminal(&fixed, (const char*)&utf[0], 3);
+            }
+        }
+
+        if (utf) {
+            lib_free(utf);
+            utf = NULL;
+        } else {
+            uimon_write_to_terminal(&fixed, (const char*)&c, 1);
+        }
+        n++;
+    }
+
+    return 0;
+}
+
+/* output screencode, lowercase */
+int uimon_scrcode_out(const char *buffer, int len)
+{
+    int n = 0;
+    unsigned char *utf = NULL;
+    uint8_t b;
+    uint8_t c;
+
+    if (native_monitor()) {
+        return uimonfb_scrcode_out(buffer, len);
+    }
+
+    while (n < len) {
+        c = buffer[n];
+
+        if (font_type == FONT_TYPE_ASCII) {
+            /* regular ASCII font */
+            c = charset_screencode_to_petscii(c);
+            c = charset_p_toascii(c, CONVERT_WITH_CTRLCODES);
+        } else if (font_type == FONT_TYPE_C64PRO) {
+            /* regular PETSCII capable ("C64 Pro") font */
+            b = c;
+            if (c == 0x00) {
+                b = '@';    /* Hack, this way we sneak the 0 in there */
+                utf = vice_gtk3_petscii_to_utf8(&b, c & 0x80 ? true : false, true);
+            } else {
+                utf = vice_gtk3_scrcode_to_utf8(&b, c & 0x80 ? true : false, true);
+            }
+            uimon_write_to_terminal(&fixed, (const char*)&utf[0], 3);
+        } else if (font_type == FONT_TYPE_PETME) {
+            /* FIXME: regular PETSCII capable ("PET Me") font */
+            int ch = c & 0x7f;
+            b = ch;
+            if (ch == 0x00) {
+                b = '@';    /* Hack, this way we sneak the 0 in there */
+                utf = vice_gtk3_petscii_to_utf8_petme(&b, c & 0x80 ? true : false, true);
+            } else {
+                utf = vice_gtk3_scrcode_to_utf8_petme(&b, c & 0x80 ? true : false, true);
+            }
+            uimon_write_to_terminal(&fixed, (const char*)&utf[0], 3);
+        } else if (font_type == FONT_TYPE_PETME64) {
+            /* FIXME: regular PETSCII capable ("PET Me") font */
+            int ch = c & 0x7f;
+            b = ch;
+            if (ch == 0x00) {
+                b = '@';    /* Hack, this way we sneak the 0 in there */
+                utf = vice_gtk3_petscii_to_utf8_petme64(&b, c & 0x80 ? true : false, true);
+            } else {
+                utf = vice_gtk3_scrcode_to_utf8_petme64(&b, c & 0x80 ? true : false, true);
+            }
+            uimon_write_to_terminal(&fixed, (const char*)&utf[0], 3);
+        }
+
+        if (utf) {
+            lib_free(utf);
+            utf = NULL;
+        } else {
+            uimon_write_to_terminal(&fixed, (const char*)&c, 1);
+        }
+        n++;
+    }
+    return 0;
+}
+
+/* output screencode, uppercase */
+int uimon_scrcode_upper_out(const char *buffer, int len)
+{
+    int n = 0;
+    unsigned char *utf = NULL;
+    uint8_t b;
+    uint8_t c;
+
+    if (native_monitor()) {
+        return uimonfb_scrcode_out(buffer, len);
+    }
+
+    while (n < len) {
+        c = buffer[n];
+
+        if (font_type == FONT_TYPE_ASCII) {
+            /* regular ASCII font */
+            c = charset_screencode_to_petscii(c);
+            c = charset_p_toascii(c, CONVERT_WITH_CTRLCODES);
+        } else if (font_type == FONT_TYPE_C64PRO) {
+            /* regular PETSCII capable ("C64 Pro") font */
+            b = c;
+            if (c == 0x00) {
+                b = '@';    /* Hack, this way we sneak the 0 in there */
+                utf = vice_gtk3_petscii_upper_to_utf8(&b, c & 0x80 ? true : false);
+            } else {
+                utf = vice_gtk3_scrcode_upper_to_utf8(&b, c & 0x80 ? true : false);
+            }
+            uimon_write_to_terminal(&fixed, (const char*)&utf[0], 3);
+        } else if (font_type == FONT_TYPE_PETME) {
+            /* FIXME: regular PETSCII capable ("PET Me") font */
+            int ch = c & 0x7f;
+            b = ch;
+            if (ch == 0x00) {
+                b = '@';    /* Hack, this way we sneak the 0 in there */
+                utf = vice_gtk3_petscii_upper_to_utf8_petme(&b, c & 0x80 ? true : false);
+            } else {
+                utf = vice_gtk3_scrcode_upper_to_utf8_petme(&b, c & 0x80 ? true : false);
+            }
+            uimon_write_to_terminal(&fixed, (const char*)&utf[0], 3);
+        } else if (font_type == FONT_TYPE_PETME64) {
+            /* FIXME: regular PETSCII capable ("PET Me") font */
+            int ch = c & 0x7f;
+            b = ch;
+            if (ch == 0x00) {
+                b = '@';    /* Hack, this way we sneak the 0 in there */
+                utf = vice_gtk3_petscii_upper_to_utf8_petme64(&b, c & 0x80 ? true : false);
+            } else {
+                utf = vice_gtk3_scrcode_upper_to_utf8_petme64(&b, c & 0x80 ? true : false);
+            }
+            uimon_write_to_terminal(&fixed, (const char*)&utf[0], 3);
+        }
+
+        if (utf) {
+            lib_free(utf);
+            utf = NULL;
+        } else {
+            uimon_write_to_terminal(&fixed, (const char*)&c, 1);
+        }
+        n++;
+    }
+    return 0;
+}
 
 int uimon_get_columns(struct console_private_s *t)
 {
     if(t->term) {
         return (int)vte_terminal_get_column_count(VTE_TERMINAL(t->term));
     }
-    return 80;
+    return DEFAULT_COLUMNS;
 }
 
 static char* append_char_to_input_buffer(char *old_input_buffer, char new_char)
@@ -403,10 +739,10 @@ static gboolean ctrl_plus_key_pressed(char **input_buffer, guint keyval, GtkWidg
             return TRUE;
 #ifndef MACOS_COMPILE
         case GDK_KEY_c:
+            vte_terminal_copy_clipboard_format(VTE_TERMINAL(terminal), VTE_FORMAT_ASCII);
+            return TRUE;
         case GDK_KEY_C:
-            vte_terminal_copy_clipboard(VTE_TERMINAL(terminal));
-            /* _format only exists in bleeding edge VTE 0.50 */
-            /* vte_terminal_copy_clipboard_format(VTE_TERMINAL(terminal), VTE_FORMAT_TEXT); */
+            vte_terminal_copy_clipboard_format(VTE_TERMINAL(terminal), VTE_FORMAT_TEXT);
             return TRUE;
         case GDK_KEY_v:
         case GDK_KEY_V:
@@ -425,10 +761,10 @@ static gboolean cmd_plus_key_pressed(char **input_buffer, guint keyval, GtkWidge
         default:
             return FALSE;
         case GDK_KEY_c:
+            vte_terminal_copy_clipboard_format(VTE_TERMINAL(terminal), VTE_FORMAT_ASCII);
+            return TRUE;
         case GDK_KEY_C:
-            vte_terminal_copy_clipboard(VTE_TERMINAL(terminal));
-            /* _format only exists in bleeding edge VTE 0.50 */
-            /* vte_terminal_copy_clipboard_format(VTE_TERMINAL(terminal), VTE_FORMAT_TEXT); */
+            vte_terminal_copy_clipboard_format(VTE_TERMINAL(terminal), VTE_FORMAT_TEXT);
             return TRUE;
         case GDK_KEY_v:
         case GDK_KEY_V:
@@ -578,6 +914,105 @@ static void get_terminal_size_in_chars(VteTerminal *terminal,
     *height = vte_terminal_get_row_count(terminal);
 }
 
+static void printfontinfo(const PangoFontDescription* desc, const char *name)
+{
+#if PANGO_VERSION_CHECK(1, 42, 0)
+    const char *variations = pango_font_description_get_variations(desc);
+#else
+    const char *variations = "UNKNOWN(pre-1.42)";
+#endif
+    log_message(monui_log, "using font '%s' (Family:%s, Size:%d, Variations:%s) PETSCII:%s Terminal Scale:%f",
+                name,
+                pango_font_description_get_family(desc),
+                pango_font_description_get_size(desc) / PANGO_SCALE,
+                variations ? variations : "-",
+                font_type != FONT_TYPE_ASCII ? "yes" : "no",
+                vte_terminal_get_font_scale(VTE_TERMINAL(fixed.term)));
+}
+
+static void scale_terminal_set(gdouble scale)
+{
+    /* use vte scaling */
+    if (scale < ((3 * 100.0f) / PANGO_SCALE)) {
+        scale = ((3 * 100.0f) / PANGO_SCALE);
+    } else if (scale > ((100 * 100.0f) / PANGO_SCALE)) {
+        scale = ((100 * 100.0f) / PANGO_SCALE);
+    }
+    vte_terminal_set_font_scale(VTE_TERMINAL(fixed.term), scale);
+}
+
+static void scale_terminal(gdouble delta)
+{
+    gdouble curr_scaling = vte_terminal_get_font_scale(VTE_TERMINAL(fixed.term));
+#if 0
+    /* change the font size */
+    static int size = -1;
+    desc_tmp = vte_terminal_get_font(VTE_TERMINAL(fixed.term));
+    desc = pango_font_description_copy_static(desc_tmp);
+    if (size == -1) {
+        size = (pango_font_description_get_size(desc) / PANGO_SCALE);
+        if (size <= 0) {
+            size = 11;  /* default fallback size */
+        }
+    }
+
+    size -= scrollevent.delta_y;
+    if (size < 3) {
+        size = 3;
+    } else if (size > 100) {
+        size = 100;
+    }
+
+    pango_font_description_set_size(desc, size * PANGO_SCALE);
+    vte_terminal_set_font(VTE_TERMINAL(fixed.term), desc);
+#else
+    /* use vte scaling */
+    curr_scaling -= delta;
+    if (curr_scaling < ((3 * 100.0f) / PANGO_SCALE)) {
+        curr_scaling = ((3 * 100.0f) / PANGO_SCALE);
+    } else if (curr_scaling > ((100 * 100.0f) / PANGO_SCALE)) {
+        curr_scaling = ((100 * 100.0f) / PANGO_SCALE);
+    }
+    vte_terminal_set_font_scale(VTE_TERMINAL(fixed.term), curr_scaling);
+#endif
+}
+
+static gboolean on_term_scrolled(VteTerminal *terminal, GdkEvent  *event,
+                                 gpointer      user_data)
+{
+
+
+    const PangoFontDescription *desc_tmp;
+    PangoFontDescription* desc;
+    char *using_font = NULL;
+    GdkEventScroll scrollevent = *((GdkEventScroll*)event);
+
+    if (scrollevent.state & GDK_CONTROL_MASK) {
+        /* with control pressed, mouse wheel will scale the terminal/font */
+        scale_terminal((scrollevent.delta_y * (100.0f / 3.0f)) / PANGO_SCALE);
+
+        desc_tmp = vte_terminal_get_font(VTE_TERMINAL(fixed.term));
+        desc = pango_font_description_copy_static(desc_tmp);
+
+        using_font = pango_font_description_to_string(desc);
+        printfontinfo(desc, using_font);
+
+        g_free(using_font);
+        return FALSE;
+    } else {
+        /* mouse wheel scrolls the terminal (scrollback) forth/back */
+        GtkAdjustment* vadj = gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(fixed.term));
+        gdouble value = gtk_adjustment_get_value(vadj);
+        value += scrollevent.delta_y * 1;
+        gtk_adjustment_set_value(vadj, value);
+        gtk_scrollable_set_vadjustment(GTK_SCROLLABLE(fixed.term), vadj);
+
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
 /** \brief  Handler for the 'text-modified event of the VTE terminal
  *
  * \param[in]   terminal    VTE terminal
@@ -644,6 +1079,10 @@ static void on_window_configure_event(GtkWidget *window,
     }
 
     vte_terminal_set_size(VTE_TERMINAL(fixed.term), newwidth, newheight);
+    /* printf("on_window_configure_event %lix%li\n", newwidth, newheight); */
+    /* update the console size */
+    vte_console.console_xres = (unsigned int)newwidth;
+    vte_console.console_yres = (unsigned int)newheight;
 }
 
 /** \brief  Create an icon by loading it from the vice.gresource file
@@ -668,40 +1107,90 @@ console_t *uimonfb_window_open(void);
  *
  * \return  boolean
  */
+
+static PangoFontDescription* getfontdesc(const char *name)
+{
+    PangoFontDescription* desc = pango_font_description_from_string(name);
+
+    if (desc == NULL) {
+        log_warning(monui_log, "Failed to parse Pango font description '%s'", name);
+        return NULL;
+    }
+
+    return desc;
+}
+
 bool uimon_set_font(void)
 {
     const PangoFontDescription *desc_tmp;
     PangoFontDescription* desc;
     const char *monitor_font = NULL;
+    char *using_font = NULL;
     GList *widgets;
     GList *box;
     const char *bg;
     const char *fg;
     GdkRGBA color;
 
+    font_type = FONT_TYPE_ASCII;
+
     if (resources_get_string("MonitorFont", &monitor_font) < 0) {
-        log_error(LOG_ERR, "Failed to read 'MonitorFont' resource.");
+        log_error(monui_log, "Failed to read 'MonitorFont' resource.");
         return false;
     }
 
     if (fixed.term == NULL) {
-        log_error(LOG_ERR, "No monitor instance found.");
+        log_error(monui_log, "No monitor instance found.");
         return false;
     }
 
+    /* NOTE: the Pango API is kindof of weird, in that it never lets us know if
+             a font does actually exist, or if a font description (string)
+             matches whatever. We can only guess... */
+
     /* try to set monitor font */
-    desc = pango_font_description_from_string(monitor_font);
+    desc = getfontdesc(monitor_font);
     if (desc == NULL) {
         /* fall back */
-        log_warning(LOG_ERR, "Failed to parse Pango font description, falling"
-                " back to default font.");
 
-        desc_tmp = vte_terminal_get_font(VTE_TERMINAL(fixed.term));
-        desc = pango_font_description_copy_static(desc_tmp);
-        pango_font_description_set_family(desc, "Consolas,monospace");
-        pango_font_description_set_size(desc, 11 * PANGO_SCALE);
+        /* if we didn't try to set the default C64 font, try it now */
+        if (!strcmp("C64 Pro", monitor_font)) {
+            desc = getfontdesc("C64 Pro Mono Regular 9");
+        }
+
+        if (desc == NULL) {
+            /* last resort, some Monospace 11pt */
+            desc_tmp = vte_terminal_get_font(VTE_TERMINAL(fixed.term));
+            desc = pango_font_description_copy_static(desc_tmp);
+            pango_font_description_set_family(desc, "Mono");
+            pango_font_description_set_size(desc, 11 * PANGO_SCALE);
+        }
     }
     vte_terminal_set_font(VTE_TERMINAL(fixed.term), desc);
+
+    desc_tmp = vte_terminal_get_font(VTE_TERMINAL(fixed.term));
+    using_font = pango_font_description_to_string(desc_tmp);
+    if(!strncasecmp("c64 pro", using_font, 7)) {
+        log_message(monui_log, "'C64 Pro*' font found, enabling PETSCII output.");
+        font_type = FONT_TYPE_C64PRO;
+    } else if(!strncasecmp("pet me 64", using_font, 9) ||
+              !strncasecmp("pet me 128", using_font, 10)) {
+        log_message(monui_log, "'PET Me 64/128*' font found, enabling PETSCII output.");
+        font_type = FONT_TYPE_PETME64;
+    } else if(!strncasecmp("pet me", using_font, 6)) {
+        log_message(monui_log, "'PET Me*' font found, enabling PETSCII output.");
+        font_type = FONT_TYPE_PETME;
+    }
+    scale_terminal_set(1.0f);
+    printfontinfo(desc_tmp, using_font);
+
+    if (resources_set_string("MonitorFont", using_font) < 0) {
+        log_error(monui_log, "Failed to set 'MonitorFont' resource.");
+        return false;
+    }
+
+    g_free(using_font);
+
     pango_font_description_free(desc);
 
     /* try background color */
@@ -798,14 +1287,17 @@ static gboolean uimon_window_open_impl(gpointer user_data)
         fixed.window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
         gtk_window_set_title(GTK_WINDOW(fixed.window), "VICE monitor");
 
-        resources_get_int("MonitorXpos", &xpos);
-        resources_get_int("MonitorYpos", &ypos);
+        resources_get_int("MonitorXPos", &xpos);
+        resources_get_int("MonitorYPos", &ypos);
         if (xpos == INT_MIN || ypos == INT_MIN) {
             /* Only center if we didn't get either a previous position or
              * the position was set via the command line.
              */
             gtk_window_set_position(GTK_WINDOW(fixed.window), GTK_WIN_POS_CENTER);
         }
+        /* Set the gravity so that gtk doesn't over-compensate for the
+         * window's border width when saving/restoring its position. */
+        gtk_window_set_gravity(GTK_WINDOW(fixed.window), GDK_GRAVITY_STATIC);
         gtk_widget_set_app_paintable(fixed.window, TRUE);
         gtk_window_set_deletable(GTK_WINDOW(fixed.window), TRUE);
 
@@ -839,6 +1331,8 @@ static gboolean uimon_window_open_impl(gpointer user_data)
                                      GDK_HINT_USER_POS |
                                      GDK_HINT_USER_SIZE);
 
+        vte_terminal_set_size(VTE_TERMINAL(fixed.term), DEFAULT_COLUMNS, DEFAULT_ROWS);
+
         scrollbar = gtk_scrollbar_new(GTK_ORIENTATION_VERTICAL,
                 gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(fixed.term)));
 
@@ -868,6 +1362,11 @@ static gboolean uimon_window_open_impl(gpointer user_data)
         g_signal_connect_unlocked(G_OBJECT(fixed.term),
                                   "text-modified",
                                   G_CALLBACK(on_term_text_modified),
+                                  NULL);
+
+        g_signal_connect_unlocked(G_OBJECT(fixed.term),
+                                  "scroll-event",
+                                  G_CALLBACK(on_term_scrolled),
                                   NULL);
 
         /* can this actually be connected unlocked, we're setting resources here? */
@@ -962,6 +1461,10 @@ static gboolean uimon_window_close_impl(gpointer user_data)
 
 console_t *uimon_window_open(bool display_now)
 {
+    if (monui_log == LOG_DEFAULT) {
+        monui_log = log_open("Monitor UI");
+    }
+
     if (native_monitor()) {
         return uimonfb_window_open();
     }

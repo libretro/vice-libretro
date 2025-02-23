@@ -77,9 +77,7 @@ typedef struct ui_menu_item_s {
      */
     ui_menu_item_type_t type;
 
-    /** \brief  UI action name
-     *
-     * UI action ID as defined in uiactions.h.
+    /** \brief  UI action ID as defined in uiactions.h
      *
      * The action ID is used for the hotkeys to be able to set and alter the
      * hotkey assigned to the menu item.
@@ -90,7 +88,7 @@ typedef struct ui_menu_item_s {
      *          will lead to the hotkeys code updating the first matching action
      *          it finds and ignoring the other actions with the same name.
      */
-    int action_id;
+    int action;
 
     /** \brief  Submenu
      *
@@ -106,17 +104,26 @@ typedef struct ui_menu_item_s {
      */
     bool unlocked;
 
+    /** \brief  Use the 'activate' signal instead of the 'toggled' signal
+     *
+     * If a menu item is radio button, use the 'activate' signal instead of the
+     * 'toggled' signal so radio buttons that are already selected (e.g
+     * "Custom FPS" still activate their dialog when selected again.
+     * Has no meaning for other types of menu items.
+     */
+    bool activate;
+
 } ui_menu_item_t;
 
 
 /** \brief  Terminator of a menu items list
  */
-#define UI_MENU_TERMINATOR { NULL, UI_MENU_TYPE_GUARD, 0, NULL, false }
+#define UI_MENU_TERMINATOR { .label = NULL, .type = UI_MENU_TYPE_GUARD }
 
 
 /** \brief  Menu items separator
  */
-#define UI_MENU_SEPARATOR { "---", UI_MENU_TYPE_SEPARATOR, 0, NULL, false }
+#define UI_MENU_SEPARATOR { .label = "---", .type = UI_MENU_TYPE_SEPARATOR }
 
 
 /** \brief  Platform-dependent accelerator key defines

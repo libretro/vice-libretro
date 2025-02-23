@@ -46,6 +46,9 @@
 
 #include "settings_mmcr.h"
 
+/** \brief  Temporary define to make editing easier */
+#define CARTNAME    CARTRIDGE_NAME_MMC_REPLAY
+
 
 /** \brief  List of memory card types
  */
@@ -70,9 +73,10 @@ static void save_filename_callback(GtkDialog *dialog,
 {
     if (filename != NULL) {
         if (cartridge_save_image(CARTRIDGE_MMC_REPLAY, filename) < 0) {
-            vice_gtk3_message_error(CARTRIDGE_NAME_MMC_REPLAY " Error",
+            vice_gtk3_message_error(GTK_WINDOW(dialog),
+                                    CARTNAME " Error",
                                     "Failed to save image as '%s'",
-                    filename);
+                                    filename);
         }
         g_free(filename);
     }
@@ -88,7 +92,7 @@ static void on_save_clicked(GtkWidget *widget, gpointer user_data)
 {
     GtkWidget *dialog;
 
-    dialog = vice_gtk3_save_file_dialog("Save " CARTRIDGE_NAME_MMC_REPLAY " image",
+    dialog = vice_gtk3_save_file_dialog("Save " CARTNAME " image",
                                         NULL, TRUE, NULL,
                                         save_filename_callback,
                                         NULL);
@@ -102,8 +106,14 @@ static void on_save_clicked(GtkWidget *widget, gpointer user_data)
  */
 static void on_flush_clicked(GtkWidget *widget, gpointer user_data)
 {
+    GtkWidget *parent = gtk_widget_get_toplevel(widget);
+
+    if (!GTK_IS_WINDOW(parent)) {
+        parent = NULL;  /* make error dialog default to active window */
+    }
     if (cartridge_flush_image(CARTRIDGE_MMC_REPLAY) < 0) {
-        vice_gtk3_message_error(CARTRIDGE_NAME_MMC_REPLAY "Error",
+        vice_gtk3_message_error(GTK_WINDOW(parent),
+                                CARTNAME "Error",
                                 "Failed to flush image.");
     }
 }
@@ -153,7 +163,7 @@ static int create_eeprom_layout(GtkWidget *grid, int row, int columns)
 
     label = gtk_label_new(NULL);
     gtk_label_set_markup(GTK_LABEL(label),
-                         "<b>" CARTRIDGE_NAME_MMC_REPLAY " EEPROM</b>");
+                         "<b>" CARTNAME " EEPROM</b>");
     gtk_widget_set_halign(label, GTK_ALIGN_START);
     gtk_widget_set_margin_top(label, 8);
     gtk_grid_attach(GTK_GRID(grid), label, 0, row, columns, 1);
@@ -162,7 +172,7 @@ static int create_eeprom_layout(GtkWidget *grid, int row, int columns)
     label  = gtk_label_new("Image file");
     eeprom = vice_gtk3_resource_filechooser_new("MMCREEPROMImage",
                                                 GTK_FILE_CHOOSER_ACTION_OPEN);
-    title  = "Select " CARTRIDGE_NAME_MMC_REPLAY " EEPROM image file";
+    title  = "Select " CARTNAME " EEPROM image file";
     vice_gtk3_resource_filechooser_set_custom_title(eeprom, title);
     gtk_widget_set_halign(label, GTK_ALIGN_START);
 
@@ -196,7 +206,7 @@ static int create_card_layout(GtkWidget *grid, int row, int columns)
 
     label = gtk_label_new(NULL);
     gtk_label_set_markup(GTK_LABEL(label),
-                         "<b>" CARTRIDGE_NAME_MMC_REPLAY "SD/MMC Card</b>");
+                         "<b>" CARTNAME "SD/MMC Card</b>");
     gtk_widget_set_halign(label, GTK_ALIGN_START);
     gtk_widget_set_margin_top(label, 16);
     gtk_grid_attach(GTK_GRID(grid), label, 0, row, columns, 1);
@@ -205,7 +215,7 @@ static int create_card_layout(GtkWidget *grid, int row, int columns)
     label = gtk_label_new("Image file");
     image = vice_gtk3_resource_filechooser_new("MMCRCardImage",
                                                GTK_FILE_CHOOSER_ACTION_OPEN);
-    title = "Select " CARTRIDGE_NAME_MMC_REPLAY " SD/MMC card image file";
+    title = "Select " CARTNAME " SD/MMC card image file";
     vice_gtk3_resource_filechooser_set_custom_title(image, title);
     gtk_widget_set_halign(label, GTK_ALIGN_START);
     gtk_grid_attach(GTK_GRID(grid), label, 0, row, 1,           1);
@@ -248,7 +258,7 @@ static int create_cart_image_layout(GtkWidget *grid, int row, int columns)
 
     label = gtk_label_new(NULL);
     gtk_label_set_markup(GTK_LABEL(label),
-                         "<b>" CARTRIDGE_NAME_MMC_REPLAY " Cartridge Image</b>");
+                         "<b>" CARTNAME " Cartridge Image</b>");
     gtk_widget_set_halign(label, GTK_ALIGN_START);
     gtk_widget_set_margin_top(label, 16);
     gtk_grid_attach(GTK_GRID(grid), label, 0, row, columns, 1);
@@ -322,3 +332,5 @@ GtkWidget *settings_mmcr_widget_create(GtkWidget *parent)
     gtk_widget_show_all(grid);
     return grid;
 }
+
+#undef CARTNAME

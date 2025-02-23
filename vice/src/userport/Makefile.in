@@ -113,7 +113,8 @@ libuserport_a_LIBADD =
 am_libuserport_a_OBJECTS = userport.$(OBJEXT) \
 	userport_4bit_sampler.$(OBJEXT) userport_8bss.$(OBJEXT) \
 	userport_dac.$(OBJEXT) userport_diag_586220_harness.$(OBJEXT) \
-	userport_digimax.$(OBJEXT) userport_hks_joystick.$(OBJEXT) \
+	userport_diag_pin.$(OBJEXT) userport_digimax.$(OBJEXT) \
+	userport_hks_joystick.$(OBJEXT) \
 	userport_hummer_joystick.$(OBJEXT) userport_io_sim.$(OBJEXT) \
 	userport_joystick.$(OBJEXT) userport_petscii_snespad.$(OBJEXT) \
 	userport_rtc_58321a.$(OBJEXT) userport_rtc_ds1307.$(OBJEXT) \
@@ -140,6 +141,7 @@ am__depfiles_remade = ./$(DEPDIR)/userport.Po \
 	./$(DEPDIR)/userport_4bit_sampler.Po \
 	./$(DEPDIR)/userport_8bss.Po ./$(DEPDIR)/userport_dac.Po \
 	./$(DEPDIR)/userport_diag_586220_harness.Po \
+	./$(DEPDIR)/userport_diag_pin.Po \
 	./$(DEPDIR)/userport_digimax.Po \
 	./$(DEPDIR)/userport_hks_joystick.Po \
 	./$(DEPDIR)/userport_hummer_joystick.Po \
@@ -397,6 +399,8 @@ install_sh = @install_sh@
 libcurl_CFLAGS = @libcurl_CFLAGS@
 libcurl_LIBS = @libcurl_LIBS@
 libdir = @libdir@
+libevdev_CFLAGS = @libevdev_CFLAGS@
+libevdev_LIBS = @libevdev_LIBS@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
@@ -438,6 +442,10 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src/joyport \
 	-I$(top_srcdir)/src/samplerdrv \
 	-I$(top_srcdir)/src/diag \
+	-I$(top_srcdir)/src/printerdrv \
+	-I$(top_srcdir)/src/rs232drv \
+	-I$(top_srcdir)/src/c64 \
+	-I$(top_srcdir)/src/plus4 \
 	-I$(top_srcdir)/src/drive
 
 AM_CFLAGS = @VICE_CFLAGS@
@@ -455,6 +463,8 @@ libuserport_a_SOURCES = \
 	userport_dac.h \
 	userport_diag_586220_harness.c \
 	userport_diag_586220_harness.h \
+	userport_diag_pin.c \
+	userport_diag_pin.h \
 	userport_digimax.c \
 	userport_digimax.h \
 	userport_hks_joystick.c \
@@ -535,6 +545,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_8bss.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_dac.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_diag_586220_harness.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_diag_pin.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_digimax.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_hks_joystick.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_hummer_joystick.Po@am__quote@ # am--include-marker
@@ -697,6 +708,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/userport_8bss.Po
 	-rm -f ./$(DEPDIR)/userport_dac.Po
 	-rm -f ./$(DEPDIR)/userport_diag_586220_harness.Po
+	-rm -f ./$(DEPDIR)/userport_diag_pin.Po
 	-rm -f ./$(DEPDIR)/userport_digimax.Po
 	-rm -f ./$(DEPDIR)/userport_hks_joystick.Po
 	-rm -f ./$(DEPDIR)/userport_hummer_joystick.Po
@@ -760,6 +772,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/userport_8bss.Po
 	-rm -f ./$(DEPDIR)/userport_dac.Po
 	-rm -f ./$(DEPDIR)/userport_diag_586220_harness.Po
+	-rm -f ./$(DEPDIR)/userport_diag_pin.Po
 	-rm -f ./$(DEPDIR)/userport_digimax.Po
 	-rm -f ./$(DEPDIR)/userport_hks_joystick.Po
 	-rm -f ./$(DEPDIR)/userport_hummer_joystick.Po

@@ -63,7 +63,6 @@
 #include "log.h"
 #include "machine.h"
 #include "resources.h"
-#include "rommanager.h"
 #include "ui.h"
 #include "uiactions.h"
 #include "uimachinewindow.h"
@@ -133,7 +132,7 @@
 #include "settings_retroreplay.h"
 #include "settings_reu.h"
 #include "settings_rexramfloppy.h"
-#include "settings_romset.h"
+#include "settings_rom.h"
 #ifdef HAVE_RAWNET
 # include "settings_rrnetmk3.h"
 #endif
@@ -773,6 +772,20 @@ static ui_settings_tree_node_t plus4_io_extensions[] = {
 };
 /* }}} */
 
+/* {{{ cbm2_io_extensions */
+/** \brief  List of CBM2 I/O extensions
+ */
+static ui_settings_tree_node_t cbm2_io_extensions[] = {
+    { "Default cartridge",
+      "default-cart",
+      settings_default_cart_widget_create, NULL },
+
+    UI_SETTINGS_SEPARATOR,
+
+    UI_SETTINGS_TERMINATOR
+};
+/* }}} */
+
 /* {{{ pet_io_extensions */
 /** \brief  List of PET I/O extensions
  */
@@ -877,12 +890,7 @@ static ui_settings_tree_node_t machine_nodes_c64[] = {
       settings_model_widget_create, NULL },
     { "ROM",
       "rom",
-      settings_romset_widget_create, NULL },
-#ifdef HAVE_DEBUG_GTK3UI
-    { "ROM Manager (WIP!)",
-      "rom-manager",
-      rom_manager_new, NULL },
-#endif
+      settings_rom_widget_create, NULL },
     { "RAM",
       "ram",
       settings_ramreset_widget_create, NULL },
@@ -1016,12 +1024,7 @@ static ui_settings_tree_node_t machine_nodes_c64dtv[] = {
       settings_model_widget_create, NULL },
     { "ROM",
       "rom",
-      settings_romset_widget_create, NULL },
-#ifdef HAVE_DEBUG_GTK3UI
-    { "ROM Manager (WIP!)",
-      "rom-manager",
-      rom_manager_new, NULL },
-#endif
+      settings_rom_widget_create, NULL },
     { "RAM",
       "ram",
       settings_ramreset_widget_create, NULL },
@@ -1135,12 +1138,7 @@ static ui_settings_tree_node_t machine_nodes_c128[] = {
       settings_model_widget_create, NULL },
     { "ROM",
       "rom",
-      settings_romset_widget_create, NULL },
-#ifdef HAVE_DEBUG_GTK3UI
-    { "ROM Manager (WIP!)",
-      "rom-manager",
-      rom_manager_new, NULL },
-#endif
+      settings_rom_widget_create, NULL },
     { "RAM",
       "ram",
       settings_ramreset_widget_create, NULL },
@@ -1281,12 +1279,7 @@ static ui_settings_tree_node_t machine_nodes_scpu64[] = {
       settings_scpu64_widget_create, NULL },
     { "ROM",
       "rom",
-      settings_romset_widget_create, NULL },
-#ifdef HAVE_DEBUG_GTK3UI
-    { "ROM Manager (WIP!)",
-      "rom-manager",
-      rom_manager_new, NULL },
-#endif
+      settings_rom_widget_create, NULL },
     { "RAM",
       "ram",
       settings_ramreset_widget_create, NULL },
@@ -1413,12 +1406,7 @@ static ui_settings_tree_node_t machine_nodes_vic20[] = {
       settings_model_widget_create, NULL },
     { "ROM",
       "rom",
-      settings_romset_widget_create, NULL },
-#ifdef HAVE_DEBUG_GTK3UI
-    { "ROM Manager (WIP!)",
-      "rom-manager",
-      rom_manager_new, NULL },
-#endif
+      settings_rom_widget_create, NULL },
     { "RAM",
       "ram",
       settings_ramreset_widget_create, NULL },
@@ -1553,12 +1541,7 @@ static ui_settings_tree_node_t machine_nodes_plus4[] = {
        settings_model_widget_create, NULL },
     { "ROM",
       "rom",
-       settings_romset_widget_create, NULL },
-#ifdef HAVE_DEBUG_GTK3UI
-    { "ROM Manager (WIP!)",
-      "rom-manager",
-      rom_manager_new, NULL },
-#endif
+       settings_rom_widget_create, NULL },
     { "RAM",
       "ram",
       settings_ramreset_widget_create, NULL },
@@ -1680,12 +1663,7 @@ static ui_settings_tree_node_t machine_nodes_pet[] = {
       settings_model_widget_create, NULL },
     { "ROM",
       "rom",
-      settings_romset_widget_create, NULL },
-#ifdef HAVE_DEBUG_GTK3UI
-    { "ROM Manager (WIP!)",
-      "rom-manager",
-      rom_manager_new, NULL },
-#endif
+      settings_rom_widget_create, NULL },
     { "RAM",
       "ram",
       settings_ramreset_widget_create, NULL },
@@ -1807,12 +1785,7 @@ static ui_settings_tree_node_t machine_nodes_cbm5x0[] = {
       settings_model_widget_create, NULL },
     { "ROM",
       "rom",
-      settings_romset_widget_create, NULL },
-#ifdef HAVE_DEBUG_GTK3UI
-    { "ROM Manager (WIP!)",
-      "rom-manager",
-      rom_manager_new, NULL },
-#endif
+      settings_rom_widget_create, NULL },
     { "RAM",
       "ram",
       settings_ramreset_widget_create, NULL },
@@ -1913,6 +1886,7 @@ static ui_settings_tree_node_t main_nodes_cbm5x0[] = {
     { "Audio",              "audio",        NULL,   audio_nodes_cbm5x0 },
     { "Input devices",      "input",        NULL,   input_nodes_cbm5x0 },
     { "Peripheral devices", "peripheral",   NULL,   peripheral_nodes_cbm5x0 },
+    { "Cartridges",         "cartridges",   NULL,   cbm2_io_extensions },
     UI_SETTINGS_TERMINATOR
 };
 /* }}} */
@@ -1931,12 +1905,7 @@ static ui_settings_tree_node_t machine_nodes_cbm6x0[] = {
       settings_model_widget_create, NULL },
     { "ROM",
       "rom",
-      settings_romset_widget_create, NULL },
-#ifdef HAVE_DEBUG_GTK3UI
-    { "ROM Manager (WIP!)",
-      "rom-manager",
-      rom_manager_new, NULL },
-#endif
+      settings_rom_widget_create, NULL },
     { "RAM",
       "ram",
       settings_ramreset_widget_create, NULL },
@@ -2040,6 +2009,7 @@ static ui_settings_tree_node_t main_nodes_cbm6x0[] = {
     { "Audio",              "audio",        NULL,   audio_nodes_cbm6x0 },
     { "Input devices",      "input",        NULL,   input_nodes_cbm6x0 },
     { "Peripheral devices", "peripheral",   NULL,   peripheral_nodes_cbm6x0 },
+    { "Cartridges",         "cartridges",   NULL,   cbm2_io_extensions },
     UI_SETTINGS_TERMINATOR
 };
 /* }}} */
@@ -2322,7 +2292,7 @@ static GtkTreeStore *populate_tree_model(void)
             nodes = main_nodes_vsid;
             break;
         default:
-            log_error(LOG_ERR,
+            log_error(LOG_DEFAULT,
                       "Error: %s:%d:%s(): unsupported machine_class %d\n",
                       __FILE__, __LINE__, __func__, machine_class);
             archdep_vice_exit(1);
@@ -2719,12 +2689,12 @@ static gboolean ui_settings_dialog_activate_node(const char *path)
     int column = 0;
 
     if (settings_window == NULL) {
-        log_error(LOG_ERR, "settings dialog node activation requested without"
+        log_error(LOG_DEFAULT, "settings dialog node activation requested without"
                 " the dialog active.");
         return FALSE;
     }
     if (path == NULL || *path == '\0') {
-        log_error(LOG_ERR, "NULL or empty path passed.");
+        log_error(LOG_DEFAULT, "NULL or empty path passed.");
         return FALSE;
     }
 

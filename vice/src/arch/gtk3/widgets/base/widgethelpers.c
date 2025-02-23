@@ -50,7 +50,6 @@
 #include "widgethelpers.h"
 
 
-
 /** \brief  Get index of \a value in \a list
  *
  * Get the index in \a list for \a value. This function is required for custom
@@ -233,104 +232,5 @@ void vice_gtk3_grid_set_margins(GtkWidget *grid,
     if (end >= 0) {
         gtk_widget_set_margin_end(grid, end);
     }
-}
-
-
-/** \brief  Convert petscii encoded string to utf8 string we can show using the CBM font
- *
- * this function handles all characters that may appear in a directory listing,
- * including "non printable" control characters, which appear as inverted characters
- * in so called "quote mode".
- *
- * \param[in]   s           PETSCII string to convert to UTF-8
- * \param[in]   inverted    use inverted mode
- * \param[in]   lowercase   use the lowercase chargen
- *
- * \return  heap-allocated UTF-8 string, free with lib_free()
- *
- * \note    only valid for the "C64_Pro_Mono-STYLE.ttf" font, not the old
- *          "CBM.ttf" font.
- *
- * \note    Somehow the inverted space has a line on top on at least Linux,
- *          the codepoint seems fine though, so perhaps a bug in Pango?
- */
-unsigned char *vice_gtk3_petscii_to_utf8(unsigned char *s,
-                                         bool inverted,
-                                         bool lowercase)
-{
-    unsigned char *d, *r;
-    unsigned int codepoint;
-
-    r = d = lib_malloc((size_t)(strlen((char *)s) * 3 + 1));
-#if 0
-    debug_gtk3("Input: '%s'", s);
-#ifdef HAVE_DEBUG_GTK3UI
-    unsigned char *t = s;
-    while (*t) {
-        printf(" %02x", *t++);
-    }
-    putchar('\n');
-#endif
-#endif
-    while (*s) {
-
-        /* 0xe000-0xe0ff codepoints cover the regular, uppercase, petscii codes
-                         in ranges 0x20-0x7f and 0xa0-0xff
-           0xe200-0xe2ff codepoints cover the same characters, but contain the
-                         respective inverted glyphs.
-
-           regular valid petscii codes are converted as is, petscii control
-           codes will produce the glyph that the petscii code would produce
-           in so called "quote mode".
-        */
-
-        /* first convert petscii to utf8 codepoint */
-        if (*s < 0x20) {
-            /* petscii 0x00-0x1f  control codes (inverted @ABC..etc) */
-            codepoint = *s + 0xe240;            /* 0xe240-0xe25f */
-        } else if (*s < 0x80) {
-            /* petscii 0x20-0x7f  printable petscii codes */
-            codepoint = *s + 0xe000;            /* 0xe020-0xe07f */
-        } else if (*s < 0xa0) {
-            /* petscii 0x80-0x9f  control codes (inverted SHIFT+@ABC..etc) */
-            codepoint = (*s - 0x80) + 0xe260;   /* 0xe260-0xe27f */
-        } else {
-            /* petscii 0xa0-0xff  printable petscii codes */
-            codepoint = *s + 0xe000;            /* 0xe0a0-0xe0ff */
-        }
-        if (inverted) {
-            codepoint ^= 0x0200;                /* 0xe0XX <-> 0xe2XX */
-        }
-        /* switch to lower case if requested */
-        if (lowercase) {
-            codepoint ^= 0x0100;
-        }
-        s++;
-
-#if 0
-        if (codepoint == 0xe220) {
-            codepoint = 0xeee4;
-        }
-#endif
-        /* now copy to the destination string and convert to utf8 */
-        /* we can get away with just this, because all codepoints are > 4095 */
-        /* three byte form - 1110xxxx 10xxxxxx 10xxxxxx */
-        *d++ = 0xe0 | ((codepoint >> 12) & 0x0f);
-        *d++ = 0x80 | ((codepoint >> (6)) & 0x3f);
-        *d   = 0x80 | ((codepoint >> (0)) & 0x3f);
-        d++;
-    }
-    *d = '\0';
-#if 0
-    debug_gtk3("Result: ");
-#ifdef HAVE_DEBUG_GTK3UI
-    t = r;
-    while (*t) {
-        printf(" %02x", *t++);
-    }
-    putchar('\n');
-#endif
-#endif
-    return r;
 }
 

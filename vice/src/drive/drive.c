@@ -79,6 +79,12 @@
 #include "monitor_binary.h"
 #include "vsync.h"
 
+#ifdef DEBUG_DRIVE
+#define DBG(x) log_printf x
+#else
+#define DBG(x)
+#endif
+
 #ifdef __LIBRETRO__
 #include <stdbool.h>
 #include "vsync.h"
@@ -95,18 +101,12 @@ static int warpmode_counter_ledoff = 0;
 static int drive_half_track_prev = 0;
 #endif
 
-#ifdef DEBUG_DRIVE
-#define DBG(x) log_debug x
-#else
-#define DBG(x)
-#endif
-
 static int drive_init_was_called = 0;
 
 diskunit_context_t *diskunit_context[NUM_DISK_UNITS];
 
 /* Generic drive logging goes here.  */
-static log_t drive_log = LOG_ERR;
+static log_t drive_log = LOG_DEFAULT;
 
 /* If nonzero, at least one vaild drive ROM has already been loaded.  */
 int rom_loaded = 0;
@@ -586,43 +586,38 @@ void drive_cpu_early_init_all(void)
     }
 }
 
+/* reset one drive only */
 void drive_cpu_trigger_reset(unsigned int dnr)
 {
+    unsigned int d;
     diskunit_context_t *unit = diskunit_context[dnr];
 
-    if (unit->type == DRIVE_TYPE_2000 || unit->type == DRIVE_TYPE_4000 ||
+    if (unit->type == DRIVE_TYPE_2000 ||
+        unit->type == DRIVE_TYPE_4000 ||
         unit->type == DRIVE_TYPE_CMDHD) {
-        drivecpu65c02_trigger_reset(dnr);
+        drivecpu65c02_reset(diskunit_context[dnr]);
     } else {
-        drivecpu_trigger_reset(dnr);
+        drivecpu_reset(diskunit_context[dnr]);
     }
+
+    for (d = 0; d < NUM_DRIVES; d++) {
+        drive_t *drive = unit->drives[d];
+
+        drive->led_last_change_clk = *(unit->clk_ptr);
+        drive->led_last_uiupdate_clk = *(unit->clk_ptr);
+        drive->led_active_ticks = 0;
+    }
+
     is_jammed[dnr] = false;
 }
 
 /* called by machine_specific_reset() */
+/* reset all drives */
 void drive_reset(void)
 {
     unsigned int dnr;
-    unsigned int d;
-
     for (dnr = 0; dnr < NUM_DISK_UNITS; dnr++) {
-        diskunit_context_t *unit = diskunit_context[dnr];
-
-        if (unit->type == DRIVE_TYPE_2000 || unit->type == DRIVE_TYPE_4000 ||
-            unit->type == DRIVE_TYPE_CMDHD) {
-            drivecpu65c02_reset(diskunit_context[dnr]);
-        } else {
-            drivecpu_reset(diskunit_context[dnr]);
-        }
-
-        for (d = 0; d < NUM_DRIVES; d++) {
-            drive_t *drive = unit->drives[d];
-
-            drive->led_last_change_clk = *(unit->clk_ptr);
-            drive->led_last_uiupdate_clk = *(unit->clk_ptr);
-            drive->led_active_ticks = 0;
-        }
-        is_jammed[dnr] = false;
+        drive_cpu_trigger_reset(dnr);
     }
 }
 

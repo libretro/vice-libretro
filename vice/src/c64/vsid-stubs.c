@@ -566,7 +566,12 @@ tape_image_t *tape_internal_open_tape_image(const char *name, unsigned int read_
 
 int tape_seek_to_next_file(tape_image_t *tape_image, unsigned int allow_rewind)
 {
-    return 0;
+    return -1;
+}
+
+unsigned long tape_get_offset(tape_image_t *tape_image)
+{
+    return -1;
 }
 
 void tape_get_header(tape_image_t *tape_image, uint8_t *name)
@@ -1276,3 +1281,8 @@ bool driver_select_has_graphics_output(const char *drv_name)
 /*******************************************************************************
     UI
 *******************************************************************************/
+
+int userport_get_device(void)
+{
+    return 0;
+}

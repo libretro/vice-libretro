@@ -101,6 +101,17 @@ static void on_menu_item_activate(GtkWidget *item, gpointer action_id)
 #if 0
     debug_gtk3("Called with action ID %d", GPOINTER_TO_INT(action_id));
 #endif
+    /* Hack to support showing dialogs for radio buttons that are already
+     * activated: if a radio button has an 'activate' signal handler connected
+     * instead of a 'toggled' signal handler, we only want it to trigger a
+     * UI action if the radio is selected, otherwise selecting another radio
+     * button in the same group results in the UI action triggering anyway,
+     * showing a dialog for the custom CPU/FPS entries. */
+    if (GTK_IS_RADIO_MENU_ITEM(item) &&
+            !gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(item))) {
+        /* radio and not selected: ignore */
+        return;
+    }
     ui_action_trigger(GPOINTER_TO_INT(action_id));
 }
 
@@ -140,10 +151,11 @@ GtkWidget *ui_menu_add(GtkWidget *menu, const ui_menu_item_t *items, gint window
     size_t i = 0;
     GSList *group = NULL;
 
-    while (items[i].label != NULL || items[i].type >= 0) {
+    while (items[i].label != NULL || items[i].type != UI_MENU_TYPE_GUARD) {
         GtkWidget *item = NULL;
         GtkWidget *submenu;
-        gulong handler_id = 0;
+        gulong     handler_id = 0;
+        bool       is_radio;
 
         switch (items[i].type) {
             case UI_MENU_TYPE_ITEM_ACTION:
@@ -186,32 +198,43 @@ GtkWidget *ui_menu_add(GtkWidget *menu, const ui_menu_item_t *items, gint window
                 break;
         }
 
-        if (items[i].action_id > ACTION_NONE) {
-            /* radio buttons use the "toggled" event */
-            if (items[i].type == UI_MENU_TYPE_ITEM_RADIO_INT ||
-                    items[i].type == UI_MENU_TYPE_ITEM_RADIO_STR) {
+        /* make logic below more readable */
+        is_radio = (items[i].type == UI_MENU_TYPE_ITEM_RADIO_INT ||
+                    items[i].type == UI_MENU_TYPE_ITEM_RADIO_STR);
+
+        if (items[i].action > ACTION_NONE) {
+            /* radio buttons use the "toggled" event, unless they're marked
+             * with 'activate' == true, then we connect to the 'activate'
+             * signal */
+            if ((is_radio) && (!items[i].activate)) {
                 if (items[i].unlocked) {
                     handler_id = g_signal_connect_unlocked(
                             item, "toggled",
                             G_CALLBACK(on_menu_item_toggled),
-                            GINT_TO_POINTER(items[i].action_id));
+                            GINT_TO_POINTER(items[i].action));
                 } else {
                     handler_id = g_signal_connect(
                             item, "toggled",
                             G_CALLBACK(on_menu_item_toggled),
-                            GINT_TO_POINTER(items[i].action_id));
+                            GINT_TO_POINTER(items[i].action));
                 }
-            } else {
+            }
+
+            if ((!is_radio) || (items[i].activate)) {
+                /* either not a button radio or a radio button with its
+                 * 'activate' flag set to true: connect the 'activate' signal
+                 * handler.
+                 */
                 if (items[i].unlocked) {
                     handler_id = g_signal_connect_unlocked(
                             item, "activate",
                             G_CALLBACK(on_menu_item_activate),
-                            GINT_TO_POINTER(items[i].action_id));
+                            GINT_TO_POINTER(items[i].action));
                 } else {
                     handler_id = g_signal_connect(
                             item, "activate",
                             G_CALLBACK(on_menu_item_activate),
-                            GINT_TO_POINTER(items[i].action_id));
+                            GINT_TO_POINTER(items[i].action));
                 }
             }
         }
@@ -239,14 +262,14 @@ GtkWidget *ui_menu_add(GtkWidget *menu, const ui_menu_item_t *items, gint window
             /* set action name */
             g_object_set_data(G_OBJECT(item),
                               "ActionID",
-                              GINT_TO_POINTER(items[i].action_id));
+                              GINT_TO_POINTER(items[i].action));
 
             /* add item to table of references if it triggers a UI action */
-            if (items[i].action_id > ACTION_NONE) {
+            if (items[i].action > ACTION_NONE) {
                 ui_action_map_t *action_map;        /* ui-agnostic data */
 
                 /* add to hotkey maps or update */
-                action_map = ui_action_map_get(items[i].action_id);
+                action_map = ui_action_map_get(items[i].action);
                 if (action_map != NULL) {
                     vhk_gtk_map_t *arch_map;    /* gtk3-specific data */
 

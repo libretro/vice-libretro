@@ -227,10 +227,10 @@ void interrupt_fixup_int_clk(interrupt_cpu_status_t *cs, CLOCK cpu_clk,
 #ifdef DEBUGIRQDMA
     if (debug.maincpu_traceflg) {
         unsigned int i;
-        log_debug("INTREQ %ld NUMWR %i", (long)cpu_clk,
+        log_debug(LOG_DEFAULT, "INTREQ %ld NUMWR %i", (long)cpu_clk,
                   maincpu_num_write_cycles());
         for (i = 0; i < cs->num_dma_per_opcode; i++) {
-            log_debug("%iCYLEFT %i STCLK %i", i, cs->num_cycles_left[i],
+            log_debug(LOG_DEFAULT, "%iCYLEFT %i STCLK %i", i, cs->num_cycles_left[i],
                       cs->dma_start_clk[i]);
         }
     }
@@ -253,7 +253,7 @@ void interrupt_fixup_int_clk(interrupt_cpu_status_t *cs, CLOCK cpu_clk,
 
 #ifdef DEBUGIRQDMA
     if (debug.maincpu_traceflg) {
-        log_debug("TAKENLEFT %i   LASTSTOLENCYCLECLK %i", num_cycles_left, cs->last_stolen_cycles_clk);
+        log_debug(LOG_DEFAULT, "TAKENLEFT %i   LASTSTOLENCYCLECLK %i", num_cycles_left, cs->last_stolen_cycles_clk);
     }
 #endif
 
@@ -264,7 +264,7 @@ void interrupt_fixup_int_clk(interrupt_cpu_status_t *cs, CLOCK cpu_clk,
     }
 #ifdef DEBUGIRQDMA
     if (debug.maincpu_traceflg) {
-        log_debug("INTCLK dma shifted %i   (cs->dma_start_clk[0]=%i", *int_clk, cs->dma_start_clk[0]);
+        log_debug(LOG_DEFAULT, "INTCLK dma shifted %i   (cs->dma_start_clk[0]=%i", *int_clk, cs->dma_start_clk[0]);
     }
 #endif
 
@@ -274,7 +274,7 @@ void interrupt_fixup_int_clk(interrupt_cpu_status_t *cs, CLOCK cpu_clk,
 
 #ifdef DEBUGIRQDMA
     if (debug.maincpu_traceflg) {
-        log_debug("INTCLK fixed %i", *int_clk);
+        log_debug(LOG_DEFAULT, "INTCLK fixed %i", *int_clk);
     }
 #endif
 }
@@ -314,6 +314,9 @@ void interrupt_ack_reset(interrupt_cpu_status_t *cs)
 }
 
 /* Trigger a TRAP next cycle */
+
+extern log_t traps_log;
+
 void interrupt_maincpu_trigger_trap(void (*trap_func)(uint16_t, void *data),
                                     void *data)
 {
@@ -331,7 +334,7 @@ void interrupt_maincpu_trigger_trap(void (*trap_func)(uint16_t, void *data),
      */
 
     if (trap_size_needed > cs->traps_size) {
-        log_message(LOG_DEFAULT, "Increasing trap_func array size to %d with %d to run", trap_size_needed, cs->traps_count);
+        log_verbose(traps_log, "Increasing trap_func array size to %d with %d to run", trap_size_needed, cs->traps_count);
         cs->trap_func = lib_realloc(cs->trap_func, trap_size_needed * sizeof(*cs->trap_func));
         cs->trap_data = lib_realloc(cs->trap_data, trap_size_needed * sizeof(*cs->trap_data));
         cs->traps_size = trap_size_needed;

@@ -43,6 +43,11 @@
 #define CPU_STR "Main CPU"
 #endif
 
+#ifndef CPU_LOG_ID
+#define CPU_LOG_ID LOG_DEFAULT
+#warning "CPU_LOG_ID not defined, using LOG_DEFAULT by default"
+#endif
+
 #include "traps.h"
 
 #include "profiler.h"
@@ -412,7 +417,7 @@
                 addr |= (LOAD(0xfffd) << 8);                                   \
                 bank_start = bank_limit = 0; /* prevent caching */             \
                 LOCAL_SET_INTERRUPT(1);                                        \
-                cpu_is_jammed = 0;                                             \
+                CPU_IS_JAMMED = 0;                                             \
                 CHECK_PROFILE_INTERRUPT(addr, 0xfffc);                         \
                 JUMP(addr);                                                    \
                 DMA_ON_RESET;                                                  \
@@ -420,23 +425,20 @@
         }                                                                      \
         if (ik & (IK_MONITOR | IK_DMA)) {                                      \
             if (ik & IK_MONITOR) {                                             \
-                if (monitor_force_import(CALLER)) {                            \
-                    IMPORT_REGISTERS();                                        \
-                }                                                              \
-                if (monitor_mask[CALLER]) {                                    \
-                    EXPORT_REGISTERS();                                        \
-                }                                                              \
                 if (monitor_mask[CALLER] & (MI_STEP)) {                        \
+                    EXPORT_REGISTERS();                                        \
                     monitor_check_icount((uint16_t)reg_pc);                    \
                     IMPORT_REGISTERS();                                        \
                 }                                                              \
                 if (monitor_mask[CALLER] & (MI_BREAK)) {                       \
+                    EXPORT_REGISTERS();                                        \
                     if (monitor_check_breakpoints(CALLER, (uint16_t)reg_pc)) { \
                         monitor_startup(CALLER);                               \
-                        IMPORT_REGISTERS();                                    \
                     }                                                          \
+                    IMPORT_REGISTERS();                                        \
                 }                                                              \
                 if (monitor_mask[CALLER] & (MI_WATCH)) {                       \
+                    EXPORT_REGISTERS();                                        \
                     monitor_check_watchpoints(LAST_OPCODE_ADDR, (uint16_t)reg_pc); \
                     IMPORT_REGISTERS();                                        \
                 }                                                              \
@@ -817,22 +819,26 @@ FIXME: perhaps we really have to add some randomness to (some) bits
 */
 
 #define ANE_MAGIC       0xef
-#define ANE_RDY_MAGIC   0xee
+#define ANE_RDY_MAGIC   (0xee & ANE_MAGIC)
 
-/* FIXME: perhaps we should make the log level a user setting */
+#ifndef ANE_LOG_LEVEL
+#define ANE_LOG_LEVEL 0
+#warning "ANE_LOG_LEVEL not defined, disabling by default"
+#endif
+
 #if 1
-static int ane_log_level = 1; /* 0: none, 1: unstable only 2: all */
+/* static int ane_log_level = 1; */ /* 0: none, 1: unstable only 2: all */
 
 #define ANE_LOGGING(rdy)                                                                    \
     do {                                                                                    \
         unsigned int result = ((reg_a_read | (rdy ? ANE_RDY_MAGIC : ANE_MAGIC)) & reg_x & p1); \
         unsigned int unstablebits = ((reg_a_read ^ 0xff) & (p1 & reg_x));                   \
-        if ((ane_log_level == 2) || ((ane_log_level == 1) && (unstablebits != 0))) {        \
+        if ((ANE_LOG_LEVEL == 2) || ((ANE_LOG_LEVEL == 1) && (unstablebits != 0))) {        \
             if (unstablebits == 0) {                                                        \
-                log_warning(LOG_DEFAULT, "%04x ANE #$%02x ; A=$%02x X=$%02x -> A=$%02x%s",  \
+                log_warning(CPU_LOG_ID, "$%04x ANE #$%02x ; A=$%02x X=$%02x -> A=$%02x%s",  \
                     reg_pc, p1, reg_a_read, reg_x, result, rdy ? " (RDY cycle)" : "");      \
             } else {                                                                        \
-                log_warning(LOG_DEFAULT, "%04x ANE #$%02x ; A=$%02x X=$%02x -> A=$%02x (unstable bits: %c%c%c%c%c%c%c%c)%s", \
+                log_warning(CPU_LOG_ID, "$%04x ANE #$%02x ; A=$%02x X=$%02x -> A=$%02x (unstable bits: %c%c%c%c%c%c%c%c)%s", \
                     reg_pc, p1, reg_a_read, reg_x, result,                                  \
                     unstablebits & 0x80 ? '*' : '.', unstablebits & 0x40 ? '*' : '.',       \
                     unstablebits & 0x20 ? '*' : '.', unstablebits & 0x10 ? '*' : '.',       \
@@ -860,7 +866,7 @@ static int ane_log_level = 1; /* 0: none, 1: unstable only 2: all */
             ANE_LOGGING(0);                                         \
             reg_a_write = (uint8_t)((reg_a_read | ANE_MAGIC) & reg_x & p1); \
         }                                                           \
-        LOCAL_SET_NZ(reg_a_read);                                   \
+        LOCAL_SET_NZ(reg_a_write);                                  \
         INC_PC(2);                                                  \
         /* Pretend to be NOP #$nn to not trigger the special case   \
            when cycles are stolen after the second fetch */         \
@@ -1010,7 +1016,7 @@ static int ane_log_level = 1; /* 0: none, 1: unstable only 2: all */
         uint32_t trap_result;                                                            \
         EXPORT_REGISTERS();                                                           \
         if (!ROM_TRAP_ALLOWED() || (trap_result = ROM_TRAP_HANDLER()) == (uint32_t)-1) { \
-            cpu_is_jammed = 1;                                                        \
+            CPU_IS_JAMMED = 1;                                                        \
             REWIND_FETCH_OPCODE(CLK);                                                 \
             JAM();                                                                    \
         } else {                                                                      \
@@ -1266,20 +1272,24 @@ FIXME: perhaps we really have to add some randomness to (some) bits
 #define LXA_MAGIC       0xee    /* needs to be 0xee for wizball */
 #define LXA_RDY_MAGIC   0xee
 
-/* FIXME: perhaps we should make the log level a user setting */
+#ifndef LXA_LOG_LEVEL
+#define LXA_LOG_LEVEL 0
+#warning "LXA_LOG_LEVEL not defined, disabling by default"
+#endif
+
 #if 1
-static int lxa_log_level = 1; /* 0: none, 1: unstable only 2: all */
+/* static int lxa_log_level = 1; */ /* 0: none, 1: unstable only 2: all */
 
 #define LXA_LOGGING(rdy)                                                                    \
     do {                                                                                    \
         unsigned int result = (reg_a_read | (rdy ? LXA_RDY_MAGIC : LXA_MAGIC)) & p1;        \
         unsigned int unstablebits = (reg_a_read ^ 0xff) & p1;                               \
-        if ((lxa_log_level == 2) || ((lxa_log_level == 1) && (unstablebits != 0))) {        \
+        if ((LXA_LOG_LEVEL == 2) || ((LXA_LOG_LEVEL == 1) && (unstablebits != 0))) {        \
             if (unstablebits == 0) {                                                        \
-                log_warning(LOG_DEFAULT, "%04x LAX #$%02x ; A=$%02x -> A=X=$%02x%s",        \
+                log_warning(CPU_LOG_ID, "$%04x LAX #$%02x ; A=$%02x -> A=X=$%02x%s",        \
                     reg_pc, p1, reg_a_read, result, rdy ? " (RDY cycle)" : "");             \
             } else {                                                                        \
-                log_warning(LOG_DEFAULT, "%04x LAX #$%02x ; A=$%02x -> A=X=$%02x (unstable bits: %c%c%c%c%c%c%c%c)%s", \
+                log_warning(CPU_LOG_ID, "$%04x LAX #$%02x ; A=$%02x -> A=X=$%02x (unstable bits: %c%c%c%c%c%c%c%c)%s", \
                     reg_pc, p1, reg_a_read, result,                                         \
                     unstablebits & 0x80 ? '*' : '.', unstablebits & 0x40 ? '*' : '.',       \
                     unstablebits & 0x20 ? '*' : '.', unstablebits & 0x10 ? '*' : '.',       \
@@ -1307,7 +1317,7 @@ static int lxa_log_level = 1; /* 0: none, 1: unstable only 2: all */
             LXA_LOGGING(0);                                         \
             reg_a_write = reg_x = (uint8_t)((reg_a_read | LXA_MAGIC) & p1); \
         }                                                           \
-        LOCAL_SET_NZ(reg_a_read);                                   \
+        LOCAL_SET_NZ(reg_a_write);                                  \
         INC_PC(2);                                                  \
         /* Pretend to be NOP #$nn to not trigger the special case   \
            when cycles are stolen after the second fetch */         \
@@ -1690,7 +1700,11 @@ static const uint8_t fetch_tab[] = {
 /* Here, the CPU is emulated. */
 
 {
+#ifndef CPU_IS_JAMMED
     static int cpu_is_jammed = 0;
+#define CPU_IS_JAMMED cpu_is_jammed
+#warning "CPU_IS_JAMMED not defined, using default (internal)"
+#endif
 
 #if !defined(DRIVE_CPU)
     CLOCK profiling_clock_start;
@@ -1708,20 +1722,20 @@ static const uint8_t fetch_tab[] = {
     /* HACK: when the CPU is jammed, no interrupts are served, the only way
        to recover is reset. so we clear the interrupt flags and force
        acknowledging them here in this case. */
-    if (cpu_is_jammed) {
+    if (CPU_IS_JAMMED) {
         interrupt_ack_irq(CPU_INT_STATUS);
         CPU_INT_STATUS->global_pending_int &= ~(IK_IRQ | IK_NMI);
         if (CPU_INT_STATUS->global_pending_int & IK_RESET) {
-            cpu_is_jammed = 0;
+            CPU_IS_JAMMED = 0;
         }
     }
 
     {
         enum cpu_int pending_interrupt;
 
-        if (!(CPU_INT_STATUS->global_pending_int & IK_IRQ)
-            && (CPU_INT_STATUS->global_pending_int & IK_IRQPEND)
-            && CPU_INT_STATUS->irq_pending_clk <= CLK) {
+        if (!(CPU_INT_STATUS->global_pending_int & IK_IRQ) &&
+             (CPU_INT_STATUS->global_pending_int & IK_IRQPEND) &&
+             (CPU_INT_STATUS->irq_pending_clk <= CLK)) {
             interrupt_ack_irq(CPU_INT_STATUS);
         }
 
@@ -1730,10 +1744,9 @@ static const uint8_t fetch_tab[] = {
 #if !defined(DRIVE_CPU)
             profiling_clock_start = CLK;
 #endif
-
             DO_INTERRUPT(pending_interrupt);
-            if (!(CPU_INT_STATUS->global_pending_int & IK_IRQ)
-                && CPU_INT_STATUS->global_pending_int & IK_IRQPEND) {
+            if (!(CPU_INT_STATUS->global_pending_int & IK_IRQ) &&
+                  CPU_INT_STATUS->global_pending_int & IK_IRQPEND) {
                 CPU_INT_STATUS->global_pending_int &= ~IK_IRQPEND;
             }
             while (CLK >= alarm_context_next_pending_clk(ALARM_CONTEXT)) {
@@ -1768,7 +1781,7 @@ static const uint8_t fetch_tab[] = {
         /* If reg_pc >= bank_limit  then JSR (0x20) hasn't load p2 yet.
            The earlier LOAD(reg_pc+2) hack can break stealing badly on x64sc.
            The fixing is now handled in JSR(). */
-        monitor_cpuhistory_store(debug_clk, reg_pc, p0, p1, p2 >> 8, reg_a_read, reg_x, reg_y, reg_sp, LOCAL_STATUS(), 0);
+        monitor_cpuhistory_store(debug_clk, reg_pc, p0, p1, p2 >> 8, reg_a_read, reg_x, reg_y, reg_sp, LOCAL_STATUS(), ORIGIN_MEMSPACE);
         memmap_state &= ~(MEMMAP_STATE_INSTR | MEMMAP_STATE_OPCODE);
 #endif
 
@@ -1822,7 +1835,7 @@ trap_skipped:
             case 0x32:          /* JAM */
             case 0x42:          /* JAM */
 #endif
-                cpu_is_jammed = 1;
+                CPU_IS_JAMMED = 1;
                 REWIND_FETCH_OPCODE(CLK);
                 JAM();
                 break;

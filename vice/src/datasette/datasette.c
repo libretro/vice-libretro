@@ -54,7 +54,7 @@
 #include "vice-event.h"
 
 #ifdef DEBUG_TAPE
-#define DBG(x)  log_debug x
+#define DBG(x) log_printf  x
 #else
 #define DBG(x)
 #endif
@@ -136,7 +136,7 @@ int datasette_sound_emulation = 1;
 /* volume of sound from datasette device */
 int datasette_sound_emulation_volume;
 
-static log_t datasette_log = LOG_ERR;
+static log_t datasette_log = LOG_DEFAULT;
 
 static void datasette_internal_reset(int port);
 static void datasette_event_record(int command);
@@ -696,9 +696,9 @@ static void datasette_alarm_set(int port, CLOCK offset)
 {
 #ifdef DEBUG_TAPE
     if (!datasette_alarm_pending[port]) {
-        log_debug("datasette_alarm_set: %"PRIu64"", offset);
+        log_debug(LOG_DEFAULT, "datasette_alarm_set: %"PRIu64"", offset);
     } else {
-        log_debug("datasette_alarm_set: %"PRIu64" (WARNING: another alarm was pending!)", offset);
+        log_debug(LOG_DEFAULT, "datasette_alarm_set: %"PRIu64" (WARNING: another alarm was pending!)", offset);
     }
 #endif
     alarm_set(datasette_alarm[port], offset);
@@ -861,7 +861,7 @@ void datasette_init(void)
 
     for (i = 0; i < TAPEPORT_MAX_PORTS; i++) {
         datasette_alarm[i] = alarm_new(maincpu_alarm_context, "Datasette",
-                                       datasette_read_bit, int_to_void_ptr(i));
+                                       datasette_read_bit, vice_int_to_ptr(i));
     }
 
     datasette_cycles_per_second = machine_get_cycles_per_second();
@@ -1205,16 +1205,21 @@ inline static void bit_write(int port)
 
     /* C16 TAPs use half the machine clock as base cycle */
     if (machine_class == VICE_MACHINE_PLUS4) {
+        /* FIXME: we might also need to compensate for the remainder of this / 2 */
         write_time = write_time / 2;
     }
 
     if (write_time < (CLOCK)7) {
+        /* make sure the remainder does not get lost */
+        last_write_clk[port] -= (write_time % (CLOCK)8);
         return;
     }
 
     if (write_time < (CLOCK)(255 * 8 + 7)) {
         /* this is a normal short/one byte gap */
-        write_gap = (uint8_t)(write_time / (CLOCK)8);
+        write_gap = (write_time / (CLOCK)8);
+        /* make sure the remainder does not get lost */
+        last_write_clk[port] -= (write_time % (CLOCK)8);
         if (fwrite(&write_gap, 1, 1, current_image[port]->fd) < 1) {
             log_error(datasette_log, "datasette bit_write failed (stopping tape).");
             datasette_control(port, DATASETTE_CONTROL_STOP);

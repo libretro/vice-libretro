@@ -181,7 +181,6 @@ void monitor_vsync_hook(void);
 
 void monitor_abort(void);
 
-int monitor_force_import(MEMSPACE mem);
 void monitor_check_icount(uint16_t a);
 void monitor_check_icount_interrupt(void);
 void monitor_check_watchpoints(unsigned int lastpc, unsigned int pc);
@@ -199,6 +198,10 @@ int monitor_diskspace_dnr(int mem);
 int monitor_diskspace_mem(int dnr);
 
 int mon_out(const char *format, ...) VICE_ATTR_PRINTF;
+int mon_petscii_out(int maxlen, const char *format, ...) VICE_ATTR_PRINTF2;
+int mon_petscii_upper_out(int maxlen, const char *format, ...) VICE_ATTR_PRINTF2;
+int mon_scrcode_out(int maxlen, const char *format, ...) VICE_ATTR_PRINTF2;
+int mon_scrcode_upper_out(int maxlen, const char *format, ...) VICE_ATTR_PRINTF2;
 
 /** Breakpoint interface.  */
 
@@ -242,11 +245,14 @@ extern monitor_cartridge_commands_t mon_cart_cmd;
 /* CPU history/memmap prototypes */
 void monitor_cpuhistory_store(CLOCK cycle, unsigned int addr, unsigned int op, unsigned int p1, unsigned int p2,
                               uint8_t reg_a, uint8_t reg_x, uint8_t reg_y,
-                              uint8_t reg_sp, unsigned int reg_st, uint8_t origin);
+                              uint8_t reg_sp, unsigned int reg_st, MEMSPACE origin);
 void monitor_cpuhistory_fix_p2(unsigned int p2);
 void monitor_memmap_store(unsigned int addr, unsigned int type);
 
 /* memmap defines */
+#define MEMMAP_UNINITIALIZED_EXEC (1 << 11)  /* was executed before written to */
+#define MEMMAP_UNINITIALIZED_READ (1 << 10)  /* was read before written to */
+#define MEMMAP_REGULAR_READ       (1 << 9)   /* NOT just a dummy read */
 #define MEMMAP_I_O_R    (1 << 8)
 #define MEMMAP_I_O_W    (1 << 7)
 #define MEMMAP_I_O_X    (1 << 6)

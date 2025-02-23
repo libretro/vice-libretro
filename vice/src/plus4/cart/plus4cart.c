@@ -37,6 +37,7 @@
 #include "cartridge.h"
 #include "cmdline.h"
 #include "crt.h"
+#include "export.h"
 #include "plus4cart.h"
 #include "plus4mem.h"
 #include "lib.h"
@@ -55,13 +56,13 @@
 #include "plus4-generic.h"
 
 #ifdef DEBUGCART
-#define DBG(x)  log_debug x
+#define DBG(x) log_printf  x
 #else
 #define DBG(x)
 #endif
 
 #ifdef DEBUGCARTRW
-#define DBGRW(x)  log_debug x
+#define DBGRW(x) log_printf  x
 #else
 #define DBGRW(x)
 #endif
@@ -105,12 +106,13 @@ static int mem_cartridge_type = CARTRIDGE_NONE;  /* Type of the cartridge attach
 
 static cartridge_info_t cartlist[] = {
     /* standard cartridges with CRT ID = 0 */
-/*
     { "Raw 16KiB C1LO",                       CARTRIDGE_PLUS4_GENERIC_C1LO,      CARTRIDGE_GROUP_GENERIC },
     { "Raw 16KiB C1HI",                       CARTRIDGE_PLUS4_GENERIC_C1HI,      CARTRIDGE_GROUP_GENERIC },
     { "Raw 16KiB C2LO",                       CARTRIDGE_PLUS4_GENERIC_C2LO,      CARTRIDGE_GROUP_GENERIC },
     { "Raw 16KiB C2HI",                       CARTRIDGE_PLUS4_GENERIC_C2HI,      CARTRIDGE_GROUP_GENERIC },
-*/
+    { "Raw 32KiB C1",                         CARTRIDGE_PLUS4_GENERIC_C1,        CARTRIDGE_GROUP_GENERIC },
+    { "Raw 32KiB C2",                         CARTRIDGE_PLUS4_GENERIC_C2,        CARTRIDGE_GROUP_GENERIC },
+
     /* all cartridges with a CRT ID > 0, alphabetically sorted */
     { CARTRIDGE_PLUS4_NAME_JACINT1MB,         CARTRIDGE_PLUS4_JACINT1MB,         CARTRIDGE_GROUP_UTIL },
     { CARTRIDGE_PLUS4_NAME_MAGIC,             CARTRIDGE_PLUS4_MAGIC,             CARTRIDGE_GROUP_UTIL },
@@ -205,8 +207,8 @@ int cartridge_cmdline_options_init(void)
     mon_cart_cmd.cartridge_trigger_freeze = cartridge_trigger_freeze;
 #if 0
     mon_cart_cmd.cartridge_trigger_freeze_nmi_only = cartridge_trigger_freeze_nmi_only;
-    mon_cart_cmd.export_dump = plus4export_dump;
 #endif
+    mon_cart_cmd.export_dump = export_dump;
     if (generic_cmdline_options_init() < 0) {
         return -1;
     }
@@ -852,7 +854,7 @@ int cartridge_type_enabled(int crtid)
     Snapshot reading and writing
 */
 
-/* FIXME: due to the snapshots being generally broken as a while, none of this
+/* FIXME: due to the snapshots being generally broken as a whole, none of this
           could be tested */
 
 #define PLUS4CART_DUMP_MAX_CARTS  1

@@ -1719,11 +1719,11 @@ void novte_terminal_copy_clipboard(NoVteTerminal *terminal)
  *
  * Since: 0.50
  */
-void vte_terminal_copy_clipboard_format(NoVteTerminal *terminal,
+void novte_terminal_copy_clipboard_format(NoVteTerminal *terminal,
                                    VteFormat format)
 {
     g_return_if_fail(VTE_IS_TERMINAL(terminal));
-    g_return_if_fail(format == VTE_FORMAT_TEXT || format == VTE_FORMAT_HTML);
+    g_return_if_fail(format == VTE_FORMAT_TEXT || format == VTE_FORMAT_ASCII || format == VTE_FORMAT_HTML);
 
     IMPL(terminal)->widget_copy(VTE_SELECTION_CLIPBOARD, format);
 }

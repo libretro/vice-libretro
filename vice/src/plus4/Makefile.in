@@ -110,19 +110,18 @@ am__v_AR_0 = @echo "  AR      " $@;
 am__v_AR_1 = 
 libplus4_a_AR = $(AR) $(ARFLAGS)
 libplus4_a_LIBADD =
-am_libplus4_a_OBJECTS = digiblaster.$(OBJEXT) \
-	plus4-cmdline-options.$(OBJEXT) plus4-resources.$(OBJEXT) \
-	plus4-sidcart.$(OBJEXT) plus4-snapshot.$(OBJEXT) \
+am_libplus4_a_OBJECTS = plus4-cmdline-options.$(OBJEXT) \
+	plus4-resources.$(OBJEXT) plus4-snapshot.$(OBJEXT) \
 	plus4.$(OBJEXT) plus4acia.$(OBJEXT) plus4bus.$(OBJEXT) \
 	plus4cpu.$(OBJEXT) plus4datasette.$(OBJEXT) \
-	plus4drive.$(OBJEXT) plus4iec.$(OBJEXT) plus4io.$(OBJEXT) \
-	plus4mem.$(OBJEXT) plus4memcsory256k.$(OBJEXT) \
-	plus4memhacks.$(OBJEXT) plus4memhannes256k.$(OBJEXT) \
-	plus4memlimit.$(OBJEXT) plus4memrom.$(OBJEXT) \
-	plus4memsnapshot.$(OBJEXT) plus4model.$(OBJEXT) \
-	plus4parallel.$(OBJEXT) plus4pio1.$(OBJEXT) \
-	plus4pio2.$(OBJEXT) plus4printer.$(OBJEXT) plus4rom.$(OBJEXT) \
-	plus4romset.$(OBJEXT) plus4speech.$(OBJEXT) \
+	plus4drive.$(OBJEXT) plus4export.$(OBJEXT) plus4iec.$(OBJEXT) \
+	plus4io.$(OBJEXT) plus4mem.$(OBJEXT) \
+	plus4memcsory256k.$(OBJEXT) plus4memhacks.$(OBJEXT) \
+	plus4memhannes256k.$(OBJEXT) plus4memlimit.$(OBJEXT) \
+	plus4memrom.$(OBJEXT) plus4memsnapshot.$(OBJEXT) \
+	plus4model.$(OBJEXT) plus4parallel.$(OBJEXT) \
+	plus4pio1.$(OBJEXT) plus4pio2.$(OBJEXT) plus4printer.$(OBJEXT) \
+	plus4rom.$(OBJEXT) plus4romset.$(OBJEXT) plus4speech.$(OBJEXT) \
 	plus4tcbm.$(OBJEXT) plus4video.$(OBJEXT) ted-badline.$(OBJEXT) \
 	ted-cmdline-options.$(OBJEXT) ted-color.$(OBJEXT) \
 	ted-draw.$(OBJEXT) ted-fetch.$(OBJEXT) ted-irq.$(OBJEXT) \
@@ -149,13 +148,12 @@ am__v_at_1 =
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/src
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/digiblaster.Po \
-	./$(DEPDIR)/plus4-cmdline-options.Po \
-	./$(DEPDIR)/plus4-resources.Po ./$(DEPDIR)/plus4-sidcart.Po \
-	./$(DEPDIR)/plus4-snapshot.Po ./$(DEPDIR)/plus4-stubs.Po \
-	./$(DEPDIR)/plus4.Po ./$(DEPDIR)/plus4acia.Po \
-	./$(DEPDIR)/plus4bus.Po ./$(DEPDIR)/plus4cpu.Po \
-	./$(DEPDIR)/plus4datasette.Po ./$(DEPDIR)/plus4drive.Po \
+am__depfiles_remade = ./$(DEPDIR)/plus4-cmdline-options.Po \
+	./$(DEPDIR)/plus4-resources.Po ./$(DEPDIR)/plus4-snapshot.Po \
+	./$(DEPDIR)/plus4-stubs.Po ./$(DEPDIR)/plus4.Po \
+	./$(DEPDIR)/plus4acia.Po ./$(DEPDIR)/plus4bus.Po \
+	./$(DEPDIR)/plus4cpu.Po ./$(DEPDIR)/plus4datasette.Po \
+	./$(DEPDIR)/plus4drive.Po ./$(DEPDIR)/plus4export.Po \
 	./$(DEPDIR)/plus4iec.Po ./$(DEPDIR)/plus4io.Po \
 	./$(DEPDIR)/plus4mem.Po ./$(DEPDIR)/plus4memcsory256k.Po \
 	./$(DEPDIR)/plus4memhacks.Po ./$(DEPDIR)/plus4memhannes256k.Po \
@@ -458,6 +456,8 @@ install_sh = @install_sh@
 libcurl_CFLAGS = @libcurl_CFLAGS@
 libcurl_LIBS = @libcurl_LIBS@
 libdir = @libdir@
+libevdev_CFLAGS = @libevdev_CFLAGS@
+libevdev_LIBS = @libevdev_LIBS@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
@@ -520,13 +520,10 @@ libplus4stubs_a_SOURCES = \
 	plus4-stubs.c
 
 libplus4_a_SOURCES = \
-	digiblaster.c \
-	digiblaster.h \
 	plus4-cmdline-options.c \
 	plus4-cmdline-options.h \
 	plus4-resources.c \
 	plus4-resources.h \
-	plus4-sidcart.c \
 	plus4-snapshot.c \
 	plus4-snapshot.h \
 	plus4.c \
@@ -537,6 +534,7 @@ libplus4_a_SOURCES = \
 	plus4cpu.c \
 	plus4datasette.c \
 	plus4drive.c \
+	plus4export.c \
 	plus4iec.c \
 	plus4iec.h \
 	plus4io.c \
@@ -652,10 +650,8 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/digiblaster.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4-cmdline-options.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4-resources.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4-sidcart.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4-snapshot.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4-stubs.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4.Po@am__quote@ # am--include-marker
@@ -664,6 +660,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4cpu.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4datasette.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4drive.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4export.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4iec.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4io.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4mem.Po@am__quote@ # am--include-marker
@@ -913,10 +910,8 @@ clean: clean-recursive
 clean-am: clean-generic clean-noinstLIBRARIES mostlyclean-am
 
 distclean: distclean-recursive
-		-rm -f ./$(DEPDIR)/digiblaster.Po
-	-rm -f ./$(DEPDIR)/plus4-cmdline-options.Po
+		-rm -f ./$(DEPDIR)/plus4-cmdline-options.Po
 	-rm -f ./$(DEPDIR)/plus4-resources.Po
-	-rm -f ./$(DEPDIR)/plus4-sidcart.Po
 	-rm -f ./$(DEPDIR)/plus4-snapshot.Po
 	-rm -f ./$(DEPDIR)/plus4-stubs.Po
 	-rm -f ./$(DEPDIR)/plus4.Po
@@ -925,6 +920,7 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/plus4cpu.Po
 	-rm -f ./$(DEPDIR)/plus4datasette.Po
 	-rm -f ./$(DEPDIR)/plus4drive.Po
+	-rm -f ./$(DEPDIR)/plus4export.Po
 	-rm -f ./$(DEPDIR)/plus4iec.Po
 	-rm -f ./$(DEPDIR)/plus4io.Po
 	-rm -f ./$(DEPDIR)/plus4mem.Po
@@ -1002,10 +998,8 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-recursive
-		-rm -f ./$(DEPDIR)/digiblaster.Po
-	-rm -f ./$(DEPDIR)/plus4-cmdline-options.Po
+		-rm -f ./$(DEPDIR)/plus4-cmdline-options.Po
 	-rm -f ./$(DEPDIR)/plus4-resources.Po
-	-rm -f ./$(DEPDIR)/plus4-sidcart.Po
 	-rm -f ./$(DEPDIR)/plus4-snapshot.Po
 	-rm -f ./$(DEPDIR)/plus4-stubs.Po
 	-rm -f ./$(DEPDIR)/plus4.Po
@@ -1014,6 +1008,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/plus4cpu.Po
 	-rm -f ./$(DEPDIR)/plus4datasette.Po
 	-rm -f ./$(DEPDIR)/plus4drive.Po
+	-rm -f ./$(DEPDIR)/plus4export.Po
 	-rm -f ./$(DEPDIR)/plus4iec.Po
 	-rm -f ./$(DEPDIR)/plus4io.Po
 	-rm -f ./$(DEPDIR)/plus4mem.Po

@@ -153,11 +153,11 @@ static flash040_context_t flash_state;
 /* ------------------------------------------------------------------------- */
 
 static int vic_um_writeback;
-static char *cartfile = NULL;   /* perhaps the one in vic20cart.c could
-                                   be used instead? */
 
-static log_t um_log = LOG_ERR;
+static log_t um_log = LOG_DEFAULT;
 
+static char *vic_um_filename = NULL;
+static int vic_um_filetype = 0;
 /* ------------------------------------------------------------------------- */
 
 /* Some prototypes are needed */
@@ -207,7 +207,9 @@ static io_source_list_t *io2_list_item = NULL;
 static io_source_list_t *io3_list_item = NULL;
 
 static const export_resource_t export_res = {
-    CARTRIDGE_VIC20_NAME_UM, 0, 0, &ultimem_io2, &ultimem_io2, CARTRIDGE_VIC20_UM
+    CARTRIDGE_VIC20_NAME_UM, 0,
+    VIC_CART_RAM123 | VIC_CART_BLK1 | VIC_CART_BLK2 | VIC_CART_BLK3 | VIC_CART_BLK5,
+    &ultimem_io2, &ultimem_io3, CARTRIDGE_VIC20_UM
 };
 
 /* ------------------------------------------------------------------------- */
@@ -607,7 +609,7 @@ void vic_um_powerup(void)
 
 void vic_um_init(void)
 {
-    if (um_log == LOG_ERR) {
+    if (um_log == LOG_DEFAULT) {
         um_log = log_open(CARTRIDGE_VIC20_NAME_UM);
     }
 }
@@ -636,12 +638,14 @@ void vic_um_config_setup(uint8_t *rawcart)
     memcpy(ultimem, ultimem_reset, sizeof ultimem);
 }
 
-int vic_um_crt_attach(FILE *fd, uint8_t *rawcart)
+int vic_um_crt_attach(FILE *fd, uint8_t *rawcart, const char *filename)
 {
     crt_chip_header_t chip;
     int idx = 0;
 
     /* util_string_set(&cartfile, filename); */ /* FIXME */
+    vic_um_filetype = 0;
+    vic_um_filename = NULL;
 
     if (!cart_ram) {
         cart_ram = lib_malloc(CART_RAM_SIZE_MAX);
@@ -700,6 +704,9 @@ int vic_um_crt_attach(FILE *fd, uint8_t *rawcart)
     io2_list_item = io_source_register(&ultimem_io2);
     io3_list_item = io_source_register(&ultimem_io3);
 
+    vic_um_filetype = CARTRIDGE_FILETYPE_CRT;
+    vic_um_filename = lib_strdup(filename);
+
     return 0;
 
 exiterror:
@@ -712,7 +719,8 @@ int vic_um_bin_attach(const char *filename)
 {
     FILE *fd = zfile_fopen(filename, MODE_READ);
 
-    util_string_set(&cartfile, filename);
+    vic_um_filetype = 0;
+    vic_um_filename = NULL;
 
     if (!fd) {
         vic_um_detach();
@@ -769,44 +777,28 @@ int vic_um_bin_attach(const char *filename)
     io2_list_item = io_source_register(&ultimem_io2);
     io3_list_item = io_source_register(&ultimem_io3);
 
+    vic_um_filetype = CARTRIDGE_FILETYPE_BIN;
+    vic_um_filename = lib_strdup(filename);
+
     return 0;
 }
 
 void vic_um_detach(void)
 {
-    long n = 0;
-    FILE *fd;
-
     /* try to write back cartridge contents if write back is enabled
        and cartridge wasn't from a snapshot */
     if (vic_um_writeback && !cartridge_is_from_snapshot) {
-        if (flash_state.flash_dirty) {
-            log_message(um_log, "Flash dirty, trying to write back...");
-            fd = fopen(cartfile, "wb");
-            if (fd) {
-                n = fwrite(flash_state.flash_data, cart_rom_size, 1, fd);
-                fclose(fd);
-            }
-            if (n < 1) {
-                log_message(um_log, "Failed to write back image `%s'!",
-                            cartfile);
-            } else {
-                log_message(um_log, "Wrote back image `%s'.",
-                            cartfile);
-            }
-        } else {
-            log_message(um_log, "Flash clean, skipping write back.");
-        }
+        vic_um_flush_image();
     }
 
     mem_cart_blocks = 0;
     mem_initialize_memory();
     lib_free(cart_ram);
     lib_free(cart_rom);
-    lib_free(cartfile);
     cart_ram = NULL;
     cart_rom = NULL;
-    cartfile = NULL;
+    lib_free(vic_um_filename);
+    vic_um_filename = NULL;
 
     export_remove(&export_res);
 
@@ -818,6 +810,86 @@ void vic_um_detach(void)
         io_source_unregister(io3_list_item);
         io3_list_item = NULL;
     }
+}
+
+int vic_um_bin_save(const char *filename)
+{
+    FILE *fd;
+
+    if (filename == NULL) {
+        return -1;
+    }
+
+    fd = fopen(filename, MODE_WRITE);
+
+    if (fd == NULL) {
+        return -1;
+    }
+
+        if (fwrite(flash_state.flash_data, 1, cart_rom_size, fd) != cart_rom_size) {
+            fclose(fd);
+            return -1;
+        }
+
+    fclose(fd);
+
+    return 0;
+}
+
+int vic_um_crt_save(const char *filename)
+{
+    log_error(LOG_DEFAULT, "FIXME: vic_um_crt_save not implemented");
+    FILE *fd;
+    crt_chip_header_t chip;
+    uint8_t *data;
+    int i;
+
+    fd = crt_create_vic20(filename, CARTRIDGE_VIC20_UM, 0, CARTRIDGE_VIC20_NAME_UM);
+
+    if (fd == NULL) {
+        return -1;
+    }
+
+    chip.type = 2;
+    chip.size = 0x2000;
+    chip.start = 0xa000;
+
+    data = flash_state.flash_data;
+
+    for (i = 0; i < (cart_rom_size / chip.size); i++) {
+        chip.bank = i; /* bank */
+
+        if (crt_write_chip(data, &chip, fd)) {
+            fclose(fd);
+            return -1;
+        }
+        data += chip.size;
+    }
+
+    fclose(fd);
+
+    return 0;
+}
+
+int vic_um_flush_image(void)
+{
+    int ret = 0;
+    if (flash_state.flash_dirty) {
+        log_message(um_log, "Flash dirty, trying to write back...");
+        if (vic_um_filetype == CARTRIDGE_FILETYPE_BIN) {
+            ret = vic_um_bin_save(vic_um_filename);
+        } else if (vic_um_filetype == CARTRIDGE_FILETYPE_CRT) {
+            ret = vic_um_crt_save(vic_um_filename);
+        }
+        if (ret < 1) {
+            log_message(um_log, "Failed to write back image `%s'!", vic_um_filename);
+        } else {
+            log_message(um_log, "Wrote back image `%s'.", vic_um_filename);
+        }
+    } else {
+        log_message(um_log, "Flash clean, skipping write back.");
+    }
+    return ret;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -968,6 +1040,10 @@ int vic_um_snapshot_read_module(snapshot_t *s)
 
     io2_list_item = io_source_register(&ultimem_io2);
     io3_list_item = io_source_register(&ultimem_io3);
+
+    /* set filetype to none */
+    vic_um_filename = NULL;
+    vic_um_filetype = 0;
 
     return 0;
 }

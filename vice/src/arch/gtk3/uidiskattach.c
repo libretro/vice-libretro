@@ -57,7 +57,6 @@
 #include "ui.h"
 #include "uiactions.h"
 #include "uiapi.h"
-#include "uistatusbar.h"
 
 #include "uidiskattach.h"
 
@@ -223,8 +222,11 @@ static void do_autostart(GtkWidget *widget, int index, int autostart)
                            file in an image */
                 autostart ? AUTOSTART_MODE_RUN : AUTOSTART_MODE_LOAD) < 0) {
         /* oeps */
-        log_error(LOG_ERR, "autostart disk attach failed.");
-        ui_error("Autostart disk attach failed.");
+        log_error(LOG_DEFAULT, "autostart disk attach failed.");
+        vice_gtk3_message_error(GTK_WINDOW(widget),
+                                "Autostart failure",
+                                "Autostarting disk image '%s' failed.",
+                                filename);
     }
     g_free(filename);
     g_free(filename_locale);
@@ -252,15 +254,15 @@ static void do_attach(GtkWidget *widget, gpointer user_data)
         * through file types is 'smart', but hell, it works */
     if (file_system_attach_disk(unit_number, drive_number, filename_locale) < 0) {
         /* failed */
-        g_snprintf(buffer, sizeof(buffer),
+        g_snprintf(buffer, sizeof buffer,
                    "Unit #%d: failed to attach '%s'",
                    unit_number, filename);
     } else {
-        g_snprintf(buffer, sizeof(buffer),
+        g_snprintf(buffer, sizeof buffer,
                    "Unit #%d: attached '%s'",
                    unit_number, filename);
     }
-    ui_display_statustext(buffer, 1);
+    ui_display_statustext(buffer, true);
     g_free(filename_locale);
 }
 
@@ -314,7 +316,7 @@ static void on_response(GtkWidget *widget, gint response_id, gpointer user_data)
     int index = content_preview_widget_get_index(preview_widget);
     int autostart = 0;
 
-    resources_get_int("AutostartOnDoubleclick", &autostart);
+    resources_get_int("AutostartOnDoubleClick", &autostart);
 
     /* first, to make the following logic less funky, map some events to others,
        depending on whether autostart-on-doubleclick is enabled or not, and
@@ -465,7 +467,7 @@ static GtkWidget *create_disk_attach_dialog(gint unit, gint drive)
     size_t i;
     int autostart = 0;
 
-    resources_get_int("AutostartOnDoubleclick", &autostart);
+    resources_get_int("AutostartOnDoubleClick", &autostart);
 
     /* create new dialog */
     dialog = gtk_file_chooser_dialog_new(

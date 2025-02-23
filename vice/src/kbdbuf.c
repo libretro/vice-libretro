@@ -26,6 +26,8 @@
  *
  */
 
+/* #define DEBUG_KBDBUF */
+
 #include "vice.h"
 
 #include <ctype.h>
@@ -41,12 +43,18 @@
 #include "initcmdline.h"
 #include "kbdbuf.h"
 #include "lib.h"
+#include "log.h"
 #include "machine.h"
 #include "maincpu.h"
 #include "mem.h"
 #include "resources.h"
 #include "types.h"
 
+#ifdef DEBUG_KBDBUF
+#define DBG(x) log_printf  x
+#else
+#define DBG(x)
+#endif
 
 /* Maximum number of characters we can queue.  */
 #define QUEUE_SIZE      16384
@@ -75,6 +83,9 @@ static int num_pending = 0;
 
 /* Flag if we are initialized already.  */
 static int kbd_buf_enabled = 0;
+
+/* Flag that indicates if the cmdline option was used to provide the string  */
+static bool kbd_buf_cmdline = false;
 
 /* String to feed into the keyboard buffer.  */
 static char *kbd_buf_string = NULL;
@@ -142,12 +153,12 @@ static void kbd_buf_parse_string(const char *string)
             /* printf("esc:%s\n", &string[i]); */
             if((i < (len - 1)) && (string[i + 1] == '\\')) {
                 /* escaped backslash "\\" */
-                kbd_buf_string[j] = charset_p_topetcii('\\');
+                kbd_buf_string[j] = charset_p_topetscii('\\');
                 i += 1;
                 j++;
             } else if((i < (len - 1)) && (string[i + 1] == 'n')) {
                 /* escaped line ending "\n" */
-                kbd_buf_string[j] = charset_p_topetcii('\n');
+                kbd_buf_string[j] = charset_p_topetscii('\n');
                 i += 1;
                 j++;
             } else if((i < (len - 3)) && (string[i + 1] == 'x') && isxdigit((unsigned char)string[i + 2]) && isxdigit((unsigned char)string[i + 3])) {
@@ -165,21 +176,27 @@ static void kbd_buf_parse_string(const char *string)
         } else {
             /* printf("chr:%s\n", &string[i]); */
             /* regular character, convert to petscii */
-            kbd_buf_string[j] = charset_p_topetcii(string[i]);
+            kbd_buf_string[j] = charset_p_topetscii(string[i]);
             j++;
         }
     }
 }
 
+/* parse (un-escape) a string and put it into the keyboard buffer,
+   used by the monitor */
 int kbdbuf_feed_string(const char *string)
 {
+    DBG(("kbdbuf_feed_string kbd_buf_cmdline:%d", kbd_buf_cmdline));
     kbd_buf_parse_string(string);
 
     return kbdbuf_feed(kbd_buf_string);
 }
 
+/* used by the -keybuf cmdline option */
 static int kdb_buf_feed_cmdline(const char *param, void *extra_param)
 {
+    DBG(("kdb_buf_feed_cmdline kbd_buf_cmdline:%d", kbd_buf_cmdline));
+    kbd_buf_cmdline = true;
     kbd_buf_parse_string(param);
 
     return 0;
@@ -254,9 +271,10 @@ static void removefromqueue(void)
     head_idx = (head_idx + 1) % QUEUE_SIZE;
 }
 
+/* used by autostart */
 void kbdbuf_feed_cmdline(void)
 {
-    /* printf("kbdbuf_feed_cmdline\n"); */
+    DBG(("kbdbuf_feed_cmdline kbd_buf_cmdline:%d", kbd_buf_cmdline));
     if (kbd_buf_string != NULL) {
         /* printf("kbdbuf_feed_cmdline: %d '%s'\n", KbdbufDelay, kbd_buf_string); */
         if (KbdbufDelay) {
@@ -287,6 +305,17 @@ void kbdbuf_reset(int location, int plocation, int size, CLOCK mincycles)
         kbd_buf_enabled = 1;
     } else {
         kbd_buf_enabled = 0;
+    }
+}
+
+/* abort ongoing "paste", called by reset */
+void kbdbuf_abort(void)
+{
+    DBG(("kbdbuf_abort kbd_buf_cmdline:%d", kbd_buf_cmdline));
+    /* only abort if the keyboard buffer was NOT filled via the commandline
+       option (else we cancel just that during the initial reset) */
+    if (kbd_buf_cmdline == false) {
+        num_pending = 0;
     }
 }
 
@@ -322,12 +351,14 @@ void kbdbuf_shutdown(void)
     lib_free(kbd_buf_string);
 }
 
+/* used by autostart, monitor binary remote protocol, "paste" UI action */
 int kbdbuf_feed(const char *string)
 {
     use_kbdbuf_flush_alarm = 0;
     return string_to_queue(string);
 }
 
+/* used by autostart to feed "RUN" */
 int kbdbuf_feed_runcmd(const char *string)
 {
     use_kbdbuf_flush_alarm = 1;
@@ -356,7 +387,7 @@ void kbdbuf_flush(void)
         prevent_recursion = false;
         return;
     }
-    n = num_pending > buffer_size ? buffer_size : num_pending;
+    n = (num_pending > buffer_size) ? buffer_size : num_pending;
     /* printf("kbdbuf_flush pending: %d n: %d head_idx: %d\n", num_pending, n, head_idx); */
     for (i = 0; i < n; i++) {
         /* printf("kbdbuf_flush i:%d head_idx:%d queue[head_idx]: %d use_kbdbuf_flush_alarm: %d\n",i,head_idx,queue[head_idx],use_kbdbuf_flush_alarm); */
@@ -374,5 +405,6 @@ void kbdbuf_flush(void)
         removefromqueue();
     }
 
+    kbd_buf_cmdline = false;
     prevent_recursion = false;
 }

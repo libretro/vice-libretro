@@ -133,6 +133,9 @@ SOURCES_C += \
     $(EMU)/vic20/cart/ioramcart.c \
     $(EMU)/vic20/cart/mascuerade-stubs.c \
     $(EMU)/vic20/cart/megacart.c \
+    $(EMU)/vic20/cart/mikroassembler.c \
+    $(EMU)/vic20/cart/rabbit.c \
+    $(EMU)/vic20/cart/superexpander.c \
     $(EMU)/vic20/cart/ultimem.c \
     $(EMU)/vic20/cart/vic-fp.c \
     $(EMU)/vic20/cart/vic20-generic.c \
@@ -152,6 +155,7 @@ SOURCES_C += \
     $(EMU)/vic20/vic.c \
     $(EMU)/vic20/vic20-cmdline-options.c \
     $(EMU)/vic20/vic20-resources.c \
+    $(EMU)/vic20/vic20-stubs.c \
     $(EMU)/vic20/vic20.c \
     $(EMU)/vic20/vic20bus.c \
     $(EMU)/vic20/vic20cpu.c \

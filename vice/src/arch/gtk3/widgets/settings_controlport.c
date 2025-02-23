@@ -10,10 +10,16 @@
  * $VICERES JoyPort3Device      x64 x64sc x64dtv xscpu64 x128 xcbm2 xvic
  * $VICERES JoyPort4Device      x64 x64sc xscpu64 x128 xcbm2 xpet xvice
  * $VICERES JoyPort5Device      xplus4
+ * $VICERES JoyPort6Device      x64 x64sc x64dtv xscpu64 x128 xcbm2 xcbm5x0 xvic
+ * $VICERES JoyPort7Device      x64 x64sc x64dtv xscpu64 x128 xcbm2 xcbm5x0 xvic
+ * $VICERES JoyPort8Device      x64 x64sc x64dtv xscpu64 x128 xcbm2 xcbm5x0 xvic
+ * $VICERES JoyPort9Device      x64 x64sc x64dtv xscpu64 x128 xcbm2 xcbm5x0 xvic
+ * $VICERES JoyPort10Device     x64 x64sc x64dtv xscpu64 x128 xcbm2 xcbm5x0 xvic
+ * $VICERES JoyPort11Device     xplus4
+ *
  * $VICERES BBRTCSave           -vsid
  * $VICERES ps2mouse            x64dtv
  * $VICERES SmartMouseRTCSave   x64 x64sc xscpu64 x128 xvic xplus4 xcbm5x0
- * $VICERES UserportJoy         -xcbm5x0 -vsid
  */
 
 /*
@@ -303,10 +309,10 @@ static void update_adapter_ports_visibility(GtkGrid *grid, int row)
  */
 static int layout_add_sidcard_port(GtkGrid *layout, int row)
 {
-    GtkWidget *widget = create_joyport_widget(JOYPORT_5, "SIDCard Joystick Port");
+    GtkWidget *widget = create_joyport_widget(JOYPORT_PLUS4_SIDCART, "SIDCard Joystick Port");
 
     gtk_grid_attach(layout, widget, 0, row, 1, 1);
-    if (joyport_port_is_active(JOYPORT_5)) {
+    if (joyport_port_is_active(JOYPORT_PLUS4_SIDCART)) {
         gtk_widget_show(widget);
     } else {
         gtk_widget_hide(widget);
@@ -465,7 +471,7 @@ static int create_plus4_layout(GtkGrid *layout)
     int row = 0;
 
     row = layout_add_control_ports(layout, row, 2);
-    row = layout_add_adapter_ports(layout, row, 3);
+    row = layout_add_adapter_ports(layout, row, 8);
     row = layout_add_sidcard_port(layout, row);
     row = layout_add_bbrtc_widget(layout, row);
 

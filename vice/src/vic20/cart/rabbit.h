@@ -1,10 +1,9 @@
-/** \file   romsetmanagerwidget.h
- * \brief   GTK3 ROM set manager widget - header
- *
- * \author  Bas Wassink <b.wassink@ziggo.nl>
- */
-
 /*
+ * rabbit.h -- VIC20 Rabbit Tape Cartridge emulation.
+ *
+ * Written by
+ *  groepaz <groepaz@gmx.net>
+ *
  * This file is part of VICE, the Versatile Commodore Emulator.
  * See README for copyright notice.
  *
@@ -22,15 +21,27 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
  *  02111-1307  USA.
+ *
  */
 
-#ifndef VICE_ROMSETMANAGERWIDGET_H
-#define VICE_ROMSETMANAGERWIDGET_H
+#ifndef VICE_RABBIT_H
+#define VICE_RABBIT_H
 
-#include "vice_gtk3.h"
+#include <stdio.h>
 
-GtkWidget *romset_manager_widget_create(
-        const vice_gtk3_combo_entry_str_t *predefs);
+#include "types.h"
 
+void rabbit_config_setup(uint8_t *rawcart);
+int rabbit_bin_attach(const char *filename);
+
+/* int rabbit_bin_attach(const char *filename, uint8_t *rawcart); */
+
+int rabbit_crt_attach(FILE *fd, uint8_t *rawcart);
+void rabbit_detach(void);
+
+struct snapshot_s;
+
+int rabbit_snapshot_write_module(struct snapshot_s *s);
+int rabbit_snapshot_read_module(struct snapshot_s *s);
 
 #endif

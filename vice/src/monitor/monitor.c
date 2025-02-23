@@ -83,6 +83,7 @@
 #include "resources.h"
 #include "screenshot.h"
 #include "sysfile.h"
+#include "tape.h"
 #include "traps.h"
 #include "types.h"
 #include "ui.h"
@@ -186,7 +187,6 @@ static unsigned int watch_load_count[NUM_MEMSPACES];
 static unsigned int watch_store_count[NUM_MEMSPACES];
 static symbol_table_t monitor_labels[NUM_MEMSPACES];
 static CLOCK stopwatch_start_time[NUM_MEMSPACES];
-bool force_array[NUM_MEMSPACES];
 monitor_interface_t *mon_interfaces[NUM_MEMSPACES];
 
 MON_ADDR dot_addr[NUM_MEMSPACES];
@@ -259,7 +259,7 @@ static const char * const cond_op_string[] = {
 
 const char * const mon_memspace_string[] = { "default", "C", "8", "9", "10", "11" };
 
-/* must match order in enum t_reg_id */
+/* CAUTION: must match order in enum t_reg_id, and contain all of its elements */
 static const char * const register_string[] = {
 /* 6502/65c02 */
     "A",
@@ -327,6 +327,8 @@ static const char * const register_string[] = {
 
     "RL",   /* Rasterline */
     "CY",   /* Cycle in line */
+    "P00",  /* CPU port DDR (6510) */
+    "P01"   /* CPU port Data (6510) */
 };
 
 bool monitor_is_inside_monitor(void)
@@ -583,11 +585,11 @@ long mon_evaluate_address_range(MON_ADDR *start_addr, MON_ADDR *end_addr,
             } else {
                 if (mem2 != e_invalid_space) {
                     if (!(mem1 == mem2)) {
-                        log_error(LOG_ERR, "Invalid memspace!");
+                        log_error(LOG_DEFAULT, "Invalid memspace!");
                         return 0;
                     }
                 } else {
-                    log_error(LOG_ERR, "Invalid memspace!");
+                    log_error(LOG_DEFAULT, "Invalid memspace!");
                     return 0;
                 }
             }
@@ -855,7 +857,7 @@ uint8_t mon_get_mem_val_ex(MEMSPACE mem, int bank, uint16_t mem_addr)
         return mon_interfaces[mem]->mem_bank_peek(bank, mem_addr, mon_interfaces[mem]->context);
     } else {
         if (sidefx == 0) {
-            log_error(LOG_ERR, "mon_get_mem_val_ex: mem_bank_peek() not implemented for memspace %u.", mem);
+            log_error(LOG_DEFAULT, "mon_get_mem_val_ex: mem_bank_peek() not implemented for memspace %u.", mem);
         }
         return mon_interfaces[mem]->mem_bank_read(bank, mem_addr, mon_interfaces[mem]->context);
     }
@@ -879,7 +881,7 @@ uint8_t mon_get_mem_val_ex_nosfx(MEMSPACE mem, int bank, uint16_t mem_addr)
     if (mon_interfaces[mem]->mem_bank_peek != NULL) {
         return mon_interfaces[mem]->mem_bank_peek(bank, mem_addr, mon_interfaces[mem]->context);
     } else {
-        log_error(LOG_ERR, "mon_get_mem_val_ex_nosfx: mem_bank_peek() not implemented for memspace %u.", mem);
+        log_error(LOG_DEFAULT, "mon_get_mem_val_ex_nosfx: mem_bank_peek() not implemented for memspace %u.", mem);
         return mon_interfaces[mem]->mem_bank_read(bank, mem_addr, mon_interfaces[mem]->context);
     }
 }
@@ -1162,6 +1164,16 @@ void mon_backtrace(void)
     extern uint16_t callstack_memory_bank_config[];
     extern uint8_t  callstack_sp[];
     extern unsigned callstack_size;
+    /* FIXME: memspace should be passed as an argument to this function */
+    MEMSPACE mem = default_memspace;
+    if (mem == e_default_space) {
+        mem = default_memspace;
+    }
+    /* FIXME: only computer memspace can work right now */
+    if (mem != e_comp_space) {
+        mon_out("Sorry, backtrace is only implemented for computer memspace.\n");
+        return;
+    }
 
     pc = (monitor_cpu_for_memspace[default_memspace]->mon_register_get_val)(default_memspace, e_PC);
     sp = (monitor_cpu_for_memspace[default_memspace]->mon_register_get_val)(default_memspace, e_SP);
@@ -1266,10 +1278,10 @@ void mon_show_dir(const char *path)
             if (isdir) {
                 mon_out("     <dir> %s\n", name);
             } else {
-                mon_out("%"PRI_SIZE_T" %s\n", len, name);
+                mon_out("%10"PRI_SIZE_T" %s\n", len, name);
             }
         } else {
-            mon_out("%-20s?????\n", name);
+            mon_out("     %-20s ?????\n", name);
         }
     }
     lib_free(mpath);
@@ -1330,6 +1342,23 @@ void mon_tape_ctrl(int port, int command)
         mon_out("Unknown command.\n");
     } else {
         datasette_control(port, command);
+    }
+}
+
+void mon_tape_offs(int port, int offset)
+{
+    tape_image_t *tape_image = tape_image_dev[port];
+
+    if (tape_image && tape_image->data) {
+        if (offset < 0) {
+            offset = (int)tape_get_offset(tape_image);
+            mon_out("Current tape offset is: %d\n", offset);
+        } else {
+            mon_out("Setting tape to offset: %d\n", offset);
+            tape_seek_to_offset(tape_image, offset);
+        }
+    } else {
+        mon_out("No tape attached.\n");
     }
 }
 
@@ -1777,7 +1806,7 @@ static const resource_int_t resources_int[] = {
     { "MonitorChisLines", 8192, RES_EVENT_NO, NULL,
       &monitorchislines, set_monitor_chis_lines, NULL },
 #endif
-    { "MonitorScrollbackLines", 4096, RES_EVENT_NO, NULL,
+    { "MonitorScrollbackLines", 8192, RES_EVENT_NO, NULL,
       &monitorscrollbacklines, set_monitor_scrollback_lines, NULL },
     RESOURCE_INT_LIST_END
 };
@@ -1893,6 +1922,12 @@ void mon_display_screen(long addr)
     uint8_t rows, cols;
     unsigned int r, c;
     int bank;
+    /* FIXME: this should really be handled by the UI instead, ie the UI should
+              always just give us valid numbers */
+    static int last_known_xres = 40;
+    if (console_log) {
+        last_known_xres = console_log->console_xres;
+    }
 #if 0
     printf("Address = %ld\n", addr);
 #endif
@@ -1912,10 +1947,9 @@ void mon_display_screen(long addr)
     mon_out("Displaying %dx%d screen at $%04x:\n", cols, rows, base);
 
     for (r = 0; r < rows; r++) {
-        /* Only show addresses of each line in non-SDL */
-#if !defined(USE_SDLUI) && !defined(USE_SDL2UI)
-        mon_out("%04x  ", base);
-#endif
+        if ((cols + 9) < last_known_xres) {
+            mon_out("*C:%04x  ", base);
+        }
         for (c = 0; c < cols; c++) {
             uint8_t data;
 
@@ -1923,9 +1957,7 @@ void mon_display_screen(long addr)
                Do we want monitor sidefx in a function that's *supposed*
                to just read from screen memory? */
             data = mon_get_mem_val_ex_nosfx(e_comp_space, bank, (uint16_t)ADDR_LIMIT(base++));
-            data = charset_p_toascii(charset_screencode_to_petcii(data), CONVERT_WITH_CTRLCODES);
-
-            mon_out("%c", data);
+            mon_scrcode_out(1, "%c", data);
         }
         mon_out("\n");
     }
@@ -2181,7 +2213,7 @@ int mon_playback_commands(const char *filename, bool interrupt_current_playback)
          * Need to grow the playback FP stack. But look out for insane playback include depth.
          */
         if (playback_fp_stack_size_max >= PLAYBACK_MAX_FP_DEPTH) {
-            log_error(LOG_ERR, "Max level of playback file depth %d reached, exiting", playback_fp_stack_size_max);
+            log_error(LOG_DEFAULT, "Max level of playback file depth %d reached, exiting", playback_fp_stack_size_max);
             archdep_vice_exit(1);
         }
 
@@ -2197,7 +2229,7 @@ int mon_playback_commands(const char *filename, bool interrupt_current_playback)
     }
 
     if (fp == NULL) {
-        log_error(LOG_ERR, "Failed to open playback file: '%s'", filename);
+        log_error(LOG_DEFAULT, "Failed to open playback file: '%s'", filename);
         mon_out("Cannot open '%s'.\n", filename);
         return -1;
     }
@@ -2583,7 +2615,7 @@ void mon_print_conditional(cond_node_t *cnode)
 
     if (cnode->operation != e_INV) {
         if (!(cnode->child1 && cnode->child2)) {
-            log_error(LOG_ERR, "No conditional!");
+            log_error(LOG_DEFAULT, "No conditional!");
             return;
         }
         mon_print_conditional(cnode->child1);
@@ -2622,7 +2654,7 @@ int mon_evaluate_conditional(cond_node_t *cnode)
         int value_1, value_2;
 
         if (!(cnode->child1 && cnode->child2)) {
-            log_error(LOG_ERR, "No conditional!");
+            log_error(LOG_DEFAULT, "No conditional!");
             return 0;
         }
         value_1 = mon_evaluate_conditional(cnode->child1);
@@ -2664,7 +2696,7 @@ int mon_evaluate_conditional(cond_node_t *cnode)
                 break;
             case e_DIV:
                 if (value_2 == 0) {
-                    log_error(LOG_ERR, "Division by zero in conditional\n");
+                    log_error(LOG_DEFAULT, "Division by zero in conditional\n");
                     return 0;
                 }
                 cnode->value = (value_1 / value_2);
@@ -2676,7 +2708,7 @@ int mon_evaluate_conditional(cond_node_t *cnode)
                 cnode->value = (value_1 | value_2);
                 break;
             default:
-                log_error(LOG_ERR, "Unexpected conditional operator: %d\n",
+                log_error(LOG_DEFAULT, "Unexpected conditional operator: %d\n",
                           cnode->operation);
                 return 0;
         }
@@ -2830,17 +2862,6 @@ static bool watchpoints_check_stores(MEMSPACE mem, unsigned int lastpc, unsigned
 
 
 /* *** CPU INTERFACES *** */
-
-
-int monitor_force_import(MEMSPACE mem)
-{
-    bool result;
-
-    result = force_array[mem];
-    force_array[mem] = false;
-
-    return result;
-}
 
 /* called by cpu core */
 void monitor_check_icount(uint16_t pc)
@@ -3002,6 +3023,9 @@ void monitor_abort(void)
     mon_stop_output = 1;
 }
 
+#define TTY_COLUMNS 80
+#define TTY_ROWS    25
+
 static void monitor_open(void)
 {
     supported_cpu_type_list_t *slist, *slist_next;
@@ -3014,10 +3038,10 @@ static void monitor_open(void)
 
     if (console_mode) {
         /* Shitty hack. We should support the console size etc. */
-        static console_t console_log_console = { 80, 25, 0, 0, NULL };
+        static console_t console_log_console = { TTY_COLUMNS, TTY_ROWS, 0, 0, NULL };
         console_log = &console_log_console;
     } else if (monitor_is_remote() || monitor_is_binary()) {
-        static console_t console_log_remote = { 80, 25, 0, 0, NULL };
+        static console_t console_log_remote = { TTY_COLUMNS, TTY_ROWS, 0, 0, NULL };
         console_log = &console_log_remote;
     } else {
         if (console_log) {
@@ -3121,6 +3145,40 @@ static void monitor_open(void)
         mon_interfaces[default_memspace]->current_bank = monbank; /* restore value used in monitor */
         disassemble_on_entry = 0;
     }
+
+#if 0
+    /* FIXME: the first time the console opens the font might not be initialized
+       correctly, so close and repopen the monitor once */
+    {
+        int ch;
+        char str[2] = { 0, 0 };
+        mon_out("petscii:\n");
+        for (ch = 0; ch < 0x100; ch++) {
+            if ((ch && !(ch & 0x0f))) { mon_out("\n"); }
+            str[0] = ch;
+            mon_petscii_out(1, "%s", str);
+        }
+        mon_out("\n\npetscii (upper):\n");
+        for (ch = 0; ch < 0x100; ch++) {
+            if ((ch && !(ch & 0x0f))) { mon_out("\n"); }
+            str[0] = ch;
+            mon_petscii_upper_out(1, "%s", str);
+        }
+        mon_out("\n\nscrcode:\n");
+        for (ch = 0; ch < 0x100; ch++) {
+            if ((ch && !(ch & 0x0f))) { mon_out("\n"); }
+            str[0] = ch;
+            mon_scrcode_out(1, "%s", str);
+        }
+        mon_out("\n\nscrcode (upper):\n");
+        for (ch = 0; ch < 0x100; ch++) {
+            if ((ch && !(ch & 0x0f))) { mon_out("\n"); }
+            str[0] = ch;
+            mon_scrcode_upper_out(1, "%s", str);
+        }
+        mon_out("\n");
+    }
+#endif
 }
 
 static int monitor_process(char *cmd)

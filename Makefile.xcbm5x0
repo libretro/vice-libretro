@@ -48,28 +48,30 @@ SOURCES_CXX += \
 
 SOURCES_C += \
     $(SOURCES_C_COMMON) \
-    $(EMU)/cbm2/cbm5x0.c \
+    $(EMU)/cbm2/cbm2-cmdline-options.c \
     $(EMU)/cbm2/cbm2acia1.c \
     $(EMU)/cbm2/cbm2bus.c \
-    $(EMU)/cbm2/cbm5x0cia1.c \
-    $(EMU)/cbm2/cbm2-cmdline-options.c \
     $(EMU)/cbm2/cbm2cpu.c \
     $(EMU)/cbm2/cbm2datasette.c \
     $(EMU)/cbm2/cbm2drive.c \
+    $(EMU)/cbm2/cbm2export.c \
     $(EMU)/cbm2/cbm2iec.c \
     $(EMU)/cbm2/cbm2io.c \
-    $(EMU)/cbm2/cbm5x0mem.c \
     $(EMU)/cbm2/cbm2memsnapshot.c \
     $(EMU)/cbm2/cbm2model.c \
-    $(EMU)/cbm2/cbm5x0printer.c \
-    $(EMU)/cbm2/cbm5x0-resources.c \
-    $(EMU)/cbm2/cbm5x0-stubs.c \
-    $(EMU)/cbm2/cbm5x0rom.c \
     $(EMU)/cbm2/cbm2romset.c \
     $(EMU)/cbm2/cbm2sound.c \
     $(EMU)/cbm2/cbm2tpi1.c \
     $(EMU)/cbm2/cbm2tpi2.c \
+    $(EMU)/cbm2/cbm5x0-resources.c \
+    $(EMU)/cbm2/cbm5x0-stubs.c \
+    $(EMU)/cbm2/cbm5x0.c \
+    $(EMU)/cbm2/cbm5x0cia1.c \
+    $(EMU)/cbm2/cbm5x0printer.c \
+    $(EMU)/cbm2/cbm5x0mem.c \
+    $(EMU)/cbm2/cbm5x0rom.c \
     $(EMU)/cbm2/cbm5x0video.c \
+    $(EMU)/cbm2/cart/cbm2-generic.c \
     $(EMU)/cbm2/cart/cbm2cart.c \
     $(EMU)/cbm2/cart/debugcart.c \
     $(EMU)/datasette/datasette.c \

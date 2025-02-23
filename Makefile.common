@@ -216,6 +216,7 @@ SOURCES_C_JOYPORT := \
     $(EMU)/joyport/paperclip64.c \
     $(EMU)/joyport/paperclip64e.c \
     $(EMU)/joyport/paperclip64sc.c \
+    $(EMU)/joyport/powerpad.c \
     $(EMU)/joyport/protopad.c \
     $(EMU)/joyport/rushware_keypad.c \
     $(EMU)/joyport/sampler2bit.c \
@@ -232,6 +233,7 @@ SOURCES_C_USERPORT := \
     $(EMU)/userport/userport_8bss.c \
     $(EMU)/userport/userport_dac.c \
     $(EMU)/userport/userport_diag_586220_harness.c \
+    $(EMU)/userport/userport_diag_pin.c \
     $(EMU)/userport/userport_digimax.c \
     $(EMU)/userport/userport_hks_joystick.c \
     $(EMU)/userport/userport_hummer_joystick.c \
@@ -257,6 +259,7 @@ SOURCES_C_C64_CART := \
 	$(EMU)/c64/cart/blackbox4.c \
 	$(EMU)/c64/cart/blackbox8.c \
 	$(EMU)/c64/cart/blackbox9.c \
+	$(EMU)/c64/cart/bmpdataturbo.c \
 	$(EMU)/c64/cart/c64-generic.c \
 	$(EMU)/c64/cart/c64-midi.c \
 	$(EMU)/c64/cart/c64acia1.c \
@@ -345,6 +348,8 @@ SOURCES_C_C64_CART := \
 	$(EMU)/c64/cart/supersnapshot.c \
 	$(EMU)/c64/cart/supersnapshot4.c \
 	$(EMU)/c64/cart/turtlegraphics.c \
+	$(EMU)/c64/cart/uc1.c \
+	$(EMU)/c64/cart/uc2.c \
 	$(EMU)/c64/cart/rexramfloppy.c \
 	$(EMU)/c64/cart/warpspeed.c \
 	$(EMU)/c64/cart/westermann.c \

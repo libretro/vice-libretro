@@ -46,7 +46,7 @@
 /* #define DEBUG_PRINTER */
 
 #ifdef DEBUG_PRINTER
-#define DBG(x)  log_debug x
+#define DBG(x) log_printf  x
 #else
 #define DBG(x)
 #endif
@@ -58,7 +58,7 @@ static int interface_opencbm_detach(unsigned int prnr);
 static int interface_serial_attach(unsigned int prnr);
 static int interface_serial_detach(unsigned int prnr);
 
-static log_t interface_serial_log = LOG_ERR;
+static log_t interface_serial_log = LOG_DEFAULT;
 
 /* ------------------------------------------------------------------------- */
 

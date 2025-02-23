@@ -681,6 +681,7 @@ NEW_8580_FILTER_TRUE
 RESID_BRANCH_HINTS
 RESID_INLINE
 RESID_INLINING
+RESID_CPPFLAGS
 host_os
 host_vendor
 host_cpu
@@ -765,6 +766,7 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 enable_silent_rules
+enable_debug
 enable_inline
 enable_arch
 enable_branch_hints
@@ -1410,6 +1412,7 @@ Optional Features:
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-silent-rules   less verbose build output (undo: "make V=1")
   --disable-silent-rules  verbose build output (undo: "make V=0")
+  --enable-debug          whether to enable asserts (default is no)
   --enable-inline         enable inlining of functions [default=yes]
   --enable-arch[=arch]    enable architecture specific compilation
                           [default=no]
@@ -3213,6 +3216,28 @@ case $host_os in *\ *) host_os=`echo "$host_os" | sed 's/ /-/g'`;; esac
 
 
 
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for debugging" >&5
+printf %s "checking for debugging... " >&6; }
+# Check whether --enable-debug was given.
+if test ${enable_debug+y}
+then :
+  enableval=$enable_debug;
+else $as_nop
+  enable_debug=no
+fi
+
+
+if test "x$enable_debug" = "xno"
+then :
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: build without asserts" >&5
+printf "%s\n" "build without asserts" >&6; }; RESID_CPPFLAGS="-DNDEBUG"
+else $as_nop
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: build with asserts" >&5
+printf "%s\n" "build with asserts" >&6; }; RESID_CPPFLAGS=""
+
+fi
+
+
 # Check whether --enable-inline was given.
 if test ${enable_inline+y}
 then :
@@ -3823,11 +3848,11 @@ if test x$ac_prog_cxx_stdcxx = xno
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $CXX option to enable C++11 features" >&5
 printf %s "checking for $CXX option to enable C++11 features... " >&6; }
-if test ${ac_cv_prog_cxx_11+y}
+if test ${ac_cv_prog_cxx_cxx11+y}
 then :
   printf %s "(cached) " >&6
 else $as_nop
-  ac_cv_prog_cxx_11=no
+  ac_cv_prog_cxx_cxx11=no
 ac_save_CXX=$CXX
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
@@ -3869,11 +3894,11 @@ if test x$ac_prog_cxx_stdcxx = xno
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $CXX option to enable C++98 features" >&5
 printf %s "checking for $CXX option to enable C++98 features... " >&6; }
-if test ${ac_cv_prog_cxx_98+y}
+if test ${ac_cv_prog_cxx_cxx98+y}
 then :
   printf %s "(cached) " >&6
 else $as_nop
-  ac_cv_prog_cxx_98=no
+  ac_cv_prog_cxx_cxx98=no
 ac_save_CXX=$CXX
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */

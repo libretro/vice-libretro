@@ -90,6 +90,8 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
+@HAVE_ZLIB_FALSE@am__append_1 = -DZMBV_USE_MINIZ
+@HAVE_ZLIB_FALSE@am__append_2 = -DZMBV_USE_MINIZ
 subdir = src/lib/libzmbv
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cxx_compile_stdcxx.m4 \
@@ -374,6 +376,8 @@ install_sh = @install_sh@
 libcurl_CFLAGS = @libcurl_CFLAGS@
 libcurl_LIBS = @libcurl_LIBS@
 libdir = @libdir@
+libevdev_CFLAGS = @libevdev_CFLAGS@
+libevdev_LIBS = @libevdev_LIBS@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
@@ -404,8 +408,8 @@ xpet_LDFLAGS = @xpet_LDFLAGS@
 xplus4_LDFLAGS = @xplus4_LDFLAGS@
 xscpu64_LDFLAGS = @xscpu64_LDFLAGS@
 xvic_LDFLAGS = @xvic_LDFLAGS@
-AM_CPPFLAGS = @VICE_CPPFLAGS@
-AM_CFLAGS = @VICE_CFLAGS@
+AM_CPPFLAGS = @VICE_CPPFLAGS@ $(am__append_1)
+AM_CFLAGS = @VICE_CFLAGS@ $(am__append_2)
 AM_CXXFLAGS = @VICE_CXXFLAGS@
 AM_LDFLAGS = @VICE_LDFLAGS@
 noinst_LIBRARIES = libzmbv.a
@@ -415,6 +419,7 @@ libzmbv_a_SOURCES = \
 
 EXTRA_DIST = \
 	     zmbv_avi.h \
+	     miniz.c \
 	     zmbv.h
 
 all: all-am

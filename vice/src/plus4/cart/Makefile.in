@@ -111,7 +111,8 @@ am__v_AR_1 =
 libplus4cart_a_AR = $(AR) $(ARFLAGS)
 libplus4cart_a_LIBADD =
 am_libplus4cart_a_OBJECTS = plus4cart.$(OBJEXT) debugcart.$(OBJEXT) \
-	plus4-generic.$(OBJEXT) jacint1mb.$(OBJEXT) \
+	digiblaster.$(OBJEXT) plus4-generic.$(OBJEXT) \
+	plus4-sidcart.$(OBJEXT) jacint1mb.$(OBJEXT) \
 	magiccart.$(OBJEXT) multicart.$(OBJEXT)
 libplus4cart_a_OBJECTS = $(am_libplus4cart_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
@@ -130,8 +131,9 @@ DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/src
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/debugcart.Po \
-	./$(DEPDIR)/jacint1mb.Po ./$(DEPDIR)/magiccart.Po \
-	./$(DEPDIR)/multicart.Po ./$(DEPDIR)/plus4-generic.Po \
+	./$(DEPDIR)/digiblaster.Po ./$(DEPDIR)/jacint1mb.Po \
+	./$(DEPDIR)/magiccart.Po ./$(DEPDIR)/multicart.Po \
+	./$(DEPDIR)/plus4-generic.Po ./$(DEPDIR)/plus4-sidcart.Po \
 	./$(DEPDIR)/plus4cart.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
@@ -377,6 +379,8 @@ install_sh = @install_sh@
 libcurl_CFLAGS = @libcurl_CFLAGS@
 libcurl_LIBS = @libcurl_LIBS@
 libdir = @libdir@
+libevdev_CFLAGS = @libevdev_CFLAGS@
+libevdev_LIBS = @libevdev_LIBS@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
@@ -413,6 +417,9 @@ AM_CPPFLAGS = \
 	-I$(top_builddir)/src \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/src/plus4 \
+	-I$(top_srcdir)/src/joyport \
+	-I$(top_srcdir)/src/samplerdrv \
+	-I$(top_srcdir)/src/sid \
 	-I$(top_srcdir)/src/arch/shared
 
 AM_CFLAGS = @VICE_CFLAGS@
@@ -424,8 +431,11 @@ libplus4cart_a_SOURCES = \
 	plus4cart.c \
 	debugcart.h \
 	debugcart.c \
+	digiblaster.c \
+	digiblaster.h \
 	plus4-generic.h \
 	plus4-generic.c \
+	plus4-sidcart.c \
 	jacint1mb.h \
 	jacint1mb.c \
 	magiccart.h \
@@ -482,10 +492,12 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/debugcart.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/digiblaster.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/jacint1mb.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/magiccart.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/multicart.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4-generic.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4-sidcart.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4cart.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
@@ -632,10 +644,12 @@ clean-am: clean-generic clean-noinstLIBRARIES mostlyclean-am
 
 distclean: distclean-am
 		-rm -f ./$(DEPDIR)/debugcart.Po
+	-rm -f ./$(DEPDIR)/digiblaster.Po
 	-rm -f ./$(DEPDIR)/jacint1mb.Po
 	-rm -f ./$(DEPDIR)/magiccart.Po
 	-rm -f ./$(DEPDIR)/multicart.Po
 	-rm -f ./$(DEPDIR)/plus4-generic.Po
+	-rm -f ./$(DEPDIR)/plus4-sidcart.Po
 	-rm -f ./$(DEPDIR)/plus4cart.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
@@ -683,10 +697,12 @@ installcheck-am:
 
 maintainer-clean: maintainer-clean-am
 		-rm -f ./$(DEPDIR)/debugcart.Po
+	-rm -f ./$(DEPDIR)/digiblaster.Po
 	-rm -f ./$(DEPDIR)/jacint1mb.Po
 	-rm -f ./$(DEPDIR)/magiccart.Po
 	-rm -f ./$(DEPDIR)/multicart.Po
 	-rm -f ./$(DEPDIR)/plus4-generic.Po
+	-rm -f ./$(DEPDIR)/plus4-sidcart.Po
 	-rm -f ./$(DEPDIR)/plus4cart.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic

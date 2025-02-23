@@ -143,8 +143,11 @@ static void do_autostart(GtkWidget *widget, int port, int index, int autostart)
                 autostart ? AUTOSTART_MODE_RUN : AUTOSTART_MODE_LOAD,
                 port - 1    /* function uses 0/1 */) < 0) {
         /* oeps */
-        log_error(LOG_ERR, "autostarting tape '%s' failed.", filename_locale);
-        ui_error("Autostarting tape '%s' failed.", filename_locale);
+        log_error(LOG_DEFAULT, "autostarting tape '%s' failed.", filename_locale);
+        vice_gtk3_message_error(GTK_WINDOW(widget),
+                               "Autostart error",
+                               "Autostarting tape '%s' failed.",
+                               filename_locale);
     }
     g_free(filename_locale);
 }
@@ -168,10 +171,13 @@ static void do_attach(GtkWidget *widget, int port)
 
     if (tape_image_attach(TAPEPORT_PORT_1 + port, filename_locale) < 0) {
         /* failed */
-        log_error(LOG_ERR, "attaching tape '%s' to port #%d failed.",
-                 filename_locale, port);
-        ui_error("Attaching tape '%s' to port #%d failed.",
-                 filename_locale, port);
+        log_error(LOG_DEFAULT,
+                  "attaching tape '%s' to port #%d failed.",
+                  filename_locale, port);
+        vice_gtk3_message_error(GTK_WINDOW(widget),
+                                "Attach error",
+                                "Attaching tape '%s' to port #%d failed.",
+                                filename_locale, port);
     }
     g_free(filename_locale);
 }
@@ -231,7 +237,7 @@ static void on_response(GtkWidget *widget, gint response_id, gpointer user_data)
     int autostart = 0;
     int unit;
 
-    resources_get_int("AutostartOnDoubleclick", &autostart);
+    resources_get_int("AutostartOnDoubleClick", &autostart);
     unit = GPOINTER_TO_INT(user_data);
 #if 0
     debug_gtk3("Got port %d.", port);
@@ -362,7 +368,7 @@ static GtkWidget *create_tape_attach_dialog(int port)
 #if 0
     debug_gtk3("Got port %d.", port);
 #endif
-    resources_get_int("AutostartOnDoubleclick", &autostart);
+    resources_get_int("AutostartOnDoubleClick", &autostart);
     g_snprintf(title, sizeof(title), "Attach a tape image to port #%d", port);
 
     /* create new dialog */

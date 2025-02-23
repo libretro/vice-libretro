@@ -36,6 +36,7 @@
 #endif
 
 #include "lib.h"
+#include "log.h"
 #include "machine.h"
 #include "mon_disassemble.h"
 #include "mon_memmap.h"
@@ -78,13 +79,14 @@ struct cpuhistory_s {
    uint8_t reg_x;
    uint8_t reg_y;
    uint8_t reg_sp;
-   int8_t origin;
+   MEMSPACE origin;
 };
 typedef struct cpuhistory_s cpuhistory_t;
 
 /* CPU history variables */
 static cpuhistory_t *cpuhistory = NULL;
-static int cpuhistory_lines = 0;
+static int cpuhistory_buffer_lines = 0;     /* actual size of the cyclic buffer */
+static int cpuhistory_show_lines = 0;       /* number of lines to show in the monitor */
 static int cpuhistory_i = 0;
 
 
@@ -102,10 +104,30 @@ int monitor_cpuhistory_allocate(int lines)
         return -1;
     }
 
+    cpuhistory_show_lines = lines;
+
+    /* HACK HACK HACK
+       since all CPUs are sharing one cyclic buffer for the history, we must make
+       sure that one CPU can not "flush out" the history of another CPU. For this
+       to work we need to buffer at least one frame, since the emulation is synced
+       at least once per frame.
+
+       312 lines * 65 cycles makes 20280 cycles per frame, that 10140 NOPs
+
+       For now, we use this number as minimum, and multiply by the number of
+       CPUs when the buffer is actually allocated.
+
+       also see https://sourceforge.net/p/vice-emu/bugs/1994/
+    */
+    if (lines < 10140) {
+        lines = 10140;
+    }
+    lines *= 5;
+
     cpuhistory = lib_realloc(cpuhistory, (size_t)lines * sizeof(cpuhistory_t));
 
     /* do we resize the array? */
-    if (cpuhistory_lines != lines) {
+    if (cpuhistory_buffer_lines != lines) {
         /* Initialize array to avoid mon_memmap_store() using unitialized
          * data when reading the RESET vector on boot.
          * WHY reading the RESET vector causes a STORE is another issue.
@@ -114,12 +136,11 @@ int monitor_cpuhistory_allocate(int lines)
         memset((void *)cpuhistory, 0, sizeof(cpuhistory_t) * (size_t)lines);
         /* flag lines so they won't output anything after startup */
         for (i = 0; i < lines ; i++) {
-            /* don't use -1 */
-            cpuhistory[i].origin = -2;
+            cpuhistory[i].origin = e_invalid_space;
         }
     }
 
-    cpuhistory_lines = lines;
+    cpuhistory_buffer_lines = lines;
     cpuhistory_i = 0;
     return 0;
 }
@@ -132,14 +153,14 @@ void monitor_cpuhistory_store(CLOCK cycle, unsigned int addr, unsigned int op,
                               uint8_t reg_y,
                               uint8_t reg_sp,
                               unsigned int reg_st,
-                              uint8_t origin)
+                              MEMSPACE origin)
 {
     if (machine_is_jammed()) {
         return;
     }
 
     ++cpuhistory_i;
-    if (cpuhistory_i == cpuhistory_lines) {
+    if (cpuhistory_i == cpuhistory_buffer_lines) {
         cpuhistory_i = 0;
     }
     cpuhistory[cpuhistory_i].cycle = cycle;
@@ -173,16 +194,20 @@ void mon_cpuhistory(int count, MEMSPACE filter1, MEMSPACE filter2, MEMSPACE filt
     CLOCK cycle;
     char otext[10];
 
-    /* the filterX is 0 = no value, 1 = cpu, 2 = drive 8, etc */
-
     /* if nothing passed, set the first filter to the default device */
-    if (filter1 + filter2 + filter3 + filter4 + filter5 == 0) {
+    if ((filter1 == e_invalid_space) &&
+        (filter2 == e_invalid_space) &&
+        (filter3 == e_invalid_space) &&
+        (filter4 == e_invalid_space) &&
+        (filter5 == e_invalid_space)) {
         filter1 = default_memspace;
     }
 
     /* determine the actual maximum records to go through */
-    if ((count < 1) || (count > cpuhistory_lines)) {
-        count = cpuhistory_lines;
+    if (count < 1) {
+        count = cpuhistory_show_lines;
+    } else if (count > cpuhistory_buffer_lines) {
+        count = cpuhistory_buffer_lines;
     }
 
     /* 'i' is the actual counter */
@@ -193,17 +218,17 @@ void mon_cpuhistory(int count, MEMSPACE filter1, MEMSPACE filter2, MEMSPACE filt
     /* find out where we need to start */
     while (i < count) {
         /* make sure the record matches */
-        if (cpuhistory[pos].origin >= 0
-            && (filter1 - 1 == cpuhistory[pos].origin
-                || filter2 - 1 == cpuhistory[pos].origin
-                || filter3 - 1 == cpuhistory[pos].origin
-                || filter4 - 1 == cpuhistory[pos].origin
-                || filter5 - 1 == cpuhistory[pos].origin)) {
+        if ((cpuhistory[pos].origin != e_invalid_space)
+            && ((filter1 == cpuhistory[pos].origin)
+                || (filter2 == cpuhistory[pos].origin)
+                || (filter3 == cpuhistory[pos].origin)
+                || (filter4 == cpuhistory[pos].origin)
+                || (filter5 == cpuhistory[pos].origin))) {
             i++;
         }
         pos--;
         if (pos < 0) {
-            pos += cpuhistory_lines;
+            pos += cpuhistory_buffer_lines;
         }
         /* stop if we hit the starting point */
         /* this is totally possible since the emulation runs each CPU in
@@ -217,26 +242,26 @@ void mon_cpuhistory(int count, MEMSPACE filter1, MEMSPACE filter2, MEMSPACE filt
     /* loop through all entries until we find the number records requested */
     while (i > 0) {
         /* adjust our buffer circular reference */
-        pos = ( pos + 1) % cpuhistory_lines;
+        pos = ( pos + 1) % cpuhistory_buffer_lines;
         /* make sure the record matches */
-        if (cpuhistory[pos].origin >= 0
-            && (filter1 - 1 == cpuhistory[pos].origin
-                || filter2 - 1 == cpuhistory[pos].origin
-                || filter3 - 1 == cpuhistory[pos].origin
-                || filter4 - 1 == cpuhistory[pos].origin
-                || filter5 - 1 == cpuhistory[pos].origin)) {
+        if ((cpuhistory[pos].origin != e_invalid_space)
+            && ((filter1 == cpuhistory[pos].origin)
+                || (filter2 == cpuhistory[pos].origin)
+                || (filter3 == cpuhistory[pos].origin)
+                || (filter4 == cpuhistory[pos].origin)
+                || (filter5 == cpuhistory[pos].origin))) {
             cycle = cpuhistory[pos].cycle;
             addr = cpuhistory[pos].addr;
             op = cpuhistory[pos].op;
             p1 = cpuhistory[pos].p1;
             p2 = cpuhistory[pos].p2;
 
-            mem = cpuhistory[pos].origin + 1;
+            mem = cpuhistory[pos].origin;
             loc = addr_location(addr);
 
             dis_inst = mon_disassemble_to_string_ex(mem, loc, op, p1, p2, p3, hex_mode, &opc_size);
 
-            strncpy(otext, mon_memspace_string[cpuhistory[pos].origin + 1], 4);
+            strncpy(otext, mon_memspace_string[mem], 4);
 
             /* Print the disassembled instruction */
             mon_out(".%s:%04x  %-26s A:%02x X:%02x Y:%02x SP:%02x %c%c-%c%c%c%c%c %12"PRIu64"\n",
@@ -265,12 +290,13 @@ static int mon_memmap_picx;
 static int mon_memmap_picy;
 static unsigned int mon_memmap_mask;
 
-
+/* mmzap */
 void mon_memmap_zap(void)
 {
     memset(mon_memmap, 0, mon_memmap_size * sizeof(MEMMAP_ELEM));
 }
 
+/* mmsh */
 void mon_memmap_show(int mask, MON_ADDR start_addr, MON_ADDR end_addr)
 {
     unsigned int addr;
@@ -291,10 +317,10 @@ void mon_memmap_show(int mask, MON_ADDR start_addr, MON_ADDR end_addr)
 
     if (machine_class == VICE_MACHINE_C64DTV) {
         mon_out("  addr: IO  ROM RAM\n");
-        line_fmt = "%06x: %c%c%c %c%c%c %c%c%c\n";
+        line_fmt = "%06x: %c%c%c %c%c%c %c%c%c%s%s%s\n";
     } else {
         mon_out("addr: IO  ROM RAM\n");
-        line_fmt = "%04x: %c%c%c %c%c%c %c%c%c\n";
+        line_fmt = "%04x: %c%c%c %c%c%c %c%c%c%s%s%s\n";
     }
 
     for (addr = start_addr; addr <= end_addr; ++addr) {
@@ -313,13 +339,19 @@ void mon_memmap_show(int mask, MON_ADDR start_addr, MON_ADDR end_addr)
                 (b & MEMMAP_ROM_X) ? 'x' : '-',
                 (b & MEMMAP_RAM_R) ? 'r' : '-',
                 (b & MEMMAP_RAM_W) ? 'w' : '-',
-                (b & MEMMAP_RAM_X) ? 'x' : '-');
+                (b & MEMMAP_RAM_X) ? 'x' : '-',
+                (b & MEMMAP_RAM_R) && (!(b & MEMMAP_REGULAR_READ)) ? " (dummy)" : "",
+                (b & MEMMAP_UNINITIALIZED_READ) ? " (uninitialized read)" : "",
+                (b & MEMMAP_UNINITIALIZED_EXEC) ? " (uninitialized exec)" : ""
+                );
     }
 }
 
+/* this is called per memory access, so it should only do whats really needed */
 void monitor_memmap_store(unsigned int addr, unsigned int type)
 {
-    uint8_t op = cpuhistory[cpuhistory_i].op;
+    /* uint8_t op = cpuhistory[cpuhistory_i].op; */
+    unsigned int last;
 #if 0
     static int repeat = 0;
 
@@ -332,7 +364,7 @@ void monitor_memmap_store(unsigned int addr, unsigned int type)
     if (memmap_state & MEMMAP_STATE_IN_MONITOR) {
         return;
     }
-
+#if 0 /* FIXME: why would we do this? */
     /* Ignore reg_pc+2 reads on branches & JSR
        and return address read on RTS */
     if (type & (MEMMAP_ROM_R | MEMMAP_RAM_R)
@@ -340,10 +372,19 @@ void monitor_memmap_store(unsigned int addr, unsigned int type)
       || ((op == OP_RTS) && ((addr > 0x1ff) || (addr < 0x100))))) {
         return;
     }
-
+#endif
+    last = mon_memmap[addr & mon_memmap_mask];
+    if (!(last & MEMMAP_RAM_W)) { /* if this address was not written to yet */
+        if (type & MEMMAP_REGULAR_READ) { /* and this is a regular, non dummy, read */
+            if (type & MEMMAP_RAM_R) {
+                type |= MEMMAP_UNINITIALIZED_READ; /* mark as non-initialized read in the history */
+            } else if (type & MEMMAP_RAM_X) {
+                type |= MEMMAP_UNINITIALIZED_EXEC; /* mark as non-initialized execute in the history */
+            }
+        }
+    }
     mon_memmap[addr & mon_memmap_mask] |= type;
 }
-
 
 void mon_memmap_save(const char *filename, int format)
 {

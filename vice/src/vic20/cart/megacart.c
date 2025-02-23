@@ -55,7 +55,7 @@
 #include "zfile.h"
 
 #ifdef DEBUGCART
-#define DBG(x) log_debug x
+#define DBG(x) log_printf  x
 #else
 #define DBG(x)
 #endif
@@ -111,7 +111,7 @@ static uint8_t bank_high_reg = 0;
 static char *nvram_filename = NULL;
 static int nvram_writeback = 0;
 
-static log_t megacart_log = LOG_ERR;
+static log_t megacart_log = LOG_DEFAULT;
 
 /* ------------------------------------------------------------------------- */
 
@@ -435,6 +435,26 @@ static int try_nvram_save(const char *filename)
     return ret;
 }
 
+
+int megacart_save_nvram(const char *filename)
+{
+    return try_nvram_save(filename);
+}
+
+int megacart_flush_nvram(void)
+{
+    /* try to write back NvRAM contents if cartridge is not from a snapshot */
+    if (!cartridge_is_from_snapshot) {
+        return try_nvram_save(nvram_filename);
+    }
+    return -1;
+}
+
+int megacart_can_flush_nvram(void)
+{
+    return (nvram_filename != NULL) && !cartridge_is_from_snapshot;
+}
+
 /* ------------------------------------------------------------------------- */
 
 /* FIXME: this still needs to be tweaked to match the hardware */
@@ -492,7 +512,7 @@ static void clear_ram(void)
 
 void megacart_init(void)
 {
-    if (megacart_log == LOG_ERR) {
+    if (megacart_log == LOG_DEFAULT) {
         megacart_log = log_open(CARTRIDGE_VIC20_NAME_MEGACART);
     }
 }

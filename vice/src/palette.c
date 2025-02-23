@@ -51,12 +51,12 @@
 /* #define DEBUG_PALETTE */
 
 #ifdef DEBUG_PALETTE
-#define DBG(x)  log_debug x
+#define DBG(x) log_printf  x
 #else
 #define DBG(x)
 #endif
 
-static log_t palette_log = LOG_ERR;
+static log_t palette_log = LOG_DEFAULT;
 
 
 palette_t *palette_create(unsigned int num_entries, const char *entry_names[])

@@ -46,6 +46,7 @@ static ui_menu_entry_t *dyn_menu_wic64;
 UI_MENU_DEFINE_TOGGLE(WIC64Logenabled)
 UI_MENU_DEFINE_TOGGLE(WIC64ColorizeLog)
 UI_MENU_DEFINE_INT(WIC64Hexdumplines);
+UI_MENU_DEFINE_INT(WIC64RemoteTimeout);
 UI_MENU_DEFINE_INT(WIC64LogLevel);
 UI_MENU_DEFINE_STRING(WIC64DefaultServer)
 UI_MENU_DEFINE_TOGGLE(WIC64Resetuser)
@@ -69,7 +70,7 @@ void wic64_timezones_menu_new(void)
         dyn_menu_wic64[z].string   = lib_msprintf("%d: %s", zones[z].idx, zones[z].tz_name);
         dyn_menu_wic64[z].type     = MENU_ENTRY_RESOURCE_RADIO;
         dyn_menu_wic64[z].callback = radio_WIC64Timezone_callback;
-        dyn_menu_wic64[z].data     = int_to_void_ptr(zones[z].idx);
+        dyn_menu_wic64[z].data     = vice_int_to_ptr(zones[z].idx);
     }
     dyn_menu_wic64[z].string = NULL;
 }
@@ -95,7 +96,7 @@ static UI_MENU_CALLBACK(custom_wic64_reset_callback)
     return NULL;
 }
 
-#define MENTRIES 11
+#define MENTRIES 12
 ui_menu_entry_t wic64_menu[MENTRIES];
 
 ui_callback_data_t uiwic64_menu_create(void)
@@ -132,6 +133,13 @@ ui_callback_data_t uiwic64_menu_create(void)
     wic64_menu[j].string   = "Hexdump lines (0=unlimited):";
     wic64_menu[j].type     = MENU_ENTRY_RESOURCE_INT;
     wic64_menu[j].callback = int_WIC64Hexdumplines_callback;
+    wic64_menu[j].data     = NULL;
+    j++;
+
+    wic64_menu[j].action   = ACTION_NONE;
+    wic64_menu[j].string   = "Remote Timeout";
+    wic64_menu[j].type     = MENU_ENTRY_RESOURCE_INT;
+    wic64_menu[j].callback = int_WIC64RemoteTimeout_callback;
     wic64_menu[j].data     = NULL;
     j++;
 
@@ -179,7 +187,7 @@ ui_callback_data_t uiwic64_menu_create(void)
     j++;
     wic64_menu[j].string = NULL;
     if (j >= MENTRIES) {
-        log_error(LOG_ERR, "internal error: %s, %d >= MENTRIES(%d)", __FUNCTION__, j, MENTRIES);
+        log_error(LOG_DEFAULT, "internal error: %s, %d >= MENTRIES(%d)", __FUNCTION__, j, MENTRIES);
     }
     return (ui_callback_data_t) wic64_menu;
 }

@@ -40,7 +40,9 @@
 #endif
 
 #include "debug.h"
+#include "cmdline.h"
 #include "interrupt.h"
+#include "log.h"
 #include "machine.h"
 #include "mainc64cpu.h"
 #include "maincpu.h"
@@ -49,6 +51,7 @@
 #include "monitor.h"
 #include "mos6510.h"
 #include "reu.h"
+#include "resources.h"
 #include "snapshot.h"
 #include "traps.h"
 #include "types.h"
@@ -57,6 +60,7 @@
 #define EXIT_FAILURE 1
 #endif
 
+log_t maincpu_log = LOG_DEFAULT;
 
 /* MACHINE_STUFF should define/undef
 
@@ -207,7 +211,8 @@ inline static void check_ba(void)
 
 /* FIXME do proper ROM/RAM/IO tests */
 
-inline static void memmap_mem_update(unsigned int addr, int write)
+/* this is called per memory access, so it should only do whats really needed */
+inline static void memmap_mem_update(unsigned int addr, int write, int dummy)
 {
     unsigned int type = MEMMAP_RAM_R;
 
@@ -240,9 +245,14 @@ inline static void memmap_mem_update(unsigned int addr, int write)
             /* HACK: transform R to X */
             type >>= 2;
             memmap_state &= ~(MEMMAP_STATE_OPCODE);
+#if 0
         } else if (memmap_state & MEMMAP_STATE_INSTR) {
             /* ignore operand reads */
             type = 0;
+#endif
+        }
+        if (dummy == 0) {
+            type |= MEMMAP_REGULAR_READ;
         }
     }
     monitor_memmap_store(addr, type);
@@ -250,13 +260,13 @@ inline static void memmap_mem_update(unsigned int addr, int write)
 
 static void memmap_mem_store(unsigned int addr, unsigned int value)
 {
-    memmap_mem_update(addr, 1);
+    memmap_mem_update(addr, 1, 0);
     (*_mem_write_tab_ptr[(addr) >> 8])((uint16_t)(addr), (uint8_t)(value));
 }
 
 static void memmap_mem_store_dummy(unsigned int addr, unsigned int value)
 {
-    memmap_mem_update(addr, 1);
+    memmap_mem_update(addr, 1, 1);
     (*_mem_write_tab_ptr_dummy[(addr) >> 8])((uint16_t)(addr), (uint8_t)(value));
 }
 
@@ -264,14 +274,14 @@ static void memmap_mem_store_dummy(unsigned int addr, unsigned int value)
 static uint8_t memmap_mem_read(unsigned int addr)
 {
     check_ba();
-    memmap_mem_update(addr, 0);
+    memmap_mem_update(addr, 0, 0);
     return (*_mem_read_tab_ptr[(addr) >> 8])((uint16_t)(addr));
 }
 
 static uint8_t memmap_mem_read_dummy(unsigned int addr)
 {
     check_ba();
-    memmap_mem_update(addr, 0);
+    memmap_mem_update(addr, 0, 1);
     return (*(_mem_read_tab_ptr_dummy[(addr) >> 8]))((uint16_t)(addr));
 }
 
@@ -502,6 +512,60 @@ const CLOCK maincpu_opcode_write_cycles[] = {
    the values copied into this struct.  */
 mos6510_regs_t maincpu_regs;
 
+static int maincpu_jammed = 0;
+
+/* ------------------------------------------------------------------------- */
+
+static int ane_log_level = 0; /* 0: none, 1: unstable only 2: all */
+static int lxa_log_level = 0; /* 0: none, 1: unstable only 2: all */
+
+static int set_ane_log_level(int val, void *param)
+{
+    if ((val < 0) || (val > 2)) {
+        return -1;
+    }
+    ane_log_level = val;
+    return 0;
+}
+
+static int set_lxa_log_level(int val, void *param)
+{
+    if ((val < 0) || (val > 2)) {
+        return -1;
+    }
+    lxa_log_level = val;
+    return 0;
+}
+
+static const resource_int_t maincpu_resources_int[] = {
+    { "LogLevelANE", 0, RES_EVENT_NO, NULL,
+      &ane_log_level, set_ane_log_level, NULL },
+    { "LogLevelLXA", 0, RES_EVENT_NO, NULL,
+      &lxa_log_level, set_lxa_log_level, NULL },
+    RESOURCE_INT_LIST_END
+};
+
+int maincpu_resources_init(void)
+{
+    return resources_register_int(maincpu_resources_int);
+}
+
+static const cmdline_option_t cmdline_options_maincpu[] =
+{
+    { "-aneloglevel", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
+      NULL, NULL, "LogLevelANE", NULL,
+      "<Type>", "Set ANE log level: (0: None, 1: Unstable, 2: All)" },
+    { "-lxaloglevel", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
+      NULL, NULL, "LogLevelLXA", NULL,
+      "<Type>", "Set LXA log level: (0: None, 1: Unstable, 2: All)" },
+    CMDLINE_LIST_END
+};
+
+int maincpu_cmdline_options_init(void)
+{
+    return cmdline_register_options(cmdline_options_maincpu);
+}
+
 /* ------------------------------------------------------------------------- */
 
 monitor_interface_t *maincpu_monitor_interface_get(void)
@@ -547,6 +611,8 @@ monitor_interface_t *maincpu_monitor_interface_get(void)
 void maincpu_early_init(void)
 {
     maincpu_int_status = interrupt_cpu_status_new();
+
+    maincpu_log = log_open("Main CPU");
 }
 
 void maincpu_init(void)
@@ -665,6 +731,7 @@ void maincpu_resync_limits(void)
 #ifdef __LIBRETRO__
 void maincpu_mainloop(void)
 {
+#define ORIGIN_MEMSPACE (e_comp_space)
     /* Notice that using a struct for these would make it a lot slower (at
        least, on gcc 2.7.2.x).  */
     static uint8_t reg_a = 0;
@@ -694,6 +761,10 @@ if (!retro_mainloop)
     machine_trigger_reset(MACHINE_RESET_MODE_RESET_CPU);
 }
     /*while (1)*/ {
+#define CPU_LOG_ID maincpu_log
+#define ANE_LOG_LEVEL ane_log_level
+#define LXA_LOG_LEVEL lxa_log_level
+#define CPU_IS_JAMMED maincpu_jammed
 #define CLK maincpu_clk
 #define RMW_FLAG maincpu_rmw_flag
 #define LAST_OPCODE_INFO last_opcode_info
@@ -723,7 +794,7 @@ if (!retro_mainloop)
                 DO_INTERRUPT(IK_RESET);                               \
                 break;                                                \
             case JAM_POWER_CYCLE:                                     \
-                mem_powerup();                                        \
+                machine_powerup();                                    \
                 DO_INTERRUPT(IK_RESET);                               \
                 break;                                                \
             case JAM_MONITOR:                                         \
@@ -746,7 +817,7 @@ if (!retro_mainloop)
         maincpu_int_status->num_dma_per_opcode = 0;
 
         if (maincpu_clk_limit && (maincpu_clk > maincpu_clk_limit)) {
-            log_error(LOG_DEFAULT, "cycle limit reached.");
+            log_error(maincpu_log, "cycle limit reached.");
             archdep_vice_exit(EXIT_FAILURE);
         }
 
@@ -763,6 +834,7 @@ if (!retro_mainloop)
 
 void maincpu_mainloop(void)
 {
+#define ORIGIN_MEMSPACE (e_comp_space)
     /* Notice that using a struct for these would make it a lot slower (at
        least, on gcc 2.7.2.x).  */
     uint8_t reg_a = 0;
@@ -787,6 +859,10 @@ void maincpu_mainloop(void)
     machine_trigger_reset(MACHINE_RESET_MODE_RESET_CPU);
 
     while (1) {
+#define CPU_LOG_ID maincpu_log
+#define ANE_LOG_LEVEL ane_log_level
+#define LXA_LOG_LEVEL lxa_log_level
+#define CPU_IS_JAMMED maincpu_jammed
 #define CLK maincpu_clk
 #define RMW_FLAG maincpu_rmw_flag
 #define LAST_OPCODE_INFO last_opcode_info
@@ -816,7 +892,7 @@ void maincpu_mainloop(void)
                 DO_INTERRUPT(IK_RESET);                               \
                 break;                                                \
             case JAM_POWER_CYCLE:                                     \
-                mem_powerup();                                        \
+                machine_powerup();                                    \
                 DO_INTERRUPT(IK_RESET);                               \
                 break;                                                \
             case JAM_MONITOR:                                         \
@@ -839,7 +915,7 @@ void maincpu_mainloop(void)
         maincpu_int_status->num_dma_per_opcode = 0;
 
         if (maincpu_clk_limit && (maincpu_clk > maincpu_clk_limit)) {
-            log_error(LOG_DEFAULT, "cycle limit reached.");
+            log_error(maincpu_log, "cycle limit reached.");
             archdep_vice_exit(EXIT_FAILURE);
         }
 
@@ -908,6 +984,9 @@ unsigned int maincpu_get_sp(void) {
 }
 
 /* ------------------------------------------------------------------------- */
+
+#ifdef __LIBRETRO__
+/* Old version kept due to new log level stuff breaking old snapshots */
 
 static char snap_module_name[] = "MAINCPU";
 #define SNAP_MAJOR 1
@@ -1009,3 +1088,114 @@ fail:
     }
     return -1;
 }
+
+#else
+
+static char snap_module_name[] = "MAINCPU";
+#define SNAP_MAJOR 1
+#define SNAP_MINOR 4
+
+int maincpu_snapshot_write_module(snapshot_t *s)
+{
+    snapshot_module_t *m;
+
+    m = snapshot_module_create(s, snap_module_name, ((uint8_t)SNAP_MAJOR),
+                               ((uint8_t)SNAP_MINOR));
+    if (m == NULL) {
+        return -1;
+    }
+
+    if (0
+        || SMW_CLOCK(m, maincpu_clk) < 0
+        || SMW_B(m, MOS6510_REGS_GET_A(&maincpu_regs)) < 0
+        || SMW_B(m, MOS6510_REGS_GET_X(&maincpu_regs)) < 0
+        || SMW_B(m, MOS6510_REGS_GET_Y(&maincpu_regs)) < 0
+        || SMW_B(m, MOS6510_REGS_GET_SP(&maincpu_regs)) < 0
+        || SMW_W(m, (uint16_t)MOS6510_REGS_GET_PC(&maincpu_regs)) < 0
+        || SMW_B(m, (uint8_t)MOS6510_REGS_GET_STATUS(&maincpu_regs)) < 0
+        || SMW_DW(m, (uint32_t)last_opcode_info) < 0
+        || SMW_DW(m, (uint32_t)ane_log_level) < 0
+        || SMW_DW(m, (uint32_t)lxa_log_level) < 0
+        || SMW_DW(m, (uint32_t)maincpu_jammed) < 0
+        || SMW_DW(m, (uint32_t)maincpu_ba_low_flags) < 0) {
+        goto fail;
+    }
+
+    if (interrupt_write_snapshot(maincpu_int_status, m) < 0) {
+        goto fail;
+    }
+
+    if (interrupt_write_new_snapshot(maincpu_int_status, m) < 0) {
+        goto fail;
+    }
+
+    if (interrupt_write_sc_snapshot(maincpu_int_status, m) < 0) {
+        goto fail;
+    }
+
+    return snapshot_module_close(m);
+
+fail:
+    if (m != NULL) {
+        snapshot_module_close(m);
+    }
+    return -1;
+}
+
+int maincpu_snapshot_read_module(snapshot_t *s)
+{
+    uint8_t a, x, y, sp, status;
+    uint16_t pc;
+    uint8_t major, minor;
+    snapshot_module_t *m;
+
+    m = snapshot_module_open(s, snap_module_name, &major, &minor);
+    if (m == NULL) {
+        return -1;
+    }
+
+    if (0
+        || SMR_CLOCK(m, &maincpu_clk) < 0
+        || SMR_B(m, &a) < 0
+        || SMR_B(m, &x) < 0
+        || SMR_B(m, &y) < 0
+        || SMR_B(m, &sp) < 0
+        || SMR_W(m, &pc) < 0
+        || SMR_B(m, &status) < 0
+        || SMR_DW_UINT(m, &last_opcode_info) < 0
+        || SMR_DW_INT(m, &ane_log_level) < 0
+        || SMR_DW_INT(m, &lxa_log_level) < 0
+        || SMR_DW_INT(m, &maincpu_jammed) < 0
+        || SMR_DW_INT(m, &maincpu_ba_low_flags) < 0) {
+        goto fail;
+    }
+
+    MOS6510_REGS_SET_A(&maincpu_regs, a);
+    MOS6510_REGS_SET_X(&maincpu_regs, x);
+    MOS6510_REGS_SET_Y(&maincpu_regs, y);
+    MOS6510_REGS_SET_SP(&maincpu_regs, sp);
+    MOS6510_REGS_SET_PC(&maincpu_regs, pc);
+    MOS6510_REGS_SET_STATUS(&maincpu_regs, status);
+
+    if (interrupt_read_snapshot(maincpu_int_status, m) < 0) {
+        goto fail;
+    }
+
+    if (interrupt_read_new_snapshot(maincpu_int_status, m) < 0) {
+        goto fail;
+    }
+
+    if (interrupt_read_sc_snapshot(maincpu_int_status, m) < 0) {
+        goto fail;
+    }
+
+    return snapshot_module_close(m);
+
+fail:
+    if (m != NULL) {
+        snapshot_module_close(m);
+    }
+    return -1;
+}
+
+#endif

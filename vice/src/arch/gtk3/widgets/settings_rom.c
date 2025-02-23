@@ -1,4 +1,4 @@
-/** \file   rommanager.c
+/** \file   settings_rom.c
  * \brief   Settings dialog to manage ROMs
  *
  * Presents a GtkListBox with expandable rows for machine, drive and drive
@@ -49,6 +49,7 @@
  * $VICERES DosName1541             x64 x64sc x64dtv xscpu64 x128 xplus4 xvic
  * $VICERES DosName1541ii           x64 x64sc x64dtv xscpu64 x128 xplus4 xvic
  * $VICERES DosName1551             xplus4
+ * $VICERES DosName1570             x64 x64sc x64dtv xscpu64 x128 xplus4 xvic
  * $VICERES DosName1571             x64 x64sc x64dtv xscpu64 x128 xplus4 xvic
  * $VICERES DosName1571cr           x128
  * $VICERES DosName1581             x64 x64sc x64dtv xscpu64 x128 xplus4 xvic
@@ -58,12 +59,13 @@
  * $VICERES DosName4040             -vsid
  * $VICERES DosName9000             -vsid
  * $VICERES DosNameCMDHD            x64 x64sc x64dtv xscpu64 x128 xplus4 xvic
- * $VICERES Dosname1001             -vsid
- * $VICERES Dosname2000             x64 x64sc x64dtv xscpu64 x128 xplus4 xvic
- * $VICERES Dosname4000             x64 x64sc x64dtv xscpu64 x128 xplus4 xvic
- * $VICERES DriveProFDOS1571Name    x64 x64sc x64dtv xscpu64 x128
+ * $VICERES DosName1001             -vsid
+ * $VICERES DosName2000             x64 x64sc x64dtv xscpu64 x128 xplus4 xvic
+ * $VICERES DosName4000             x64 x64sc x64dtv xscpu64 x128 xplus4 xvic
+ * $VICERES DriveProfDOS1571Name    x64 x64sc x64dtv xscpu64 x128
  * $VICERES DriveStarDosName        x64 x64sc x64dtv xscpu64 x128
  * $VICERES DriveSuperCardName      x64 x64sc x64dtv xscpu64 x128
+ * $VICERES Basic1                  xpet
  * $VICERES EditorName              xpet
  * $VICERES FunctionHighName        xplus4
  * $VICERES FunctionLowName         xplus4
@@ -90,6 +92,7 @@
  * $VICERES c1loName                xplus4
  * $VICERES c2hiName                xplus4
  * $VICERES c2loName                xplus4
+ * $VICERES SCPU64Name              xscpu64
  */
 
 #include <gtk/gtk.h>
@@ -106,7 +109,16 @@
 #include "uiapi.h"
 #include "vice_gtk3.h"
 
-#include "rommanager.h"
+#include "settings_rom.h"
+
+
+/** \brief  CSS for the GtkListBoxes used for the ROMs
+ *
+ * We use the theme background color to avoid ugly white (light theme) or
+ * black areas (dark theme) areas around the widgets and in the unused space
+ * of the GtkScrolledWindow.
+ */
+#define LISTBOX_CSS "list { background-color: @theme_bg_color; }"
 
 
 /** \brief  Array length helper
@@ -162,6 +174,8 @@ static const machine_rom_t machine_rom_list[] = {
     { "Swedish kernal",         "KernalSEName" },
     { "Swiss kernal",           "KernalCHName" },
     { "C64 mode kernal",        "Kernal64Name" },
+    /* SCPU64 */
+    { "SCPU64",                 "SCPU64Name" },
 
     /* Basics */
 
@@ -267,6 +281,9 @@ static gchar *last_directory;
 /** \brief  Last filename used in a ROM set file dialog */
 static gchar *last_filename;
 
+/** \brief  CSS provided used for the GtkListBox widgets */
+static GtkCssProvider *listbox_css_provider;
+
 
 /* {{{ Event handlers */
 /** \brief  Callback for the ROM set open dialog
@@ -285,7 +302,10 @@ static void on_load_romset_callback(GtkDialog *dialog,
         lastdir_update(GTK_WIDGET(dialog), &last_directory, &last_filename);
 
         if (romset_file_load(filename) != 0) {
-            ui_error("Failed to load ROM set file %s.", filename);
+            vice_gtk3_message_error(GTK_WINDOW(dialog),
+                                    "VICE error",
+                                    "Failed to load ROM set file %s.",
+                                    filename);
         }
         /* ROM set loading is not atomic, it can fail after having already
          * set one or more resources, so we need to sync unconditionally */
@@ -332,7 +352,10 @@ static void on_romset_save_callback(GtkDialog *dialog,
         const char **roms = get_all_resource_names();
 
         if (romset_file_save(filename, roms) != 0) {
-            ui_error("Failed to save ROM set file %s.", filename);
+            vice_gtk3_message_error(GTK_WINDOW(dialog),
+                                    "VICE error",
+                                    "Failed to save ROM set file %s.",
+                                    filename);
         }
         lib_free(roms);
         g_free(filename);
@@ -587,6 +610,8 @@ static GtkWidget *expandable_list_new(const char *title)
     expander = gtk_expander_new(title);
     list     = gtk_list_box_new();
 
+    vice_gtk3_css_provider_add(list, listbox_css_provider);
+
     gtk_container_add(GTK_CONTAINER(expander), list);
     gtk_container_add(GTK_CONTAINER(listrow), expander);
     return listrow;
@@ -745,7 +770,7 @@ static void add_rom_chooser(GtkWidget  *list,
 
     /* set up reset-to-default button */
     reset = gtk_button_new_from_icon_name("view-refresh-symbolic",
-                                          GTK_ICON_SIZE_LARGE_TOOLBAR);
+                                          GTK_ICON_SIZE_SMALL_TOOLBAR);
     gtk_widget_set_tooltip_text(reset, "Reset to default value");
     g_signal_connect(G_OBJECT(reset),
                      "clicked",
@@ -754,7 +779,7 @@ static void add_rom_chooser(GtkWidget  *list,
 
     /* set up unload button */
     eject = gtk_button_new_from_icon_name("media-eject-symbolic",
-                                          GTK_ICON_SIZE_LARGE_TOOLBAR);
+                                          GTK_ICON_SIZE_SMALL_TOOLBAR);
     gtk_widget_set_tooltip_text(eject, "Unload ROM");
     g_signal_connect(G_OBJECT(eject),
                      "clicked",
@@ -774,16 +799,15 @@ static void add_rom_chooser(GtkWidget  *list,
 /* }}} */
 
 
-/** \brief  Create ROM manager widget
+/** \brief  Create ROM settings widget
  *
  * \param[in]   parent  unused
  *
  * \return  GtkGrid
  */
-GtkWidget *rom_manager_new(GtkWidget *parent)
+GtkWidget *settings_rom_widget_create(GtkWidget *parent)
 {
     GtkWidget *grid;
-    GtkWidget *label;
     GtkWidget *scrolled;
     GtkWidget *expander;
     GtkWidget *button_box;
@@ -791,16 +815,17 @@ GtkWidget *rom_manager_new(GtkWidget *parent)
     size_t     i;
     int        row = 0;
 
+    listbox_css_provider  = vice_gtk3_css_provider_new(LISTBOX_CSS);
+
     grid = gtk_grid_new();
     gtk_grid_set_column_spacing(GTK_GRID(grid), 16);
     gtk_grid_set_row_spacing(GTK_GRID(grid), 8);
 
-    label = label_helper("<b>ROM Manager (experimental!)</b>", GTK_ALIGN_START);
-    gtk_grid_attach(GTK_GRID(grid), label, row, 0, 1, 1);
-    row++;
-
     root_list = gtk_list_box_new();
+    gtk_widget_set_vexpand(root_list, TRUE);
     scrolled  = gtk_scrolled_window_new(NULL, NULL);
+    vice_gtk3_css_provider_add(root_list, listbox_css_provider);
+
     if (machine_class == VICE_MACHINE_PET) {
         /* We add a check button and buttons to load a chargen to xpet, so the
          * scrolled window must be slightly less tall */
@@ -915,14 +940,18 @@ GtkWidget *rom_manager_new(GtkWidget *parent)
 }
 
 
-/** \brief  Free resources used by the ROM manager
+/** \brief  Free resources used by the ROM settings
  *
  * Frees the last used directory and filename of the file dialogs.
  */
-void rom_manager_shutdown(void)
+void settings_rom_widget_shutdown(void)
 {
     g_free(last_directory);
     g_free(last_filename);
     last_directory = NULL;
-    last_filename = NULL;
+    last_filename  = NULL;
+    if (listbox_css_provider != NULL) {
+        g_object_unref(listbox_css_provider);
+        listbox_css_provider  = NULL;
+    }
 }

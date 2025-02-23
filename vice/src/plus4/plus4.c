@@ -49,6 +49,7 @@
 #include "drive-resources.h"
 #include "drive-sound.h"
 #include "drive.h"
+#include "export.h"
 #include "fliplist.h"
 #include "fsdevice.h"
 #include "gfxoutput.h"
@@ -106,11 +107,9 @@
 #include "trapthem_snespad.h"
 #include "types.h"
 #include "userport.h"
-#include "userport_dac.h"
 #include "userport_hummer_joystick.h"
 #include "userport_io_sim.h"
-#include "userport_joystick.h"
-#include "userport_spt_joystick.h"
+#include "userport_petscii_snespad.h"
 #include "userport_synergy_joystick.h"
 #include "userport_woj_joystick.h"
 #include "vice-event.h"
@@ -291,7 +290,7 @@ static const tape_init_t tapeinit = {
     264 * 8
 };
 
-static log_t plus4_log = LOG_ERR;
+static log_t plus4_log = LOG_DEFAULT;
 static machine_timing_t machine_timing;
 
 /*
@@ -464,12 +463,23 @@ int machine_resources_init(void)
         init_resource_fail("traps");
         return -1;
     }
+
+    /* Initialize the machine specific I/O */
+    /* We need to call this before `plus4_resources_init()` otherwise the
+     * "MemoryHack" resource setter tries to unregister an IO source that isn't
+     * registered yet. */
+    plus4io_init();
+
     if (plus4_resources_init() < 0) {
         init_resource_fail("plus4");
         return -1;
     }
     if (ted_resources_init() < 0) {
         init_resource_fail("ted");
+        return -1;
+    }
+    if (export_resources_init() < 0) {
+        init_resource_fail("export");
         return -1;
     }
     if (cartio_resources_init() < 0) {
@@ -504,25 +514,15 @@ int machine_resources_init(void)
         init_resource_fail("serial");
         return -1;
     }
-    if (printer_resources_init() < 0) {
-        init_resource_fail("printer");
-        return -1;
-    }
     if (userport_resources_init() < 0) {
         init_resource_fail("userport devices");
         return -1;
     }
-    if (parallel_cable_cpu_resources_init() < 0) {
-        init_resource_fail("userport drive parallel cable");
+    /* CAUTION: must come after userport and serial */
+    if (printer_resources_init() < 0) {
+        init_resource_fail("printer");
         return -1;
     }
-/* FIXME: Add userport printer support to xplus4 */
-#if 0
-    if (printer_userport_resources_init() < 0) {
-        init_resource_fail("userport printer");
-        return -1;
-    }
-#endif
     if (init_joyport_ports() < 0) {
         init_resource_fail("joyport ports");
         return -1;
@@ -533,38 +533,6 @@ int machine_resources_init(void)
     }
     if (joystick_resources_init() < 0) {
         init_resource_fail("joystick");
-        return -1;
-    }
-    if (userport_joystick_pet_resources_init() < 0) {
-        init_resource_fail("userport pet joystick");
-        return -1;
-    }
-    if (userport_joystick_hummer_resources_init() < 0) {
-        init_resource_fail("userport hummer joystick");
-        return -1;
-    }
-    if (userport_joystick_oem_resources_init() < 0) {
-        init_resource_fail("userport oem joystick");
-        return -1;
-    }
-    if (userport_spt_joystick_resources_init() < 0) {
-        init_resource_fail("userport spt joystick");
-        return -1;
-    }
-    if (userport_joystick_synergy_resources_init() < 0) {
-        init_resource_fail("userport synergy joystick");
-        return -1;
-    }
-    if (userport_joystick_woj_resources_init() < 0) {
-        init_resource_fail("userport woj joystick");
-        return -1;
-    }
-    if (userport_dac_resources_init() < 0) {
-        init_resource_fail("userport dac");
-        return -1;
-    }
-    if (userport_io_sim_resources_init() < 0) {
-        init_resource_fail("userport I/O simulation");
         return -1;
     }
     if (sampler_resources_init() < 0) {
@@ -650,6 +618,7 @@ void machine_resources_shutdown(void)
     fsdevice_resources_shutdown();
     disk_image_resources_shutdown();
     sampler_resources_shutdown();
+    userport_resources_shutdown();
     cartio_shutdown();
     tapeport_resources_shutdown();
     debugcart_resources_shutdown();
@@ -695,6 +664,10 @@ int machine_cmdline_options_init(void)
         init_cmdline_options_fail("acia");
         return -1;
     }
+    if (userport_cmdline_options_init() < 0) {
+        init_cmdline_options_fail("userport");
+        return -1;
+    }
     if (rs232drv_cmdline_options_init() < 0) {
         init_cmdline_options_fail("rs232drv");
         return -1;
@@ -707,23 +680,12 @@ int machine_cmdline_options_init(void)
         init_cmdline_options_fail("printer");
         return -1;
     }
-/* FIXME: Add userport printer support to xplus4 */
-#if 0
-    if (printer_userport_cmdline_options_init() < 0) {
-        init_cmdline_options_fail("userport printer");
-        return -1;
-    }
-#endif
     if (joyport_cmdline_options_init() < 0) {
         init_cmdline_options_fail("joyport");
         return -1;
     }
     if (joystick_cmdline_options_init() < 0) {
         init_cmdline_options_fail("joystick");
-        return -1;
-    }
-    if (userport_cmdline_options_init() < 0) {
-        init_cmdline_options_fail("userport");
         return -1;
     }
     if (sampler_cmdline_options_init() < 0) {
@@ -878,9 +840,6 @@ int machine_specific_init(void)
     digiblaster_sound_chip_init();
     speech_sound_chip_init();
 
-    /* Initialize userport based sound chips */
-    userport_dac_sound_chip_init();
-
     drive_sound_init();
     datasette_sound_init();
     video_sound_init();
@@ -928,9 +887,6 @@ int machine_specific_init(void)
     plus4iec_init();
 
     machine_drive_stub();
-
-    /* Initialize the machine specific I/O */
-    plus4io_init();
 
     return 0;
 }
@@ -1040,6 +996,7 @@ void machine_get_line_cycle(unsigned int *line, unsigned int *cycle, int *half_c
     *half_cycle = (int)-1;
 }
 
+/* NOTE: power-grid freq is not used in the plus4 */
 void machine_change_timing(int timeval, int powerfreq, int border_mode)
 {
     switch (timeval) {

@@ -8,6 +8,14 @@ else
 petcat_LDFLAGS =
 endif
 
+if HAVE_DEBUG
+if MACOS_COMPILE
+petcat_LDFLAGS = @petcat_LDFLAGS@ -Wl,-map -Wl,petcat.map
+else
+petcat_LDFLAGS = @petcat_LDFLAGS@ -Wl,-Map=petcat.map
+endif
+endif
+
 LIBS =
 
 if USE_SVN_REVISION

@@ -79,10 +79,11 @@ extern export_t export;
 
 /* expose public API symbols for those headers that provide them */
 #define CARTRIDGE_INCLUDE_PUBLIC_API
+#include "cart/dqbb.h"          /* needed for x128 */
 #include "cart/expert.h"        /* provide defines for ExpertCartridgeMode resource */
 #include "cart/retroreplay.h"   /* provide defines for RRrevision resource */
 #include "cart/mmc64.h"         /* provide defines for MMC64_sd_type and MMC64_revision resources */
-#include "cart/mmcreplay.h"     /* provide defines for MMCRSDType resource */
+#include "cart/mmcreplay.h"     /* needed for x128, provide defines for MMCRSDType resource */
 #ifdef HAVE_RAWNET
 #include "cart/ethernetcart.h"  /* provide defines for ETHERNETCARTMode resource */
 #endif
@@ -91,6 +92,8 @@ extern export_t export;
 /* the following is used to hook up the c128 mode in x128 */
 #include <stdio.h>
 #include "cartridge.h"
+
+#include "snapshot.h"
 
 struct c128cartridge_interface_s {
     int (*attach_crt)(int type, FILE *fd, const char *filename, uint8_t *rawcart);
@@ -112,6 +115,8 @@ struct c128cartridge_interface_s {
     int (*can_flush_secondary_image)(int type);
     int (*can_save_image)(int type);
     int (*can_save_secondary_image)(int type);
+    int (*snapshot_read)(int type, snapshot_t *s);
+    int (*snapshot_write)(int type, snapshot_t *s);
 };
 typedef struct c128cartridge_interface_s c128cartridge_interface_t;
 

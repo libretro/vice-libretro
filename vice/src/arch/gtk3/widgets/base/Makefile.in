@@ -122,8 +122,8 @@ am_libbasewidgets_a_OBJECTS = basedialogs.$(OBJEXT) \
 	resourceradiogroup.$(OBJEXT) resourcescale.$(OBJEXT) \
 	resourcespinbutton.$(OBJEXT) resourceswitch.$(OBJEXT) \
 	resourcewidgetmediator.$(OBJEXT) savefiledialog.$(OBJEXT) \
-	selectdirectorydialog.$(OBJEXT) uiactionbutton.$(OBJEXT) \
-	widgethelpers.$(OBJEXT)
+	selectdirectorydialog.$(OBJEXT) unicodehelpers.$(OBJEXT) \
+	uiactionbutton.$(OBJEXT) widgethelpers.$(OBJEXT)
 libbasewidgets_a_OBJECTS = $(am_libbasewidgets_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -158,7 +158,8 @@ am__depfiles_remade = ./$(DEPDIR)/basedialogs.Po \
 	./$(DEPDIR)/resourcewidgetmediator.Po \
 	./$(DEPDIR)/savefiledialog.Po \
 	./$(DEPDIR)/selectdirectorydialog.Po \
-	./$(DEPDIR)/uiactionbutton.Po ./$(DEPDIR)/widgethelpers.Po
+	./$(DEPDIR)/uiactionbutton.Po ./$(DEPDIR)/unicodehelpers.Po \
+	./$(DEPDIR)/widgethelpers.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -403,6 +404,8 @@ install_sh = @install_sh@
 libcurl_CFLAGS = @libcurl_CFLAGS@
 libcurl_LIBS = @libcurl_LIBS@
 libdir = @libdir@
+libevdev_CFLAGS = @libevdev_CFLAGS@
+libevdev_LIBS = @libevdev_LIBS@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
@@ -487,6 +490,7 @@ libbasewidgets_a_SOURCES = \
 	resourcewidgetmediator.c \
 	savefiledialog.c \
 	selectdirectorydialog.c \
+	unicodehelpers.c \
 	uiactionbutton.c \
 	widgethelpers.c
 
@@ -517,6 +521,7 @@ EXTRA_DIST = \
 	resourcewidgetmediator.h \
 	savefiledialog.h \
 	selectdirectorydialog.h \
+	unicodehelpers.h \
 	uiactionbutton.h \
 	vice_gtk3.h \
 	vice_gtk3_settings.h \
@@ -595,6 +600,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/savefiledialog.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/selectdirectorydialog.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/uiactionbutton.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/unicodehelpers.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/widgethelpers.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
@@ -765,6 +771,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/savefiledialog.Po
 	-rm -f ./$(DEPDIR)/selectdirectorydialog.Po
 	-rm -f ./$(DEPDIR)/uiactionbutton.Po
+	-rm -f ./$(DEPDIR)/unicodehelpers.Po
 	-rm -f ./$(DEPDIR)/widgethelpers.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
@@ -836,6 +843,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/savefiledialog.Po
 	-rm -f ./$(DEPDIR)/selectdirectorydialog.Po
 	-rm -f ./$(DEPDIR)/uiactionbutton.Po
+	-rm -f ./$(DEPDIR)/unicodehelpers.Po
 	-rm -f ./$(DEPDIR)/widgethelpers.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic

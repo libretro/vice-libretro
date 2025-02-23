@@ -25,11 +25,11 @@
  *
  * $VICERES SoundVolume         all
  * $VICERES C128ColumnKey       x128
- * $VICERES CrtcHideStatusbar   xcbm2 xpet
- * $VICERES TEDHideStatusbar    xplus4
- * $VICERES VDCHideStatusbar    x128
- * $VICERES VICHideStatusbar    xvic
- * $VICERES VICIIHideStatusbar  x64 x64sc x64dtv xscpu64 x128 xcbm5x0
+ * $VICERES CrtcShowStatusbar   xcbm2 xpet
+ * $VICERES TEDShowStatusbar    xplus4
+ * $VICERES VDCShowStatusbar    x128
+ * $VICERES VICShowStatusbar    xvic
+ * $VICERES VICIIShowStatusbar  x64 x64sc x64dtv xscpu64 x128 xcbm5x0
  * $VICERES DiagPin             xpet
  * $VICERES SpeedSwitch         xscpu64
  * $VICERES JiffySwitch         xscpu64
@@ -2191,6 +2191,16 @@ void diagnosticpin_led_set_active(int bar, gboolean active)
     }
 }
 
+void diagnosticpin_led_set_visible(int bar, gboolean active)
+{
+    GtkWidget *led = allocated_bars[bar].diagnosticpin_led;
+
+    if (led != NULL) {
+        gtk_widget_set_visible(led, active);
+        gtk_widget_set_sensitive(led, active);
+    }
+}
+
 /** \brief  Callback for the SuperCPU turbo LED
  *
  * Set resource "SpeedSwitch" to \a active.
@@ -2325,7 +2335,7 @@ static void statusbar_append_led(int bar, GtkWidget *led, gboolean separator)
 
     /* sanity check */
     if (bar < 0 || bar >= MAX_STATUS_BARS) {
-        log_error(LOG_ERR, "Invalid status bar index of %d.", bar);
+        log_error(LOG_DEFAULT, "Invalid status bar index of %d.", bar);
         return;
     }
 
@@ -2360,7 +2370,7 @@ static void statusbar_append_widget(int bar, GtkWidget *widget, gboolean separat
 
     /* sanity check */
     if (bar < 0 || bar >= MAX_STATUS_BARS) {
-        log_error(LOG_ERR, "Invalid status bar index of %d.", bar);
+        log_error(LOG_DEFAULT, "Invalid status bar index of %d.", bar);
         return;
     }
 
@@ -2394,7 +2404,7 @@ static void statusbar_append_widget_end(int bar, GtkWidget *widget)
 
     /* sanity check */
     if (bar < 0 || bar >= MAX_STATUS_BARS) {
-        log_error(LOG_ERR, "Invalid status bar index of %d.", bar);
+        log_error(LOG_DEFAULT, "Invalid status bar index of %d.", bar);
         return;
     }
 
@@ -2519,7 +2529,7 @@ GtkWidget *ui_statusbar_create(int window_identity)
     }
     if (i == MAX_STATUS_BARS) {
         /* Fatal error (should never happen) */
-        log_error(LOG_ERR,
+        log_error(LOG_DEFAULT,
                   "Maxium number of status bars (%d) exceeded.",
                   MAX_STATUS_BARS);
         archdep_vice_exit(1);
@@ -2890,21 +2900,21 @@ void ui_display_recording(int recording_status)
 
 /** \brief  Statusbar API function to display a message in the status bar.
  *
- *  \param  text        The text to display.
- *  \param  fade_out    If nonzero, erase the text after five* seconds
- *                      unless it has already been replaced.
+ *  \param  text    The text to display.
+ *  \param  fadeout Erase the text after five* seconds unless it has already
+ *                  been replaced.
  *
  * \note    Safe to call from VICE thread.
  * \see     #MESSAGE_TIMEOUT for the actual timeout in seconds
  */
-void ui_display_statustext(const char *text, int fade_out)
+void ui_display_statustext(const char *text, bool fadeout)
 {
     ui_sb_state_t *sb_state = lock_sb_state();
 
     strncpy(sb_state->message_text, text, MESSAGE_TEXT_SIZE);
     /* strncpy() doesn't add a 0 when len(text) == buflen: */
     sb_state->message_text[MESSAGE_TEXT_SIZE - 1] = '\0';
-    sb_state->message_fadeout = (bool)fade_out;
+    sb_state->message_fadeout = fadeout;
     sb_state->message_pending = true;
 
     unlock_sb_state();
@@ -3705,7 +3715,7 @@ gboolean ui_statusbar_set_visible_for_window(GtkWidget *window, gboolean visible
 
 /** \brief  Show/Hide statusbar of the **active** window
  *
- * Toggle visibility of statusbar based on "${chip}HideStatusbar" resource.
+ * Toggle visibility of statusbar based on "${chip}ShowStatusbar" resource.
  *
  * \return  TRUE (don't pass event along further)
  */

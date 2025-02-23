@@ -33,7 +33,7 @@
 /* #define DEBUG_CIA */
 
 #ifdef DEBUG_CIA
-#define DBG(_x_)        log_debug _x_
+#define DBG(_x_) log_printf  _x_
 #else
 #define DBG(_x_)
 #endif
@@ -859,6 +859,12 @@ static void ciacore_store_internal(cia_context_t *cia_context, uint16_t addr, ui
             if (addr == CIA_TOD_HR) {
                 /* force bits 6-5 = 0 */
                 byte &= 0x9f;
+                /* Flip AM/PM on hour 12  */
+                /* Flip AM/PM only when writing time, not when writing alarm */
+                if ((byte & 0x1f) == 0x12 &&
+                        (cia_context->c_cia[CIA_CRB] & CIA_CRB_ALARM) == CIA_CRB_ALARM_TOD) {
+                    byte ^= 0x80;
+                }
             } else if (addr == CIA_TOD_MIN) {
                 byte &= 0x7f;
             } else if (addr == CIA_TOD_SEC) {
@@ -868,7 +874,7 @@ static void ciacore_store_internal(cia_context_t *cia_context, uint16_t addr, ui
             }
 
             {
-                char changed;
+                bool changed;
                 if (cia_context->c_cia[CIA_CRB] & CIA_CRB_ALARM_ALARM) {
                     /* set alarm */
                     changed = cia_context->todalarm[addr - CIA_TOD_TEN] != byte;
@@ -889,9 +895,6 @@ static void ciacore_store_internal(cia_context_t *cia_context, uint16_t addr, ui
                     }
                     changed = cia_context->c_cia[addr] != byte;
                     if (changed) {
-                        /* Flip AM/PM on hour 12 on the rising edge of the comparator */
-                        if ((addr == CIA_TOD_HR) && ((byte & 0x1f) == 0x12))
-                            byte ^= 0x80;
                         cia_context->c_cia[addr] = byte;
                     }
                 }
@@ -2012,7 +2015,7 @@ static void ciacore_inttod_entry(CLOCK offset, void *data)
 
 void ciacore_setup_context(cia_context_t *cia_context)
 {
-    cia_context->log = LOG_ERR;
+    cia_context->log = LOG_DEFAULT;
     cia_context->read_clk = 0;
     cia_context->read_offset = 0;
     cia_context->last_read = 0;
@@ -2573,7 +2576,7 @@ int ciacore_dump(cia_context_t *cia_context)
     mon_out("\nTimer A IRQ: %s  running: %s  mode: %s\n",
             (cia_context->c_cia[CIA_ICR] & 1) ? "on" : "off",
             ciacore_peek(cia_context, 0x0e) & 1 ? "yes" : "no",
-            ciacore_peek(cia_context, 0x0e) & (1 << 3) ? "one-shot" : "continues");
+            ciacore_peek(cia_context, 0x0e) & (1 << 3) ? "one-shot" : "continuous");
     mon_out("Timer A counts: %s  PB6 output: %s (%s)\n",
             ciacore_peek(cia_context, 0x0e) & (1 << 5) ? "CNT transitions" : "System clock",
             ciacore_peek(cia_context, 0x0e) & (1 << 1) ? "yes" : "no",
@@ -2585,7 +2588,7 @@ int ciacore_dump(cia_context_t *cia_context)
     mon_out("Timer B IRQ: %s  running: %s  mode: %s\n",
             (cia_context->c_cia[CIA_ICR] & (1 << 1)) ? "on" : "off",
             ciacore_peek(cia_context, 0x0f) & 1 ? "yes" : "no",
-            ciacore_peek(cia_context, 0x0f) & (1 << 3) ? "one-shot" : "continues");
+            ciacore_peek(cia_context, 0x0f) & (1 << 3) ? "one-shot" : "continuous");
     switch (ciacore_peek(cia_context, 0x0f) & (3 << 5)) {
         default:
         case (0 << 5): s = "System clock"; break;

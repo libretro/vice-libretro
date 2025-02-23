@@ -41,6 +41,7 @@
 #include "machine-drive.h"
 #include "main.h"
 #include "mainlock.h"
+#include "monitor.h"
 #include "network.h"
 #include "serial.h"
 #include "tape.h"
@@ -318,5 +319,10 @@ void tape_image_detach_all(void)
 
 void file_system_detach_disk_all(void)
 {
+}
+
+int mon_out(const char *format, ...)
+{
+    return 0;
 }
 

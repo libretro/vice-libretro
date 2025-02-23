@@ -40,11 +40,12 @@
 #define TAPE_ENCODING_CBM       1
 #define TAPE_ENCODING_TURBOTAPE 2
 
-#define TAPE_CAS_TYPE_BAS           1 /* Relocatable Program (program header for SAVE "",1,0) */
-#define TAPE_CAS_TYPE_DATA_BLOCK    2 /* Data Block */
-#define TAPE_CAS_TYPE_PRG           3 /* Binary Program (absolute load SAVE "",1,1 (VIC-20 and later)) */
-#define TAPE_CAS_TYPE_DATA          4 /* Data File Header */
-#define TAPE_CAS_TYPE_EOF           5 /* End of Tape marker (SAVE "",1,2) */
+/* Note: PETs and CBM2 machines use (only) type 1, but they always load absolute anyway */
+#define TAPE_CAS_TYPE_BAS           1 /* Relocatable Program (loaded to basic start, SAVE "",1,0) */
+#define TAPE_CAS_TYPE_DATA_BLOCK    2 /* Data Block (SEQ) */
+#define TAPE_CAS_TYPE_PRG           3 /* Binary Program (absolute load, SAVE "",1,1 (VIC-20 and later)) */
+#define TAPE_CAS_TYPE_DATA          4 /* Data File Header (SEQ) */
+#define TAPE_CAS_TYPE_EOF           5 /* End of Tape marker (SAVE "",1,n+2) */
 
 #define TAPE_BEHAVIOUR_NORMAL 0 /* tape interrupt is falling-edge triggered, normal tape blocks end with a long and a short pulse */
 #define TAPE_BEHAVIOUR_C16    1 /* tape senses both falling edges and rising edges, normal tape blocks end with a medium and a short pulse */
@@ -110,6 +111,7 @@ int tape_seek_start(tape_image_t *tape_image);
 int tape_seek_to_file(tape_image_t *tape_image, unsigned int file_number);
 int tape_seek_to_next_file(tape_image_t *tape_image, unsigned int allow_rewind);
 int tape_seek_to_offset(tape_image_t *tape_image, unsigned long offset);
+unsigned long tape_get_offset(tape_image_t *tape_image);
 int tape_read(tape_image_t *tape_image, uint8_t *buf, size_t size);
 
 int tape_internal_close_tape_image(tape_image_t *tape_image);

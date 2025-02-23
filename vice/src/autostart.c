@@ -94,13 +94,13 @@ extern unsigned int opt_autostart;
 #endif
 
 #ifdef DEBUG_AUTOSTART
-#define DBG(_x_)        log_debug _x_
+#define DBG(_x_) log_debug _x_
 #else
 #define DBG(_x_)
 #endif
 
 #ifdef DEBUG_AUTOSTARTWAIT
-#define DBGWAIT(_x_)        log_debug _x_
+#define DBGWAIT(_x_) log_debug _x_
 #else
 #define DBGWAIT(_x_)
 #endif
@@ -132,7 +132,7 @@ static enum {
 #define AUTOSTART_CHECK_FIRST_COLUMN    1
 
 /* Log descriptor.  */
-log_t autostart_log = LOG_ERR;
+log_t autostart_log = LOG_DEFAULT;
 
 /* Flag: was true drive emulation turned on when we started booting the disk image?  */
 static int orig_drive_true_emulation_state = -1;
@@ -211,6 +211,9 @@ static int AutostartDelayRandom = 0;
 static int AutostartPrgMode = AUTOSTART_PRG_MODE_VFS;
 
 static char *AutostartPrgDiskImage = NULL;
+
+static int AutostartDropMode = AUTOSTART_DROP_MODE_RUN;
+
 
 static const char * const AutostartRunCommandsAvailable[] = {
     "RUN\r", "RUN:\r"
@@ -341,6 +344,51 @@ static int set_autostart_prg_disk_image(const char *val, void *param)
     return 0;
 }
 
+/** \brief  Resource setter for "AutostartDropMode" resource
+ *
+ * \param[in]   mode    new mode
+ * \param[in]   unused  unused
+ *
+ * \return  0 on success, -1 on error
+ */
+static int set_autostart_drop_mode(int mode, void *unused)
+{
+    int result = 0;
+
+    switch (mode) {
+        case AUTOSTART_DROP_MODE_ATTACH:    /* fall through */
+        case AUTOSTART_DROP_MODE_LOAD:      /* fall through */
+        case AUTOSTART_DROP_MODE_RUN:
+            AutostartDropMode = mode;
+            break;
+        default:
+            result = 1;
+            break;
+    }
+    return result;
+}
+
+/** \brief  Command line resource setter for "AutostartDropMode" resource
+ *
+ * \param[in]   value   new mode (0, 1, 2 or "attach", "load", "run")
+ * \param[in]   unused  unused
+ *
+ * \return  0 on success, -1 on error
+ */
+static int cmdline_set_autostart_drop_mode(const char *value, void *unused)
+{
+    if ((strcmp(value, "0") == 0) || (strcmp(value, "attach") == 0)) {
+        AutostartDropMode = AUTOSTART_DROP_MODE_ATTACH;
+    } else if ((strcmp(value, "1") == 0) || (strcmp(value, "load") == 0)) {
+        AutostartDropMode = AUTOSTART_DROP_MODE_LOAD;
+    } else if ((strcmp(value, "2") == 0) || (strcmp(value, "run") == 0)) {
+        AutostartDropMode = AUTOSTART_DROP_MODE_RUN;
+    } else {
+        return -1;
+    }
+    return 0;
+}
+
 /*! \brief string resources used by autostart */
 static resource_string_t resources_string[] = {
     /* caution: position is hardcoded below */
@@ -350,13 +398,25 @@ static resource_string_t resources_string[] = {
 };
 
 /*! \brief integer resources used by autostart */
-static resource_int_t resources_int[] = {
+static resource_int_t resources_int_basicload[] = {
     /* caution: position is hardcoded below */
     { "AutostartBasicLoad", 0, RES_EVENT_NO, (resource_value_t)0,
       &autostart_basic_load, set_autostart_basic_load, NULL },
-    { "AutostartTapeBasicLoad", 1, RES_EVENT_NO, (resource_value_t)1,
+    /* caution: position is hardcoded below */
+    { "AutostartTapeBasicLoad", 0, RES_EVENT_NO, (resource_value_t)1,
       &autostart_tape_basic_load, set_autostart_tape_basic_load, NULL },
-    { "AutostartRunWithColon", 1, RES_EVENT_NO, (resource_value_t)1,
+    RESOURCE_INT_LIST_END
+};
+
+static resource_int_t resources_int_basicload_pet[] = {
+    /* caution: position is hardcoded below */
+    { "AutostartBasicLoad", 1, RES_EVENT_NO, (resource_value_t)0,
+      &autostart_basic_load, set_autostart_basic_load, NULL },
+    RESOURCE_INT_LIST_END
+};
+
+static resource_int_t resources_int[] = {
+    { "AutostartRunWithColon", 0, RES_EVENT_NO, (resource_value_t)1,
       &AutostartRunWithColon, set_autostart_run_with_colon, NULL },
     { "AutostartHandleTrueDriveEmulation", 0, RES_EVENT_NO, (resource_value_t)0,
       &AutostartHandleTrueDriveEmulation, set_autostart_handle_tde, NULL },
@@ -368,6 +428,8 @@ static resource_int_t resources_int[] = {
       &AutostartDelay, set_autostart_delay, NULL },
     { "AutostartDelayRandom", 1, RES_EVENT_NO, (resource_value_t)0,
       &AutostartDelayRandom, set_autostart_delayrandom, NULL },
+    { "AutostartDropMode",  AUTOSTART_DROP_MODE_RUN, RES_EVENT_NO, (resource_value_t)0,
+      &AutostartDropMode, set_autostart_drop_mode, NULL },
     RESOURCE_INT_LIST_END
 };
 
@@ -383,9 +445,21 @@ int autostart_resources_init(void)
     autostart_default_diskimage = archdep_default_autostart_disk_image_file_name();
     resources_string[0].factory_value = autostart_default_diskimage;
 
-    if ((machine_class == VICE_MACHINE_VIC20) ||
+    if (machine_class == VICE_MACHINE_VIC20) {
+        resources_int_basicload[0].factory_value = 1;
+        resources_int_basicload[1].factory_value = 1;
+    }
+
+    if ((machine_class == VICE_MACHINE_CBM5x0) ||
+        (machine_class == VICE_MACHINE_CBM6x0) ||
         (machine_class == VICE_MACHINE_PET)) {
-        resources_int[0].factory_value = 1;
+        if (resources_register_int(resources_int_basicload_pet) < 0) {
+            return -1;
+        }
+    } else {
+        if (resources_register_int(resources_int_basicload) < 0) {
+            return -1;
+        }
     }
 
     if (resources_register_string(resources_string) < 0) {
@@ -418,7 +492,7 @@ static int cmdline_set_tap_offset(const char *arg, void *param)
     return 0;
 }
 
-static const cmdline_option_t cmdline_options[] =
+static const cmdline_option_t cmdline_options_basicload[] =
 {
     { "-basicload", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
       NULL, NULL, "AutostartBasicLoad", (resource_value_t)1,
@@ -432,6 +506,22 @@ static const cmdline_option_t cmdline_options[] =
     { "+tapebasicload", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
       NULL, NULL, "AutostartTapeBasicLoad", (resource_value_t)0,
       NULL, "On autostart from tape, load with ',1'" },
+    CMDLINE_LIST_END
+};
+
+static const cmdline_option_t cmdline_options_basicload_pet[] =
+{
+    { "-basicload", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
+      NULL, NULL, "AutostartBasicLoad", (resource_value_t)1,
+      NULL, "On autostart from disk, load to BASIC start (without ',1')" },
+    { "+basicload", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
+      NULL, NULL, "AutostartBasicLoad", (resource_value_t)0,
+      NULL, "On autostart from disk, load with ',1'" },
+    CMDLINE_LIST_END
+};
+
+static const cmdline_option_t cmdline_options[] =
+{
     { "-autostartwithcolon", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
       NULL, NULL, "AutostartRunWithColon", (resource_value_t)1,
       NULL, "On autostart, use the 'RUN' command with a colon, i.e., 'RUN:'" },
@@ -468,6 +558,10 @@ static const cmdline_option_t cmdline_options[] =
     { "-autostarttapoffset", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
       &cmdline_set_tap_offset, NULL, NULL, NULL,
       "<value>", "Set initial offset in .tap file" },
+    { "-autostart-drop-mode", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
+      &cmdline_set_autostart_drop_mode, NULL, NULL, NULL, "<Mode>",
+      "Set autostart drop mode (0/attach: attach only, 1/load: attach and load, "
+      "2/run: attach, load and run)" },
     CMDLINE_LIST_END
 };
 
@@ -481,6 +575,18 @@ static const cmdline_option_t cmdline_options[] =
 */
 int autostart_cmdline_options_init(void)
 {
+    if ((machine_class == VICE_MACHINE_CBM5x0) ||
+        (machine_class == VICE_MACHINE_CBM6x0) ||
+        (machine_class == VICE_MACHINE_PET)) {
+        if (cmdline_register_options(cmdline_options_basicload_pet) < 0) {
+            return -1;
+        }
+    } else {
+        if (cmdline_register_options(cmdline_options_basicload) < 0) {
+            return -1;
+        }
+    }
+
     return cmdline_register_options(cmdline_options);
 }
 
@@ -856,9 +962,9 @@ int autostart_init(int default_seconds, int handle_drive_true_emulation)
 
     autostart_reinit(default_seconds, handle_drive_true_emulation);
 
-    if (autostart_log == LOG_ERR) {
+    if (autostart_log == LOG_DEFAULT) {
         autostart_log = log_open("AUTOSTART");
-        if (autostart_log == LOG_ERR) {
+        if (autostart_log == LOG_DEFAULT) {
             return -1;
         }
     }
@@ -987,28 +1093,32 @@ static void advance_hastape(void)
 
     switch (check("READY.", AUTOSTART_WAIT_BLINK)) {
         case YES:
+            /* NOTE: when loading from tape, we can not easily force to load
+                     absolute or to BASIC start, because:
+                     a) when the tape header type is = 1, then the kernal will
+                        load to the basic start, except when secondary address 1
+                        is used.
+                     b) when the header type is = 3, then the kernal will always
+                        load absolute (even if secondary address is 0)
+                     c) PET and CBM2 machines will always load absolute
+
+                     So the best thing we can do here is to always load without
+                     secondary address (which will then respect what the header
+                     type says), and to force header type = 1 (in tape.c) when
+                     loading to basic start was requested.
+            */
             log_message(autostart_log, "Loading file.");
             if (autostart_tape_unit == 2) {
                 if (autostart_program_name) {
-                    tmp = util_concat("LOAD\"", autostart_program_name, "\"",
-                                    autostart_tape_basic_load ? "" : ",2,1", ",2\r", NULL);
+                    tmp = util_concat("LOAD\"", autostart_program_name, "\",2\r", NULL);
                 } else {
-                    if (autostart_tape_basic_load) {
-                        tmp = lib_strdup("LOAD\"\",2\r");
-                    } else {
-                        tmp = lib_strdup("LOAD\"\",2,1\r");
-                    }
+                    tmp = lib_strdup("LOAD\"\",2\r");
                 }
             } else {
                 if (autostart_program_name) {
-                    tmp = util_concat("LOAD\"", autostart_program_name, "\"",
-                                    autostart_tape_basic_load ? "" : ",1,1", "\r", NULL);
+                    tmp = util_concat("LOAD\"", autostart_program_name, "\"\r", NULL);
                 } else {
-                    if (autostart_tape_basic_load) {
-                        tmp = lib_strdup("LOAD\r");
-                    } else {
-                        tmp = lib_strdup("LOAD\"\",1,1\r");
-                    }
+                    tmp = lib_strdup("LOAD\r");
                 }
             }
             kbdbuf_feed(tmp);
@@ -1445,7 +1555,7 @@ static void reboot_for_autostart(const char *program_name, unsigned int mode,
         lib_free(temp_name);
     }
 
-    mem_powerup();
+    /* mem_powerup(); */ /* power cycle takes care of this */
 
     autostart_ignore_reset = 1;
     deallocate_program_name();
@@ -1610,10 +1720,10 @@ static void setup_for_disk(int unit, int drive)
                 set_true_drive_emulation_mode(1, unit);
             }
             if (!get_true_drive_emulation_state(unit)) {
-                log_message(LOG_ERR, "True drive emulation is not enabled.");
+                log_error(LOG_DEFAULT, "True drive emulation is not enabled.");
                 set_device_traps_state(unit, 1);
                 if (!get_device_traps_state(unit)) {
-                    log_message(LOG_ERR, "Virtual device traps are not enabled.");
+                    log_error(LOG_DEFAULT, "Virtual device traps are not enabled.");
                 }
             }
         }
@@ -1631,7 +1741,7 @@ static void setup_for_disk(int unit, int drive)
                 set_device_traps_state(unit, 1);
             }
             if (!get_device_traps_state(unit)) {
-                log_message(LOG_ERR, "Virtual device traps are not enabled.");
+                log_error(LOG_DEFAULT, "Virtual device traps are not enabled.");
             }
         }
     }
@@ -1672,10 +1782,10 @@ static void setup_for_disk_ready(int unit, int drive)
                 set_true_drive_emulation_mode(1, unit);
             }
             if (!get_true_drive_emulation_state(unit)) {
-                log_message(LOG_ERR, "True drive emulation is not enabled.");
+                log_error(LOG_DEFAULT, "True drive emulation is not enabled.");
                 set_device_traps_state(unit, 1);
                 if (!get_device_traps_state(unit)) {
-                    log_message(LOG_ERR, "Virtual device traps are not enabled.");
+                    log_error(LOG_DEFAULT, "Virtual device traps are not enabled.");
                 }
             }
         }
@@ -1741,7 +1851,7 @@ int autostart_disk(int unit, int drive, const char *file_name, const char *progr
             diskimg = file_system_get_image(unit, drive);
 
             if (diskimg == NULL) {
-                log_error(LOG_ERR, "Failed to get disk image for unit %d.", unit);
+                log_error(LOG_DEFAULT, "Failed to get disk image for unit %d.", unit);
             } else {
                 int chk = drive_check_image_format(diskimg->type, 0);
                 log_message(autostart_log, "mounted image is type: %u, %schanging drive.",
@@ -1749,7 +1859,7 @@ int autostart_disk(int unit, int drive, const char *file_name, const char *progr
                 /* change drive type only when image does not work in current drive */
                 if (chk < 0) {
                     if (resources_set_int_sprintf("Drive%dType", drive_image_type_to_drive_type(diskimg->type), unit) < 0) {
-                        log_error(LOG_ERR, "Failed to set drive type.");
+                        log_error(LOG_DEFAULT, "Failed to set drive type.");
                     }
                 }
 
@@ -1798,14 +1908,14 @@ static void setup_for_prg_vfs(int unit)
         }
     }
     if (get_true_drive_emulation_state(unit)) {
-        log_message(LOG_ERR, "True drive emulation is still enabled.");
+        log_error(LOG_DEFAULT, "True drive emulation is still enabled.");
     }
 #endif
     if (!orig_device_traps_state) {
         set_device_traps_state(unit, 1);
     }
     if (!get_device_traps_state(unit)) {
-        log_message(LOG_ERR, "Virtual device traps are not enabled.");
+        log_error(LOG_DEFAULT, "Virtual device traps are not enabled.");
     }
     /* always shorten the long names when autostarting, the long names cause
        nothing but problems */
@@ -1827,7 +1937,7 @@ static void setup_for_prg_vfs_ready(void)
         }
     }
     if (get_true_drive_emulation_state(unit)) {
-        log_message(LOG_ERR, "True drive emulation is still enabled.");
+        log_error(LOG_DEFAULT, "True drive emulation is still enabled.");
     }
 }
 #endif
@@ -1880,7 +1990,7 @@ int autostart_prg(const char *file_name, unsigned int runmode)
             /* shorten the filename to 16 chars (if enabled) */
             vdrive = file_system_get_vdrive(unit);
             if (vdrive == NULL) {
-                log_error(LOG_ERR, "Failed to get vdrive reference for unit #%d:%d.", unit, drive);
+                log_error(LOG_DEFAULT, "Failed to get vdrive reference for unit #%d:%d.", unit, drive);
                 return -1;
             }
             fsdevice_limit_namelength(vdrive, (uint8_t*)boot_file_name);
@@ -2029,17 +2139,17 @@ static void set_tapeport_device(int datasette, int tapecart)
 {
     /* first disable all devices, so we dont get any conflicts */
     if (resources_set_int("TapePort1Device", TAPEPORT_DEVICE_NONE) < 0) {
-        log_error(LOG_ERR, "Failed to disable the tape port device.");
+        log_error(LOG_DEFAULT, "Failed to disable the tape port device.");
     }
     /* now enable the one we want to enable */
     if (datasette) {
         if (resources_set_int("TapePort1Device", TAPEPORT_DEVICE_DATASETTE) < 0) {
-            log_error(LOG_ERR, "Failed to enable the Datasette.");
+            log_error(LOG_DEFAULT, "Failed to enable the Datasette.");
         }
     }
     if (tapecart) {
         if (resources_set_int("TapePort1Device", TAPEPORT_DEVICE_TAPECART) < 0) {
-            log_error(LOG_ERR, "Failed to enable the Tapecart.");
+            log_error(LOG_DEFAULT, "Failed to enable the Tapecart.");
         }
     }
 }
@@ -2083,7 +2193,7 @@ int autostart_autodetect(const char *file_name, const char *program_name,
         int tapedevice_temp;
 
         if (resources_get_int("TapePort1Device", &tapedevice_temp) < 0) {
-            log_error(LOG_ERR, "Failed to get Datasette status.");
+            log_error(LOG_DEFAULT, "Failed to get Datasette status.");
         }
 
         set_tapeport_device(1, 0);  /* select datasette on, tapecart off */
@@ -2123,6 +2233,8 @@ int autostart_autodetect(const char *file_name, const char *program_name,
         (machine_class == VICE_MACHINE_SCPU64) ||
         (machine_class == VICE_MACHINE_VIC20) ||
         (machine_class == VICE_MACHINE_PLUS4) ||
+        (machine_class == VICE_MACHINE_CBM5x0) ||
+        (machine_class == VICE_MACHINE_CBM6x0) ||
         (machine_class == VICE_MACHINE_C128)) {
         if (cartridge_attach_image(CARTRIDGE_CRT, file_name) == 0) {
             log_message(autostart_log, "`%s' recognized as cartridge image.",

@@ -114,8 +114,8 @@ am_libcbm2_a_OBJECTS = cbm2-cmdline-options.$(OBJEXT) \
 	cbm2-resources.$(OBJEXT) cbm2-snapshot.$(OBJEXT) \
 	cbm2.$(OBJEXT) cbm2acia1.$(OBJEXT) cbm2bus.$(OBJEXT) \
 	cbm2cia1.$(OBJEXT) cbm2cpu.$(OBJEXT) cbm2datasette.$(OBJEXT) \
-	cbm2drive.$(OBJEXT) cbm2iec.$(OBJEXT) cbm2io.$(OBJEXT) \
-	cbm2mem.$(OBJEXT) cbm2memsnapshot.$(OBJEXT) \
+	cbm2drive.$(OBJEXT) cbm2export.$(OBJEXT) cbm2iec.$(OBJEXT) \
+	cbm2io.$(OBJEXT) cbm2mem.$(OBJEXT) cbm2memsnapshot.$(OBJEXT) \
 	cbm2model.$(OBJEXT) cbm2printer.$(OBJEXT) cbm2rom.$(OBJEXT) \
 	cbm2romset.$(OBJEXT) cbm2sound.$(OBJEXT) cbm2tpi1.$(OBJEXT) \
 	cbm2tpi2.$(OBJEXT) cbm2video.$(OBJEXT)
@@ -130,8 +130,8 @@ am_libcbm5x0_a_OBJECTS = cbm2-cmdline-options.$(OBJEXT) \
 	cbm5x0-resources.$(OBJEXT) cbm5x0-snapshot.$(OBJEXT) \
 	cbm5x0.$(OBJEXT) cbm2acia1.$(OBJEXT) cbm2bus.$(OBJEXT) \
 	cbm5x0cia1.$(OBJEXT) cbm2cpu.$(OBJEXT) cbm2datasette.$(OBJEXT) \
-	cbm2drive.$(OBJEXT) cbm2iec.$(OBJEXT) cbm2io.$(OBJEXT) \
-	cbm5x0mem.$(OBJEXT) cbm2memsnapshot.$(OBJEXT) \
+	cbm2drive.$(OBJEXT) cbm2export.$(OBJEXT) cbm2iec.$(OBJEXT) \
+	cbm2io.$(OBJEXT) cbm5x0mem.$(OBJEXT) cbm2memsnapshot.$(OBJEXT) \
 	cbm2model.$(OBJEXT) cbm5x0printer.$(OBJEXT) \
 	cbm5x0rom.$(OBJEXT) cbm2romset.$(OBJEXT) cbm2sound.$(OBJEXT) \
 	cbm2tpi1.$(OBJEXT) cbm2tpi2.$(OBJEXT) cbm5x0video.$(OBJEXT)
@@ -161,17 +161,17 @@ am__depfiles_remade = ./$(DEPDIR)/cbm2-cmdline-options.Po \
 	./$(DEPDIR)/cbm2acia1.Po ./$(DEPDIR)/cbm2bus.Po \
 	./$(DEPDIR)/cbm2cia1.Po ./$(DEPDIR)/cbm2cpu.Po \
 	./$(DEPDIR)/cbm2datasette.Po ./$(DEPDIR)/cbm2drive.Po \
-	./$(DEPDIR)/cbm2iec.Po ./$(DEPDIR)/cbm2io.Po \
-	./$(DEPDIR)/cbm2mem.Po ./$(DEPDIR)/cbm2memsnapshot.Po \
-	./$(DEPDIR)/cbm2model.Po ./$(DEPDIR)/cbm2printer.Po \
-	./$(DEPDIR)/cbm2rom.Po ./$(DEPDIR)/cbm2romset.Po \
-	./$(DEPDIR)/cbm2sound.Po ./$(DEPDIR)/cbm2tpi1.Po \
-	./$(DEPDIR)/cbm2tpi2.Po ./$(DEPDIR)/cbm2video.Po \
-	./$(DEPDIR)/cbm5x0-resources.Po ./$(DEPDIR)/cbm5x0-snapshot.Po \
-	./$(DEPDIR)/cbm5x0-stubs.Po ./$(DEPDIR)/cbm5x0.Po \
-	./$(DEPDIR)/cbm5x0cia1.Po ./$(DEPDIR)/cbm5x0mem.Po \
-	./$(DEPDIR)/cbm5x0printer.Po ./$(DEPDIR)/cbm5x0rom.Po \
-	./$(DEPDIR)/cbm5x0video.Po
+	./$(DEPDIR)/cbm2export.Po ./$(DEPDIR)/cbm2iec.Po \
+	./$(DEPDIR)/cbm2io.Po ./$(DEPDIR)/cbm2mem.Po \
+	./$(DEPDIR)/cbm2memsnapshot.Po ./$(DEPDIR)/cbm2model.Po \
+	./$(DEPDIR)/cbm2printer.Po ./$(DEPDIR)/cbm2rom.Po \
+	./$(DEPDIR)/cbm2romset.Po ./$(DEPDIR)/cbm2sound.Po \
+	./$(DEPDIR)/cbm2tpi1.Po ./$(DEPDIR)/cbm2tpi2.Po \
+	./$(DEPDIR)/cbm2video.Po ./$(DEPDIR)/cbm5x0-resources.Po \
+	./$(DEPDIR)/cbm5x0-snapshot.Po ./$(DEPDIR)/cbm5x0-stubs.Po \
+	./$(DEPDIR)/cbm5x0.Po ./$(DEPDIR)/cbm5x0cia1.Po \
+	./$(DEPDIR)/cbm5x0mem.Po ./$(DEPDIR)/cbm5x0printer.Po \
+	./$(DEPDIR)/cbm5x0rom.Po ./$(DEPDIR)/cbm5x0video.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -460,6 +460,8 @@ install_sh = @install_sh@
 libcurl_CFLAGS = @libcurl_CFLAGS@
 libcurl_LIBS = @libcurl_LIBS@
 libdir = @libdir@
+libevdev_CFLAGS = @libevdev_CFLAGS@
+libevdev_LIBS = @libevdev_LIBS@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
@@ -538,6 +540,7 @@ libcbm2_a_SOURCES = \
 	cbm2cpu.c \
 	cbm2datasette.c \
 	cbm2drive.c \
+	cbm2export.c \
 	cbm2iec.c \
 	cbm2iec.h \
 	cbm2io.c \
@@ -577,6 +580,7 @@ libcbm5x0_a_SOURCES = \
 	cbm2cpu.c \
 	cbm2datasette.c \
 	cbm2drive.c \
+	cbm2export.c \
 	cbm2iec.c \
 	cbm2iec.h \
 	cbm2io.c \
@@ -673,6 +677,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cbm2cpu.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cbm2datasette.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cbm2drive.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cbm2export.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cbm2iec.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cbm2io.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cbm2mem.Po@am__quote@ # am--include-marker
@@ -922,6 +927,7 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/cbm2cpu.Po
 	-rm -f ./$(DEPDIR)/cbm2datasette.Po
 	-rm -f ./$(DEPDIR)/cbm2drive.Po
+	-rm -f ./$(DEPDIR)/cbm2export.Po
 	-rm -f ./$(DEPDIR)/cbm2iec.Po
 	-rm -f ./$(DEPDIR)/cbm2io.Po
 	-rm -f ./$(DEPDIR)/cbm2mem.Po
@@ -999,6 +1005,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/cbm2cpu.Po
 	-rm -f ./$(DEPDIR)/cbm2datasette.Po
 	-rm -f ./$(DEPDIR)/cbm2drive.Po
+	-rm -f ./$(DEPDIR)/cbm2export.Po
 	-rm -f ./$(DEPDIR)/cbm2iec.Po
 	-rm -f ./$(DEPDIR)/cbm2io.Po
 	-rm -f ./$(DEPDIR)/cbm2mem.Po

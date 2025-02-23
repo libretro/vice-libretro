@@ -257,17 +257,22 @@ GtkWidget *crt_preview_widget_create(void)
     gtk_grid_attach(GTK_GRID(grid), crtname_label, 1, row, 1, 1);
     row++;
 
-    label = create_label("EXROM:");
-    exrom_label = create_label("<unknown>");
-    gtk_grid_attach(GTK_GRID(grid), label, 0, row, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), exrom_label, 1, row, 1, 1);
-    row++;
+    /* exrom and game are only relevant for the C64s cartridge port */
+    if ((machine_class == VICE_MACHINE_C64) ||
+        (machine_class == VICE_MACHINE_C64SC) ||
+        (machine_class == VICE_MACHINE_C128)) {
+        label = create_label("EXROM:");
+        exrom_label = create_label("<unknown>");
+        gtk_grid_attach(GTK_GRID(grid), label, 0, row, 1, 1);
+        gtk_grid_attach(GTK_GRID(grid), exrom_label, 1, row, 1, 1);
+        row++;
 
-    label = create_label("GAME:");
-    game_label = create_label("<unknown>");
-    gtk_grid_attach(GTK_GRID(grid), label, 0, row, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), game_label, 1, row, 1, 1);
-    row++;
+        label = create_label("GAME:");
+        game_label = create_label("<unknown>");
+        gtk_grid_attach(GTK_GRID(grid), label, 0, row, 1, 1);
+        gtk_grid_attach(GTK_GRID(grid), game_label, 1, row, 1, 1);
+        row++;
+    }
 
     label = gtk_label_new(NULL);
     gtk_widget_set_halign(label, GTK_ALIGN_START);
@@ -312,8 +317,8 @@ void crt_preview_widget_update(const gchar *path)
     if (machine_class != VICE_MACHINE_C64
             && machine_class != VICE_MACHINE_C64SC
             && machine_class != VICE_MACHINE_C128
-            /*&& machine_class != VICE_MACHINE_CBM5x0
-            && machine_class != VICE_MACHINE_CBM6x0*/   /* TODO: enable once implemented */
+            && machine_class != VICE_MACHINE_CBM5x0
+            && machine_class != VICE_MACHINE_CBM6x0
             && machine_class != VICE_MACHINE_PLUS4
             && machine_class != VICE_MACHINE_VIC20)
     {
@@ -322,12 +327,19 @@ void crt_preview_widget_update(const gchar *path)
 
     fd = crt_open(path, &header);
     if (fd == NULL) {
+#if 0
         debug_gtk3("failed to open crt image");
+#endif
         gtk_label_set_text(GTK_LABEL(crtid_label), "<unknown>");
         gtk_label_set_text(GTK_LABEL(crtrevision_label), "<unknown>");
         gtk_label_set_text(GTK_LABEL(crtname_label), "<unknown>");
-        gtk_label_set_text(GTK_LABEL(exrom_label), "<unknown>");
-        gtk_label_set_text(GTK_LABEL(game_label), "<unknown>");
+        /* exrom and game are only relevant for the C64s cartridge port */
+        if ((machine_class == VICE_MACHINE_C64) ||
+            (machine_class == VICE_MACHINE_C64SC) ||
+            (machine_class == VICE_MACHINE_C128)) {
+            gtk_label_set_text(GTK_LABEL(exrom_label), "<unknown>");
+            gtk_label_set_text(GTK_LABEL(game_label), "<unknown>");
+        }
         chip_packets_clear();
         return;
     }
@@ -343,26 +355,33 @@ void crt_preview_widget_update(const gchar *path)
     /* name */
     gtk_label_set_text(GTK_LABEL(crtname_label), header.name);
 
-    /* exrom */
-    gtk_label_set_text(GTK_LABEL(exrom_label),
-            romstate[header.exrom ? 1 : 0]);
+    /* exrom and game are only relevant for the C64s cartridge port */
+    if ((machine_class == VICE_MACHINE_C64) ||
+        (machine_class == VICE_MACHINE_C64SC) ||
+        (machine_class == VICE_MACHINE_C128)) {
+        /* exrom */
+        gtk_label_set_text(GTK_LABEL(exrom_label),
+                romstate[header.exrom ? 1 : 0]);
 
-    /* game */
-    gtk_label_set_text(GTK_LABEL(game_label),
-            romstate[header.game ? 1 : 0]);
+        /* game */
+        gtk_label_set_text(GTK_LABEL(game_label),
+                romstate[header.game ? 1 : 0]);
+    }
 
     /* clear CHIP packet table */
     chip_packets_clear();
 
 
     while (1) {
-        long pos;
+        long     pos;
         uint32_t skip;
 #if 0
         debug_gtk3("reading packet #%d.", packets++);
 #endif
         if (crt_read_chip_header(&chip, fd) != 0) {
+#if 0
             debug_gtk3("couldn't read further CHIP packets, exiting.");
+#endif
             break;
         }
         skip = chip.size;
@@ -380,7 +399,7 @@ void crt_preview_widget_update(const gchar *path)
         debug_gtk3("next chip packet offset = %lx", (unsigned long)pos);
 #endif
         if (fseek(fd, pos, SEEK_SET) != 0) {
-            log_error(LOG_ERR,
+            log_error(LOG_DEFAULT,
                     "fseek(%ld) failed: %d: %s",
                     pos, errno, strerror(errno));
             break;

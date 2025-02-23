@@ -42,7 +42,7 @@
 
 /* not sure these belong here, might have to move them to generic code to share
  * with the same macros for Gtk3 */
-#define UNIT_DRIVE_TO_PTR(U, D) (int_to_void_ptr(((U) << 8) | ((D) & 0xff)))
+#define UNIT_DRIVE_TO_PTR(U, D) (vice_int_to_ptr(((U) << 8) | ((D) & 0xff)))
 #define UNIT_FROM_PTR(P)        ((vice_ptr_to_int(P) >> 8) & 0xff)
 #define DRIVE_FROM_PTR(P)       (vice_ptr_to_int(P) & 0xff)
 
@@ -200,6 +200,7 @@ void sdl_ui_reverse_colors(void);
 void sdl_ui_refresh(void);
 ui_menu_action_t sdl_ui_menu_poll_input(void);
 void sdl_ui_display_cursor(int pos, int old_pos);
+void sdl_ui_putchar(uint8_t c, int pos_x, int pos_y);
 int sdl_ui_print(const char *text, int pos_x, int pos_y);
 int sdl_ui_print_center(const char *text, int pos_y);
 int sdl_ui_print_eol(int pos_x, int pos_y);

@@ -116,7 +116,8 @@ libvic20cart_a_AR = $(AR) $(ARFLAGS)
 libvic20cart_a_LIBADD =
 am_libvic20cart_a_OBJECTS = behrbonz.$(OBJEXT) debugcart.$(OBJEXT) \
 	finalexpansion.$(OBJEXT) ioramcart.$(OBJEXT) \
-	megacart.$(OBJEXT) ultimem.$(OBJEXT) vic-fp.$(OBJEXT) \
+	megacart.$(OBJEXT) mikroassembler.$(OBJEXT) rabbit.$(OBJEXT) \
+	superexpander.$(OBJEXT) ultimem.$(OBJEXT) vic-fp.$(OBJEXT) \
 	vic20-generic.$(OBJEXT) vic20-ieee488.$(OBJEXT) \
 	vic20-midi.$(OBJEXT) vic20-sidcart.$(OBJEXT) \
 	vic20cart.$(OBJEXT) vic20cartmem.$(OBJEXT)
@@ -139,10 +140,12 @@ am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/behrbonz.Po ./$(DEPDIR)/debugcart.Po \
 	./$(DEPDIR)/finalexpansion.Po ./$(DEPDIR)/ioramcart.Po \
 	./$(DEPDIR)/mascuerade-stubs.Po ./$(DEPDIR)/megacart.Po \
-	./$(DEPDIR)/ultimem.Po ./$(DEPDIR)/vic-fp.Po \
-	./$(DEPDIR)/vic20-generic.Po ./$(DEPDIR)/vic20-ieee488.Po \
-	./$(DEPDIR)/vic20-midi.Po ./$(DEPDIR)/vic20-sidcart.Po \
-	./$(DEPDIR)/vic20cart.Po ./$(DEPDIR)/vic20cartmem.Po
+	./$(DEPDIR)/mikroassembler.Po ./$(DEPDIR)/rabbit.Po \
+	./$(DEPDIR)/superexpander.Po ./$(DEPDIR)/ultimem.Po \
+	./$(DEPDIR)/vic-fp.Po ./$(DEPDIR)/vic20-generic.Po \
+	./$(DEPDIR)/vic20-ieee488.Po ./$(DEPDIR)/vic20-midi.Po \
+	./$(DEPDIR)/vic20-sidcart.Po ./$(DEPDIR)/vic20cart.Po \
+	./$(DEPDIR)/vic20cartmem.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -387,6 +390,8 @@ install_sh = @install_sh@
 libcurl_CFLAGS = @libcurl_CFLAGS@
 libcurl_LIBS = @libcurl_LIBS@
 libdir = @libdir@
+libevdev_CFLAGS = @libevdev_CFLAGS@
+libevdev_LIBS = @libevdev_LIBS@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
@@ -443,6 +448,12 @@ libvic20cart_a_SOURCES = \
 	ioramcart.h \
 	megacart.c \
 	megacart.h \
+	mikroassembler.c \
+	mikroassembler.h \
+	rabbit.c \
+	rabbit.h \
+	superexpander.c \
+	superexpander.h \
 	ultimem.c \
 	ultimem.h \
 	vic-fp.c \
@@ -522,6 +533,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ioramcart.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mascuerade-stubs.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/megacart.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mikroassembler.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rabbit.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/superexpander.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ultimem.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vic-fp.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vic20-generic.Po@am__quote@ # am--include-marker
@@ -680,6 +694,9 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/ioramcart.Po
 	-rm -f ./$(DEPDIR)/mascuerade-stubs.Po
 	-rm -f ./$(DEPDIR)/megacart.Po
+	-rm -f ./$(DEPDIR)/mikroassembler.Po
+	-rm -f ./$(DEPDIR)/rabbit.Po
+	-rm -f ./$(DEPDIR)/superexpander.Po
 	-rm -f ./$(DEPDIR)/ultimem.Po
 	-rm -f ./$(DEPDIR)/vic-fp.Po
 	-rm -f ./$(DEPDIR)/vic20-generic.Po
@@ -739,6 +756,9 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/ioramcart.Po
 	-rm -f ./$(DEPDIR)/mascuerade-stubs.Po
 	-rm -f ./$(DEPDIR)/megacart.Po
+	-rm -f ./$(DEPDIR)/mikroassembler.Po
+	-rm -f ./$(DEPDIR)/rabbit.Po
+	-rm -f ./$(DEPDIR)/superexpander.Po
 	-rm -f ./$(DEPDIR)/ultimem.Po
 	-rm -f ./$(DEPDIR)/vic-fp.Po
 	-rm -f ./$(DEPDIR)/vic20-generic.Po

@@ -110,7 +110,8 @@ am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_cartconv_OBJECTS = cartconv.$(OBJEXT) c64-cartridges.$(OBJEXT) \
 	c64-saver.$(OBJEXT) c128-cartridges.$(OBJEXT) \
-	c128-saver.$(OBJEXT) plus4-cartridges.$(OBJEXT) \
+	c128-saver.$(OBJEXT) cbm2-cartridges.$(OBJEXT) \
+	cbm2-saver.$(OBJEXT) plus4-cartridges.$(OBJEXT) \
 	plus4-saver.$(OBJEXT) vic20-cartridges.$(OBJEXT) \
 	vic20-saver.$(OBJEXT) crt.$(OBJEXT)
 cartconv_OBJECTS = $(am_cartconv_OBJECTS)
@@ -135,6 +136,7 @@ am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/c128-cartridges.Po \
 	./$(DEPDIR)/c128-saver.Po ./$(DEPDIR)/c64-cartridges.Po \
 	./$(DEPDIR)/c64-saver.Po ./$(DEPDIR)/cartconv.Po \
+	./$(DEPDIR)/cbm2-cartridges.Po ./$(DEPDIR)/cbm2-saver.Po \
 	./$(DEPDIR)/crt.Po ./$(DEPDIR)/plus4-cartridges.Po \
 	./$(DEPDIR)/plus4-saver.Po ./$(DEPDIR)/vic20-cartridges.Po \
 	./$(DEPDIR)/vic20-saver.Po
@@ -382,6 +384,8 @@ install_sh = @install_sh@
 libcurl_CFLAGS = @libcurl_CFLAGS@
 libcurl_LIBS = @libcurl_LIBS@
 libdir = @libdir@
+libevdev_CFLAGS = @libevdev_CFLAGS@
+libevdev_LIBS = @libevdev_LIBS@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
@@ -412,6 +416,8 @@ xpet_LDFLAGS = @xpet_LDFLAGS@
 xplus4_LDFLAGS = @xplus4_LDFLAGS@
 xscpu64_LDFLAGS = @xscpu64_LDFLAGS@
 xvic_LDFLAGS = @xvic_LDFLAGS@
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_FALSE@cartconv_LDFLAGS = @cartconv_LDFLAGS@ -Wl,-Map=cartconv.map
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_TRUE@cartconv_LDFLAGS = @cartconv_LDFLAGS@ -Wl,-map -Wl,cartconv.map
 @WINDOWS_COMPILE_FALSE@cartconv_LDFLAGS = 
 
 # Make sure we use Windows' console mode since this is a command line tool
@@ -429,6 +435,8 @@ cartconv_SOURCES = \
 	c64-saver.c \
 	c128-cartridges.c \
 	c128-saver.c \
+	cbm2-cartridges.c \
+	cbm2-saver.c \
 	plus4-cartridges.c \
 	plus4-saver.c \
 	vic20-cartridges.c \
@@ -443,6 +451,8 @@ EXTRA_DIST = \
 	c64-saver.h \
 	c128-cartridges.h \
 	c128-saver.h \
+	cbm2-cartridges.h \
+	cbm2-saver.h \
 	plus4-cartridges.h \
 	plus4-saver.h \
 	vic20-cartridges.h \
@@ -540,6 +550,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/c64-cartridges.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/c64-saver.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cartconv.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cbm2-cartridges.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cbm2-saver.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/crt.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4-cartridges.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plus4-saver.Po@am__quote@ # am--include-marker
@@ -697,6 +709,8 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/c64-cartridges.Po
 	-rm -f ./$(DEPDIR)/c64-saver.Po
 	-rm -f ./$(DEPDIR)/cartconv.Po
+	-rm -f ./$(DEPDIR)/cbm2-cartridges.Po
+	-rm -f ./$(DEPDIR)/cbm2-saver.Po
 	-rm -f ./$(DEPDIR)/crt.Po
 	-rm -f ./$(DEPDIR)/plus4-cartridges.Po
 	-rm -f ./$(DEPDIR)/plus4-saver.Po
@@ -752,6 +766,8 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/c64-cartridges.Po
 	-rm -f ./$(DEPDIR)/c64-saver.Po
 	-rm -f ./$(DEPDIR)/cartconv.Po
+	-rm -f ./$(DEPDIR)/cbm2-cartridges.Po
+	-rm -f ./$(DEPDIR)/cbm2-saver.Po
 	-rm -f ./$(DEPDIR)/crt.Po
 	-rm -f ./$(DEPDIR)/plus4-cartridges.Po
 	-rm -f ./$(DEPDIR)/plus4-saver.Po

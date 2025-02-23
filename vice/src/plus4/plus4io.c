@@ -39,6 +39,7 @@
 #include "monitor.h"
 #include "plus4mem.h"
 #include "resources.h"
+#include "tedtypes.h"
 #include "types.h"
 #include "uiapi.h"
 #include "util.h"
@@ -75,9 +76,9 @@ static void io_source_detach(io_source_detach_t *source)
             if (source->det_cartid != CARTRIDGE_NONE) {
 #ifdef IODEBUG
                 if (source->det_cartid == 0) {
-                    DBG(("IO: cart id in io struct is 0, it should be updated! name: %s\n", source->det_devname));
+                    DBG(("IO: cart id in io struct is 0, it should be updated! name: %s", source->det_devname));
                 } else {
-                    DBG(("IO: io_source_detach id:%d name: %s\n", source->det_cartid, source->det_devname));
+                    DBG(("IO: io_source_detach id:%d name: %s", source->det_cartid, source->det_devname));
                 }
 #endif
                 assert(source->det_cartid != CARTRIDGE_CRT); /* CARTRIDGE_CRT is not allowed at this point */
@@ -104,9 +105,9 @@ static void io_source_msg_detach_all(uint16_t addr, int amount, io_source_list_t
 
     current = current->next;
 
-    DBG(("IO: check %d sources for addr %04x\n", amount, addr));
+    DBG(("IO: check %d sources for addr %04x", amount, addr));
     while (current) {
-        /* DBG(("IO: check '%s'\n", current->device->name)); */
+        /* DBG(("IO: check '%s'", current->device->name)); */
         if (current->device->io_source_valid &&
             addr >= current->device->start_address &&
             addr <= current->device->end_address &&
@@ -116,7 +117,7 @@ static void io_source_msg_detach_all(uint16_t addr, int amount, io_source_list_t
             detach_list[found].det_name = current->device->resource_name;
             detach_list[found].det_devname = current->device->name;
             detach_list[found].det_cartid = current->device->cart_id;
-            DBG(("IO: found #%d: '%s'\n", found, current->device->name));
+            DBG(("IO: found #%d: '%s'", found, current->device->name));
 
             /* first part of the message "read collision at x from" */
             if (found == 0) {
@@ -147,9 +148,9 @@ static void io_source_msg_detach_all(uint16_t addr, int amount, io_source_list_t
         ui_error(new_msg, addr);
         lib_free(new_msg);
 
-        DBG(("IO: found %d items to detach\n", found));
+        DBG(("IO: found %d items to detach", found));
         for (i = 0; i < found; i++) {
-            DBG(("IO: detach #%d id:%d name: %s\n", i, detach_list[i].det_cartid, detach_list[i].det_devname));
+            DBG(("IO: detach #%d id:%d name: %s", i, detach_list[i].det_cartid, detach_list[i].det_devname));
             io_source_detach(&detach_list[i]);
         }
     }
@@ -171,9 +172,9 @@ static void io_source_msg_detach_last(uint16_t addr, int amount, io_source_list_
 
     current = current->next;
 
-    DBG(("IO: check %d sources for addr %04x\n", real_amount, addr));
+    DBG(("IO: check %d sources for addr %04x", real_amount, addr));
     while (current) {
-        /* DBG(("IO: check '%s'\n", current->device->name)); */
+        /* DBG(("IO: check '%s'", current->device->name)); */
         if (current->device->io_source_valid &&
             addr >= current->device->start_address &&
             addr <= current->device->end_address &&
@@ -184,7 +185,7 @@ static void io_source_msg_detach_last(uint16_t addr, int amount, io_source_list_
             detach_list[found].det_devname = current->device->name;
             detach_list[found].det_cartid = current->device->cart_id;
             detach_list[found].order = current->device->order;
-            DBG(("IO: found #%d: '%s'\n", found, current->device->name));
+            DBG(("IO: found #%d: '%s'", found, current->device->name));
 
             if (current->device->order == lowest) {
                 first_cart = current->device->name;
@@ -219,10 +220,10 @@ static void io_source_msg_detach_last(uint16_t addr, int amount, io_source_list_
         ui_error(new_msg, addr);
         lib_free(new_msg);
 
-        DBG(("IO: found %d items to detach\n", found));
+        DBG(("IO: found %d items to detach", found));
         for (i = 0; i < found; i++) {
             if (detach_list[i].order != lowest) {
-                DBG(("IO: detach #%d id:%d name: %s\n", i, detach_list[i].det_cartid, detach_list[i].det_devname));
+                DBG(("IO: detach #%d id:%d name: %s", i, detach_list[i].det_cartid, detach_list[i].det_devname));
                 io_source_detach(&detach_list[i]);
             }
         }
@@ -242,15 +243,15 @@ static void io_source_log_collisions(uint16_t addr, int amount, io_source_list_t
 
     current = current->next;
 
-    DBG(("IO: check %d sources for addr %04x\n", amount, addr));
+    DBG(("IO: check %d sources for addr %04x", amount, addr));
     while (current) {
-        /* DBG(("IO: check '%s'\n", current->device->name)); */
+        /* DBG(("IO: check '%s'", current->device->name)); */
         if (current->device->io_source_valid &&
             addr >= current->device->start_address &&
             addr <= current->device->end_address &&
             current->device->io_source_prio == IO_PRIO_NORMAL) {
             /* found a conflict */
-            DBG(("IO: found #%d: '%s'\n", found, current->device->name));
+            DBG(("IO: found #%d: '%s'", found, current->device->name));
 
             /* first part of the message "read collision at x from" */
             if (found == 0) {
@@ -337,18 +338,19 @@ static inline uint8_t io_read(io_source_list_t *list, uint16_t addr)
         current = current->next;
     }
 
-    /* no valid I/O source was read, return phi1 */
+    /* no valid I/O source was read, return open space */
     if (io_source_valid == 0) {
-        return read_unused(addr);
+        return mem_read_open_space(addr);
     }
     /* only one valid I/O source was read, return value */
     if (io_source_valid == 1) {
         return firstval;
     }
+
     /* more than one I/O source was read, handle collision */
     if (io_source_collision_handling == IO_COLLISION_METHOD_DETACH_ALL) {
         io_source_msg_detach_all(addr, io_source_counter, list);
-        return read_unused(addr);
+        return mem_read_open_space(addr);
     } else if (io_source_collision_handling == IO_COLLISION_METHOD_DETACH_LAST) {
         io_source_msg_detach_last(addr, io_source_counter, list, lowest_order);
         return realval;
@@ -356,7 +358,7 @@ static inline uint8_t io_read(io_source_list_t *list, uint16_t addr)
         io_source_log_collisions(addr, io_source_counter, list);
         return realval;
     }
-    return read_unused(addr);
+    return mem_read_open_space(addr);
 }
 
 /* peek from I/O area with no side-effects */
@@ -375,7 +377,7 @@ static inline uint8_t io_peek(io_source_list_t *list, uint16_t addr)
         current = current->next;
     }
 
-    return read_unused(addr);
+    return mem_read_open_space(addr);
 }
 
 static inline void io_store(io_source_list_t *list, uint16_t addr, uint8_t value)
@@ -414,7 +416,7 @@ io_source_list_t *io_source_register(io_source_t *device)
     io_source_list_t *retval = lib_malloc(sizeof(io_source_list_t));
 
     assert(device != NULL);
-    DBG(("IO: register id:%d name:%s\n", device->cart_id, device->name));
+    DBG(("IO: register id:%d name:%s", device->cart_id, device->name));
 
     switch (device->start_address & 0xff00) {
         case 0xfd00:
@@ -449,7 +451,7 @@ void io_source_unregister(io_source_list_t *device)
     io_source_list_t *prev;
 
     assert(device != NULL);
-    DBG(("IO: unregister id:%d name:%s\n", device->device->cart_id, device->device->name));
+    DBG(("IO: unregister id:%d name:%s", device->device->cart_id, device->device->name));
 
     prev = device->previous;
     prev->next = device->next;
@@ -493,37 +495,41 @@ void cartio_set_highest_order(unsigned int nr)
 
 uint8_t plus4io_fd00_read(uint16_t addr)
 {
-    DBGRW(("IO: io-fd00 r %04x\n", addr));
-    return io_read(&plus4io_fd00_head, addr);
+    DBGRW(("IO: io-fd00 r %04x", addr));
+    ted.last_cpu_val = io_read(&plus4io_fd00_head, addr);
+    return ted.last_cpu_val;
 }
 
 uint8_t plus4io_fd00_peek(uint16_t addr)
 {
-    DBGRW(("IO: io-fd00 p %04x\n", addr));
+    DBGRW(("IO: io-fd00 p %04x", addr));
     return io_peek(&plus4io_fd00_head, addr);
 }
 
 void plus4io_fd00_store(uint16_t addr, uint8_t value)
 {
-    DBGRW(("IO: io-fd00 w %04x %02x\n", addr, value));
+    DBGRW(("IO: io-fd00 w %04x %02x", addr, value));
+    ted.last_cpu_val = value;
     io_store(&plus4io_fd00_head, addr, value);
 }
 
 uint8_t plus4io_fe00_read(uint16_t addr)
 {
-    DBGRW(("IO: io-fe00 r %04x\n", addr));
-    return io_read(&plus4io_fe00_head, addr);
+    DBGRW(("IO: io-fe00 r %04x", addr));
+    ted.last_cpu_val = io_read(&plus4io_fe00_head, addr);
+    return ted.last_cpu_val;
 }
 
 uint8_t plus4io_fe00_peek(uint16_t addr)
 {
-    DBGRW(("IO: io-fe00 p %04x\n", addr));
+    DBGRW(("IO: io-fe00 p %04x", addr));
     return io_peek(&plus4io_fe00_head, addr);
 }
 
 void plus4io_fe00_store(uint16_t addr, uint8_t value)
 {
-    DBGRW(("IO: io-fe00 w %04x %02x\n", addr, value));
+    DBGRW(("IO: io-fe00 w %04x %02x", addr, value));
+    ted.last_cpu_val = value;
     io_store(&plus4io_fe00_head, addr, value);
 }
 

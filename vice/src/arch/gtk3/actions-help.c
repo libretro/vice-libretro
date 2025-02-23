@@ -75,7 +75,7 @@ static void help_manual_action(ui_action_map_t *self)
          * wrong and should be looked at. This is different from failing to
          * load the PDF or not having a program to show the PDF
          */
-        log_error(LOG_ERR, "failed to construct a proper URI from '%s',"
+        log_error(LOG_DEFAULT, "failed to construct a proper URI from '%s',"
                 " not trying the HTML fallback, this is an error that"
                 " should not happen.",
                 uri);
@@ -110,10 +110,10 @@ static void help_manual_action(ui_action_map_t *self)
         debug_gtk3("Calling xgd-open");
         if (archdep_spawn("xdg-open", args, &tmp_name, NULL) < 0) {
             debug_gtk3("xdg-open Failed!");
-            vice_gtk3_message_error(
-                    "Failed to load PDF",
-                    "Error message: %s",
-                    error != NULL ? error->message : "<no message>");
+            vice_gtk3_message_error(NULL, /* use current emu window as parent */
+                                    "Failed to load PDF",
+                                    "Error message: %s",
+                                    error != NULL ? error->message : "<no message>");
         } else {
             debug_gtk3("OK");
         }

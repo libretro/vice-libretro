@@ -55,6 +55,7 @@
 #include "paperclip64.h"
 #include "paperclip64e.h"
 #include "paperclip64sc.h"
+#include "powerpad.h"
 #include "protopad.h"
 #include "resources.h"
 #include "rushware_keypad.h"
@@ -63,19 +64,20 @@
 #include "script64_dongle.h"
 #include "spaceballs.h"
 #include "trapthem_snespad.h"
+#include "types.h"
 #include "uiapi.h"
 #include "util.h"
 #include "vizawrite64_dongle.h"
 #include "waasoft_dongle.h"
 
-#ifdef __LIBRETRO__
-extern unsigned int opt_joyport_type;
-#endif
-
 #ifdef DEBUG_JOYPORT
-#define DBG(x) printf x
+#define DBG(x) log_printf x
 #else
 #define DBG(x)
+#endif
+
+#ifdef __LIBRETRO__
+extern unsigned int opt_joyport_type;
 #endif
 
 static joyport_t joyport_device[JOYPORT_MAX_DEVICES];
@@ -394,7 +396,7 @@ uint8_t read_joyport_potx(void)
         }
     }
 
-    DBG(("read_joyport_potx id: %d %d ret: %d %d\n", id1, id2, ret1, ret2));
+    DBG(("read_joyport_potx id: %d %d ret: %d %d", id1, id2, ret1, ret2));
 
     switch (pot_port_mask) {
         case 1:
@@ -810,10 +812,10 @@ void joyport_display_joyport(int port, int id, uint16_t status)
         if (id == joy_port[port]) {
             joyport_display[port + 1] = status;
         } else {
-            log_error(LOG_DEFAULT, "joyport_display_joyport: device with id '%d' not in port '%d'\n", id, port);
+            log_error(LOG_DEFAULT, "joyport_display_joyport: device with id '%d' not in port '%d'", id, port);
         }
     } else {
-        log_error(LOG_DEFAULT, "joyport_display_joyport: invalid port '%d'\n", port);
+        log_error(LOG_DEFAULT, "joyport_display_joyport: invalid port '%d'", port);
     }
 
     ui_display_joyport(joyport_display);
@@ -1197,6 +1199,12 @@ static joyport_init_t joyport_devices_init[] = {
     { JOYPORT_ID_KOALAPAD,             /* device id */
       VICE_MACHINE_NATIVE_5V_JOYPORTS, /* emulators this device works on */
       koalapad_register,               /* resources init function */
+      NULL,                            /* resources shutdown function */
+      NULL                             /* cmdline options init function */
+    },
+    { JOYPORT_ID_POWERPAD,             /* device id */
+      VICE_MACHINE_NATIVE_5V_JOYPORTS, /* emulators this device works on */
+      powerpad_register,               /* resources init function */
       NULL,                            /* resources shutdown function */
       NULL                             /* cmdline options init function */
     },
@@ -1713,7 +1721,7 @@ static int set_joyport_cmdline_device(const char *param, void *extra_param)
         temp = atoi(param);
     }
 
-    return set_joyport_device(temp, int_to_void_ptr(port));
+    return set_joyport_device(temp, vice_int_to_ptr(port));
 }
 
 /* ------------------------------------------------------------------------- */

@@ -90,13 +90,15 @@ static void save_filename_callback(GtkDialog *dialog,
 
         result = keyboard_keymap_dump(path);
         if (result == 0) {
-            vice_gtk3_message_info(
-                    "Succesfully saved current keymap",
-                    "Wrote current keymap as '%s'.", path);
+            vice_gtk3_message_info(GTK_WINDOW(dialog),
+                                   "Succesfully saved current keymap",
+                                   "Wrote current keymap as '%s'.", path);
             lastdir_update(GTK_WIDGET(dialog), &last_dir, &last_file);
         } else {
-            vice_gtk3_message_error("Failed to save custom keymap",
-                    "Error %d: %s", errno, strerror(errno));
+            vice_gtk3_message_error(GTK_WINDOW(dialog),
+                                    "Failed to save custom keymap",
+                                    "Error %d: %s",
+                                    errno, strerror(errno));
         }
         lib_free(path);
     }

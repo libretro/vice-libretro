@@ -49,7 +49,7 @@
 
 static int mus_load_file(const char* filename, int ispsid);
 
-static log_t vlog = LOG_ERR;
+static log_t vlog = LOG_DEFAULT;
 
 typedef struct psid_s {
     /* PSID data */
@@ -126,7 +126,7 @@ static int set_kernal_revision(const char *param, void *extra_param)
         i++;
     } while ((rev == C64_KERNAL_UNKNOWN) && (kernal_match[i].name != NULL));
 
-    log_verbose("set_kernal_revision (\"-kernalrev\") val:'%s' rev: %d", param, rev);
+    log_verbose(LOG_DEFAULT, "set_kernal_revision (\"-kernalrev\") val:'%s' rev: %d", param, rev);
 
     if (rev == C64_KERNAL_UNKNOWN) {
         log_error(LOG_DEFAULT, "invalid kernal revision (%d)", rev);
@@ -245,7 +245,7 @@ int psid_load_file(const char* filename)
         firstfile = 1;
     }
 
-    if (vlog == LOG_ERR) {
+    if (vlog == LOG_DEFAULT) {
         vlog = log_open("Vsid");
     }
 

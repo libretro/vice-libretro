@@ -144,8 +144,7 @@ am_libwidgets_a_OBJECTS = aciawidget.$(OBJEXT) \
 	plus4memorysizewidget.$(OBJEXT) printerdriverwidget.$(OBJEXT) \
 	printeremulationtypewidget.$(OBJEXT) \
 	printeroutputdevicewidget.$(OBJEXT) \
-	printeroutputmodewidget.$(OBJEXT) rommanager.$(OBJEXT) \
-	romsetmanagerwidget.$(OBJEXT) settings_autofire.$(OBJEXT) \
+	printeroutputmodewidget.$(OBJEXT) settings_autofire.$(OBJEXT) \
 	settings_autostart.$(OBJEXT) settings_burstmode.$(OBJEXT) \
 	settings_c128fullbanks.$(OBJEXT) \
 	settings_c128functionrom.$(OBJEXT) \
@@ -177,7 +176,7 @@ am_libwidgets_a_OBJECTS = aciawidget.$(OBJEXT) \
 	settings_ramcart.$(OBJEXT) settings_ramlink.$(OBJEXT) \
 	settings_ramreset.$(OBJEXT) settings_retroreplay.$(OBJEXT) \
 	settings_reu.$(OBJEXT) settings_rexramfloppy.$(OBJEXT) \
-	settings_romset.$(OBJEXT) settings_rrnetmk3.$(OBJEXT) \
+	settings_rom.$(OBJEXT) settings_rrnetmk3.$(OBJEXT) \
 	settings_rs232.$(OBJEXT) settings_sampler.$(OBJEXT) \
 	settings_scpu64.$(OBJEXT) settings_sfxsoundexpander.$(OBJEXT) \
 	settings_sfxsoundsampler.$(OBJEXT) settings_sidcart.$(OBJEXT) \
@@ -268,7 +267,6 @@ am__depfiles_remade = ./$(DEPDIR)/aciawidget.Po \
 	./$(DEPDIR)/printeremulationtypewidget.Po \
 	./$(DEPDIR)/printeroutputdevicewidget.Po \
 	./$(DEPDIR)/printeroutputmodewidget.Po \
-	./$(DEPDIR)/rommanager.Po ./$(DEPDIR)/romsetmanagerwidget.Po \
 	./$(DEPDIR)/settings_autofire.Po \
 	./$(DEPDIR)/settings_autostart.Po \
 	./$(DEPDIR)/settings_burstmode.Po \
@@ -316,9 +314,9 @@ am__depfiles_remade = ./$(DEPDIR)/aciawidget.Po \
 	./$(DEPDIR)/settings_retroreplay.Po \
 	./$(DEPDIR)/settings_reu.Po \
 	./$(DEPDIR)/settings_rexramfloppy.Po \
-	./$(DEPDIR)/settings_romset.Po \
-	./$(DEPDIR)/settings_rrnetmk3.Po ./$(DEPDIR)/settings_rs232.Po \
-	./$(DEPDIR)/settings_sampler.Po ./$(DEPDIR)/settings_scpu64.Po \
+	./$(DEPDIR)/settings_rom.Po ./$(DEPDIR)/settings_rrnetmk3.Po \
+	./$(DEPDIR)/settings_rs232.Po ./$(DEPDIR)/settings_sampler.Po \
+	./$(DEPDIR)/settings_scpu64.Po \
 	./$(DEPDIR)/settings_sfxsoundexpander.Po \
 	./$(DEPDIR)/settings_sfxsoundsampler.Po \
 	./$(DEPDIR)/settings_sidcart.Po \
@@ -643,6 +641,8 @@ install_sh = @install_sh@
 libcurl_CFLAGS = @libcurl_CFLAGS@
 libcurl_LIBS = @libcurl_LIBS@
 libdir = @libdir@
+libevdev_CFLAGS = @libevdev_CFLAGS@
+libevdev_LIBS = @libevdev_LIBS@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
@@ -772,8 +772,6 @@ libwidgets_a_SOURCES = \
 	printeremulationtypewidget.c \
 	printeroutputdevicewidget.c \
 	printeroutputmodewidget.c \
-	rommanager.c \
-	romsetmanagerwidget.c \
 	settings_autofire.c \
 	settings_autostart.c \
 	settings_burstmode.c \
@@ -834,7 +832,7 @@ libwidgets_a_SOURCES = \
 	settings_retroreplay.c \
 	settings_reu.c \
 	settings_rexramfloppy.c \
-	settings_romset.c \
+	settings_rom.c \
 	settings_rrnetmk3.c \
 	settings_rs232.c \
 	settings_sampler.c \
@@ -945,8 +943,6 @@ EXTRA_DIST = \
 	printeremulationtypewidget.h \
 	printeroutputdevicewidget.h \
 	printeroutputmodewidget.h \
-	rommanager.h \
-	romsetmanagerwidget.h \
 	settings_autofire.h \
 	settings_autostart.h \
 	settings_burstmode.h \
@@ -1007,7 +1003,7 @@ EXTRA_DIST = \
 	settings_retroreplay.h \
 	settings_reu.h \
 	settings_rexramfloppy.h \
-	settings_romset.h \
+	settings_rom.h \
 	settings_rrnetmk3.h \
 	settings_rs232.h \
 	settings_sampler.h \
@@ -1165,8 +1161,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/printeremulationtypewidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/printeroutputdevicewidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/printeroutputmodewidget.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rommanager.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/romsetmanagerwidget.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_autofire.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_autostart.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_burstmode.Po@am__quote@ # am--include-marker
@@ -1227,7 +1221,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_retroreplay.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_reu.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_rexramfloppy.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_romset.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_rom.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_rrnetmk3.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_rs232.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_sampler.Po@am__quote@ # am--include-marker
@@ -1553,8 +1547,6 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/printeremulationtypewidget.Po
 	-rm -f ./$(DEPDIR)/printeroutputdevicewidget.Po
 	-rm -f ./$(DEPDIR)/printeroutputmodewidget.Po
-	-rm -f ./$(DEPDIR)/rommanager.Po
-	-rm -f ./$(DEPDIR)/romsetmanagerwidget.Po
 	-rm -f ./$(DEPDIR)/settings_autofire.Po
 	-rm -f ./$(DEPDIR)/settings_autostart.Po
 	-rm -f ./$(DEPDIR)/settings_burstmode.Po
@@ -1615,7 +1607,7 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/settings_retroreplay.Po
 	-rm -f ./$(DEPDIR)/settings_reu.Po
 	-rm -f ./$(DEPDIR)/settings_rexramfloppy.Po
-	-rm -f ./$(DEPDIR)/settings_romset.Po
+	-rm -f ./$(DEPDIR)/settings_rom.Po
 	-rm -f ./$(DEPDIR)/settings_rrnetmk3.Po
 	-rm -f ./$(DEPDIR)/settings_rs232.Po
 	-rm -f ./$(DEPDIR)/settings_sampler.Po
@@ -1769,8 +1761,6 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/printeremulationtypewidget.Po
 	-rm -f ./$(DEPDIR)/printeroutputdevicewidget.Po
 	-rm -f ./$(DEPDIR)/printeroutputmodewidget.Po
-	-rm -f ./$(DEPDIR)/rommanager.Po
-	-rm -f ./$(DEPDIR)/romsetmanagerwidget.Po
 	-rm -f ./$(DEPDIR)/settings_autofire.Po
 	-rm -f ./$(DEPDIR)/settings_autostart.Po
 	-rm -f ./$(DEPDIR)/settings_burstmode.Po
@@ -1831,7 +1821,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/settings_retroreplay.Po
 	-rm -f ./$(DEPDIR)/settings_reu.Po
 	-rm -f ./$(DEPDIR)/settings_rexramfloppy.Po
-	-rm -f ./$(DEPDIR)/settings_romset.Po
+	-rm -f ./$(DEPDIR)/settings_rom.Po
 	-rm -f ./$(DEPDIR)/settings_rrnetmk3.Po
 	-rm -f ./$(DEPDIR)/settings_rs232.Po
 	-rm -f ./$(DEPDIR)/settings_sampler.Po

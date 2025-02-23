@@ -5,6 +5,11 @@ AM_CFLAGS = @VICE_CFLAGS@
 AM_CXXFLAGS = @VICE_CXXFLAGS@
 AM_LDFLAGS = @VICE_LDFLAGS@
 
+if !HAVE_ZLIB
+AM_CPPFLAGS += -DZMBV_USE_MINIZ
+AM_CFLAGS += -DZMBV_USE_MINIZ
+endif
+
 noinst_LIBRARIES = libzmbv.a
 
 libzmbv_a_SOURCES = \
@@ -13,5 +18,6 @@ libzmbv_a_SOURCES = \
 
 EXTRA_DIST = \
 	     zmbv_avi.h \
+	     miniz.c \
 	     zmbv.h
 

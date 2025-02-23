@@ -37,6 +37,7 @@
 #include "lib.h"
 #include "log.h"
 #include "resources.h"
+#include "unicodehelpers.h"
 #include "util.h"
 #include "widgethelpers.h"
 
@@ -90,7 +91,7 @@ static void on_row_activated(
     GtkTreeIter iter;
     int autostart = 0;
 
-    resources_get_int("AutostartOnDoubleclick", &autostart);
+    resources_get_int("AutostartOnDoubleClick", &autostart);
 
     model = gtk_tree_view_get_model(view);
     selection = gtk_tree_view_get_selection(view);
@@ -149,7 +150,7 @@ static GtkListStore *create_model(const char *path)
     }
 
     if (content_func == NULL) {
-        log_error(LOG_ERR, "no content-get function specified, bailing!");
+        log_error(LOG_DEFAULT, "no content-get function specified, bailing!");
         return model;
     }
 
@@ -174,15 +175,15 @@ static GtkListStore *create_model(const char *path)
             reverse only name/od and then concat them */
         char *utf8a, *utf8b;
         *sep = 0;
-        utf8a = (char *)vice_gtk3_petscii_to_utf8((unsigned char *)tmp, 0, false);
+        utf8a = (char *)vice_gtk3_petscii_upper_to_utf8((unsigned char *)tmp, 0);
         *sep = '"';
-        utf8b = (char *)vice_gtk3_petscii_to_utf8((unsigned char *)sep, 1, false);
+        utf8b = (char *)vice_gtk3_petscii_upper_to_utf8((unsigned char *)sep, 1);
         utf8 = util_concat(utf8a, utf8b, NULL);
         lib_free(utf8a);
         lib_free(utf8b);
     } else {
         /* if start of disk name was not found use the entire string */
-        utf8 = (char *)vice_gtk3_petscii_to_utf8((unsigned char *)tmp, 1, false);
+        utf8 = (char *)vice_gtk3_petscii_upper_to_utf8((unsigned char *)tmp, 1);
     }
     gtk_list_store_append(model, &iter);
     gtk_list_store_set(model, &iter, 0, utf8, 1, row, -1);
@@ -193,7 +194,7 @@ static GtkListStore *create_model(const char *path)
     /* files, if any */
     for (entry = contents->file_list; entry != NULL; entry = entry->next) {
         tmp = image_contents_file_to_string(entry, IMAGE_CONTENTS_STRING_PETSCII);
-        utf8 = (char *)vice_gtk3_petscii_to_utf8((unsigned char *)tmp, false, false);
+        utf8 = (char *)vice_gtk3_petscii_upper_to_utf8((unsigned char *)tmp, false);
         gtk_list_store_append(model, &iter);
         gtk_list_store_set(model, &iter,
                 0, utf8,
@@ -208,7 +209,7 @@ static GtkListStore *create_model(const char *path)
     blocks = contents->blocks_free;
     if (blocks >= 0) {
         tmp = lib_msprintf("%d BLOCKS FREE.", contents->blocks_free);
-        utf8 = (char *)vice_gtk3_petscii_to_utf8((unsigned char *)tmp, false, false);
+        utf8 = (char *)vice_gtk3_petscii_upper_to_utf8((unsigned char *)tmp, false);
         gtk_list_store_append(model, &iter);
         gtk_list_store_set(model, &iter,
                 0, utf8,

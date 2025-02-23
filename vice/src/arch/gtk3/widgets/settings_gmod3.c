@@ -52,7 +52,8 @@ static void save_filename_callback(GtkDialog *dialog,
 {
     if (filename != NULL) {
         if (cartridge_save_image(CARTRIDGE_GMOD3, filename) < 0) {
-            vice_gtk3_message_error(CARTRIDGE_NAME_GMOD3 " Error",
+            vice_gtk3_message_error(GTK_WINDOW(dialog),
+                                    CARTRIDGE_NAME_GMOD3 " Error",
                                     "Failed to save cartridge image '%s'.",
                                     filename);
         }
@@ -83,7 +84,14 @@ static void on_save_clicked(GtkWidget *widget, gpointer user_data)
 static void on_flush_clicked(GtkWidget *widget, gpointer user_data)
 {
     if (cartridge_flush_image(CARTRIDGE_GMOD3) < 0) {
-        vice_gtk3_message_error(CARTRIDGE_NAME_GMOD3 " Error",
+        /* get settings dialog */
+        GtkWidget *parent = gtk_widget_get_toplevel(widget);
+        if (!GTK_IS_WINDOW(parent)) {
+            /* revert to current emulator window */
+            parent = NULL;
+        }
+        vice_gtk3_message_error(GTK_WINDOW(parent),
+                                CARTRIDGE_NAME_GMOD3 " Error",
                                 "Failed to flush cartridge image.");
     }
 }

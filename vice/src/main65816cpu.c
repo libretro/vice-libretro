@@ -34,6 +34,7 @@
 #include "alarm.h"
 #include "archdep.h"
 #include "autostart.h"
+#include "cmdline.h"
 #include "debug.h"
 #include "interrupt.h"
 #include "log.h"
@@ -41,6 +42,7 @@
 #include "main65816cpu.h"
 #include "mem.h"
 #include "monitor.h"
+#include "resources.h"
 #include "snapshot.h"
 #include "traps.h"
 #include "types.h"
@@ -49,6 +51,8 @@
 #ifndef EXIT_FAILURE
 #define EXIT_FAILURE 1
 #endif
+
+log_t maincpu_log = LOG_DEFAULT;
 
 /* MACHINE_STUFF should define/undef
 
@@ -73,6 +77,8 @@
     } while (0)
 
 /* ------------------------------------------------------------------------- */
+
+/* FIXME: implementation of cpu-history and memmap is missing (see mainc64cpu.c) */
 
 #ifndef STORE
 #define STORE(addr, value) \
@@ -142,6 +148,29 @@ WDC65816_regs_t maincpu_regs;
 
 /* ------------------------------------------------------------------------- */
 
+static const resource_int_t maincpu_resources_int[] = {
+    /* TODO */
+    RESOURCE_INT_LIST_END
+};
+
+int maincpu_resources_init(void)
+{
+    return resources_register_int(maincpu_resources_int);
+}
+
+static const cmdline_option_t cmdline_options_maincpu[] =
+{
+    /* TODO */
+    CMDLINE_LIST_END
+};
+
+int maincpu_cmdline_options_init(void)
+{
+    return cmdline_register_options(cmdline_options_maincpu);
+}
+
+/* ------------------------------------------------------------------------- */
+
 monitor_interface_t *maincpu_monitor_interface_get(void)
 {
     maincpu_monitor_interface->cpu_regs = NULL;
@@ -185,6 +214,8 @@ monitor_interface_t *maincpu_monitor_interface_get(void)
 void maincpu_early_init(void)
 {
     maincpu_int_status = interrupt_cpu_status_new();
+
+    maincpu_log = log_open("Main CPU");
 }
 
 void maincpu_init(void)
@@ -330,7 +361,7 @@ if (!retro_mainloop)
                 DO_INTERRUPT(IK_RESET);                               \
                 break;                                                \
             case JAM_POWER_CYCLE:                                     \
-                mem_powerup();                                        \
+                machine_powerup();                                    \
                 DO_INTERRUPT(IK_RESET);                               \
                 break;                                                \
             case JAM_MONITOR:                                         \
@@ -449,7 +480,7 @@ void maincpu_mainloop(void)
                 DO_INTERRUPT(IK_RESET);                               \
                 break;                                                \
             case JAM_POWER_CYCLE:                                     \
-                mem_powerup();                                        \
+                machine_powerup();                                    \
                 DO_INTERRUPT(IK_RESET);                               \
                 break;                                                \
             case JAM_MONITOR:                                         \

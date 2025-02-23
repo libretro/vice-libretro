@@ -58,7 +58,7 @@
 #define DEFAULT_JOYSTICK_FUZZ      1000
 
 #ifdef HAVE_SDL_NUMJOYSTICKS
-static log_t sdljoy_log = LOG_ERR;
+static log_t sdljoy_log = LOG_DEFAULT;
 
 /* Autorepeat in menu & vkbd */
 static ui_menu_action_t autorepeat;
@@ -111,7 +111,7 @@ static const resource_int_t resources_int[] = {
       &joystick_threshold, set_joystick_threshold, NULL },
     { "JoyFuzz", DEFAULT_JOYSTICK_FUZZ, RES_EVENT_NO, NULL,
       &joystick_fuzz, set_joystick_fuzz, NULL },
-    { "JoyMenuControl", 0, RES_EVENT_NO, NULL,
+    { "JoyMenuControl", 1, RES_EVENT_NO, NULL,
       &use_joysticks_for_menu, set_use_joysticks_for_menu, NULL },
     RESOURCE_INT_LIST_END
 };

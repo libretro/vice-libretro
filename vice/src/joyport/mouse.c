@@ -38,7 +38,7 @@
 /* #define DEBUG_MOUSE */
 
 #ifdef DEBUG_MOUSE
-#define DBG(_x_)  log_debug _x_
+#define DBG(_x_) log_printf  _x_
 #else
 #define DBG(_x_)
 #endif
@@ -62,6 +62,12 @@
 #include "mouse_neos.h"
 #include "mouse_paddle.h"
 #include "mouse_quadrature.h"
+#include "powerpad.h"
+
+/* Log descriptor.  */
+#ifdef DEBUG_MOUSE
+static log_t mouse_log = LOG_DEFAULT;
+#endif
 
 #ifdef __LIBRETRO__
 extern unsigned int cur_port;
@@ -69,11 +75,6 @@ static float mouse_move_x2 = 0.0f;
 static float mouse_move_y2 = 0.0f;
 int16_t mouse_x2 = 0;
 int16_t mouse_y2 = 0;
-#endif
-
-/* Log descriptor.  */
-#ifdef DEBUG_MOUSE
-static log_t mouse_log = LOG_ERR;
 #endif
 
 /* Weird trial and error based number here :( larger causes mouse jumps. */
@@ -410,6 +411,7 @@ void mouse_shutdown(void)
 
 static void mouse_button_left(int pressed)
 {
+    DBG(("mouse_button_left %d type:%d\n", pressed, mouse_type));
     switch (mouse_type) {
         case MOUSE_TYPE_1351:
         case MOUSE_TYPE_SMART:
@@ -423,6 +425,9 @@ static void mouse_button_left(int pressed)
         case MOUSE_TYPE_NEOS:
             mouse_neos_button_left(pressed);
             break;
+        case MOUSE_TYPE_POWERPAD:
+            powerpad_button_left(pressed);
+            break;
         case MOUSE_TYPE_AMIGA:
         case MOUSE_TYPE_ST:
             mouse_amiga_st_button_left(pressed);
@@ -434,6 +439,7 @@ static void mouse_button_left(int pressed)
 
 static void mouse_button_right(int pressed)
 {
+    DBG(("mouse_button_right %d\n", pressed));
     switch (mouse_type) {
         case MOUSE_TYPE_1351:
         case MOUSE_TYPE_SMART:
@@ -447,10 +453,6 @@ static void mouse_button_right(int pressed)
         case MOUSE_TYPE_NEOS:
             mouse_neos_button_right(pressed);
             break;
-        case MOUSE_TYPE_AMIGA:
-        case MOUSE_TYPE_ST:
-            mouse_amiga_st_button_right(pressed);
-            break;
         default:
             break;
     }
@@ -461,10 +463,6 @@ static void mouse_button_middle(int pressed)
     switch (mouse_type) {
         case MOUSE_TYPE_MICROMYS:
             micromys_mouse_button_middle(pressed);
-            break;
-        case MOUSE_TYPE_AMIGA:
-        case MOUSE_TYPE_ST:
-            mouse_amiga_st_button_right(pressed);
             break;
         default:
             break;
@@ -518,7 +516,8 @@ static const mt_id_t mt_id[] = {
     { MOUSE_TYPE_SMART,    JOYPORT_ID_MOUSE_SMART },
     { MOUSE_TYPE_MICROMYS, JOYPORT_ID_MOUSE_MICROMYS },
     { MOUSE_TYPE_KOALAPAD, JOYPORT_ID_KOALAPAD },
-    { -1,                  -1 }
+    { MOUSE_TYPE_POWERPAD, JOYPORT_ID_POWERPAD },
+    { -1,                    -1 }
 };
 
 /* convert from joyport ID to mouse type */

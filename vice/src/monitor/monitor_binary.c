@@ -25,6 +25,8 @@
  *
  */
 
+/* #define DEBUG_BINMON */
+
 #include "vice.h"
 
 #include <assert.h>
@@ -58,6 +60,12 @@
 
 #ifdef USE_SVN_REVISION
 # include "svnversion.h"
+#endif
+
+#ifdef DEBUG_BINMON
+#define DBG(x)   log_printf x
+#else
+#define DBG(x)
 #endif
 
 #ifdef HAVE_NETWORK
@@ -219,24 +227,26 @@ static void monitor_binary_quit(void)
     connected_socket = NULL;
 }
 
-int monitor_binary_receive(unsigned char *buffer, size_t buffer_length)
+ssize_t monitor_binary_receive(unsigned char *buffer, size_t buffer_length)
 {
-    int bytes_received = 0;
-    int total_bytes_received = 0;
+    ssize_t bytes_received = 0;
+    ssize_t total_bytes_received = 0;
 
     while (buffer_length && connected_socket) {
         bytes_received = vice_network_receive(connected_socket, buffer, buffer_length, 0);
 
         if (bytes_received <= 0) {
-            log_message(LOG_DEFAULT, "monitor_binary_receive(): vice_network_receive() returned %d, breaking connection", bytes_received);
+            log_message(LOG_DEFAULT,
+                        "monitor_binary_receive(): vice_network_receive() returned %"PRI_SSIZE_T", breaking connection",
+                        bytes_received);
             monitor_binary_quit();
             break;
         }
 
         if (bytes_received < buffer_length) {
             log_message(LOG_DEFAULT,
-                    "monitor_binary_receive(): received %d of %"PRI_SIZE_T,
-                    bytes_received, buffer_length);
+                        "monitor_binary_receive(): received %"PRI_SSIZE_T" of %"PRI_SIZE_T,
+                        bytes_received, buffer_length);
         }
 
         total_bytes_received += bytes_received;
@@ -1423,7 +1433,7 @@ static void monitor_binary_process_mem_get(binary_command_t *command)
     uint8_t requested_memspace = body[5];
     uint16_t requested_banknum = little_endian_to_uint16(&body[6]);
 
-    uint32_t length = endaddress - startaddress + 1;
+    uint32_t length = (endaddress + 1) - startaddress;
 
     if (startaddress > endaddress) {
         monitor_binary_error(e_MON_ERR_INVALID_PARAMETER, command->request_id);
@@ -1490,7 +1500,7 @@ static void monitor_binary_process_mem_set(binary_command_t *command)
     uint8_t requested_memspace = body[5];
     uint16_t requested_banknum = little_endian_to_uint16(&body[6]);
 
-    uint32_t length = endaddress - startaddress + 1;
+    uint32_t length = (endaddress + 1) - startaddress;
 
     if (startaddress > endaddress) {
         monitor_binary_error(e_MON_ERR_INVALID_PARAMETER, command->request_id);
@@ -1520,8 +1530,11 @@ static void monitor_binary_process_mem_set(binary_command_t *command)
 
     banknum = requested_banknum;
 
+    DBG(("monitor_binary_process_mem_set %04x-%04x (=length:%04x) bank:%d memspace:%d", startaddress, endaddress, length, banknum, memspace));
+
     sidefx = !!new_sidefx;
     for (i = 0; i < length; i++) {
+        DBG(("%04x:%02x", (uint16_t)ADDR_LIMIT(startaddress + i), body[header_size + i]));
         mon_set_mem_val_ex(memspace, banknum, (uint16_t)ADDR_LIMIT(startaddress + i), body[header_size + i]);
     }
     sidefx = old_sidefx;
@@ -1539,7 +1552,7 @@ static void monitor_binary_process_command(unsigned char * pbuffer)
 
     command.request_id = little_endian_to_uint32(&pbuffer[6]);
 
-    if (command.api_version < 0x01 || command.api_version > 0x02) {
+    if ((command.api_version < 0x01) || (command.api_version > 0x02)) {
         monitor_binary_error(e_MON_ERR_CMD_INVALID_API_VERSION, command.request_id);
         return;
     }
@@ -1553,6 +1566,7 @@ static void monitor_binary_process_command(unsigned char * pbuffer)
     command.body = &pbuffer[11];
 
     command_type = command.type;
+    DBG(("monitor_binary_process_command type:%02x", command_type));
     if (command_type == e_MON_CMD_PING) {
         monitor_binary_process_ping(&command);
 
@@ -1677,7 +1691,7 @@ int monitor_binary_get_command_line(void)
         uint8_t api_version;
         unsigned int remaining_header_size = 5;
         unsigned int command_size;
-        int n;
+        ssize_t n;
 
         if (!buffer) {
             buffer = lib_malloc(300);
@@ -1700,7 +1714,7 @@ int monitor_binary_get_command_line(void)
         n = 0;
 
         while (n < sizeof(api_version) + sizeof(body_length)) {
-            int o = monitor_binary_receive(&buffer[1 + n], (sizeof(api_version) + sizeof(body_length)) - n);
+            ssize_t o = monitor_binary_receive(&buffer[1 + n], (sizeof(api_version) + sizeof(body_length)) - n);
             if (o <= 0) {
                 monitor_binary_quit();
                 return 0;
@@ -1727,7 +1741,7 @@ int monitor_binary_get_command_line(void)
         n = 0;
 
         while (n < remaining_header_size + body_length) {
-            int o = monitor_binary_receive(&buffer[6 + n], remaining_header_size + body_length - n);
+            ssize_t o = monitor_binary_receive(&buffer[6 + n], remaining_header_size + body_length - n);
             if (o <= 0) {
                 monitor_binary_quit();
                 return 0;

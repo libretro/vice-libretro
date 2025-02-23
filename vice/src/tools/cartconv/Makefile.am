@@ -8,6 +8,14 @@ else
 cartconv_LDFLAGS =
 endif
 
+if HAVE_DEBUG
+if MACOS_COMPILE
+cartconv_LDFLAGS = @cartconv_LDFLAGS@ -Wl,-map -Wl,cartconv.map
+else
+cartconv_LDFLAGS = @cartconv_LDFLAGS@ -Wl,-Map=cartconv.map
+endif
+endif
+
 if USE_SVN_REVISION
 # Generate svnversion.h if it doesn't exist yet (for `make cartconv`)
 $(top_builddir)/src/svnversion.h:
@@ -34,6 +42,8 @@ cartconv_SOURCES = \
 	c64-saver.c \
 	c128-cartridges.c \
 	c128-saver.c \
+	cbm2-cartridges.c \
+	cbm2-saver.c \
 	plus4-cartridges.c \
 	plus4-saver.c \
 	vic20-cartridges.c \
@@ -47,6 +57,8 @@ EXTRA_DIST = \
 	c64-saver.h \
 	c128-cartridges.h \
 	c128-saver.h \
+	cbm2-cartridges.h \
+	cbm2-saver.h \
 	plus4-cartridges.h \
 	plus4-saver.h \
 	vic20-cartridges.h \

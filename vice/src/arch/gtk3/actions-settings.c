@@ -100,14 +100,14 @@ static void restore_default_callback(GtkDialog *dialog, gboolean result)
  */
 static void settings_default_action(ui_action_map_t *self)
 {
-    vice_gtk3_message_confirm(
-            restore_default_callback,
-            "Reset all settings to default",
-            "Are you sure you wish to reset all settings to their default"
-            " values?\n\n"
-            "The new settings will not be saved until using the 'Save"
-            " settings' menu item, or having 'Save on exit' enabled and"
-            " exiting VICE.");
+    vice_gtk3_message_confirm(NULL, /* current emulator window as parent */
+                              restore_default_callback,
+                              "Reset all settings to default",
+                              "Are you sure you wish to reset all settings to"
+                              " their default  values?\n\n"
+                              "The new settings will not be saved until using"
+                              " the 'Save settings' menu item, or having"
+                              " 'Save on exit' enabled and exiting VICE.");
 }
 
 /** \brief  Show settings dialog
@@ -131,7 +131,8 @@ static void settings_load_action(ui_action_map_t *self)
     result = resources_reset_and_load(NULL);
     mainlock_release();
     if (result != 0) {
-        vice_gtk3_message_error("VICE core error",
+        vice_gtk3_message_error(NULL, /* current emu window as parent */
+                                "VICE core error",
                                 "Failed to load default settings file");
     } else {
         /* set window geometries from resources, if present */
@@ -159,7 +160,8 @@ static void settings_load_filename_callback(GtkDialog *dialog,
                                 : resources_load(filename);
         mainlock_release();
         if (result != 0) {
-            vice_gtk3_message_error("VICE core error",
+            vice_gtk3_message_error(GTK_WINDOW(dialog),
+                                    "VICE core error",
                                     "Failed to load settings from '%s'",
                                     filename);
         } else {
@@ -214,7 +216,8 @@ static void settings_save_action(ui_action_map_t *self)
     result = resources_save(NULL);
     mainlock_release();
     if (result != 0) {
-        vice_gtk3_message_error("VICE core error",
+        vice_gtk3_message_error(NULL, /* current emu window as parent */
+                                "VICE core error",
                                 "Failed to save default settings file");
     }
     ui_action_finish(self->action);
@@ -233,7 +236,8 @@ static void on_settings_save_to_filename(GtkDialog *dialog,
     if (filename!= NULL) {
         mainlock_obtain();
         if (resources_save(filename) != 0) {
-            vice_gtk3_message_error("VICE core error",
+            vice_gtk3_message_error(GTK_WINDOW(dialog),
+                                    "VICE core error",
                                     "Failed to save settings as '%s'",
                                     filename);
         }
@@ -295,14 +299,14 @@ static const ui_action_map_t settings_actions[] = {
     {
         .action  = ACTION_SETTINGS_LOAD_FROM,
         .handler = settings_load_from_action,
-        .data    = int_to_void_ptr(0),  /* reset settings before loading */
+        .data    = vice_int_to_ptr(0),  /* reset settings before loading */
         .blocks  = true,
         .dialog  = true
     },
     {
         .action  = ACTION_SETTINGS_LOAD_EXTRA,
         .handler = settings_load_from_action,
-        .data    = int_to_void_ptr(1),  /* don't reset setting before loading */
+        .data    = vice_int_to_ptr(1),  /* don't reset setting before loading */
         .blocks  = true,
         .dialog  = true
     },

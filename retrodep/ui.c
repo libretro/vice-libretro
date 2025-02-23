@@ -17,6 +17,7 @@
 #include "sid.h"
 #include "sid-resources.h"
 #include "util.h"
+#include "videoarch.h"
 #include "keyboard.h"
 #include "driverom.h"
 #if !defined(__XCBM5x0__)
@@ -216,6 +217,11 @@ int ui_action_get_id(const char *name)
 
 void ui_action_trigger(int action)
 {
+}
+
+video_canvas_t *ui_get_active_canvas(void)
+{
+    return NULL;
 }
 
 extern int log_resources_set_int(const char *name, int value);
@@ -420,8 +426,6 @@ int ui_init_finalize(void)
 #elif defined(__XPET__) || defined(__XCBM2__)
    log_resources_set_int("CrtcFilter", (vice_opt.Filter > -1) ? 1 : 0);
    log_resources_set_int("CrtcPALBlur", vice_opt.Filter);
-   log_resources_set_int("CrtcPALOddLinePhase", vice_opt.FilterOddLinePhase);
-   log_resources_set_int("CrtcPALOddLineOffset", vice_opt.FilterOddLineOffset);
 #endif
 
 #if defined(__X128__)

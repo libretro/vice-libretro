@@ -102,7 +102,7 @@ void ted_delay_clk(void)
 {
     CLOCK diff;
 
-    /*log_debug("MCLK %d OMCLK %d", maincpu_clk, old_maincpu_clk);*/
+    /*log_debug(LOG_DEFAULT, "MCLK %d OMCLK %d", maincpu_clk, old_maincpu_clk);*/
 
     if (ted.fastmode == 0) {
         diff = maincpu_clk - old_maincpu_clk - ((old_cycle & 1) ^ 1);
@@ -193,7 +193,7 @@ inline void ted_handle_pending_alarms(CLOCK num_write_cycles)
         do {
             f = 0;
             if (maincpu_clk >= ted.draw_clk) {
-                ted_raster_draw_alarm_handler((CLOCK)(maincpu_clk - ted.draw_clk), NULL);
+                ted_raster_draw_alarm_handler(maincpu_clk - ted.draw_clk, NULL);
                 f = 1;
             }
             if (maincpu_clk > ted.fetch_clk + 1) {
@@ -502,12 +502,19 @@ void ted_update_memory_ptrs(unsigned int cycle)
     screen_addr = ((ted.regs[0x14] & 0xf8) << 8) | 0x400;
     screen_base = mem_get_tedmem_base((screen_addr >> 14) | cpu_romsel)
                   + (screen_addr & 0x3fff);
-
+#if 0
+    if (cpu_romsel && (screen_addr < 0x8000)) {
+        screen_base = mem_get_open_space();
+    }
+#endif
     TED_DEBUG_REGISTER(("\tVideo memory at $%04X", screen_addr));
 
     bitmap_addr = (ted.regs[0x12] & 0x38) << 10;
     bitmap_base = mem_get_tedmem_base((bitmap_addr >> 14) | video_romsel)
                   + (bitmap_addr & 0x3fff);
+    if (video_romsel && (bitmap_addr < 0x8000)) {
+        bitmap_base = mem_get_open_space();
+    }
 
     TED_DEBUG_REGISTER(("\tBitmap memory at $%04X", bitmap_addr));
 
@@ -515,15 +522,21 @@ void ted_update_memory_ptrs(unsigned int cycle)
                                     | (ted.regs[0x07] & 0x80)) ? 0xf8 : 0xfc)) << 8;
     char_base = mem_get_tedmem_base((char_addr >> 14) | video_romsel)
                 + (char_addr & 0x3fff);
+    if (video_romsel && (char_addr < 0x8000)) {
+        char_base = mem_get_open_space();
+    }
 
     TED_DEBUG_REGISTER(("\tUser-defined character set at $%04X", char_addr));
 
     color_addr = ((ted.regs[0x14] & 0xf8) << 8);
     color_base = mem_get_tedmem_base((color_addr >> 14) | cpu_romsel)
                  + (color_addr & 0x3fff);
-
+#if 0
+    if (cpu_romsel && (color_addr < 0x8000)) {
+        color_base = mem_get_open_space();
+    }
+#endif
     TED_DEBUG_REGISTER(("\tColor memory at $%04X", color_addr));
-
 
     tmp = TED_RASTER_CHAR(cycle);
 
@@ -715,7 +728,7 @@ void ted_raster_draw_alarm_handler(CLOCK offset, void *data)
     if (ted.tv_current_line < ted.screen_height) {
         raster_line_emulate(&ted.raster);
     } else {
-        log_debug("Skip line %u %u", ted.tv_current_line, ted.screen_height);
+        log_debug(LOG_DEFAULT, "Skip line %u %u", ted.tv_current_line, ted.screen_height);
     }
 
     if (ted.ted_raster_counter == ted.last_dma_line) {
@@ -765,13 +778,14 @@ void ted_raster_draw_alarm_handler(CLOCK offset, void *data)
 
     /* DO VSYNC if the raster_counter in the TED reached the VSYNC signal */
     /* Also do VSYNC if oversized screen reached a certain threashold, this will result in rolling screen just like on the real thing */
-    if (((signed int)(ted.tv_current_line - ted.screen_height) > 40) || (ted.ted_raster_counter == ted.vsync_line )) {
+    if (((signed int)(ted.tv_current_line - ted.screen_height) > 40) ||
+        (ted.ted_raster_counter == ted.vsync_line )) {
         if (ted.tv_current_line < ted.screen_height) {
             ted.raster.current_line = 0;
             raster_canvas_handle_end_of_frame(&ted.raster);
         }
 
-        /*log_debug("Vsync %d %d",ted.tv_current_line, ted.ted_raster_counter);*/
+        /*log_debug(LOG_DEFAULT, "Vsync %d %d",ted.tv_current_line, ted.ted_raster_counter);*/
 
         vsync_do_vsync(ted.raster.canvas);
 
@@ -784,7 +798,7 @@ void ted_raster_draw_alarm_handler(CLOCK offset, void *data)
     }
 
     if (in_visible_area) {
-/*        log_debug("Idle state %03x, %03x, %d",ted.ted_raster_counter, ted.idle_state, ted.raster.ycounter);*/
+/*        log_debug(LOG_DEFAULT, "Idle state %03x, %03x, %d",ted.ted_raster_counter, ted.idle_state, ted.raster.ycounter);*/
         if (!ted.idle_state) {
             ted.mem_counter = (ted.mem_counter + ted.mem_counter_inc) & 0x3ff;
             ted.chr_pos_count = (ted.chr_pos_count + ted.mem_counter_inc) & 0x3ff;
@@ -818,8 +832,8 @@ void ted_raster_draw_alarm_handler(CLOCK offset, void *data)
     if (ted.ted_raster_counter == ted.first_dma_line) {
         ted.allow_bad_lines = !ted.raster.blank;
     }
-    if (ted.allow_bad_lines
-        && (ted.ted_raster_counter & 7) == (unsigned int)((ted.raster.ysmooth + 1) & 7)) {
+    if (ted.allow_bad_lines &&
+        ((ted.ted_raster_counter & 7) == ((ted.raster.ysmooth + 1) & 7))) {
         memcpy(ted.cbuf, ted.cbuf_tmp, ted.mem_counter_inc);
     }
     /* FIXME */
@@ -879,6 +893,8 @@ int ted_dump(void)
 
     int video_mode, m_mcm, m_bmm, m_ecm;
     unsigned int cgen, bmap , vram;
+    int rasterx;
+    int i;
 
     video_mode = ((ted.regs[0x06] & 0x60) | (ted.regs[0x07] & 0x10)) >> 4;
 
@@ -886,28 +902,41 @@ int ted_dump(void)
     m_bmm = (video_mode & 2) >> 1;  /* 0 text, 1 bitmap */
     m_mcm = video_mode & 1;         /* 0 hires, 1 multi */
 
-    int i;
-
-    i = ((int)TED_RASTER_CYCLE(maincpu_clk) - 16) * 4;  /* x raster position */
-    if (i < 0) {
-        i = ted.cycles_per_line * 4 + i;
+    rasterx = ((int)TED_RASTER_CYCLE(maincpu_clk) - 16) * 4;  /* x raster position */
+    if (rasterx < 0) {
+        rasterx = ted.cycles_per_line * 4 + rasterx;
     }
 
-    mon_out("Timer 1 IRQ: %s  running: %s \n",((ted.regs[0x0a] >> 3) & 0x01)? "on" : "off", (ted.timer_running[0]) ? "yes" : "no");
+    mon_out("Timer 1 IRQ: enabled: %s  pending: %s  running: %s \n",
+            ((ted.regs[0x0a] >> 3) & 0x01)? "yes" : "no",
+            ((ted.irq_status >> 3) & 0x01)? "yes" : "no",
+            (ted.timer_running[0]) ? "yes" : "no");
     mon_out("Timer 1: $%04x (latched $%04"PRIx64")\n", (unsigned int)((ted_timer_read(0x01) << 8) | ted_timer_read(0x00)), ted.t1_start);
-    mon_out("Timer 2 IRQ: %s  running: %s \n",((ted.regs[0x0a] >> 4) & 0x01)? "on" : "off", (ted.timer_running[1]) ? "yes" : "no");
+    mon_out("Timer 2 IRQ: enabled: %s  pending: %s  running: %s \n",
+            ((ted.regs[0x0a] >> 4) & 0x01)? "yes" : "no",
+            ((ted.irq_status >> 4) & 0x01)? "yes" : "no",
+            (ted.timer_running[1]) ? "yes" : "no");
     mon_out("Timer 2: $%04x\n", (unsigned int)((ted_timer_read(0x03) << 8) | ted_timer_read(0x02)));
-    mon_out("Timer 3 IRQ: %s  running: %s \n",((ted.regs[0x0a] >> 6) & 0x01)? "on" : "off", (ted.timer_running[2]) ? "yes" : "no");
+    mon_out("Timer 3 IRQ: enabled: %s  pending: %s  running: %s \n",
+            ((ted.regs[0x0a] >> 6) & 0x01)? "yes" : "no",
+            ((ted.irq_status >> 6) & 0x01)? "yes" : "no",
+            (ted.timer_running[2]) ? "yes" : "no");
     mon_out("Timer 3: $%04x\n\n", (unsigned int)((ted_timer_read(0x05) << 8) | ted_timer_read(0x04)));
-    mon_out("Raster X/Y: %u/%u\t IRQ: %u\n", (unsigned int)i, TED_RASTER_Y(maincpu_clk),(unsigned int)(ted.regs[0x0b] | ((ted.regs[0x0a] & 1) << 8)));
+
+    mon_out("Raster IRQ line: %u  enabled: %s  pending: %s\n",
+            (unsigned int)(ted.regs[0x0b] | ((ted.regs[0x0a] & 1) << 8)),
+            ((ted.regs[0x0a] >> 1) & 0x01)? "yes" : "no",
+            ((ted.irq_status >> 1) & 0x01)? "yes" : "no");
+    mon_out("Raster X/Y: %u/%u\n\n", (unsigned int)rasterx, TED_RASTER_Y(maincpu_clk));
+
     mon_out("Mode: %s (ECM/BMM/MCM=%d/%d/%d)\n", mode_name[video_mode], m_ecm, m_bmm, m_mcm);
-    mon_out("Colors: Border: %02x BG: %02x\n", ted.regs[0x19], ted.regs[0x15]);
+    mon_out("Colors: Border: $%02x BG: $%02x\n", ted.regs[0x19], ted.regs[0x15]);
     mon_out("Scroll X/Y: %d/%d, RC %u,", ted.regs[0x07] & 0x07, ted.regs[0x06] & 0x07, ted.raster.ycounter);
     mon_out(" %dx%d\n",38 + ((ted.regs[0x07] >> 2) & 2), 24 + ((ted.regs[0x06] >> 3) & 1));
     mon_out("Cursor X/Y: ");
     i = ((ted.regs[0x0c] & 0x03) << 8) | ted.regs[0x0d];
     if (i < 1000){
-        mon_out("%d/%d ", i % 40, (int) (i/40));
+        mon_out("%d/%d ", i % 40, (int) (i / 40));
     } else {
         mon_out("-/- ");
     }

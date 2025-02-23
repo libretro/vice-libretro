@@ -311,7 +311,7 @@ static void update_codec_menus(const char *current_format)
             video_codec_menu[i].string   = (char *)(codec->name);
             video_codec_menu[i].type     = MENU_ENTRY_RESOURCE_RADIO;
             video_codec_menu[i].callback = radio_FFMPEGVideoCodec_callback;
-            video_codec_menu[i].data     = int_to_void_ptr(codec->id);
+            video_codec_menu[i].data     = vice_int_to_ptr(codec->id);
 #ifdef SDL_DEBUG
             fprintf(stderr, "%s: video codec %i: %s (%i)\n", __func__, i, (codec->name) ? codec->name : "(NULL)", codec->id);
 #endif
@@ -357,7 +357,7 @@ static void update_codec_menus(const char *current_format)
             audio_codec_menu[i].string   = (char *)(codec->name);
             audio_codec_menu[i].type     = MENU_ENTRY_RESOURCE_RADIO;
             audio_codec_menu[i].callback = radio_FFMPEGAudioCodec_callback;
-            audio_codec_menu[i].data     = int_to_void_ptr(codec->id);
+            audio_codec_menu[i].data     = vice_int_to_ptr(codec->id);
 #ifdef SDL_DEBUG
             fprintf(stderr, "%s: audio codec %i: %s (%i)\n", __func__, i, (codec->name) ? codec->name : "(NULL)", codec->id);
 #endif
@@ -428,13 +428,13 @@ static UI_MENU_CALLBACK(radio_FFMPEGAudioCodec_callback)
         resources_get_string_sprintf("%sFormat", &w, ffmpeg_kludges(videodriver));
         update_codec_menus(w);
     } else {
-        int w;
+        int w = 0;
 
         resources_get_int_sprintf("%sAudioCodec", &w, ffmpeg_kludges(videodriver));
 #ifdef SDL_DEBUG
         fprintf(stderr, "%s: %sFormat = '%d'\n", __func__, ffmpeg_kludges(videodriver), w);
 #endif
-        if (w) {
+        if (w == vice_ptr_to_int(param)) {
             return sdl_menu_text_tick;
         }
     }
@@ -455,13 +455,13 @@ static UI_MENU_CALLBACK(radio_FFMPEGVideoCodec_callback)
         resources_get_string_sprintf("%sFormat", &w, ffmpeg_kludges(videodriver));
         update_codec_menus(w);
     } else {
-        int w;
+        int w = 0;
 
         resources_get_int_sprintf("%sVideoCodec", &w, ffmpeg_kludges(videodriver));
 #ifdef SDL_DEBUG
         fprintf(stderr, "%s: %sFormat = '%d'\n", __func__, ffmpeg_kludges(videodriver), w);
 #endif
-        if (w) {
+        if (w == vice_ptr_to_int(param)) {
             return sdl_menu_text_tick;
         }
     }

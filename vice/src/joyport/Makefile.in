@@ -121,11 +121,11 @@ am_libjoyport_a_OBJECTS = bbrtc.$(OBJEXT) cardkey.$(OBJEXT) \
 	multijoy.$(OBJEXT) ninja_snespad.$(OBJEXT) \
 	paperclip64.$(OBJEXT) paperclip64e.$(OBJEXT) \
 	paperclip64sc.$(OBJEXT) paperclip2.$(OBJEXT) \
-	protopad.$(OBJEXT) rushware_keypad.$(OBJEXT) \
-	sampler2bit.$(OBJEXT) sampler4bit.$(OBJEXT) \
-	script64_dongle.$(OBJEXT) spaceballs.$(OBJEXT) \
-	trapthem_snespad.$(OBJEXT) vizawrite64_dongle.$(OBJEXT) \
-	waasoft_dongle.$(OBJEXT)
+	powerpad.$(OBJEXT) protopad.$(OBJEXT) \
+	rushware_keypad.$(OBJEXT) sampler2bit.$(OBJEXT) \
+	sampler4bit.$(OBJEXT) script64_dongle.$(OBJEXT) \
+	spaceballs.$(OBJEXT) trapthem_snespad.$(OBJEXT) \
+	vizawrite64_dongle.$(OBJEXT) waasoft_dongle.$(OBJEXT)
 libjoyport_a_OBJECTS = $(am_libjoyport_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -152,10 +152,11 @@ am__depfiles_remade = ./$(DEPDIR)/bbrtc.Po ./$(DEPDIR)/cardkey.Po \
 	./$(DEPDIR)/mouse_quadrature.Po ./$(DEPDIR)/multijoy.Po \
 	./$(DEPDIR)/ninja_snespad.Po ./$(DEPDIR)/paperclip2.Po \
 	./$(DEPDIR)/paperclip64.Po ./$(DEPDIR)/paperclip64e.Po \
-	./$(DEPDIR)/paperclip64sc.Po ./$(DEPDIR)/protopad.Po \
-	./$(DEPDIR)/rushware_keypad.Po ./$(DEPDIR)/sampler2bit.Po \
-	./$(DEPDIR)/sampler4bit.Po ./$(DEPDIR)/script64_dongle.Po \
-	./$(DEPDIR)/spaceballs.Po ./$(DEPDIR)/trapthem_snespad.Po \
+	./$(DEPDIR)/paperclip64sc.Po ./$(DEPDIR)/powerpad.Po \
+	./$(DEPDIR)/protopad.Po ./$(DEPDIR)/rushware_keypad.Po \
+	./$(DEPDIR)/sampler2bit.Po ./$(DEPDIR)/sampler4bit.Po \
+	./$(DEPDIR)/script64_dongle.Po ./$(DEPDIR)/spaceballs.Po \
+	./$(DEPDIR)/trapthem_snespad.Po \
 	./$(DEPDIR)/vizawrite64_dongle.Po \
 	./$(DEPDIR)/waasoft_dongle.Po
 am__mv = mv -f
@@ -402,6 +403,8 @@ install_sh = @install_sh@
 libcurl_CFLAGS = @libcurl_CFLAGS@
 libcurl_LIBS = @libcurl_LIBS@
 libdir = @libdir@
+libevdev_CFLAGS = @libevdev_CFLAGS@
+libevdev_LIBS = @libevdev_LIBS@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
@@ -491,6 +494,8 @@ libjoyport_a_SOURCES = \
 	paperclip64sc.h \
 	paperclip2.c \
 	paperclip2.h \
+	powerpad.c \
+	powerpad.h \
 	protopad.c \
 	protopad.h \
 	rushware_keypad.c \
@@ -579,6 +584,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/paperclip64.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/paperclip64e.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/paperclip64sc.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/powerpad.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/protopad.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rushware_keypad.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sampler2bit.Po@am__quote@ # am--include-marker
@@ -753,6 +759,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/paperclip64.Po
 	-rm -f ./$(DEPDIR)/paperclip64e.Po
 	-rm -f ./$(DEPDIR)/paperclip64sc.Po
+	-rm -f ./$(DEPDIR)/powerpad.Po
 	-rm -f ./$(DEPDIR)/protopad.Po
 	-rm -f ./$(DEPDIR)/rushware_keypad.Po
 	-rm -f ./$(DEPDIR)/sampler2bit.Po
@@ -828,6 +835,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/paperclip64.Po
 	-rm -f ./$(DEPDIR)/paperclip64e.Po
 	-rm -f ./$(DEPDIR)/paperclip64sc.Po
+	-rm -f ./$(DEPDIR)/powerpad.Po
 	-rm -f ./$(DEPDIR)/protopad.Po
 	-rm -f ./$(DEPDIR)/rushware_keypad.Po
 	-rm -f ./$(DEPDIR)/sampler2bit.Po

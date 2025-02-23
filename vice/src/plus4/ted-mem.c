@@ -259,10 +259,10 @@ inline static void check_lower_upper_border(const uint8_t value,
                24-line (upmost) border because the border flip flop has
                already been turned off.  */
             if (!ted.raster.blank && line == ted.row_25_start_line
-                && cycle > 0) {
+                && (cycle > 0)) {
                 ted.raster.blank_enabled = 0;
             } else {
-                if (line == ted.row_25_stop_line && cycle > 0) {
+                if ((line == ted.row_25_stop_line) && (cycle > 0)) {
                     ted.raster.blank_enabled = 1;
                 }
             }
@@ -278,7 +278,7 @@ inline static void ted06_store(const uint8_t value)
     unsigned int line;
     int old_value;
 
-/*    log_debug("FF06 %03x, %02x",ted.ted_raster_counter, value);*/
+/*    log_debug(LOG_DEFAULT, "FF06 %03x, %02x",ted.ted_raster_counter, value);*/
 
     cycle = TED_RASTER_CYCLE(maincpu_clk);
     line = TED_RASTER_Y(maincpu_clk);
@@ -289,14 +289,14 @@ inline static void ted06_store(const uint8_t value)
 
     /* This is the funniest part... handle bad line tricks.  */
 
-    if (line == ted.first_dma_line && (value & 0x10) != 0) {
+    if ((line == ted.first_dma_line) && (value & 0x10) != 0) {
         ted.allow_bad_lines = 1;
         ted.raster.ycounter = 0;         /* should be 7 actually */
     }
 
-    if (ted.raster.ysmooth != (value & 7)
-        && line >= ted.first_dma_line
-        && line <= ted.last_dma_line) {
+    if ((ted.raster.ysmooth != (value & 7))
+        && (line >= ted.first_dma_line)
+        && (line <= ted.last_dma_line)) {
         ted_badline_check_state(value, cycle, line);
     }
 
@@ -342,7 +342,7 @@ inline static void check_lateral_border(const uint8_t value, int cycle,
 
             /* If CSEL changes from 0 to 1 at cycle 17, the border is
                not turned off and this line is blank.  */
-            if (cycle == 17 && !(ted.regs[0x07] & 0x8)) {
+            if ((cycle == 17) && !(ted.regs[0x07] & 0x8)) {
                 raster->blank_this_line = 1;
             }
         } else {
@@ -365,7 +365,7 @@ inline static void check_lateral_border(const uint8_t value, int cycle,
 
             /* If CSEL changes from 1 to 0 at cycle 56, the lateral
                border is open.  */
-            if (cycle == 56 && (ted.regs[0x07] & 0x8)
+            if ((cycle == 56) && (ted.regs[0x07] & 0x8)
                 && (!raster->blank_enabled || raster->open_left_border)) {
                 raster->open_right_border = 1;
             }
@@ -450,19 +450,32 @@ inline static void ted08_store(const uint8_t value)
     ted.kbdval = val;
 }
 
+/* IRQ Status
+
+   write bits = 1 to ACK IRQ
+
+   bit 0
+   bit 1    raster compare irq
+   bit 2
+   bit 3    timer 1
+   bit 4    timer 2
+   bit 5
+   bit 6    timer 3
+   bit 7    any IRQ triggered
+ */
 inline static void ted09_store(const uint8_t value)
 {
     /* Emulates Read-Modify-Write behaviour. */
     if (maincpu_rmw_flag) {
         ted.irq_status &= ~((ted.last_read & 0x5e) | 0x80);
-        if (maincpu_clk - 1 > ted.raster_irq_clk
-            && ted.raster_irq_line < (unsigned int)ted.screen_height) {
+        if (((maincpu_clk - 1) > (ted.raster_irq_clk)) &&
+            (ted.raster_irq_line < ted.screen_height)) {
             ted_irq_next_frame();
         }
     }
 
-    if ((value & 2) && maincpu_clk > ted.raster_irq_clk
-        && ted.raster_irq_line < (unsigned int)ted.screen_height) {
+    if ((value & 2) && (maincpu_clk > ted.raster_irq_clk)
+        && (ted.raster_irq_line < ted.screen_height)) {
         ted_irq_next_frame();
     }
 
@@ -472,6 +485,17 @@ inline static void ted09_store(const uint8_t value)
     TED_DEBUG_REGISTER(("IRQ flag register: $%02X", ted.irq_status));
 }
 
+/* IRQ Mask
+
+   bit 0    bit 8 of raster irq compare value
+   bit 1    raster compare irq
+   bit 2
+   bit 3    timer 1
+   bit 4    timer 2
+   bit 5
+   bit 6    timer 3
+   bit 7    0: clear mask 1: set mask
+ */
 inline static void ted0a_store(uint8_t value)
 {
     ted.regs[0x0a] = value & 0x5f;
@@ -483,6 +507,7 @@ inline static void ted0a_store(uint8_t value)
     TED_DEBUG_REGISTER(("IRQ mask register: $%02X", ted.regs[0x0a]));
 }
 
+/* bit 0-7: bit 0-7 of raster irq compare value */
 inline static void ted0b_store(uint8_t value)
 {
     TED_DEBUG_REGISTER(("Raster compare register: $%02X", value));
@@ -545,10 +570,10 @@ inline static void ted13_store(const uint8_t value)
     if ((ted.regs[0x13] & 2) ^ (value & 2)) {
         if (value & 2) {
             ted.fastmode = 0;
-/*            log_debug("Slow mode");*/
+/*            log_debug(LOG_DEFAULT, "Slow mode");*/
         } else {
             ted.fastmode = 1;
-/*            log_debug("Fast mode");*/
+/*            log_debug(LOG_DEFAULT, "Fast mode");*/
         }
     }
 
@@ -684,7 +709,7 @@ inline static void ted1c1d_store(uint16_t addr, uint8_t value)
         new_raster = (ted.ted_raster_counter & 0x100) + value;
     }
 
-/*    log_debug("Raster change old %03x, new %03x",ted.ted_raster_counter, new_raster);*/
+/*    log_debug(LOG_DEFAULT, "Raster change old %03x, new %03x",ted.ted_raster_counter, new_raster);*/
     if ((new_raster >= ted.first_dma_line) &&
         (new_raster <= ted.last_dma_line)) {
         ted.fetch_clk = ted.last_emulate_line_clk + TED_FETCH_CYCLE + ted.cycles_per_line;
@@ -700,11 +725,12 @@ inline static void ted1c1d_store(uint16_t addr, uint8_t value)
         alarm_set(ted.raster_fetch_alarm, ted.fetch_clk);
     }
 
-    if (ted.raster_irq_line < (unsigned int)ted.screen_height) {
+    if (ted.raster_irq_line < ted.screen_height) {
+        /* int casts are to ensure that subtraction can become negative */
         ted.raster_irq_clk = (TED_LINE_START_CLK(maincpu_clk)
                               + TED_RASTER_IRQ_DELAY - INTERRUPT_DELAY
                               + (ted.cycles_per_line
-                                 * (ted.raster_irq_line - new_raster)));
+                                 * ((int)ted.raster_irq_line - (int)new_raster)));
 
         /* Raster interrupts on line 0 are delayed by 1 cycle.  */
         /* FIXME this needs to be checked */
@@ -718,10 +744,11 @@ inline static void ted1c1d_store(uint16_t addr, uint8_t value)
         alarm_set(ted.raster_irq_alarm, ted.raster_irq_clk);
     } else {
         if (new_raster >= ted.screen_height) {
+            /* int casts are to ensure that subtraction can become negative */
             ted.raster_irq_clk = (TED_LINE_START_CLK(maincpu_clk)
                                   + TED_RASTER_IRQ_DELAY - INTERRUPT_DELAY
                                   + (ted.cycles_per_line
-                                     * (ted.raster_irq_line - new_raster)));
+                                     * ((int)ted.raster_irq_line - (int)new_raster)));
 
             if (ted.raster_irq_line <= new_raster) {
                 ted.raster_irq_clk = CLOCK_MAX;
@@ -895,6 +922,17 @@ inline static uint8_t ted08_read(void)
     return ted.kbdval;
 }
 
+/* IRQ Status
+
+   bit 0
+   bit 1    raster compare irq
+   bit 2
+   bit 3    timer 1
+   bit 4    timer 2
+   bit 5
+   bit 6    timer 3
+   bit 7    any IRQ triggered
+ */
 inline static uint8_t ted09_read(void)
 {
     /* Manually set raster IRQ flag if the opcode reading $09 has crossed
@@ -914,6 +952,17 @@ inline static uint8_t ted09_read(void)
     return ted.last_read;
 }
 
+/* IRQ Mask
+
+   bit 0
+   bit 1    raster compare irq
+   bit 2
+   bit 3    timer 1
+   bit 4    timer 2
+   bit 5
+   bit 6    timer 3
+   bit 7
+ */
 inline static uint8_t ted0a_read(void)
 {
     return (ted.regs[0x0a] & 0x5f) | 0xa0;

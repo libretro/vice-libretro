@@ -56,10 +56,10 @@
    `MACHINE_SYNC_PAL', the same as PAL machines.  If equal to
    `MACHINE_SYNC_NTSC', the same as NTSC machines.  The sync factor is
    calculated as 65536 * drive_clk / clk_[main machine] */
-static int sync_factor;
+static int sync_factor = -1;
 
 /* Frequency of the power grid in Hz */
-static int power_freq = 1;
+static int power_freq = -1;
 
 /* Name of the character ROM.  */
 static char *chargen_rom_name = NULL;
@@ -79,6 +79,8 @@ int cia2_model;
 static int board_type = BOARD_C64;
 static int iec_reset = 0;
 
+static log_t res_log = LOG_DEFAULT;
+
 static int set_chargen_rom_name(const char *val, void *param)
 {
     if (util_string_set(&chargen_rom_name, val)) {
@@ -96,8 +98,12 @@ extern bool opt_jiffydos_kernal_skip;
 
 static int set_kernal_rom_name(const char *val, void *param)
 {
-    int ret, changed = 1;
-    log_verbose("set_kernal_rom_name val:%s.", val);
+    int ret;
+    /* CAUTION: make sure to only trigger a power cycle when the name changed
+                AND it was not null before (in that case we are setting the
+                default value) */
+    int changed = 0;
+    log_verbose(res_log, "set_kernal_rom_name val:%s.", val);
     if ((val != NULL) && (kernal_rom_name != NULL)) {
         changed = (strcmp(val, kernal_rom_name) != 0);
     }
@@ -118,7 +124,11 @@ static int set_kernal_rom_name(const char *val, void *param)
 
 static int set_basic_rom_name(const char *val, void *param)
 {
-    int ret, changed = 1;
+    int ret;
+    /* CAUTION: make sure to only trigger a power cycle when the name changed
+                AND it was not null before (in that case we are setting the
+                default value) */
+    int changed = 0;
     if ((val != NULL) && (basic_rom_name != NULL)) {
         changed = (strcmp(val, basic_rom_name) != 0);
     }
@@ -257,7 +267,7 @@ static int set_kernal_revision(int val, void *param)
     const char *name = NULL;
     int flags;
 
-    log_verbose("set_kernal_revision(val:%d) was kernal_revision: %d", val, kernal_revision);
+    log_verbose(res_log, "set_kernal_revision(val:%d) was kernal_revision: %d", val, kernal_revision);
 
     flags = get_trapflags();
 
@@ -284,7 +294,7 @@ static int set_kernal_revision(int val, void *param)
     } while ((rev == C64_KERNAL_UNKNOWN) && (kernal_match[n].name != NULL));
 
     if (rev == C64_KERNAL_UNKNOWN) {
-        log_error(LOG_DEFAULT, "invalid kernal revision (%d)", val);
+        log_error(res_log, "invalid kernal revision (%d)", val);
         return -1;
     }
 
@@ -295,10 +305,10 @@ static int set_kernal_revision(int val, void *param)
         }
     }
 
-    log_verbose("set_kernal_revision found rev:%d name: %s", rev, name);
+    log_verbose(res_log, "set_kernal_revision found rev:%d name: %s", rev, name);
 
     if (resources_set_string("KernalName", name) < 0) {
-        log_error(LOG_DEFAULT, "failed to set kernal name (%s)", name);
+        log_error(res_log, "failed to set kernal name (%s)", name);
         restore_trapflags(flags);
         return -1;
     }
@@ -313,7 +323,7 @@ static int set_kernal_revision(int val, void *param)
         restore_trapflags(flags);
     }
     kernal_revision = rev;
-    log_verbose("set_kernal_revision new kernal_revision: %d", kernal_revision);
+    log_verbose(res_log, "set_kernal_revision new kernal_revision: %d", kernal_revision);
     return 0;
 }
 
@@ -426,6 +436,7 @@ void c64_resources_update_cia_models(int model)
 
 int c64_resources_init(void)
 {
+    res_log = log_open("C64RES");
     if (resources_register_string(resources_string) < 0) {
         return -1;
     }

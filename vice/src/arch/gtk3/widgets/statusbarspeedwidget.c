@@ -51,6 +51,7 @@
 #include "uiactions.h"
 #include "uimenu.h"
 #include "uistatusbar.h"
+#include "userport.h"
 #include "vsync.h"
 #include "vsyncapi.h"
 
@@ -513,12 +514,12 @@ void statusbar_speed_widget_update(GtkWidget *widget,
             lib_free(temp);
 #endif
             jammed = true;
-            ui_display_statustext(machine_jam_reason(), 0);
+            ui_display_statustext(machine_jam_reason(), false);
         }
         return;
     } else if (jammed) {
         /* machine is not jammed, but was jammed before */
-        ui_display_statustext("", 0);
+        ui_display_statustext("", false);
         jammed = false;
     }
 
@@ -526,11 +527,11 @@ void statusbar_speed_widget_update(GtkWidget *widget,
         if (drive_is_jammed(drv)) {
             if (drivejammed[drv] == false) {
                 drivejammed[drv] = true;
-                ui_display_statustext(drive_jam_reason(drv), 0);
+                ui_display_statustext(drive_jam_reason(drv), false);
             }
         } else if (drivejammed[drv] == true) {
             /* drive is not jammed, but was jammed before */
-            ui_display_statustext("", 0);
+            ui_display_statustext("", false);
             drivejammed[drv] = false;
         }
     }
@@ -549,13 +550,14 @@ void statusbar_speed_widget_update(GtkWidget *widget,
     bool is_mode4080 = false;
     bool is_capslock = false;
     bool is_diagnostic_pin = false;
+    int updev = userport_get_device();
 
     if (machine_class == VICE_MACHINE_C128) {
         is_mode4080 = keyboard_custom_key_get(KBD_CUSTOM_4080);
         is_capslock = keyboard_custom_key_get(KBD_CUSTOM_CAPS);
     }
 
-    if (machine_class == VICE_MACHINE_PET) {
+    if ((machine_class == VICE_MACHINE_PET) && (updev == USERPORT_DEVICE_DIAGNOSTIC_PIN)) {
         is_diagnostic_pin = pia1_get_diagnostic_pin();
     }
 
@@ -627,8 +629,13 @@ void statusbar_speed_widget_update(GtkWidget *widget,
     capslock_led_set_active(window_identity, is_capslock);
     state->last_capslock = is_capslock;
     /* userport diagnostic pin */
-    diagnosticpin_led_set_active(window_identity, is_diagnostic_pin);
-    state->last_diagnostic_pin = is_diagnostic_pin;
+    if (updev == USERPORT_DEVICE_DIAGNOSTIC_PIN) {
+        diagnosticpin_led_set_visible(window_identity, 1);
+        diagnosticpin_led_set_active(window_identity, is_diagnostic_pin);
+        state->last_diagnostic_pin = is_diagnostic_pin;
+    } else {
+        diagnosticpin_led_set_visible(window_identity, 0);
+    }
 #endif
 
     if (window_identity == PRIMARY_WINDOW) {

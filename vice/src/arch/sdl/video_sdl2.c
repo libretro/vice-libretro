@@ -75,12 +75,12 @@
 #include "vsync.h"
 
 #ifdef SDL_DEBUG
-#define DBG(x)  log_debug x
+#define DBG(x) log_printf  x
 #else
 #define DBG(x)
 #endif
 
-static log_t sdlvideo_log = LOG_ERR;
+static log_t sdlvideo_log = LOG_DEFAULT;
 
 static int sdl_bitdepth;
 

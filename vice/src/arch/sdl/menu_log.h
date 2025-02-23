@@ -1,4 +1,9 @@
 /*
+ * menu_log.h - Implementation of the log settings menu for the SDL UI.
+ *
+ * Written by
+ *  groepaz <groepaz@gmx.net>
+ *
  * This file is part of VICE, the Versatile Commodore Emulator.
  * See README for copyright notice.
  *
@@ -16,11 +21,18 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
  *  02111-1307  USA.
+ *
  */
 
-#ifndef VICE_UIMEDIA_H
-#define VICE_UIMEDIA_H
+#ifndef VICE_UIMENU_LOG_H
+#define VICE_UIMENU_LOG_H
 
-void ui_media_auto_screenshot(void);
+#include "vice.h"
+
+#include "uimenu.h"
+
+extern const ui_menu_entry_t log_menu[];
+
+void log_menu_shutdown(void);
 
 #endif

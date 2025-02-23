@@ -353,7 +353,7 @@
         if (ik & (IK_TRAP | IK_RESET)) {                                                                      \
             if (ik & IK_TRAP) {                                                                               \
                 EXPORT_REGISTERS();                                                                           \
-                interrupt_do_trap(CPU_INT_STATUS, (uint16_t)reg_pc);                                              \
+                interrupt_do_trap(CPU_INT_STATUS, (uint16_t)reg_pc);                                          \
                 IMPORT_REGISTERS();                                                                           \
                 if (CPU_INT_STATUS->global_pending_int & IK_RESET) {                                          \
                     ik |= IK_RESET;                                                                           \
@@ -370,24 +370,21 @@
         }                                                                                                     \
         if (ik & (IK_MONITOR | IK_DMA)) {                                                                     \
             if (ik & IK_MONITOR) {                                                                            \
-                if (monitor_force_import(CALLER)) {                                                           \
-                    IMPORT_REGISTERS();                                                                       \
-                }                                                                                             \
-                if (monitor_mask[CALLER]) {                                                                   \
-                    EXPORT_REGISTERS();                                                                       \
-                }                                                                                             \
                 if (monitor_mask[CALLER] & (MI_STEP)) {                                                       \
-                    monitor_check_icount((uint16_t)reg_pc);                                                       \
+                    EXPORT_REGISTERS();                                                                       \
+                    monitor_check_icount((uint16_t)reg_pc);                                                   \
                     IMPORT_REGISTERS();                                                                       \
                 }                                                                                             \
                 if (monitor_mask[CALLER] & (MI_BREAK)) {                                                      \
-                    if (monitor_check_breakpoints(CALLER, (uint16_t)reg_pc)) {                                    \
+                    EXPORT_REGISTERS();                                                                       \
+                    if (monitor_check_breakpoints(CALLER, (uint16_t)reg_pc)) {                                \
                         monitor_startup(CALLER);                                                              \
-                        IMPORT_REGISTERS();                                                                   \
                     }                                                                                         \
+                    IMPORT_REGISTERS();                                                                       \
                 }                                                                                             \
                 if (monitor_mask[CALLER] & (MI_WATCH)) {                                                      \
-                    monitor_check_watchpoints(LAST_OPCODE_ADDR, (uint16_t)reg_pc);                                \
+                    EXPORT_REGISTERS();                                                                       \
+                    monitor_check_watchpoints(LAST_OPCODE_ADDR, (uint16_t)reg_pc);                            \
                     IMPORT_REGISTERS();                                                                       \
                 }                                                                                             \
             }                                                                                                 \
@@ -1660,9 +1657,9 @@
         }
 #endif
         if (p0 == 0x20) {
-            monitor_cpuhistory_store(history_clk, reg_pc, p0, p1, LOAD(reg_pc + 2), reg_a, reg_x, reg_y, reg_sp, LOCAL_STATUS(), origin);
+            monitor_cpuhistory_store(history_clk, reg_pc, p0, p1, LOAD(reg_pc + 2), reg_a, reg_x, reg_y, reg_sp, LOCAL_STATUS(), ORIGIN_MEMSPACE);
         } else {
-            monitor_cpuhistory_store(history_clk, reg_pc, p0, p1, p2 >> 8, reg_a, reg_x, reg_y, reg_sp, LOCAL_STATUS(), origin);
+            monitor_cpuhistory_store(history_clk, reg_pc, p0, p1, p2 >> 8, reg_a, reg_x, reg_y, reg_sp, LOCAL_STATUS(), ORIGIN_MEMSPACE);
         }
 #ifndef DRIVE_CPU
         memmap_state &= ~(MEMMAP_STATE_INSTR | MEMMAP_STATE_OPCODE);

@@ -1,8 +1,8 @@
 /*
- * digiblaster.h
+ * superexpander.h -- VIC20 Super Expander emulation.
  *
  * Written by
- *  Marco van den Heuvel <blackystardust68@yahoo.com>
+ *  groepaz
  *
  * This file is part of VICE, the Versatile Commodore Emulator.
  * See README for copyright notice.
@@ -24,18 +24,30 @@
  *
  */
 
-#ifndef VICE_DIGIBLASTER_H
-#define VICE_DIGIBLASTER_H
+#ifndef VICE_SUPEREXPANDER_H
+#define VICE_SUPEREXPANDER_H
+
+#include <stdio.h>
 
 #include "types.h"
-#include "sound.h"
 
-int digiblaster_resources_init(void);
-int digiblaster_cmdline_options_init(void);
+uint8_t superexpander_ram123_read(uint16_t addr);
+void superexpander_ram123_store(uint16_t addr, uint8_t value);
+uint8_t superexpander_blk5_read(uint16_t addr);
 
-void digiblaster_sound_chip_init(void);
-int digiblaster_enabled(void);
+void superexpander_init(void);
 
-void digiblaster_set_address(uint16_t addr);
+void superexpander_config_setup(uint8_t *rawcart);
+int superexpander_bin_attach(const char *filename);
+
+/* int superexpander_bin_attach(const char *filename, uint8_t *rawcart); */
+
+int superexpander_crt_attach(FILE *fd, uint8_t *rawcart);
+void superexpander_detach(void);
+
+struct snapshot_s;
+
+int superexpander_snapshot_write_module(struct snapshot_s *s);
+int superexpander_snapshot_read_module(struct snapshot_s *s);
 
 #endif

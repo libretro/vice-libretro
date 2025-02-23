@@ -1,10 +1,10 @@
-/** \file   settings_romset.h
- * \brief   GTK3 ROM set widget - header
- *
- * \author  Bas Wassink <b.wassink@ziggo.nl>
- */
 
 /*
+ * cbm2-generic.h -- CBM2 generic cartridge handling.
+ *
+ * Written by
+ *  groepaz <groepaz@gmx.net>
+ *
  * This file is part of VICE, the Versatile Commodore Emulator.
  * See README for copyright notice.
  *
@@ -22,13 +22,28 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
  *  02111-1307  USA.
+ *
  */
 
-#ifndef VICE_SETTINGS_ROMSET_H
-#define VICE_SETTINGS_ROMSET_H
+#ifndef VICE_CBM2GENERICCART_H
+#define VICE_CBM2GENERICCART_H
 
-#include <gtk/gtk.h>
+#include "snapshot.h"
 
-GtkWidget *settings_romset_widget_create(GtkWidget *parent);
+void generic_config_setup(uint8_t *rawcart);
+
+int generic_crt_attach(FILE *fd, uint8_t *rawcart);
+int generic_bin_attach(int type, const char *filename, uint8_t *rawcart);
+void generic_detach(int type);
+
+int generic_resources_init(void);
+void generic_resources_shutdown(void);
+
+int generic_cmdline_options_init(void);
+
+int generic_snapshot_write_module(snapshot_t *s);
+int generic_snapshot_read_module(snapshot_t *s);
+
+int generic_cartrom_to_mem_hack(void);
 
 #endif

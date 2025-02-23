@@ -30,9 +30,6 @@
 
 #include "types.h"
 #include "joyport.h" /* for JOYPORT_MAX_PORTS */
-#if (defined USE_SDLUI ||defined USE_SDL2UI)
-#include "uimenu.h"
-#endif
 
 int joystick_init(void);
 int joystick_resources_init(void);
@@ -63,6 +60,7 @@ void joystick_register_delay(unsigned int delay);
 int joystick_joyport_register(void);
 
 void linux_joystick_init(void);
+void linux_joystick_evdev_init(void);
 void usb_joystick_init(void);
 void joy_hidlib_init(void);
 void joy_hidlib_exit(void);
@@ -205,7 +203,7 @@ typedef struct joystick_mapping_s {
     union {
         uint16_t joy_pin;
 
-        /* key[0] = row, key[1] = column, key[1] = flags */
+        /* key[0] = row, key[1] = column, key[2] = flags */
         int key[3];
         int ui_action;
     } value;

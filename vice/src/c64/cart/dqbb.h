@@ -35,11 +35,15 @@
 
 #include "types.h"
 
+#define DQBB_MODE_C64   1
+#define DQBB_MODE_C128  0
+
 int dqbb_cart_enabled(void);
 
 int dqbb_resources_init(void);
 void dqbb_resources_shutdown(void);
 int dqbb_cmdline_options_init(void);
+
 void dqbb_reset(void);
 void dqbb_detach(void);
 void dqbb_init_config(void);
@@ -54,11 +58,15 @@ void dqbb_romh_store(uint16_t addr, uint8_t byte);
 int dqbb_peek_mem(uint16_t addr, uint8_t *value);
 void dqbb_mmu_translate(unsigned int addr, uint8_t **base, int *start, int *limit);
 
+int dqbb_c128_read(uint16_t addr, uint8_t *value);
+int dqbb_c128_store(uint16_t addr, uint8_t value);
+
 const char *dqbb_get_file_name(void);
 int dqbb_bin_attach(const char *filename, uint8_t *rawcart);
 int dqbb_bin_save(const char *filename);
 int dqbb_flush_image(void);
 void dqbb_powerup(void);
+void dqbb_shutdown(void);
 
 struct snapshot_s;
 

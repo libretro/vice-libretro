@@ -41,13 +41,13 @@
 #include "tape.h"
 #include "types.h"
 
+
+/* Logging.  */
+static log_t tape_snapshot_log = LOG_DEFAULT;
+
 #ifdef __LIBRETRO__
 #include "tapeport.h"
 #endif
-
-/* Logging.  */
-static log_t tape_snapshot_log = LOG_ERR;
-
 
 #define T64IMAGE_SNAP_MAJOR 1
 #define T64IMAGE_SNAP_MINOR 0

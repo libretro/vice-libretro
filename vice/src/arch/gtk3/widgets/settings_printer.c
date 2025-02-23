@@ -23,8 +23,6 @@
  * $VICERES Printer4TextDevice          -vsid
  * $VICERES Printer5TextDevice          -vsid
  * $VICERES Printer6TextDevice          -vsid
- * $VICERES Printer7TextDevice          -vsid
- * $VICERES PrinterUserport             x64 x64sc xscpu64 x128 xvic xpet xcbm2
  */
 
 /*
@@ -175,7 +173,8 @@ static int get_child_index_for_device(int device)
             return (int)index;
         }
     }
-    return -1;
+    debug_gtk3("shouldn't get here: didn't find index for device %d", device);
+    return 0;
 }
 
 
@@ -222,11 +221,11 @@ static bool machine_has_userport(void)
         case VICE_MACHINE_C128:     /* fall through */
         case VICE_MACHINE_VIC20:    /* fall through */
         case VICE_MACHINE_PET:      /* fall through */
+        case VICE_MACHINE_PLUS4:    /* fall through */
         case VICE_MACHINE_CBM6x0:
             return true;
         default:
-            /* No userport (C64DTV, CBM-II 5x0/P, VSID) or not usable for
-             * printer (Plus/4) */
+            /* No userport (C64DTV, CBM-II 5x0/P, VSID) */
             return false;
     }
 }

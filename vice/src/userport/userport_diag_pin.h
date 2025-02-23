@@ -1,9 +1,10 @@
-/** \file   rommanager.h
- * \brief   Settings dialog to manage ROMs - header
- * \author  Bas Wassink <b.wassink@ziggo.nl>
- */
 
 /*
+ * userport_diag_pin.h: Userport PET diag pin
+ *
+ * Written by
+ *  groepaz <groepaz@gmx.net>
+ *
  * This file is part of VICE, the Versatile Commodore Emulator.
  * See README for copyright notice.
  *
@@ -21,14 +22,16 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
  *  02111-1307  USA.
+ *
  */
 
-#ifndef VICE_ROMMANAGER_H
-#define VICE_ROMMANAGER_H
+#ifndef VICE_USERPORT_DIAG_PIN_H
+#define VICE_USERPORT_DIAG_PIN_H
 
-#include <gtk/gtk.h>
+#include "types.h"
 
-GtkWidget *rom_manager_new     (GtkWidget *parent);
-void       rom_manager_shutdown(void);
+int userport_diag_pin_resources_init(void);
+int userport_diag_pin_cmdline_options_init(void);
 
 #endif
+

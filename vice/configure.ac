@@ -10,7 +10,7 @@ dnl a development version. Don't add any strings to the version number (such
 dnl as '-dev' or 'beta'), the '-r$SVNREV' revision string is the only thing we
 dnl alllow after the version number.
 m4_define(vice_version_major, 3)
-m4_define(vice_version_minor, 8)
+m4_define(vice_version_minor, 9)
 m4_define(vice_version_build, 0)
 
 dnl Some people lose their shit if a version ends in .0
@@ -141,6 +141,9 @@ VICE_ARG_ENABLE_LIST(experimental-devices,  [  --enable-experimental-devices    
 
 dnl Needed for WIC64
 VICE_ARG_WITH_LIST(libcurl,                 [  --without-libcurl       disable libcurl support [[default=no]]])
+
+dnl Linux evdev joysticks
+VICE_ARG_WITH_LIST(evdev,                   [  --without-evdev         disable Linux evdev joystick driver [[default=no]]])
 
 dnl
 dnl UI options
@@ -420,6 +423,8 @@ AM_PROG_AS
 
 dnl Other build environment checks
 AC_SYS_LARGEFILE
+AC_TYPE_SSIZE_T
+
 
 AC_CONFIG_HEADERS([src/config.h])
 
@@ -427,6 +432,7 @@ AC_CONFIG_HEADERS([src/config.h])
 is_unix=no
 is_unix_x11=no
 is_unix_macosx=no
+is_unix_linux=no
 is_win32=no
 is_win32_gtk3=no
 is_beos=no
@@ -491,6 +497,7 @@ USE_DESKTOP_FILES="no "
 HAVE_X64_IMAGE_SUPPORT="no "
 HAVE_CAPABILITIES_SUPPORT="no "
 HAVE_LIBCURL_SUPPORT="no "
+HAVE_LINUX_EVDEV_SUPPORT="no "
 HAVE_EXPERIMENTAL_DEVICES_SUPPORT="no "
 
 dnl Why do we have this?
@@ -536,7 +543,11 @@ AM_CONDITIONAL(VICE_QUIET, test x"$verbose" != "xyes" -a x"$enable_silent_rules"
 
 user_cflags=$CFLAGS
 
+dnl Make sure we have pkg-config >- 0.9.0
 PKG_PROG_PKG_CONFIG
+if test -z "$PKG_CONFIG"; then
+  AC_MSG_ERROR([Could not locate pkg-config, please install pkg-config])
+fi
 
 SOUND_DRIVERS=""
 
@@ -1008,21 +1019,21 @@ darwin*)
 
   dnl Macports headers and libraries
 
-  AC_CHECK_FILE(/opt/local/include,         [ MAC_CCPFLAGS="$MAC_CCPFLAGS -I/opt/local/include" ])
-  AC_CHECK_FILE(/opt/local/include/libomp,  [ MAC_CCPFLAGS="$MAC_CCPFLAGS -I/opt/local/include/libomp" ])
+  AC_CHECK_FILE(/opt/local/include,         [ MAC_CCPFLAGS="$MAC_CCPFLAGS -isystem/opt/local/include" ])
+  AC_CHECK_FILE(/opt/local/include/libomp,  [ MAC_CCPFLAGS="$MAC_CCPFLAGS -isystem/opt/local/include/libomp" ])
   AC_CHECK_FILE(/opt/local/lib,             [ MAC_LDFLAGS="$MAC_LDFLAGS -L/opt/local/lib -Wl,-rpath,/opt/local/lib" ])
   AC_CHECK_FILE(/opt/local/lib/libomp,      [ MAC_LDFLAGS="$MAC_LDFLAGS -L/opt/local/lib/libomp -Wl,-rpath,/opt/local/lib/libomp" ])
 
   dnl Homebrew headers and libraries
 
   if test "`uname -m`" = "arm64"; then
-    AC_CHECK_FILE(/opt/homebrew/include,         [ MAC_CCPFLAGS="$MAC_CCPFLAGS -I/opt/homebrew/include" ])
-    AC_CHECK_FILE(/opt/homebrew/include/libomp,  [ MAC_CCPFLAGS="$MAC_CCPFLAGS -I/opt/homebrew/include/libomp" ])
+    AC_CHECK_FILE(/opt/homebrew/include,         [ MAC_CCPFLAGS="$MAC_CCPFLAGS -isystem/opt/homebrew/include" ])
+    AC_CHECK_FILE(/opt/homebrew/include/libomp,  [ MAC_CCPFLAGS="$MAC_CCPFLAGS -isystem/opt/homebrew/include/libomp" ])
     AC_CHECK_FILE(/opt/homebrew/lib,             [ MAC_LDFLAGS="$MAC_LDFLAGS -L/opt/homebrew/lib -Wl,-rpath,/opt/homebrew/lib" ])
     AC_CHECK_FILE(/opt/homebrew/lib/libomp,      [ MAC_LDFLAGS="$MAC_LDFLAGS -L/opt/homebrew/lib/libomp -Wl,-rpath,/opt/homebrew/lib/libomp" ])
   else
-    AC_CHECK_FILE(/usr/local/include,         [ MAC_CCPFLAGS="$MAC_CCPFLAGS -I/usr/local/include" ])
-    AC_CHECK_FILE(/usr/local/include/libomp,  [ MAC_CCPFLAGS="$MAC_CCPFLAGS -I/usr/local/include/libomp" ])
+    AC_CHECK_FILE(/usr/local/include,         [ MAC_CCPFLAGS="$MAC_CCPFLAGS -isystem/usr/local/include" ])
+    AC_CHECK_FILE(/usr/local/include/libomp,  [ MAC_CCPFLAGS="$MAC_CCPFLAGS -isystem/usr/local/include/libomp" ])
     AC_CHECK_FILE(/usr/local/lib,             [ MAC_LDFLAGS="$MAC_LDFLAGS -L/usr/local/lib -Wl,-rpath,/usr/local/lib" ])
     AC_CHECK_FILE(/usr/local/lib/libomp,      [ MAC_LDFLAGS="$MAC_LDFLAGS -L/usr/local/lib/libomp -Wl,-rpath,/usr/local/lib/libomp" ])
   fi
@@ -1043,6 +1054,7 @@ dnl All other UN*X systems
   linux*)
     AC_DEFINE(LINUX_COMPILE,,[Are we compiling for Linux?])
     AM_CONDITIONAL(LINUX_COMPILE, true)
+    is_unix_linux=yes
     ;;
   esac
 
@@ -1066,6 +1078,7 @@ dnl check for debug build
 if test x"$enable_debug" = "xyes"; then
   have_backtrace_symbols="no"
   DEBUGBUILD=1
+  AM_CONDITIONAL(HAVE_DEBUG, true)
   STRIP=":"
   DEBUG_SUPPORT="yes"
   AC_CHECK_HEADERS(execinfo.h,,)
@@ -1094,6 +1107,7 @@ else
   dnl Disable asserts
   VICE_CPPFLAGS="$VICE_CPPFLAGS -DNDEBUG"
   DEBUGBUILD=0
+  AM_CONDITIONAL(HAVE_DEBUG, false)
   dnl Remove super annoying horrible terminal window on Windows
   dnl (but not when using the headless 'UI')
   if test x"$is_win32" = "xyes" -a x"$enable_headlessui" != "xyes"; then
@@ -1185,6 +1199,10 @@ if test x"$check_gtk3" = "xyes"; then
     if test x"$enable_gtk3ui" = "xyes"; then
       AC_MSG_ERROR([GTK3 UI requested, but GTK3 support packages are missing])
     fi
+  fi
+  dnl error out if gtk3 support is requested but zlib is disabled
+  if test x"$enable_gtk3ui" = "xyes" -a x"$with_zlib" = "xno"; then
+    AC_MSG_ERROR([GTK3 UI requested, but zlib is explicitly disabled])
   fi
 
   dnl Used to compile the vice.gresource.xml file
@@ -2044,6 +2062,7 @@ AC_SUBST(DYNLIB_LIBS)
 
 dnl ----- Joystick support -----
 JOY_LIBS=
+AM_CONDITIONAL(HAVE_LINUX_EVDEV, false)
 if test x"$is_unix_x11" = "xyes" -a x"$enable_sdl1ui" != "xyes" -a x"$enable_sdl2ui" != "xyes" -a x"$enable_headlessui" != "xyes"; then
   AC_CHECK_HEADER(linux/joystick.h,
                   [
@@ -2053,6 +2072,19 @@ if test x"$is_unix_x11" = "xyes" -a x"$enable_sdl1ui" != "xyes" -a x"$enable_sdl
                               [Enable support for Linux style joysticks.])
                         JOYSTICK_DRIVERS="$JOYSTICK_DRIVERS joystick_linux.o";
                    ],[],[#include <linux/joystick.h>])],)
+  dnl Linux evdev joystick driver
+  if test x"$with_evdev" != "xno" -a x"$is_unix_linux" = "xyes"; then
+    PKG_CHECK_MODULES([libevdev],
+                      [libevdev],
+                      [AC_DEFINE(HAVE_LINUX_EVDEV,,[Enable support for Linux evdev joysticks.])
+                       JOYSTICK_DRIVERS="$JOYSTICK_DRIVERS joystick_linux_evdev.o"
+                       HAVE_LINUX_EVDEV_SUPPORT="yes"],
+                      [AC_MSG_ERROR([Linux evdev joystick driver requested (--with-evdev) but the libevdev headers are missing.])])
+    VICE_CFLAGS="$VICE_CFLAGS $libevdev_CFLAGS"
+    VICE_CXXFLAGS="$VICE_CXXFLAGS $libevdev_CXXFLAGS"
+    LIBS="$LIBS $libevdev_LIBS"
+    AM_CONDITIONAL(HAVE_LINUX_EVDEV, true)
+  fi
 
   dnl NetBSD/FreeBSD USB joystick support
   usbhid_header=no
@@ -2142,6 +2174,12 @@ if test x"$with_zlib" != "xno" ; then
                  AC_DEFINE(HAVE_ZLIB,,
                  [Can we use the ZLIB compression library?]) ],,)
   fi
+fi
+
+if test x"$HAVE_ZLIB_SUPPORT" = "xyes" ; then
+  AM_CONDITIONAL(HAVE_ZLIB, true)
+else
+  AM_CONDITIONAL(HAVE_ZLIB, false)
 fi
 
 AC_SUBST(ZLIB_LIBS)
@@ -3862,6 +3900,7 @@ echo "Build old x64 emulator        : $X64_INCLUDED (--enable/--disable-x64)"
 echo "Install XDG .desktop files    : $USE_DESKTOP_FILES"
 echo "icotool for Windows found     : $ICOTOOL"
 echo "Experimental devices emulation: $HAVE_EXPERIMENTAL_DEVICES_SUPPORT (--enable-experimental-devices)"
+echo "Linux evdev joystick driver   : $HAVE_LINUX_EVDEV_SUPPORT (--with-evdev)"
 
 echo ""
 echo "User CPPFLAGS:  $CPPFLAGS"

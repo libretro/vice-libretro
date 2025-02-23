@@ -65,7 +65,7 @@
 /* #define DEBUG_ZFILE */
 
 #ifdef DEBUG_ZFILE
-#define ZDEBUG(a)  log_debug a
+#define ZDEBUG(a) log_printf  a
 #else
 #define ZDEBUG(a)
 #endif
@@ -98,7 +98,7 @@ typedef struct zfile_s zfile_t;
 
 static zfile_t *zfile_list = NULL;
 
-static log_t zlog = LOG_ERR;
+static log_t zlog = LOG_DEFAULT;
 
 /* ------------------------------------------------------------------------- */
 

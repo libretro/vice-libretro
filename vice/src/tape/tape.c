@@ -35,6 +35,7 @@
 #include <string.h>
 
 #include "archdep.h"
+#include "autostart.h"
 #include "datasette.h"
 #include "lib.h"
 #include "log.h"
@@ -79,7 +80,7 @@ static int tape_is_initialized = 0;
 static const trap_t *tape_traps;
 
 /* Logging goes here.  */
-static log_t tape_log = LOG_ERR;
+static log_t tape_log = LOG_DEFAULT;
 
 /* The tape image for device 1. */
 tape_image_t *tape_image_dev[TAPEPORT_MAX_PORTS] = { NULL };
@@ -138,7 +139,7 @@ int tape_init(const tape_init_t *init)
 {
     int i;
 
-    if (tape_log == LOG_ERR) {
+    if (tape_log == LOG_DEFAULT) {
         tape_log = log_open("Tape");
     }
 
@@ -214,6 +215,19 @@ int tape_deinstall(void)
    install its own ones, by passing an appropriate `trap_list' to
    `tape_init()'.  */
 
+/* NOTE: When loading from tape, the kernal will always load absolute when the
+         tape header type is 3 (except on PET and CBM2 - which will always load
+         absolute, no matter what). Because of this we will change the default
+         header type to type 1 IF autostart is in progress AND loading to basic
+         start was requested by the respective option. */
+static int default_tape_header_type(void)
+{
+    if (autostart_in_progress() && (autostart_tape_basic_load == 1)) {
+        return TAPE_CAS_TYPE_BAS;
+    }
+    return machine_tape_type_default();
+}
+
 /* Find the next Tape Header and load it onto the Tape Buffer.  */
 int tape_find_header_trap(void)
 {
@@ -243,7 +257,7 @@ int tape_find_header_trap(void)
         } while (rec->entry_type != T64_FILE_RECORD_NORMAL);
 
         if (!err) {
-            cassette_buffer[CAS_TYPE_OFFSET] = machine_tape_type_default();
+            cassette_buffer[CAS_TYPE_OFFSET] = default_tape_header_type();
             cassette_buffer[CAS_STAD_OFFSET] = rec->start_addr & 0xff;
             cassette_buffer[CAS_STAD_OFFSET + 1] = rec->start_addr >> 8;
             cassette_buffer[CAS_ENAD_OFFSET] = rec->end_addr & 0xff;
@@ -310,7 +324,7 @@ int tape_find_header_trap_plus4(void)
         } while (rec->entry_type != T64_FILE_RECORD_NORMAL);
 
         if (!err) {
-            mem_store(0xF8, TAPE_CAS_TYPE_BAS);
+            mem_store(0xF8, default_tape_header_type());
             cassette_buffer[CAS_STAD_OFFSET - 1] = rec->start_addr & 0xff;
             cassette_buffer[CAS_STAD_OFFSET] = rec->start_addr >> 8;
             cassette_buffer[CAS_ENAD_OFFSET - 1] = rec->end_addr & 0xff;
@@ -459,11 +473,15 @@ int tape_image_detach_internal(unsigned int unit)
     int retval = 0;
     char event_data[2];
 
-    if (unit != 1 && unit != 2) {
+    if ((unit != 1) && (unit != 2)) {
         return -1;
     }
 
-    if (tape_image_dev[unit - 1] == NULL || tape_image_dev[unit - 1]->name == NULL) {
+    /* before detaching the tape image, press STOP */
+    datasette_control(unit - 1, DATASETTE_CONTROL_STOP);
+
+    if ((tape_image_dev[unit - 1] == NULL) ||
+        (tape_image_dev[unit - 1]->name == NULL)) {
         return 0;
     }
 
@@ -471,8 +489,6 @@ int tape_image_detach_internal(unsigned int unit)
         case TAPE_TYPE_T64:
             log_message(tape_log,
                         "Detaching T64 image `%s'.", tape_image_dev[unit - 1]->name);
-            /* Tape detached: release play button.  */
-            datasette_set_tape_sense(unit - 1, 0);
             break;
         case TAPE_TYPE_TAP:
             log_message(tape_log,
@@ -558,6 +574,7 @@ static int tape_image_attach_internal(unsigned int unit, const char *name)
         return -1;
     }
 
+    /* detach any attached image, this will also press STOP */
     tape_image_detach_internal(unit);
 
     memcpy(tape_image_dev[unit - 1], &tape_image, sizeof(tape_image_t));
@@ -567,8 +584,6 @@ static int tape_image_attach_internal(unsigned int unit, const char *name)
     switch (tape_image_dev[unit - 1]->type) {
         case TAPE_TYPE_T64:
             log_message(tape_log, "T64 image '%s' attached.", name);
-            /* Tape attached: press play button.  */
-            datasette_set_tape_sense(unit - 1, 1);
             break;
         case TAPE_TYPE_TAP:
             datasette_set_tape_image(unit - 1, (tap_t *)tape_image_dev[unit - 1]->data);

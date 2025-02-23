@@ -46,9 +46,9 @@
    (1) tape #1 read
    (2) also connected to tape "sense" (PLAY, F.FWD or REW pressed)
 
-   enable the device and start https://www.wic64.de/wp-content/uploads/2021/10/wic64start.zip
+   enable the device and start https://wic64.net/web/__downloads/wic-launcher25.prg
 
-   for more info see https://www.wic64.de
+   for more info see https://wic64.net/web/
 */
 
 #include "vice.h"
@@ -77,17 +77,17 @@
 
 #define VICEWIC64VERSION PACKAGE"-"VERSION
 #define WIC64_VERSION_MAJOR 2
-#define WIC64_VERSION_MINOR 0
+#define WIC64_VERSION_MINOR 1
 #define WIC64_VERSION_PATCH 0
 #define WIC64_VERSION_DEVEL 0
-#define WIC64_SHORT_VERSION "2.0.0"
-#define WIC64_VERSION_STRING "2.0.0 ("PACKAGE"; "VERSION")"
+#define WIC64_SHORT_VERSION "2.1.0"
+#define WIC64_VERSION_STRING "2.1.0 ("PACKAGE"; "VERSION")"
 #define HTTP_AGENT_REVISED "WiC64/"WIC64_SHORT_VERSION" ("PACKAGE"; "VERSION")"
 #define HTTP_AGENT_LEGACY "ESP32HTTPClient"
 static char *http_user_agent = HTTP_AGENT_REVISED;
 
 #include "log.h"
-static log_t wic64_loghandle = LOG_ERR;
+static log_t wic64_loghandle = LOG_DEFAULT;
 static int userport_wic64_enabled = 0;
 
 /* Some prototypes are needed */
@@ -108,10 +108,11 @@ static int wic64_set_logenabled(int val, void *param);
 static int wic64_set_loglevel(int val, void *param);
 static int wic64_set_resetuser(int val, void *param);
 static int wic64_set_hexdumplines(int val, void *param);
-static int wic64_set_colorize_log(int val, void *param);
+
+static int wic64_set_remote_timeout(int val, void *param);
 static int wic64_cmdl_reset(const char *val, void *param);
 static void wic64_log(const char *col, const char *fmt, ...);
-static void _wic64_log(const char *col, const int lv, const char *fmt, ...);
+static void debug_log(const char *col, const int lv, const char *fmt, ...);
 static void handshake_flag2(void);
 static void send_binary_reply(const uint8_t *reply, size_t len);
 static void send_reply_revised(const uint8_t rcode, const char *msg, const uint8_t *payload, size_t len, const char *legacy_msg);
@@ -122,6 +123,8 @@ static void prep_wic64_str(void);
 static void do_connect(uint8_t *url);
 static void cmd_tcp_write(void);
 static void cmd_timeout(int arm);
+static void cmd_remote_timeout(int arm);
+static int stage_dummy, stage_retcode, stage_length, stage_data, bsr, bsl, bsd;
 
 static userport_device_t userport_wic64_device = {
     "Userport WiC64",                     /* device name */
@@ -154,6 +157,11 @@ static struct alarm_s *http_post_endalarm = NULL;
 static struct alarm_s *tcp_get_alarm = NULL;
 static struct alarm_s *tcp_send_alarm = NULL;
 static struct alarm_s *cmd_timeout_alarm = NULL;
+static struct alarm_s *cmd_remote_timeout_alarm = NULL;
+static struct alarm_s *cmd_force_timeout_alarm = NULL;
+static struct alarm_s *flag2_alarm = NULL;
+static struct alarm_s *cycle_alarm = NULL;
+
 static char sec_token[32];
 static int sec_init = 0;
 static const char *TOKEN_NAME = "sectokenname";
@@ -165,7 +173,10 @@ static unsigned char wic64_external_ip[4] = { 0, 0, 0, 0 }; /* just a dummy, rep
 static uint8_t wic64_timezone[2] = { 0, 0};
 static uint16_t wic64_udp_port = 0;
 static uint16_t wic64_tcp_port = 0;
-static uint8_t wic64_timeout = 2;
+static uint8_t wic64_timeout = WIC64_DEFAULT_TRANSFER_TIMEOUT;
+static int wic64_remote_timeout; /* used for resource */
+static int remote_to = WIC64_DEFAULT_REMOTE_TIMEOUT;
+static uint8_t wic64_remote_timeout_triggered = 0;
 static int force_timeout = 0;
 static char *wic64_sec_token = NULL;
 static int current_tz = 2;
@@ -173,7 +184,7 @@ static int wic64_logenabled = 0;
 static int wic64_loglevel = 0;
 static int wic64_resetuser = 0;
 static int wic64_hexdumplines = 0;
-static int wic64_colorize_log = 0;
+
 static char wic64_protocol = 'U'; /* invalid, so we see in trace even the legacy */
 static int big_load = 0;
 static char wic64_last_status[40]; /* according spec 40 bytes, hold status string. incl. \0 */
@@ -184,6 +195,114 @@ static size_t post_data_size;
 static char *post_url = NULL;
 static int post_error;
 static int cheatlen = 0;
+
+/* ---------------------------------------------------------------------*/
+#define CONS_COL_NO ""
+
+/** \brief  log message to console
+ *
+ * \param[in]  typical printf format string
+ */
+static void wic64_log(const char *col, const char *fmt, ...)
+{
+    char t[256];
+    va_list args;
+
+    if (!wic64_logenabled) {
+        return;
+    }
+
+    va_start(args, fmt);
+    vsnprintf(t, 256, fmt, args);
+    log_message(wic64_loghandle, "%s%s" LOG_COL_OFF, col, t);
+}
+
+/** \brief  debug log message to console
+ *
+ * \param[in]  typical printf format string
+ */
+static void debug_log(const char *col, const int lv, const char *fmt, ...)
+{
+    char t[256];
+    va_list args;
+
+    if (wic64_loglevel < lv) {
+        return;
+    }
+    va_start(args, fmt);
+    vsnprintf(t, 256, fmt, args);
+    wic64_log(col, "%s", t);
+}
+
+/** \brief  formatted hexdump, lines limited by value of "WIC64HexdumpLines"
+ *
+ * \param[in]  buf, len
+ */
+static void wic64_log_hexdump(const char *col, const char *buf, int len)
+{
+    int i;
+    int idx = 0;
+    int lines = 0;
+    char linestr[256];
+
+    while (len > 0) {
+        if (big_load) {
+            snprintf(linestr, 256, "%08x: ", (unsigned) idx);
+        } else {
+            snprintf(linestr, 256, "%04x: ", (unsigned) idx);
+        }
+
+        if (wic64_hexdumplines && lines++ >= wic64_hexdumplines) {
+            strcat(linestr, "...");
+            wic64_log(col, "%s", linestr);
+            break;
+        }
+        for (i = 0; i < 16; i++) {
+            if (i < len) {
+                char t[4];
+                snprintf(t, 4, "%02x ", (uint8_t) buf[idx + i]);
+                strcat(linestr, t);
+            } else {
+                strcat(linestr, "   ");
+            }
+        }
+        strcat(linestr, "|");
+        for (i = 0; i < 16; i++) {
+            if (i < len) {
+                char t[2];
+                char c;
+                if (((unsigned char)buf[idx + i] > 31) && /* avoid tabs and other printable ctrl chars) */
+                    isprint((unsigned char)buf[idx + i])) {
+                    c= buf[idx + i];
+                } else {
+                    c = '.';
+                }
+                snprintf(t, 2, "%c", c);
+                strcat(linestr, t);
+            } else {
+                strcat(linestr, " ");
+            }
+        }
+        strcat(linestr, "|");
+        wic64_log(col, "%s", linestr);
+        idx += 16;
+        len -= 16;
+    }
+}
+
+/** \brief  formatted hexdump, lines limited by value of "WIC64HexdumpLines" for debug level
+ *
+ * \param[in]  lv, buf, len
+ */
+static void debug_hexdump(const char *col, const int lv, const char *buf, int len)
+{
+    if (wic64_loglevel < lv) {
+        return;
+    }
+    wic64_log_hexdump(col, buf, len);
+}
+
+/* ---------------------------------------------------------------------*/
 
 static const resource_string_t wic64_resources[] =
 {
@@ -209,8 +328,8 @@ static const resource_int_t wic64_resources_int[] = {
       &wic64_resetuser, wic64_set_resetuser, NULL },
     { "WIC64HexdumpLines", 8, RES_EVENT_NO, NULL,
       &wic64_hexdumplines, wic64_set_hexdumplines, NULL },
-    { "WIC64ColorizeLog", 0, RES_EVENT_NO, NULL,
-      &wic64_colorize_log, wic64_set_colorize_log, NULL },
+    { "WIC64RemoteTimeout", WIC64_DEFAULT_REMOTE_TIMEOUT, RES_EVENT_NO, NULL,
+      &wic64_remote_timeout, wic64_set_remote_timeout, NULL },
     RESOURCE_INT_LIST_END
 };
 
@@ -265,19 +384,16 @@ static const cmdline_option_t cmdline_options[] =
       NULL, "Disable WiC64 tracing" },
     { "-wic64tracelevel", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
       NULL, NULL, "WIC64LogLevel", NULL,
-      "<0..3>", "Set WiC64 tracing level (0: off, 1: cmd-level, >2: debug-level), implicitly turns on/off WiC64 tracing" },
+      "<0..4>", "Set WiC64 tracing level (0: off, 1: cmd-level, >2: debug-level), implicitly turns on/off WiC64 tracing" },
     { "-wic64reset", CALL_FUNCTION, CMDLINE_ATTRIB_NONE,
       wic64_cmdl_reset, (void *)2, NULL, NULL,
       NULL, "Reset WiC64 to factory defaults" },
     { "-wic64hexdumplines", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
       NULL, NULL, "WIC64HexdumpLines", NULL,
       "<value>", "Limit WiC64 hexdump lines (0: unlimited)" },
-    { "-wic64colorizetrace", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
-      NULL, NULL, "WIC64colorizelog", (void *)1,
-      NULL, "Enable WiC64 colorized trace on terminal" },
-    { "+wic64colorizetrace", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
-      NULL, NULL, "WIC64colorizelog", (void *)0,
-      NULL, "Disable WiC64 colorized trace on terminal" },
+    { "-wic64remotetimeout", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
+      NULL, NULL, "WIC64RemoteTimeout", NULL,
+      "<value>", "Set WIC64 remote timeout (1 - 255)" },
     CMDLINE_LIST_END
 };
 
@@ -318,14 +434,15 @@ static const cmdline_option_t cmdline_options[] =
 
 #define WIC64_CMD_REBOOT 0x29
 #define WIC64_CMD_GET_STATUS_MESSAGE 0x2a
-#define WIC64_CMD_SET_TIMEOUT 0x2d
+#define WIC64_CMD_SET_TRANSFER_TIMEOUT 0x2d
+#define WIC64_CMD_SET_REMOTE_TIMEOUT 0x32
 #define WIC64_CMD_IS_HARDWARE 0x31
 
 #define WIC64_CMD_FORCE_TIMEOUT 0xfc
 #define WIC64_CMD_FORCE_ERROR 0xfd
 #define WIC64_CMD_ECHO 0xfe
 
-// Deprecated commands
+/* Deprecated commands */
 #define WIC64_CMD_DEPRECATED_UPDATE_FIRMWARE_03 0x03
 #define WIC64_CMD_DEPRECATED_UPDATE_FIRMWARE_04 0x04
 #define WIC64_CMD_DEPRECATED_UPDATE_FIRMWARE_05 0x05
@@ -358,20 +475,15 @@ static const cmdline_option_t cmdline_options[] =
 #define INPUT_EXP_HH 5
 #define INPUT_EXP_ARGS 6
 
-#define CONS_COL_NO ""
-#define CONS_COL_RED "\x1B[31m"
-#define CONS_COL_GREEN "\x1B[32m"
-#define CONS_COL_BLUE "\x1B[36m"
-#define CONS_COL_OFF "\033[0m\t\t"
-
 static const char *cmd2string[256];
-/* WiC64 return codes */
+/* WiC64 return codes, adjust debug output accordingly if changes happen here, see func 'userport_wic64_read_pbx()' */
 static uint8_t SUCCESS          = 0;
 static uint8_t INTERNAL_ERROR   = 1;
 static uint8_t CLIENT_ERROR     = 2;
 static uint8_t CONNECTION_ERROR = 3;
 static uint8_t NETWORK_ERROR    = 4;
 static uint8_t SERVER_ERROR     = 5;
+static char *err2string[] = { "SUCCESS", "INTERNAL", "CLIENT", "CONNECTION", "NETWORK", "SERVER" };
 
 #define HTTPREPLY_MAXLEN ((unsigned)(16 * 1024 * 1024)) /* 16MB needed for potential large images to flash via bigloader */
 static size_t httpbufferptr = 0;
@@ -379,7 +491,7 @@ static uint8_t *httpbuffer = NULL;
 static char *replybuffer = NULL;
 
 #define COMMANDBUFFER_MAXLEN    0x100010
-#define URL_MAXLEN              2000
+#define URL_MAXLEN              8192
 static char *encoded_helper = NULL;
 
 #include <errno.h>
@@ -393,8 +505,8 @@ static char *encoded_helper = NULL;
 #define MAX_PARALLEL 1 /* number of simultaneous transfers */
 #define NUM_URLS 10
 static int still_alive = 0;
-static CURLM *cm;                      /* used for http(s) */
-static CURL *curl;                     /* used for telnet */
+static CURLM *cm = NULL;               /* used for http(s) */
+static CURL *curl = NULL;              /* used for telnet */
 static uint8_t curl_buf[240];          /* this slows down by smaller chunks sent to C64, improves BBSs  */
 static uint8_t *curl_send_buf = NULL;
 static uint16_t curl_send_len;
@@ -407,26 +519,26 @@ static int userport_wic64_enable(int value)
     if (userport_wic64_enabled == val) {
         return 0;
     }
-    if (wic64_loghandle == LOG_ERR) {
+    if (wic64_loghandle == LOG_DEFAULT) {
         wic64_loghandle = log_open("WiC64");
     }
 
     userport_wic64_enabled = val;
     if (val) {
         httpbuffer = lib_malloc(HTTPREPLY_MAXLEN);
-        _wic64_log(CONS_COL_NO, 2, "%s: httpreplybuffer allocated 0x%xkB", __FUNCTION__,
+        debug_log(CONS_COL_NO, 2, "%s: httpreplybuffer allocated 0x%xkB", __FUNCTION__,
                    HTTPREPLY_MAXLEN / 1024);
 
         replybuffer = lib_malloc(HTTPREPLY_MAXLEN + 16);
-        _wic64_log(CONS_COL_NO, 2, "%s: replybuffer allocated 0x%xkB", __FUNCTION__,
+        debug_log(CONS_COL_NO, 2, "%s: replybuffer allocated 0x%xkB", __FUNCTION__,
                    (HTTPREPLY_MAXLEN / 1024) + 16);
 
         encoded_helper = lib_malloc(COMMANDBUFFER_MAXLEN);
-        _wic64_log(CONS_COL_NO, 2, "%s: encoded_helper allocated 0x%xkB", __FUNCTION__,
+        debug_log(CONS_COL_NO, 2, "%s: encoded_helper allocated 0x%xkB", __FUNCTION__,
                    COMMANDBUFFER_MAXLEN / 1024);
 
         curl_send_buf = lib_malloc(COMMANDBUFFER_MAXLEN);
-        _wic64_log(CONS_COL_NO, 2, "%s: curl_send_buf allocated 0x%xkB", __FUNCTION__,
+        debug_log(CONS_COL_NO, 2, "%s: curl_send_buf allocated 0x%xkB", __FUNCTION__,
                    COMMANDBUFFER_MAXLEN / 1014);
 
         wic64_set_status("enabled");
@@ -435,22 +547,26 @@ static int userport_wic64_enable(int value)
         prep_wic64_str();
 
     } else {
-        lib_free(httpbuffer);
-        httpbuffer = NULL;
-        lib_free(replybuffer);
-        replybuffer = NULL;
-        lib_free(encoded_helper);
-        encoded_helper = NULL;
-        lib_free(curl_send_buf);
-        curl_send_buf = NULL;
-        _wic64_log(CONS_COL_NO, 2, "%s: httpreplybuffer/replybuffer/encoded_helper/curl_send_buf freed",
-                   __FUNCTION__);
-
+        if (httpbuffer) {
+            lib_free(httpbuffer);
+            httpbuffer = NULL;
+        }
+        if (replybuffer) {
+            lib_free(replybuffer);
+            replybuffer = NULL;
+        }
+        if (encoded_helper) {
+            lib_free(encoded_helper);
+            encoded_helper = NULL;
+        }
+        if (curl_send_buf) {
+            lib_free(curl_send_buf);
+            curl_send_buf = NULL;
+        }
         if (post_data) {
             lib_free(post_data);
             post_data = NULL;
         }
-
         if (curl) {
             /* connection closed */
             curl_easy_cleanup(curl);
@@ -485,6 +601,25 @@ static int userport_wic64_enable(int value)
             alarm_destroy(cmd_timeout_alarm);
             cmd_timeout_alarm = NULL;
         }
+        if (cmd_remote_timeout_alarm) {
+            alarm_destroy(cmd_remote_timeout_alarm);
+            cmd_remote_timeout_alarm = NULL;
+        }
+        if (cmd_force_timeout_alarm) {
+            alarm_destroy(cmd_force_timeout_alarm);
+            cmd_force_timeout_alarm = NULL;
+        }
+        if (flag2_alarm) {
+            alarm_destroy(flag2_alarm);
+            flag2_alarm = NULL;
+        }
+        if (cycle_alarm) {
+            alarm_destroy(cycle_alarm);
+            cycle_alarm = NULL;
+        }
+        debug_log(CONS_COL_NO, 2, "%s: several WiC64 dynamic buffers freed",
+                   __FUNCTION__);
+
         wic64_set_status("disabled");
         log_message(wic64_loghandle, "WiC64 disabled");
     }
@@ -565,9 +700,16 @@ static int wic64_set_hexdumplines(int val, void *param)
     return 0;
 }
 
-static int wic64_set_colorize_log(int val, void *param)
+static int wic64_set_remote_timeout(int val, void *param)
 {
-    wic64_colorize_log = val;
+    wic64_remote_timeout = val;
+    /* overrule in case of wrong range */
+    if (val < 1) {
+        wic64_remote_timeout = 1;
+    }
+    if (val > 255) {
+        wic64_remote_timeout = 255;
+    }
     return 0;
 }
 
@@ -650,6 +792,7 @@ void userport_wic64_factory_reset(void)
 
     resources_set_int("WIC64Timezone", tz);
     resources_set_string("WIC64DefaultServer", defserver);
+    resources_set_int("WIC64RemoteTimeout", WIC64_DEFAULT_REMOTE_TIMEOUT);
 
     resources_get_int("WIC64Resetuser", &reset_user);
     if (reset_user) {
@@ -659,97 +802,9 @@ void userport_wic64_factory_reset(void)
 
 void wic64_set_status(const char *status)
 {
-    strncpy(wic64_last_status, status, sizeof wic64_last_status);
-    wic64_last_status[sizeof wic64_last_status - 1u] = '\0';
-}
-
-/** \brief  log message to console
- *
- * \param[in]  typical printf format string
- */
-static void wic64_log(const char *col, const char *fmt, ...)
-{
-    char t[256];
-    va_list args;
-    const char *col_before = "";
-    const char *col_after = "";
-
-    if (!wic64_logenabled) {
-        return;
-    }
-    if (col && wic64_colorize_log) {
-        col_before = col;
-        col_after = CONS_COL_OFF;
-    }
-    va_start(args, fmt);
-    vsnprintf(t, 256, fmt, args);
-    log_message(wic64_loghandle, "%s%s%s", col_before, t, col_after);
-}
-
-/** \brief  debug log message to console
- *
- * \param[in]  typical printf format string
- */
-static void _wic64_log(const char *col, const int lv, const char *fmt, ...)
-{
-    char t[256];
-    va_list args;
-
-    if (wic64_loglevel < lv)
-        return;
-    va_start(args, fmt);
-    vsnprintf(t, 256, fmt, args);
-    wic64_log(col, "%s", t);
-}
-
-/** \brief  formatted hexdump, lines limited by value of "WIC64HexdumpLines"
- *
- * \param[in]  buf, len
- */
-static void hexdump(const char *col, const char *buf, int len)
-{
-    int i;
-    int idx = 0;
-    int lines = 0;
-    char linestr[256];
-
-    while (len > 0) {
-        if (big_load) {
-            snprintf(linestr, 256, "%08x: ", (unsigned) idx);
-        } else {
-            snprintf(linestr, 256, "%04x: ", (unsigned) idx);
-        }
-
-        if (wic64_hexdumplines && lines++ >= wic64_hexdumplines) {
-            strcat(linestr, "...");
-            wic64_log(col, "%s", linestr);
-            break;
-        }
-        for (i = 0; i < 16; i++) {
-            if (i < len) {
-                char t[4];
-                snprintf(t, 4, "%02x ", (uint8_t) buf[idx + i]);
-                strcat(linestr, t);
-            } else {
-                strcat(linestr, "   ");
-            }
-        }
-        strcat(linestr, "|");
-        for (i = 0; i < 16; i++) {
-            if (i < len) {
-                char t[2];
-                char c;
-                c = isprint((unsigned char)buf[idx + i]) ? buf[idx + i] : '.';
-                snprintf(t, 2, "%c", c);
-                strcat(linestr, t);
-            } else {
-                strcat(linestr, " ");
-            }
-        }
-        strcat(linestr, "|");
-        wic64_log(col, "%s", linestr);
-        idx += 16;
-        len -= 16;
+    if (status) {
+        strncpy(wic64_last_status, status, sizeof wic64_last_status);
+        wic64_last_status[sizeof wic64_last_status - 1u] = '\0';
     }
 }
 
@@ -791,7 +846,8 @@ static void prep_wic64_str(void)
     cmd2string[WIC64_CMD_REBOOT] = "WIC64_CMD_REBOOT";
 
     cmd2string[WIC64_CMD_GET_STATUS_MESSAGE] = "WIC64_CMD_GET_STATUS_MESSAGE";
-    cmd2string[WIC64_CMD_SET_TIMEOUT] = "WIC64_CMD_SET_TIMEOUT";
+    cmd2string[WIC64_CMD_SET_TRANSFER_TIMEOUT] = "WIC64_CMD_SET_TIMEOUT";
+    cmd2string[WIC64_CMD_SET_REMOTE_TIMEOUT] = "WIC64_CMD_SET_REMOTE_TIMEOUT";
     cmd2string[WIC64_CMD_IS_HARDWARE] = "WIC64_CMD_IS_HARDWARE";
     cmd2string[WIC64_CMD_ECHO] = "WIC64_CMD_ECHO";
     cmd2string[WIC64_CMD_FORCE_TIMEOUT]= "WIC64_CMD_FORCE_TIMEOUT";
@@ -819,21 +875,10 @@ static void prep_wic64_str(void)
     cmd2string[WIC64_CMD_DEPRECATED_LEGACY_HTTP_POST_24] = "WIC64_CMD_DEPRECATED_LEGACY_HTTP_POST_24";
 }
 
-/** \brief  formatted hexdump, lines limited by value of "WIC64HexdumpLines" for debug level
- *
- * \param[in]  lv, buf, len
- */
-static void _hexdump(const char *col, const int lv, const char *buf, int len)
-{
-    if (wic64_loglevel < lv) {
-        return;
-    }
-    hexdump(col, buf, len);
-}
-
 static size_t write_cb(char *data, size_t n, size_t l, void *userp)
 {
     size_t tmp = httpbufferptr + n * l;
+    debug_log(CONS_COL_NO, 3, "%s, %dx%d bytes/size", __FUNCTION__, n, l);
 
     if (tmp >= HTTPREPLY_MAXLEN) {
         wic64_log(CONS_COL_NO, "libcurl reply too long, dropping %"PRI_SIZE_T" bytes.\n",
@@ -868,13 +913,14 @@ static void add_transfer(CURLM *cmulti, char *url)
     }
     curl_easy_setopt(eh, CURLOPT_USERAGENT, http_user_agent);
     curl_multi_add_handle(cmulti, eh);
+    curl_multi_poll(cm, NULL, 0, 1, NULL);
 }
 
 static void update_prefs(uint8_t *buffer, size_t len)
 {
     /* manage preferences in memory only for now */
     wic64_log(CONS_COL_NO, "%s: requested", __FUNCTION__);
-    hexdump(CONS_COL_NO, (char *)buffer, (int)len);
+    wic64_log_hexdump(CONS_COL_NO, (char *)buffer, (int)len);
     char *t;
     char *p;
     char *pref = NULL;
@@ -924,24 +970,42 @@ static void http_get_alarm_handler(CLOCK offset, void *data)
     long response = -1;
     char *url = "<unknown>";
 
+    still_alive = 0;
     r = curl_multi_perform(cm, &still_alive);
     if (r != CURLM_OK) {
         wic64_log(CONS_COL_NO, "%s: curl_multi_perform failed: %s", __FUNCTION__, curl_multi_strerror(r));
         msg = curl_multi_info_read(cm, &msgs_left);
         if (msg) {
-            _wic64_log(CONS_COL_RED, 2, "%s: msg: %u, %s", __FUNCTION__,
+            debug_log(LOG_COL_LRED, 2, "%s: msg: %u, %s", __FUNCTION__,
                        msg->data.result, curl_easy_strerror(msg->data.result));
             curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE, &url);
-            _wic64_log(CONS_COL_RED, 2, "%s, R: %u - %s <%s>", __FUNCTION__,
+            debug_log(LOG_COL_LRED, 2, "%s, R: %u - %s <%s>", __FUNCTION__,
                        msg->data.result, curl_easy_strerror(msg->data.result), url);
         }
         send_reply_revised(NETWORK_ERROR, "Failed to read HTTP response", NULL, 0, "!0"); /* maybe wrong here */
         goto out;
     }
+    debug_log(CONS_COL_NO, 3, "%s, running handles: %d, r = %d", __FUNCTION__, still_alive, r);
+
+    if (wic64_remote_timeout_triggered) {
+        debug_log(LOG_COL_LRED, 2, "Remote timout expired");
+        send_reply_revised(NETWORK_ERROR, "Remote timeout", NULL, 0, "!0");
+        wic64_remote_timeout_triggered = 0;
+        remote_to = wic64_remote_timeout;
+        goto out;
+    }
+
     if (still_alive) {
+        curl_multi_poll(cm, NULL, 0, 1, NULL);
         /* http request not yet finished */
+        alarm_unset(http_get_alarm);
+        alarm_set(http_get_alarm, maincpu_clk + (312 * 65));
         return;
     }
+
+    alarm_unset(cmd_remote_timeout_alarm);
+    remote_to = wic64_remote_timeout;
+
     msg = curl_multi_info_read(cm, &msgs_left);
     if (msg) {
         CURLcode res;
@@ -949,7 +1013,7 @@ static void http_get_alarm_handler(CLOCK offset, void *data)
                                 CURLINFO_RESPONSE_CODE,
                                 &response);
         if (res != CURLE_OK) {
-            wic64_log(CONS_COL_RED, "%s: curl_easy_getinfo(...&response failed: %s", __FUNCTION__,
+            wic64_log(LOG_COL_LRED, "%s: curl_easy_getinfo(...&response failed: %s", __FUNCTION__,
                       curl_easy_strerror(res));
             send_reply_revised(NETWORK_ERROR, "Failed to read HTTP response", NULL, 0, "!0");
             goto out;
@@ -957,11 +1021,12 @@ static void http_get_alarm_handler(CLOCK offset, void *data)
         res = curl_easy_getinfo(msg->easy_handle, CURLINFO_EFFECTIVE_URL, &url);
         if (res != CURLE_OK) {
             /* ignore problem, URL is only for debugging */
-            wic64_log(CONS_COL_RED, "%s: curl_easy_getinfo(...&URL failed: %s", __FUNCTION__,
+            wic64_log(LOG_COL_LRED, "%s: curl_easy_getinfo(...&URL failed: %s", __FUNCTION__,
                       curl_easy_strerror(res));
             url = "<unknown>";
         }
     }
+
     if (response == 201) {
         /* prefs update requested, handles replies */
         update_prefs(httpbuffer, httpbufferptr);
@@ -977,22 +1042,28 @@ static void http_get_alarm_handler(CLOCK offset, void *data)
             t = strrchr(url, '.');
             if ((t != NULL) && (strcmp(t, ".prg") == 0)){
                 cheatlen = -2;
-                wic64_log(CONS_COL_GREEN, "prg URL -> reducing reported len by 2");
+                wic64_log(LOG_COL_LGREEN, "prg URL -> reducing reported len by 2");
             }
         }
         send_reply_revised(SUCCESS, "Success", httpbuffer, httpbufferptr, NULL); /* raw send, supporting big_load */
         cheatlen = 0;
-    } else if (response >= 400) {
+    } else if (response >= 301) {
         char t[32];
-        wic64_log(CONS_COL_RED, "URL '%s' returned %lu bytes (http code: %ld)", url, httpbufferptr, response);
+        wic64_log(LOG_COL_LRED, "URL '%s' returned %lu bytes (http code: %ld)", url, httpbufferptr, response);
         snprintf(t, 31, "http response: %ld", response);
         send_reply_revised(SERVER_ERROR, t, NULL, 0, "!0");      /* raw send supporting big_load */
     } else {
         /* firmeare handles codes: 301, 302, 307, 308 - check if needed with libcurl */
         char m[64];
-        snprintf(m, 64, "Unhandled http response %ld", response);
-        wic64_log(CONS_COL_RED, m);
-        send_reply_revised(INTERNAL_ERROR, m, NULL, 0, "!0");
+        snprintf(m, 64, "Unhandled http response %ld, received %"PRI_SIZE_T" bytes", response, httpbufferptr);
+        wic64_log(LOG_COL_LRED, m);
+        if (httpbufferptr > 0) {
+            send_reply_revised(SUCCESS, "Success", httpbuffer,
+                               (httpbufferptr > 0xffff) ? 0xffff : httpbufferptr,
+                               NULL);
+        } else {
+            send_reply_revised(INTERNAL_ERROR, m, NULL, 0, "!0");
+        }
     }
 
   out:
@@ -1005,6 +1076,7 @@ static void http_get_alarm_handler(CLOCK offset, void *data)
 
 static void do_http_get(char *url)
 {
+    cmd_remote_timeout(1);
     cm = curl_multi_init();
     if (!cm) {
         send_reply_revised(CONNECTION_ERROR, "Can't send HTTP request", NULL, 0, "!0");
@@ -1039,10 +1111,10 @@ static uint8_t commandbuffer[COMMANDBUFFER_MAXLEN];
 
 static uint32_t replyptr = 0, reply_length = 0;
 static uint8_t reply_port_value = 0;
-static struct alarm_s *flag2_alarm = NULL;
 
 static void flag2_alarm_handler(CLOCK offset, void *data)
 {
+    debug_log(LOG_COL_OFF, 4, "%s: handshake expired", __FUNCTION__);
     set_userport_flag(FLAG2_INACTIVE);
     alarm_unset(flag2_alarm);
 }
@@ -1059,16 +1131,39 @@ static void handshake_flag2(void)
     }
     alarm_unset(flag2_alarm);
     alarm_set(flag2_alarm, maincpu_clk + FLAG2_TOGGLE_DELAY);
+    debug_log(LOG_COL_OFF, 4, "%s: armed handshake", __FUNCTION__);
 
     set_userport_flag(FLAG2_ACTIVE);
     /* set_userport_flag(FLAG2_INACTIVE); */
+}
+
+static void cycle_alarm_handler(CLOCK offset, void *data)
+{
+    debug_log(LOG_COL_OFF, 3, "%s: expired, data = %p", __FUNCTION__, data);
+    alarm_unset(cycle_alarm);
+    alarm_destroy(cycle_alarm);
+    cycle_alarm = NULL;
+    if (data) {
+        (*(void(*)(void))data)();               /* execute callback */
+    }
+}
+
+static void wic64_sleep_cycles(int cycles, void *cb)
+{
+    if (cycle_alarm) {
+        debug_log(LOG_COL_LRED, 3, "%s: refusing to re-arm pending cycle alarm", __FUNCTION__);
+        return;
+    }
+    cycle_alarm = alarm_new(maincpu_alarm_context, "CycleAlarm", cycle_alarm_handler, cb);
+    alarm_unset(cycle_alarm);
+    alarm_set(cycle_alarm, maincpu_clk + cycles);
 }
 
 static void reply_next_byte(void)
 {
     if (replyptr < reply_length) {
         reply_port_value = replybuffer[replyptr];
-        /* _wic64_log(CONS_COL_NO, 2, "reply_next_byte: %3u/%3u - %02x'%c'", replyptr, reply_length, reply_port_value, isprint((unsigned char)reply_port_value)?reply_port_value:'.')); */
+        /* debug_log(CONS_COL_NO, 2, "reply_next_byte: %3u/%3u - %02x'%c'", replyptr, reply_length, reply_port_value, isprint((unsigned char)reply_port_value)?reply_port_value:'.')); */
         replyptr++;
         if (replyptr == reply_length) {
             replyptr = reply_length = 0;
@@ -1100,18 +1195,18 @@ static void send_binary_reply(const uint8_t *reply, size_t len)
     reply_length = (uint32_t)(len + offs);
     replyptr = 0;
     if (len > 0) {
-        wic64_log(CONS_COL_GREEN, "sends %d/0x%x bytes...", len, len);
-        hexdump(CONS_COL_GREEN, replybuffer, reply_length);
+        wic64_log(LOG_COL_LGREEN, "sends %d/0x%x bytes...", len, len);
+        wic64_log_hexdump(LOG_COL_LGREEN, replybuffer, reply_length);
     } else {
-        wic64_log(CONS_COL_GREEN, "handshake flag2");
+        wic64_log(LOG_COL_LGREEN, "handshake flag2");
     }
     handshake_flag2();
 }
 
 static void cmd_timeout_alarm_handler(CLOCK offset, void *data)
 {
-    wic64_log(CONS_COL_RED, "timed out - '%s' command", cmd2string[input_command]);
-    replyptr = reply_length = force_timeout = 0;
+    wic64_log(LOG_COL_LRED, "timed out - '%s' command", cmd2string[input_command]);
+    replyptr = reply_length = 0;
     input_state = INPUT_EXP_PROT;
     commandptr = 0;
     alarm_unset(cmd_timeout_alarm);
@@ -1132,6 +1227,27 @@ static void cmd_timeout(int arm)
     }
 }
 
+static void cmd_remote_timeout_alarm_handler(CLOCK offset, void *data)
+{
+    wic64_log(LOG_COL_LRED, "remote time out - '%s' command", cmd2string[input_command]);
+    wic64_remote_timeout_triggered = 1;
+    alarm_unset(cmd_remote_timeout_alarm);
+}
+
+static void cmd_remote_timeout(int arm)
+{
+    if (cmd_remote_timeout_alarm == NULL) {
+        cmd_remote_timeout_alarm = alarm_new(maincpu_alarm_context, "CMDRemoteTimoutAlarm",
+                                             cmd_remote_timeout_alarm_handler, NULL);
+    }
+    alarm_unset(cmd_remote_timeout_alarm);
+    if (arm) {
+        debug_log(CONS_COL_NO, 2, "arming remote timeout with %ds", wic64_remote_timeout);
+        wic64_remote_timeout_triggered = 0;
+        alarm_set(cmd_remote_timeout_alarm, maincpu_clk + remote_to * machine_get_cycles_per_second());
+    }
+}
+
 static void send_reply_revised(const uint8_t rcode, const char *msg, const uint8_t *payload, size_t len, const char *legacy_msg)
 {
     int offs = 0;
@@ -1142,9 +1258,9 @@ static void send_reply_revised(const uint8_t rcode, const char *msg, const uint8
         const char *col;
 
         if (rcode == SUCCESS) {
-            col = CONS_COL_GREEN;
+            col = LOG_COL_LGREEN;
         } else {
-            col = CONS_COL_RED;
+            col = LOG_COL_LRED;
         }
         wic64_log(col, "replies %s", msg);
         replybuffer[0] = rcode;
@@ -1156,20 +1272,25 @@ static void send_reply_revised(const uint8_t rcode, const char *msg, const uint8
             replybuffer[4] = (len >> 24) & 0xff;
         }
         memcpy((char *) &replybuffer[3 + offs], (const char *)payload, len);
-        _wic64_log(col, 2, "sends header...");
-        _hexdump(col, 2, replybuffer, 3 + offs);
+        debug_log(col, 2, "sends header...");
+        debug_hexdump(col, 2, replybuffer, 3 + offs);
         if (len > 0) {
             wic64_log(col, "sends payload %d/0x%x bytes...", len, len);
-            hexdump(col, &replybuffer[3 + offs], (int)len);
+            wic64_log_hexdump(col, &replybuffer[3 + offs], (int)len);
         }
         reply_length = (uint32_t)(len + 3 + offs);
 
         cmd_timeout(1);         /* arm alarm handler */
+        stage_dummy = 1;
+        bsr = stage_retcode = 1;
+        bsl = stage_length = 2 + offs;
+        bsd = stage_data = (int)len;
         handshake_flag2();
     } else {
         /* legacy protocol */
+        stage_dummy = stage_retcode = stage_length = stage_data = -1;
         if (legacy_msg && payload) {
-            wic64_log(CONS_COL_RED,
+            wic64_log(LOG_COL_LRED,
                       "protocol error: can't send both payload and legacy message: '%s' discarded.",
                       legacy_msg);
             return;
@@ -1229,7 +1350,7 @@ static void cmd_http_get_encoded(void)
     int len;
     int l;
 
-    hexdump(CONS_COL_BLUE, (const char *)commandbuffer, commandptr);
+    wic64_log_hexdump(LOG_COL_LBLUE, (const char *)commandbuffer, commandptr);
 
     /* if encode is enabled, there might be binary data after <$, which is
        then encoded as a stream of hex digits */
@@ -1242,14 +1363,16 @@ static void cmd_http_get_encoded(void)
            (cptr < endmarker)) {
         l = (int)(p - cptr);
         len += l;
-        _wic64_log(CONS_COL_NO, 2, "%s: escape sequence found, offset %d", __FUNCTION__, len);
+        debug_log(CONS_COL_NO, 2, "%s: escape sequence found, offset %d", __FUNCTION__, len);
         /* copy string before <$ */
         memcpy(tptr, cptr, (size_t)l);
         tptr += l;
-        l = p[2];
-        l += p[3] << 8;
+        l = (unsigned char) p[2];
+        l += (((unsigned char) p[3]) << 8);
         p += 4; /* skip escape sequence and len */
+        debug_log(CONS_COL_NO, 2, "%s: length to encode = %d", __FUNCTION__, l);
         l = _encode(&p, l);
+        debug_log(CONS_COL_NO, 2, "%s: encoded length = %d", __FUNCTION__, l);
         memcpy(tptr, encoded_helper, l);
         len += l;
         cptr = p;
@@ -1273,7 +1396,7 @@ static int http_expand_url(char *final_url)
     int i;
     char *cur = final_url;
 
-    hexdump(CONS_COL_BLUE, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
+    wic64_log_hexdump(LOG_COL_LBLUE, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
 
     if (commandptr == 0) {
         send_reply_revised(CLIENT_ERROR, "URL not specified", NULL, 0, "!E");
@@ -1295,7 +1418,7 @@ static int http_expand_url(char *final_url)
     /* sanity check if URL is OK in principle */
     for (i = 0; i < commandptr; i++) {
         if (!isprint(commandbuffer[i])) {
-            wic64_log(CONS_COL_RED, "bad char '0x%02x' detected in URL at offet %d, %s",
+            wic64_log(LOG_COL_LRED, "bad char '0x%02x' detected in URL at offet %d, %s",
                       commandbuffer[i], i, commandbuffer);
             send_reply_revised(CLIENT_ERROR, "Malformed URL", NULL, 0, "!0");
             return -1;
@@ -1329,7 +1452,7 @@ static int http_expand_url(char *final_url)
             cur += 8;
             p += 8;
         } else {
-            wic64_log(CONS_COL_RED, "malformed URL: %s", commandbuffer);
+            wic64_log(LOG_COL_LRED, "malformed URL: %s", commandbuffer);
             send_reply_revised(CLIENT_ERROR, "Malformed URL", NULL, 0, "!0");
             return -1;
         }
@@ -1381,7 +1504,7 @@ static int http_expand_url(char *final_url)
         strcat(temppath, p + 4);
         /* copy back to path buffer */
         strcpy(cur, temppath);
-        _wic64_log(CONS_COL_NO, 2, "temppath:%s", temppath);
+        debug_log(CONS_COL_NO, 2, "temppath:%s", temppath);
     }
     /* now strip trailing whitespaces of path */
     p = cur + strlen(cur) - 1;
@@ -1395,7 +1518,7 @@ static int http_expand_url(char *final_url)
         *p = '\0';
         p--;
     }
-    _wic64_log(CONS_COL_NO, 2, "%s: URL = '%s'", __FUNCTION__, final_url);
+    debug_log(CONS_COL_NO, 2, "%s: URL = '%s'", __FUNCTION__, final_url);
 
     if (strlen(final_url) > URL_MAXLEN) {
         send_reply_revised(CLIENT_ERROR, "URL too long (max 2000 bytes)", NULL, 0, "!E");
@@ -1417,19 +1540,19 @@ static void cmd_http_get(void)
 
 static void http_post_endalarm_handler(CLOCK offset, void *data)
 {
-    _wic64_log(CONS_COL_NO, 2, "http post endalarm triggered...");
+    debug_log(CONS_COL_NO, 2, "http post endalarm triggered...");
     send_reply_revised(SUCCESS, "Success", (uint8_t *)post_data, post_data_rcvd, NULL);
     alarm_unset(http_post_endalarm);
     alarm_unset(http_post_alarm);
     lib_free(post_data);
     post_data = NULL;
     post_error = post_data_rcvd = post_data_new = 0;
-    _wic64_log(CONS_COL_NO, 2, "http post done");
+    debug_log(CONS_COL_NO, 2, "http post done");
 }
 
 static void http_post_alarm_handler(CLOCK offset, void *data)
 {
-    _wic64_log(CONS_COL_NO, 2, "%s: post_data_rcvd = %d, expected = %d",
+    debug_log(CONS_COL_NO, 2, "%s: post_data_rcvd = %d, expected = %d",
                __FUNCTION__, post_data_rcvd, post_data_size);
 
     if (post_error) {
@@ -1466,7 +1589,7 @@ out:
     lib_free(post_data);
     post_data = NULL;
     post_error = post_data_new = post_data_rcvd = 0;
-    _wic64_log(CONS_COL_NO, 2, "http post done");
+    debug_log(CONS_COL_NO, 2, "http post done");
 }
 
 static size_t post_write_func(char *buffer, size_t size, size_t nitems, void *userdata)
@@ -1477,9 +1600,9 @@ static size_t post_write_func(char *buffer, size_t size, size_t nitems, void *us
 
     ret = size * nitems;
     res = curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &cl);
-    _wic64_log(CONS_COL_NO, 2, "http_post returned %d/0x%x bytes, expected len = %d...", ret, ret, cl);
+    debug_log(CONS_COL_NO, 2, "http_post returned %d/0x%x bytes, expected len = %d...", ret, ret, cl);
     if (res != CURLE_OK) {
-        _wic64_log(CONS_COL_NO, 2, "post callback failed to read length");
+        debug_log(CONS_COL_NO, 2, "post callback failed to read length");
         post_error = 1;
         goto out;
     }
@@ -1489,7 +1612,7 @@ static size_t post_write_func(char *buffer, size_t size, size_t nitems, void *us
     }
     memcpy(post_data + post_data_rcvd, buffer, ret);
     post_data_rcvd += ret;
-    _hexdump(CONS_COL_NO, 2, buffer, (int)ret);
+    debug_hexdump(CONS_COL_NO, 2, buffer, (int)ret);
   out:
     post_data_size = (size_t) cl; /* if -1 => largest size_t, so unknown */
     return ret;
@@ -1510,7 +1633,7 @@ static void cmd_http_post(int cmd)
         }
         send_reply_revised(SUCCESS, "Success", NULL, 0, NULL);
     } else {
-        hexdump(CONS_COL_BLUE, (const char *)commandbuffer, commandptr);
+        wic64_log_hexdump(LOG_COL_LBLUE, (const char *)commandbuffer, commandptr);
 
         if (post_url == NULL) {
             send_reply_revised(CLIENT_ERROR, "URL not specified", NULL, 0, "!0");
@@ -1574,20 +1697,25 @@ static void cmd_http_post(int cmd)
 /* set wlan ssid + password */
 static void cmd_wifi(int cmd)
 {
-    hexdump(CONS_COL_NO, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
+    wic64_log_hexdump(CONS_COL_NO, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
 
     int l = (wic64_protocol == WIC64_PROT_LEGACY) ? 0 : 1; /* kludge to make it compatible */
+    char sep = l ? '\0' : '\1';
+    char rets[128];
+    char r = '\0';
 
     switch (cmd) {
-    case WIC64_CMD_SCAN_WIFI_NETWORKS:
+    case WIC64_CMD_SCAN_WIFI_NETWORKS: {
+        snprintf(rets, 127, "0%cvice-emulation%c65%c%c", sep, sep, sep, 0xff);
         send_reply_revised(SUCCESS, "Success",
-                           (uint8_t *) "00\001vice-emulation\00199\001",
-                           strlen("00\001vice-emulation\00199\001") + l,
+                           (uint8_t *) rets, 20+l,
                            NULL);
         break;
-    case WIC64_CMD_IS_CONFIGURED:
-        send_reply_revised(SUCCESS, "Success", NULL, 0, NULL);
+    }
+    case WIC64_CMD_IS_CONFIGURED: {
+        send_reply_revised(SUCCESS, "Success", (uint8_t *)&r, 1, NULL);
         break;
+    }
     case WIC64_CMD_CONNECT_WITH_SSID_STRING:
     case WIC64_CMD_CONNECT_WITH_SSID_INDEX:
     case WIC64_CMD_IS_CONNECTED:
@@ -1601,7 +1729,7 @@ static void cmd_wifi(int cmd)
         break;
     case WIC64_CMD_GET_RSSI:
         send_reply_revised(SUCCESS, "Success",
-                           (uint8_t *) "99", strlen("99") + l, NULL);
+                           (uint8_t *) "-65dBm", strlen("-65dBm") + l, NULL);
         break;
     default:
         break;
@@ -1645,13 +1773,13 @@ static void cmd_get_local_time(void)
     snprintf(timestr, 63, "%02d:%02d:%02d %02d-%02d-%04d",
              tm->tm_hour, tm->tm_min, tm->tm_sec, tm->tm_mday, tm->tm_mon+1, tm->tm_year + 1900);
     wic64_log(CONS_COL_NO, "get timezone + time, returning '%s'", timestr);
-    send_reply_revised(SUCCESS, "Success", (uint8_t *)timestr, strlen(timestr), NULL);
+    send_reply_revised(SUCCESS, "Success", (uint8_t *)timestr, strlen(timestr) + 1, NULL);
 }
 
 /* set timezone */
 static void cmd_set_timezone(void)
 {
-    hexdump(CONS_COL_NO, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
+    wic64_log_hexdump(CONS_COL_NO, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
     wic64_timezone[0] = commandbuffer[0];
     wic64_timezone[1] = commandbuffer[1];
 
@@ -1672,7 +1800,7 @@ static void cmd_set_timezone(void)
 static void cmd_get_timezone(void)
 {
     char buf[16];
-    hexdump(CONS_COL_NO, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
+    wic64_log_hexdump(CONS_COL_NO, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
     snprintf(buf, 16, "%d",
              timezones[current_tz].hour_offs * 3600 +
              timezones[current_tz].min_offs * 60);
@@ -1712,7 +1840,7 @@ static void do_connect(uint8_t *buffer)
 static void cmd_tcp_open(void)
 {
     char tmp[COMMANDBUFFER_MAXLEN];
-    hexdump(CONS_COL_BLUE, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
+    wic64_log_hexdump(LOG_COL_LBLUE, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
 
     if (commandptr == 0) {
         send_reply_revised(CLIENT_ERROR, "No URL specified", NULL, 0, "!0");
@@ -1783,7 +1911,7 @@ static void tcp_get_alarm_handler(CLOCK offset, void *data)
         big_load = 0;
         send_reply_revised(SUCCESS, "Success", curl_buf, total_read, NULL);
     } else {
-        wic64_log(CONS_COL_RED, "%s: curl_easy_recv: %s", __FUNCTION__, curl_easy_strerror(res));
+        wic64_log(LOG_COL_LRED, "%s: curl_easy_recv: %s", __FUNCTION__, curl_easy_strerror(res));
         send_reply_revised(NETWORK_ERROR, "TCP connection closed", NULL, 0, "!E");
     }
     total_read = 0;
@@ -1792,11 +1920,11 @@ static void tcp_get_alarm_handler(CLOCK offset, void *data)
 static void cmd_tcp_read(void)
 {
     if (commandptr > 0) {
-        hexdump(CONS_COL_BLUE, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
+        wic64_log_hexdump(LOG_COL_LBLUE, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
     }
 
     if (!curl) {
-        wic64_log(CONS_COL_RED, "%s: connection lost", __FUNCTION__);
+        wic64_log(LOG_COL_LRED, "%s: connection lost", __FUNCTION__);
         send_reply_revised(NETWORK_ERROR, "TCP connection closed", NULL, 0, "!E");
         return;
     }
@@ -1836,17 +1964,17 @@ static void tcp_send_alarm_handler(CLOCK offset, void *data)
         wic64_log(CONS_COL_NO, "%s: tcp sent successfully", __FUNCTION__);
         send_reply_revised(SUCCESS, "Success", NULL, 0, "0");
     } else {
-        wic64_log(CONS_COL_RED, "%s: curl_easy_send: %s", __FUNCTION__, curl_easy_strerror(res));
+        wic64_log(LOG_COL_LRED, "%s: curl_easy_send: %s", __FUNCTION__, curl_easy_strerror(res));
         send_reply_revised(NETWORK_ERROR, "Failed to write TCP data", NULL, 0, "!E");
     }
 }
 
 static void cmd_tcp_write(void)
 {
-    hexdump(CONS_COL_NO, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
+    wic64_log_hexdump(CONS_COL_NO, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
 
     if (!curl) {
-        wic64_log(CONS_COL_RED, "%s: connection lost", __FUNCTION__);
+        wic64_log(LOG_COL_LRED, "%s: connection lost", __FUNCTION__);
         send_reply_revised(CONNECTION_ERROR, "Can't execute TCP command", NULL, 0, "!0");
         return;
     }
@@ -1883,25 +2011,46 @@ static void cmd_get_statusmsg(void)
     bool upcase = false;
 
     if (commandptr > 0) {
-        hexdump(CONS_COL_BLUE, (const char *)commandbuffer, commandptr);
+        wic64_log_hexdump(LOG_COL_LBLUE, (const char *)commandbuffer, commandptr);
         upcase = (commandbuffer[0] > 0);
     }
 
     for (i = 0; wic64_last_status[i]; i++) {
         t[i] = upcase ? toupper((unsigned char)wic64_last_status[i]) : wic64_last_status[i];
-        t[i] = charset_p_topetcii(t[i]);
+        t[i] = charset_p_topetscii(t[i]);
     }
     t[i] = '\0';
 
     send_reply_revised(SUCCESS, "Success", t, strlen((char *)t) + 1, NULL);
 }
 
+static void cmd_force_timeout_alarm_handler(CLOCK offset, void *data)
+{
+    wic64_log(LOG_COL_LRED, "force timeout expired");
+    replyptr = reply_length = force_timeout = 0;
+    input_state = INPUT_EXP_PROT;
+    commandptr = 0;
+    alarm_unset(cmd_force_timeout_alarm);
+    /* set_userport_flag(FLAG2_INACTIVE); */
+}
+
 static void cmd_force_timeout(void)
 {
-    wic64_timeout = commandbuffer[0];
-    wic64_log(CONS_COL_NO, "forcing timeout after %ds", wic64_timeout);
+    if (wic64_protocol == WIC64_PROT_LEGACY) {
+        return;                 /* legacy won't support timeouts */
+    }
+    int timeout = (commandptr > 0) ? commandbuffer[0] : 1;
+    wic64_log(CONS_COL_NO, "forcing timeout after %ds", timeout);
     force_timeout = 1;
-    send_reply_revised(SUCCESS, "Success", NULL, 0, NULL);
+
+    /* set_userport_flag(FLAG2_ACTIVE); */
+
+    if (cmd_force_timeout_alarm == NULL) {
+        cmd_force_timeout_alarm = alarm_new(maincpu_alarm_context, "CMDForceTimoutAlarm",
+                                            cmd_force_timeout_alarm_handler, NULL);
+    }
+    alarm_unset(cmd_force_timeout_alarm);
+    alarm_set(cmd_force_timeout_alarm, maincpu_clk + timeout * machine_get_cycles_per_second());
 }
 
 /* ---------------- legacy command -----------------*/
@@ -1933,16 +2082,16 @@ static void cmd_legacy(int cmd)
         break;
     case WIC64_CMD_DEPRECATED_GET_UPD_0A:
     case WIC64_CMD_DEPRECATED_GET_UPD_DUPLICATE_1E:
-        wic64_log(CONS_COL_RED, "get udp/tcp package, not implemented");
+        wic64_log(LOG_COL_LRED, "get udp/tcp package, not implemented");
         send_reply_revised(INTERNAL_ERROR, "LEGACY", NULL, 0, "");
         break;
     case WIC64_CMD_DEPRECATED_SEND_UPD_0B:
     case WIC64_CMD_DEPRECATED_SEND_UPD_DUPLICATE_1F:
-        wic64_log(CONS_COL_RED, "send udp/tcp package, not implemented");
+        wic64_log(LOG_COL_LRED, "send udp/tcp package, not implemented");
         send_reply_revised(INTERNAL_ERROR, "LEGACY", NULL, 0, NULL);
         break;
     case WIC64_CMD_DEPRECATED_SET_UPD_PORT_0E:
-        hexdump(CONS_COL_NO, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
+        wic64_log_hexdump(CONS_COL_NO, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
         wic64_udp_port = commandbuffer[0];
         wic64_udp_port += commandbuffer[1] << 8;
         wic64_log(CONS_COL_NO, "set udp port to %d", wic64_udp_port);
@@ -1964,25 +2113,25 @@ static void cmd_legacy(int cmd)
     case WIC64_CMD_DEPRECATED_GET_PREFERENCES_19:
     {
         char buffer[256];
-        hexdump(CONS_COL_NO, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
+        wic64_log_hexdump(CONS_COL_NO, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
         snprintf(buffer, 255, "%s", "vice");
-        wic64_log(CONS_COL_RED, "read prefs not implemented, returning '%s'", buffer);
+        wic64_log(LOG_COL_LRED, "read prefs not implemented, returning '%s'", buffer);
         send_reply_revised(INTERNAL_ERROR, "LEGACY", (uint8_t *) buffer, strlen(buffer), NULL);
         break;
     }
     case WIC64_CMD_DEPRECATED_SET_PREFERENCES_1A:
-        wic64_log(CONS_COL_RED, "write prefs not implemented");
+        wic64_log(LOG_COL_LRED, "write prefs not implemented");
         send_reply_revised(INTERNAL_ERROR, "LEGACY", NULL, 0, "");
         break;
     case WIC64_CMD_DEPRECATED_SET_TCP_PORT_20:
-        hexdump(CONS_COL_NO, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
+        wic64_log_hexdump(CONS_COL_NO, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
         wic64_tcp_port = commandbuffer[0];
         wic64_tcp_port += commandbuffer[1] << 8;
         wic64_log(CONS_COL_NO, "set tcp port to %d", wic64_tcp_port);
         send_reply_revised(SUCCESS, "LEGACY", NULL, 0, NULL);
         break;
     case WIC64_CMD_DEPRECATED_BIG_LOADER_25:
-        hexdump(CONS_COL_NO, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
+        wic64_log_hexdump(CONS_COL_NO, (const char *)commandbuffer, commandptr); /* commands may contain '0' */
         big_load = 1;
         cmd_http_get();
         break;
@@ -1992,7 +2141,7 @@ static void cmd_legacy(int cmd)
         send_reply_revised(SUCCESS, "LEGACY", NULL, 0, NULL);
         break;
     case WIC64_CMD_DEPRECATED_LEGACY_HTTP_POST_24:
-        wic64_log(CONS_COL_RED, "httppost - not implemented");
+        wic64_log(LOG_COL_LRED, "httppost - not implemented");
         send_reply_revised(INTERNAL_ERROR, "LEGACY", NULL, 0, "!E");
         break;
     default:
@@ -2011,7 +2160,7 @@ static void do_command(void)
     case WIC64_CMD_HTTP_GET_ENCODED: /* send http with decoded url for PHP */
         cmd_http_get_encoded();
         /* show in log that we're entering http_get */
-        wic64_log(CONS_COL_BLUE, "URL decoded, proceed with %s", cmd2string[WIC64_CMD_HTTP_GET]);
+        wic64_log(LOG_COL_LBLUE, "URL decoded, proceed with %s", cmd2string[WIC64_CMD_HTTP_GET]);
         /* fall through */
     case WIC64_CMD_HTTP_GET:
         big_load = 0;
@@ -2075,30 +2224,40 @@ static void do_command(void)
         cmd_get_statusmsg();
         break;
     case WIC64_CMD_ECHO:
-        send_reply_revised(SUCCESS, "Success", commandbuffer, commandptr, NULL);
+        if (wic64_protocol != WIC64_PROT_EXTENDED)
+            send_reply_revised(SUCCESS, "", commandbuffer, commandptr, NULL);
+        else
+            send_reply_revised(CLIENT_ERROR, "", NULL, 0, NULL);
         break;
     case WIC64_CMD_REBOOT:
-        userport_wic64_reset();
-        send_reply_revised(SUCCESS, "Success", NULL, 0, NULL);
+        debug_log(CONS_COL_NO, 3, "%s: arming for reboot", __FUNCTION__);
+        wic64_sleep_cycles(3 * (int)machine_get_cycles_per_second(), userport_wic64_reset); /* emulated a 3s reboot */
         break;
-    case WIC64_CMD_SET_TIMEOUT:
+    case WIC64_CMD_SET_TRANSFER_TIMEOUT:
+    case WIC64_CMD_SET_REMOTE_TIMEOUT:
         if (commandptr < 1) {
-            send_reply_revised(CLIENT_ERROR, "ESP timeout not specified", NULL, 0, NULL);
+            send_reply_revised(CLIENT_ERROR, "Timeout value not specified", NULL, 0, NULL);
             break;
         }
         if (commandbuffer[0] == 0) {
-            send_reply_revised(CLIENT_ERROR, "ESP timeout must be >= 1 second", NULL, 0, NULL);
+            send_reply_revised(CLIENT_ERROR, "Timeout must be >= 1 second", NULL, 0, NULL);
             break;
         }
-        wic64_timeout = commandbuffer[0]; /* timeout in secs */
-        wic64_log(CONS_COL_NO, "setting cmd timeout to %ds", wic64_timeout);
+        if (input_command == WIC64_CMD_SET_TRANSFER_TIMEOUT) {
+            wic64_timeout = commandbuffer[0]; /* timeout in secs */
+            wic64_log(CONS_COL_NO, "setting transfer timeout to %ds", wic64_timeout);
+        } else {
+            remote_to = commandbuffer[0]; /* timeout in secs */
+            wic64_log(CONS_COL_NO, "setting remote timeout to %ds", remote_to);
+        }
         send_reply_revised(SUCCESS, "Success", NULL, 0, NULL);
         break;
     case WIC64_CMD_IS_HARDWARE:
-        send_reply_revised(INTERNAL_ERROR, "WiC64 is emulated", NULL, 0, NULL);
+        /* send_reply_revised(INTERNAL_ERROR, "WiC64 is emulated", NULL, 0, NULL); */
+        send_reply_revised(SUCCESS, "Success", NULL, 0, NULL);
         break;
     case WIC64_CMD_FORCE_ERROR:
-        wic64_log(CONS_COL_RED, "forcing error...");
+        wic64_log(LOG_COL_LRED, "forcing error...");
         send_reply_revised(INTERNAL_ERROR, "Test error", NULL, 0, NULL);
         break;
     case WIC64_CMD_FORCE_TIMEOUT:
@@ -2130,7 +2289,7 @@ static void do_command(void)
     default:
     {
         char it[64];
-        wic64_log(CONS_COL_RED, "WiC64: unsupported command 0x%02x (len: %d/0x%x)",
+        wic64_log(LOG_COL_LRED, "WiC64: unsupported command 0x%02x (len: %d/0x%x)",
                   input_command, input_length, input_length);
         input_state = 0;
         snprintf(it, 63, "Undefined command id 0x%02x", input_command);
@@ -2179,9 +2338,9 @@ static void wic64_prot_state(uint8_t value)
             commandbuffer[commandptr] = value;
             commandptr++;
             if (commandptr >= COMMANDBUFFER_MAXLEN) {
-                wic64_log(CONS_COL_RED, "command %s exceeds maxlength, forcing timeout",
+                wic64_log(LOG_COL_LRED, "command %s exceeds maxlength, forcing timeout",
                           cmd2string[input_command]);
-                hexdump(CONS_COL_BLUE, (const char *)commandbuffer, commandptr - 1);
+                wic64_log_hexdump(LOG_COL_LBLUE, (const char *)commandbuffer, commandptr - 1);
                 commandbuffer[0] = 1; /* for timeout for 1s */
                 cmd_force_timeout();
                 return;
@@ -2190,18 +2349,39 @@ static void wic64_prot_state(uint8_t value)
         }
         break;
     default:
-        wic64_log(CONS_COL_RED, "unknown input state %d", input_state);
+        wic64_log(LOG_COL_LRED, "unknown input state %d", input_state);
         break;
     }
+}
+
+/* this is run after handshake of last byte is completed */
+static void run_command_helper(void)
+{
+    wic64_log(LOG_COL_LBLUE, "command %s (len=%d/0x%x, using %s protocol)",
+              cmd2string[input_command],
+              input_length, input_length,
+              (wic64_protocol == WIC64_PROT_LEGACY) ? "legacy" :
+              (wic64_protocol == WIC64_PROT_REVISED) ? "revised" :
+              (wic64_protocol == WIC64_PROT_EXTENDED) ? "extended" :
+              "unknown");
+    do_command();
+    cmd_timeout(0);
+    commandptr = input_state = input_length = 0;
+    input_command = WIC64_CMD_NONE;
+    memset(commandbuffer, 0, COMMANDBUFFER_MAXLEN);
 }
 
 /* PC2 irq (pulse) triggers when C64 reads/writes to userport */
 static void userport_wic64_store_pbx(uint8_t value, int pulse)
 {
-    if ((pulse == 1) &&
-        (!force_timeout)) {
+    if (force_timeout) {
+        debug_log(LOG_COL_OFF, 3, "%s: force timeout running %d/%d", __FUNCTION__, value, pulse);
+        set_userport_flag(FLAG2_INACTIVE);
+        return;
+    }
+    if (pulse == 1) {
         if (wic64_inputmode) {
-            _wic64_log(CONS_COL_BLUE, 3, "receiving '%c'/0x%02x, input_state = %d",
+            debug_log(LOG_COL_LBLUE, 3, "receiving '%c'/0x%02x, input_state = %d",
                        isprint(value) ? value : '.',
                        value,
                        input_state);
@@ -2218,7 +2398,7 @@ static void userport_wic64_store_pbx(uint8_t value, int pulse)
                     input_state = INPUT_EXP_CMD;
                     break;
                 default:
-                    wic64_log(CONS_COL_RED, "unknown protocol '%c'/0x%02x, using revised.",
+                    wic64_log(LOG_COL_LRED, "unknown protocol '%c'/0x%02x, using revised.",
                               isprint(value) ? value: '.', value);
                     wic64_protocol = WIC64_PROT_REVISED;
                     input_state = INPUT_EXP_CMD;
@@ -2237,23 +2417,12 @@ static void userport_wic64_store_pbx(uint8_t value, int pulse)
             } else {
                 wic64_prot_state(value);
             }
+            handshake_flag2();
 
             cmd_timeout(1);
-            handshake_flag2();
             if ((input_state == INPUT_EXP_ARGS) &&
                 (commandptr == input_length)) {
-                wic64_log(CONS_COL_BLUE, "command %s (len=%d/0x%x, using %s protocol)",
-                          cmd2string[input_command],
-                          input_length, input_length,
-                          (wic64_protocol == WIC64_PROT_LEGACY) ? "legacy" :
-                          (wic64_protocol == WIC64_PROT_REVISED) ? "revised" :
-                          (wic64_protocol == WIC64_PROT_EXTENDED) ? "extended" :
-                          "unknown");
-                cmd_timeout(0);
-                do_command();
-                commandptr = input_state = input_length = 0;
-                input_command = WIC64_CMD_NONE;
-                memset(commandbuffer, 0, COMMANDBUFFER_MAXLEN);
+                wic64_sleep_cycles(FLAG2_TOGGLE_DELAY + 1, run_command_helper);
             }
         } else {
             if (reply_length) {
@@ -2270,26 +2439,72 @@ static uint8_t userport_wic64_read_pbx(uint8_t orig)
     /* FIXME: what do we have to do with original value? */
     /* CIA read is triggered once more by wic64 lib on the host,
        even if all bytes are sent, so the last byte seems to be sent twice */
+    char *stage = NULL;
+    char datastr[32];
+    int v = 0, b = 0, d = 1;
 
-    _wic64_log(CONS_COL_GREEN, 3, "sending '%c'/0x%02x - ptr = %d, rl = %d/0x%x",
-               isprint(retval) ? retval : '.',
-               retval, replyptr, reply_length, reply_length);
     cmd_timeout(0);
     /* FIXME: trigger mainloop */
+
+    if (wic64_loglevel < 3)
+        return retval;
+
+    if (stage_retcode < 0) {
+        stage = NULL;
+    } else if (stage_dummy) {
+        stage = "dummy";
+        b = v = 1;
+        stage_dummy--;
+    } else if (stage_retcode) {
+        if (retval < 6) {       /* num of error codes defined for now */
+            stage = err2string[retval];
+        } else {
+            stage = "UNKNOWN";
+        }
+        v = bsr - --stage_retcode;
+        b = bsr;
+    } else if (stage_length) {
+        stage = "length";
+        v = bsl - --stage_length;
+        b = bsl;
+    } else if (stage_data) {
+        v = bsd - --stage_data;
+        b = bsd;
+        if ((bsd > 255) && (v == bsd)) d = 0;
+        snprintf(datastr, 31, "data block %04d/%04d", (v / 256) + 1*d, ((b - 1) / 256) + 1);
+        stage = datastr;
+    }
+
+    if (stage) {
+        debug_log(LOG_COL_LGREEN, 3, "sending '%c'/0x%02x - 0x%02x/0x%04x %s\t - ptr = %d, rl = %d/0x%x",
+                  isprint(retval) ? retval : '.', retval,
+                  v, b, stage,
+                  replyptr,
+                  reply_length, reply_length);
+    } else {
+        debug_log(LOG_COL_LGREEN, 3, "sending '%c'/0x%02x - ptr = %d, rl = %d/0x%x",
+                  isprint(retval) ? retval : '.', retval,
+                  replyptr,
+                  reply_length, reply_length);
+    }
     return retval;
 }
 
 /* PA2 interrupt toggles input/output mode */
 static void userport_wic64_store_pa2(uint8_t value)
 {
-    _wic64_log(CONS_COL_NO, 2, "userport mode %s...(len = %d)",
+    if (force_timeout == 1) {
+        debug_log(LOG_COL_OFF, 3, "%s: force timeout pending...%d", __FUNCTION__, value);
+        return;
+    }
+    debug_log(CONS_COL_NO, 2, "userport mode %s...(len = %d)",
                value ? "sending" : "receiving",
                reply_length);
 
     if ((wic64_inputmode == 1) &&
         (value == 0) &&
         (reply_length)) {
-        _wic64_log(CONS_COL_NO, 2, "userport_wic64_store_pa2 val:%02x (host %s - rl = %u)",
+        debug_log(CONS_COL_NO, 2, "userport_wic64_store_pa2 val:%02x (host %s - rl = %u)",
                    value, value ? "sends" : "receives", reply_length);
         handshake_flag2();
     }
@@ -2298,9 +2513,9 @@ static void userport_wic64_store_pa2(uint8_t value)
         if ((reply_length > 0) &&
             (replyptr > 0)) {
             replyptr--;         /* rewind by 1 byte */
-            wic64_log(CONS_COL_RED, "discarding %d bytes, which were not sent to host",
+            wic64_log(LOG_COL_LRED, "discarding %d bytes, which were not sent to host",
                       (reply_length - replyptr));
-            hexdump(CONS_COL_RED, &replybuffer[replyptr], (reply_length - replyptr));
+            wic64_log_hexdump(LOG_COL_LRED, &replybuffer[replyptr], (reply_length - replyptr));
         }
         replyptr = reply_length = 0; /* host decided to send, truncate outputbuffer */
     }
@@ -2312,7 +2527,7 @@ static void userport_wic64_reset(void)
     int tmp_tz;
 
     wic64_log(CONS_COL_NO, "%s", __FUNCTION__);
-    commandptr = input_state = input_length = 0;
+    commandptr = input_state = input_length = force_timeout = 0;
     input_command = WIC64_CMD_NONE;
     wic64_inputmode = 1;
     memset(sec_token, 0, 32);
@@ -2326,7 +2541,7 @@ static void userport_wic64_reset(void)
                  lib_unsigned_rand(0, 15),
                  lib_unsigned_rand(0, 15),
                  lib_unsigned_rand(0, 15));
-        _wic64_log(CONS_COL_NO, 2, "WIC64: generated MAC: %s", wic64_mac_address);
+        debug_log(CONS_COL_NO, 2, "WIC64: generated MAC: %s", wic64_mac_address);
     } else {
         wic64_mac_address = tmp;
     }
@@ -2338,11 +2553,10 @@ static void userport_wic64_reset(void)
         snprintf(wic64_internal_ip, 16, "192.168.%u.%u",
                  lib_unsigned_rand(1, 254),
                  lib_unsigned_rand(1, 254));
-        _wic64_log(CONS_COL_NO, 2, "WIC64: generated internal IP: %s", wic64_internal_ip);
+        debug_log(CONS_COL_NO, 2, "WIC64: generated internal IP: %s", wic64_internal_ip);
     } else {
         wic64_internal_ip = tmp;
     }
-
     if (resources_get_int("WIC64Timezone", &tmp_tz) == -1) {
         current_tz = 2;
     } else {
@@ -2367,6 +2581,11 @@ static void userport_wic64_reset(void)
     if (cmd_timeout_alarm) {
         alarm_unset(cmd_timeout_alarm);
     }
+    if (cmd_force_timeout_alarm) {
+        alarm_unset(cmd_force_timeout_alarm);
+    }
+    /* flag2 and cycle alarms need to be preserverd !*/
+    remote_to = wic64_remote_timeout; /* reset to given value */
     if (curl) {
         /* connection closed */
         curl_easy_cleanup(curl);
@@ -2378,13 +2597,14 @@ static void userport_wic64_reset(void)
         lib_free(post_url);
         post_url = NULL;
     }
-    wic64_set_status("RESET");
-    if (wic64_colorize_log) {
-        wic64_log(CONS_COL_BLUE, "cyan color: host -> WiC64 communication");
-        wic64_log(CONS_COL_GREEN, "green color: WiC64 -> host communication");
-        wic64_log(CONS_COL_RED, "red color: some error");
-        wic64_log(CONS_COL_NO, "no color: other information");
-    }
+    /* wic64_set_status("RESET"); real HW doesn't tell this */
+
+    wic64_log(LOG_COL_LBLUE, "cyan color: host -> WiC64 communication");
+    wic64_log(LOG_COL_LGREEN, "green color: WiC64 -> host communication");
+    wic64_log(LOG_COL_LRED, "red color: some error");
+    wic64_log(CONS_COL_NO, "no color: other information");
+
+    handshake_flag2();
 }
 
 /* ---------------------------------------------------------------------*/

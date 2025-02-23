@@ -94,6 +94,8 @@ static double vsync_metric_emulated_fps;
 #   define METRIC_UNLOCK()
 #endif
 
+log_t vsync_log = LOG_DEFAULT;
+
 /* ------------------------------------------------------------------------- */
 
 typedef struct callback_queue_s {
@@ -170,7 +172,7 @@ static int set_relative_speed(int val, void *param)
 {
     if (val == 0) {
         val = 100;
-        log_warning(LOG_DEFAULT, "Setting speed to 0 is no longer supported - use warp instead.");
+        log_warning(vsync_log, "Setting speed to 0 is no longer supported - use warp instead.");
     }
 
     relative_speed = val;
@@ -238,10 +240,10 @@ static const cmdline_option_t cmdline_options[] =
       NULL, NULL, "Speed", NULL,
       "<percent or negative fps>", "Limit emulation speed to specified value" },
     { "-warp", CALL_FUNCTION, CMDLINE_ATTRIB_NONE,
-      set_initial_warp_mode_cmdline, int_to_void_ptr(1), NULL, NULL,
+      set_initial_warp_mode_cmdline, vice_int_to_ptr(1), NULL, NULL,
       NULL, "Initially enable warp mode" },
     { "+warp", CALL_FUNCTION, CMDLINE_ATTRIB_NONE,
-      set_initial_warp_mode_cmdline, int_to_void_ptr(0), NULL, NULL,
+      set_initial_warp_mode_cmdline, vice_int_to_ptr(0), NULL, NULL,
       NULL, "Do not initially enable warp mode (default)" },
     CMDLINE_LIST_END
 };
@@ -328,6 +330,8 @@ double vsync_get_refresh_frequency(void)
 
 void vsync_init(void (*hook)(void))
 {
+    vsync_log = log_open("VSync");
+
     /* Set the initial warp state. */
     if (initial_warp_mode_cmdline != -1) {
         /* Command line overrides config resource setting. */
@@ -539,7 +543,7 @@ void vsync_do_end_of_line(void)
 #endif
 
     if (sync_reset) {
-        log_message(LOG_DEFAULT, "Sync reset");
+        log_message(vsync_log, "Sync reset");
         sync_reset = false;
         metrics_reset = true;
 
@@ -718,7 +722,7 @@ void vsync_do_vsync(struct video_canvas_s *c)
     vsyncarch_postsync();
 
 #ifdef VSYNC_DEBUG
-    log_debug("vsync: start:%lu  delay:%ld  sound-delay:%lf  end:%lu  next-frame:%lu  frame-ticks:%lu",
+    log_debug(LOG_DEFAULT, "vsync: start:%lu  delay:%ld  sound-delay:%lf  end:%lu  next-frame:%lu  frame-ticks:%lu",
                 now, delay, sound_delay * 1000000, tick_now(), next_frame_start, ticks_per_frame);
 #endif
 

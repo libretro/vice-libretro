@@ -59,14 +59,16 @@
 #include "drive.h"
 #include "maincpu.h"
 #include "drive/iec/cmdhd.h"
+#include "vicii-phi1.h"
 
+/* #define RLLOG1 */
+/* #define RLLOG2 */
 /* #define RLLOG1 */
 /* #define RLLOG2 */
 /* #define RLDEBUGIO */
 /* #define RLDEBUGMEM */
 
 #define LOG LOG_DEFAULT
-#define ERR LOG_ERR
 
 #ifdef RLDEBUGMEM
 #define MDBG(_x_) log_message _x_
@@ -92,7 +94,7 @@
 #define LOG2(_x_)
 #endif
 
-#define CRIT(_x_) log_message _x_
+#define CRIT(_x_) log_error _x_
 
 #if C64CART_ROM_LIMIT <= 65536
 #error C64CART_ROM_LIMIT is too small; it should be at least 65536
@@ -132,7 +134,7 @@ static uint32_t rl_rombase = 0;
 static uint32_t rl_kernbase = 0;
 static uint32_t rl_rambase = 0;
 static uint32_t rl_cardbase = 0;
-static uint32_t rl_cardmask = 0;
+static uint32_t rl_cardaddr = 0;
 static uint32_t rl_io1mode = 7; /* initially unused mode */
 static rtc_72421_t *rl_rtc = NULL;
 static i8255a_state rl_i8255a;
@@ -147,6 +149,7 @@ static uint8_t *rl_ram = NULL;
 static uint8_t *rl_rom = NULL;
 static int rl_extexrom = 0;
 static int rl_extgame = 0;
+static char rl_memmap[256];
 
 /* some prototypes are needed */
 static uint8_t ramlink_io1_read(uint16_t addr);
@@ -464,6 +467,9 @@ static void ramlink_scan_io(void)
                 if (current->device->cart_id == CARTRIDGE_REU) {
                     ramlink_devices_io2_reu = ramlink_devices_io2_count;
                     current->device->io_source_prio = IO_PRIO_LOW;
+                    /* need to change end of IO for REU or else GEORAM may not
+                       work depending on switch order */
+                    current->device->end_address = 0xdf7f;
                     LOG1((LOG, "RAMLINK: Found REU IO2"));
                 }
                 ramlink_devices_io2_count++;
@@ -657,14 +663,36 @@ static void ramlink_off(void)
     cart_port_config_changed_slot0();
 }
 
+/* Turn on or off devices based on port access settings */
+static void ramlink_update_io1mode(void)
+{
+    if (rl_io1mode == 0) { /* internal RAM */
+        ramlink_other1_off();
+        ramlink_ramport_off();
+        ramlink_io1_on();
+    } else if ((rl_io1mode == 1) && (rl_cardsizemb != 0) && rl_card &&
+        rl_enabled) { /* RAMCard */
+        ramlink_other1_off();
+        ramlink_ramport_off();
+        ramlink_io1_on();
+    } else if (rl_io1mode == 2) { /* GEORAM or RAMDRIVE */
+        ramlink_other1_off();
+        ramlink_io1_off();
+        ramlink_ramport_on();
+    } else { /* PASSTHRU */
+        ramlink_ramport_off();
+        ramlink_io1_off();
+        ramlink_other1_on();
+    }
+}
+
 /* Turn on RL */
 static void ramlink_on(void)
 {
-    ramlink_io1_on();
     ramlink_io2_on();
-    ramlink_other1_off();
     ramlink_reu_on();
     ramlink_georam2_on();
+    ramlink_update_io1mode();
     rl_on = 1;
     cart_port_config_changed_slot0();
 }
@@ -718,7 +746,7 @@ int ramlink_ram_save(const char *filename)
     if (!util_check_null_string(filename)) {
         LOG1((LOG, "RAMLINK: Writing RAMLINK memory image %s.", filename));
         if (util_file_save(filename, rl_card, rl_cardsize) < 0) {
-            CRIT((ERR, "RAMLINK: Writing RAMLINK memory image %s failed.",
+            CRIT((LOG, "RAMLINK: Writing RAMLINK memory image %s failed.",
                 filename));
             return -1;
         }
@@ -752,7 +780,7 @@ int ramlink_can_flush_ram_image(void)
 }
 
 /* save RAMCard image file if set to by resource */
-static int ramlink_save_image(void)
+static int ramlink_save_ram_image(void)
 {
     if (rl_write_image) {
         return ramlink_flush_ram_image();
@@ -761,8 +789,8 @@ static int ramlink_save_image(void)
     return 0;
 }
 
-/* load RAMCard image file */
-static int ramlink_load_image(void)
+/* load RAMLINK RAM image file */
+static int ramlink_load_ram_image(void)
 {
     if (rl_card == NULL) {
         return -1;
@@ -775,13 +803,13 @@ static int ramlink_load_image(void)
     if (!util_check_null_string(rl_filename)) {
         if (util_file_load(rl_filename, rl_card, (size_t)rl_cardsize,
             UTIL_FILE_LOAD_RAW) < 0) {
-            CRIT((ERR, "RAMLINK: Reading RAMLINK memory image %s failed.",
+            CRIT((LOG, "RAMLINK: Reading RAMLINK memory image %s failed.",
                 rl_filename));
             /* only create a new file if no file exists, so we dont accidently
                 overwrite any files */
             if (!util_file_exists(rl_filename)) {
                 if (util_file_save(rl_filename, rl_card, rl_cardsize) < 0) {
-                    CRIT((ERR, "RAMLINK: Creating RAMLINK memory image %s failed.",
+                    CRIT((LOG, "RAMLINK: Creating RAMLINK memory image %s failed.",
                         rl_filename));
                     return -1;
                 }
@@ -835,7 +863,7 @@ static int ramlink_activate(void)
 
     LOG1((LOG, "RAMLINK: %dMiB unit installed.", rl_cardsizemb));
 
-    return ramlink_load_image();
+    return ramlink_load_ram_image();
 }
 
 static int ramlink_deactivate(void)
@@ -851,7 +879,7 @@ static int ramlink_deactivate(void)
         return 0;
     }
 
-    res = ramlink_save_image();
+    res = ramlink_save_ram_image();
 
     lib_free(rl_card);
     rl_card = NULL;
@@ -879,17 +907,17 @@ static int set_enabled(int value, void *param)
         if (param) {
             /* if the param is != NULL, then we should load the default image file */
             LOG1((LOG, "RAMLINK: set_enabled(1) '%s'", rl_bios_filename));
-            if (rl_bios_filename) {
-                if (*rl_bios_filename) {
-                    /* try .crt image first */
-                    if ((cartridge_attach_image(CARTRIDGE_CRT, rl_bios_filename) < 0) &&
-                        (cartridge_attach_image(CARTRIDGE_RAMLINK, rl_bios_filename) < 0)) {
-                        LOG1((LOG, "RAMLINK: set_enabled(1) did not register"));
-                        return -1;
-                    }
-                    /* rl_enabled = 1; */ /* cartridge_attach_image will end up calling set_enabled again */
-                    return 0;
+            if ((rl_bios_filename != NULL) && (*rl_bios_filename != 0)) {
+                /* try .crt image first */
+                if ((cartridge_attach_image(CARTRIDGE_CRT, rl_bios_filename) < 0) &&
+                    (cartridge_attach_image(CARTRIDGE_RAMLINK, rl_bios_filename) < 0)) {
+                    LOG1((LOG, "RAMLINK: set_enabled(1) did not register"));
+                    return -1; /* loading the default was requested, file coult not be loaded */
                 }
+                /* rl_enabled = 1; */ /* cartridge_attach_image will end up calling set_enabled again */
+                return 0;
+            } else {
+                return -1; /* loading the default was requested, but no filename was set */
             }
         } else {
             cart_power_off();
@@ -907,7 +935,16 @@ static int set_enabled(int value, void *param)
 
 static int set_size(int size, void *param)
 {
-    if (size < 0 || size > 16) {
+    int i;
+
+    if (size < 0 || size > 64) {
+        return -1;
+    }
+    if (size !=  1 && size !=  2 && size !=  3 && size !=  4 &&
+        size !=  5 && size !=  8 && size !=  9 && size != 12 &&
+        size != 13 && size != 16 && size != 20 && size != 32 &&
+        size != 36 && size != 48 && size != 52 && size != 64 &&
+        size != 17 && size != 33 && size != 49 && size !=  0) {
         return -1;
     }
 
@@ -917,7 +954,65 @@ static int set_size(int size, void *param)
 
     rl_cardsizemb = size;
     rl_cardsize = rl_cardsizemb << 20;
-    rl_cardmask = rl_cardsize - 1;
+
+    /* setup a full map */
+    for (i = 0; i < 64 ; i++) {
+        rl_memmap[i] = i;
+    }
+
+    if (rl_cardsizemb <= 4) {
+        /* anything beyond size specified will be open */
+        for (i = rl_cardsizemb; i < 4 ; i++) {
+            rl_memmap[i] = -1;
+        }
+        /* mirror to full 64MB range */
+        for (i = 4; i < 64 ; i++) {
+            rl_memmap[i] = rl_memmap[ i & 3 ];
+        }
+    } else if (rl_cardsizemb <= 16) {
+        /* assume remaining slots are open */
+        for (i = rl_cardsizemb; i < 16 ; i++) {
+            rl_memmap[i] = -1;
+        }
+        /* for those that have an additional 1MB SIMM */
+        if (rl_cardsizemb & 3) {
+            /* 5-7, 9-11, 13-15: show previous 1MB slot */
+            for (i = rl_cardsizemb; i < ((rl_cardsizemb / 4) + 1) * 4 ; i++) {
+                rl_memmap[i] = rl_cardsizemb - 1;
+            }
+        }
+        /* mirror to full 64MB range */
+        for (i = 16; i < 64 ; i++) {
+            rl_memmap[i] = rl_memmap[ i & 15 ];
+        }
+    } else {
+        /* assume remaining slots are open */
+        for (i = rl_cardsizemb; i < 64 ; i++) {
+            rl_memmap[i] = -1;
+        }
+        if ((rl_cardsizemb & 7) == 1) {
+            /* for those that have an additional 1MB SIMM */
+            /* 18-31, 34-47, 50-63: show previous 1MB slot */
+            for (i = rl_cardsizemb; i < ((rl_cardsizemb / 16) + 1) * 16 ; i++) {
+                rl_memmap[i] = rl_cardsizemb - 1;
+            }
+        } else if ((rl_cardsizemb & 7) == 4) {
+            /* for those that have an additional 4MB SIMM */
+            /* 20-31, 36-47, 52-63: show previous 4MB slot */
+            for (i = rl_cardsizemb; i < ((rl_cardsizemb / 16) + 1) * 16 ; i++) {
+                rl_memmap[i] = rl_cardsizemb - 4 + ( i & 3);
+            }
+        }
+
+    }
+
+#if 0
+    printf("* RL_MEMMAP:\n");
+    for(i=0;i<64;i++) {
+        printf("%02x ",rl_memmap[i]);
+        if (!((i+1)%16)) printf("\n");
+    }
+#endif
 
     if (rl_enabled) {
         ramlink_activate();
@@ -969,6 +1064,7 @@ static int set_bios_filename(const char *name, void *param)
     util_string_set(&rl_bios_filename, name);
     resources_get_int("RAMLINK", &enabled);
 
+    /* if we are enabled, this will reload the BIOS */
     if (set_enabled(enabled, (void*)1) < 0) {
         lib_free(rl_bios_filename);
         rl_bios_filename = NULL;
@@ -1164,6 +1260,7 @@ static void set_pa(struct _i8255a_state *ctx, uint8_t byte, int8_t reg)
     ramlink_sync_cpus();
     cmdbus.cpu_data = byte;
     cmdbus_update();
+/*if (reg==0) printf("RAMLINK: Send %02x\n",byte);*/
 }
 
 static uint8_t get_pa(struct _i8255a_state *ctx, int8_t reg)
@@ -1186,6 +1283,7 @@ static uint8_t get_pa(struct _i8255a_state *ctx, int8_t reg)
         data = 0xff;
     }
 
+/*if (reg==0) printf("RAMLINK: Got  %02x\n",data);*/
     return data;
 }
 
@@ -1220,6 +1318,7 @@ static void set_pb(struct _i8255a_state *ctx, uint8_t byte, int8_t reg)
     cmdbus_patn_changed(new, old);
 
     cmdbus_update();
+/*if (reg==1) printf("RAMLINK: R=%d C=%d A=%d\n",(byte & 0x80 ? 0 : 1),(byte & 0x40 ? 0 : 1),(byte & 0x20 ? 0 : 1));*/
 }
 
 static uint8_t get_pb(struct _i8255a_state *ctx, int8_t reg)
@@ -1269,9 +1368,15 @@ static uint8_t ramlink_io1_read(uint16_t addr)
             (addr & 0xff), val, reg_pc));
         return val;
     } else if (rl_io1mode == 1) {
-        val = rl_card[rl_cardbase | (addr & 0xff)];
-        IDBG((LOG, "RAMLINK: io1 r card[%06x] = %02x at 0x%04x", rl_cardbase |
-            (addr & 0xff), val, reg_pc));
+        if (rl_cardbase != -1) {
+            val = rl_card[rl_cardbase | (addr & 0xff)];
+            IDBG((LOG, "RAMLINK: io1 r card[%06x] = %02x at 0x%04x", rl_cardbase |
+                (addr & 0xff), val, reg_pc));
+        } else {
+            val = vicii_read_phi1();
+            IDBG((LOG, "RAMLINK: io1 r card[%06x] = %02x at 0x%04x (open)", rl_cardbase |
+                (addr & 0xff), val, reg_pc));
+        }
         return val;
     }
 
@@ -1337,12 +1442,17 @@ static void ramlink_io1_store(uint16_t addr, uint8_t value)
             (addr & 0xff), value, old_val, reg_pc));
         return;
     } else if (rl_io1mode == 1) {
+        if (rl_cardbase != -1) {
 #ifdef RLDEBUGIO
-        old_val = rl_card[rl_cardbase | (addr & 0xff)];
+            old_val = rl_card[rl_cardbase | (addr & 0xff)];
 #endif
-        rl_card[rl_cardbase | (addr & 0xff)] = value;
-        IDBG((LOG, "RAMLINK: io1 w card[%06x] < %02x (%02x) at 0x%04x", rl_cardbase |
-            (addr & 0xff), value, old_val, reg_pc));
+            rl_card[rl_cardbase | (addr & 0xff)] = value;
+            IDBG((LOG, "RAMLINK: io1 w card[%06x] < %02x (%02x) at 0x%04x", rl_cardbase |
+                (addr & 0xff), value, old_val, reg_pc));
+        } else {
+            IDBG((LOG, "RAMLINK: io1 w card[%06x] open bus at 0x%04x", rl_cardbase |
+                (addr & 0xff), reg_pc));
+        }
         return;
     }
 
@@ -1422,13 +1532,25 @@ static void ramlink_io2_80_9f_store(uint16_t addr, uint8_t value)
 
 static void ramlink_io2_a0_a3_store(uint16_t addr, uint8_t value)
 {
+    int i;
+
     switch (addr & 3) {
         case 0:
-            rl_cardbase = ((rl_cardbase & 0xff0000) | (value << 8)) & rl_cardmask;
+            rl_cardaddr = (rl_cardaddr & 0xffff0000) | (value << 8);
             break;
         case 1:
-            rl_cardbase = ((rl_cardbase & 0x00ff00) | (value << 16)) & rl_cardmask;
+            rl_cardaddr = (rl_cardaddr & 0xff00ff00) | (value << 16);
             break;
+        case 2:
+            rl_cardaddr = (rl_cardaddr & 0x00ffff00) | (value << 24);
+            break;
+    }
+    i = rl_memmap[(rl_cardaddr >> 20) & 63];
+    /* if the memory re-mapping is set to -1, then the bus is open */
+    if (i>64) {
+        rl_cardbase = -1;
+    } else {
+        rl_cardbase = (i << 20) | (rl_cardaddr & 0x0fffff);
     }
 
     IDBG((LOG, "RAMLINK: io2 w %04x < %02x at 0x%04x", addr, value, reg_pc));
@@ -1448,24 +1570,7 @@ static void ramlink_io2_b0_bf_store(uint16_t addr, uint8_t value)
 static void ramlink_io2_c0_c3_store(uint16_t addr, uint8_t value)
 {
     rl_io1mode = addr & 0x3;
-    if (rl_io1mode == 0) { /* internal RAM */
-        ramlink_other1_off();
-        ramlink_ramport_off();
-        ramlink_io1_on();
-    } else if ((rl_io1mode == 1) && (rl_cardsizemb != 0) && rl_card &&
-        rl_enabled) { /* RAMCard */
-        ramlink_other1_off();
-        ramlink_ramport_off();
-        ramlink_io1_on();
-    } else if (rl_io1mode == 2) { /* GEORAM or RAMDRIVE */
-        ramlink_other1_off();
-        ramlink_io1_off();
-        ramlink_ramport_on();
-    } else { /* PASSTHRU */
-        ramlink_ramport_off();
-        ramlink_io1_off();
-        ramlink_other1_on();
-    }
+    ramlink_update_io1mode();
 
     IDBG((LOG, "RAMLINK: io2 w %04x < %02x at 0x%04x", addr, value, reg_pc));
 }
@@ -1482,6 +1587,7 @@ static int ramlink_io2_dump(void)
     mon_out("DOS mapped?: %s\n", rl_dos ? "Yes" : "No");
     mon_out("Mode: %s\n", rl_normal ? "Normal" : "Direct");
     mon_out("RAMCard Size: %d MiB\n", rl_cardsizemb);
+    mon_out("IO1 source: %u\n", rl_io1mode);
     mon_out("I8255A at $DF40\n");
     i8255a_dump(&rl_i8255a);
 
@@ -1505,14 +1611,16 @@ int c128ramlink_mmu_translate(unsigned int addr, uint8_t **base, int *start, int
         return 0;
     }
 
-    if (addr >= 0x8000 && addr <= 0x9fff && ((mem_config & 0x0c) == 0x08)) {
+    if (addr >= 0x8000 && addr <= 0x9fff &&
+        ( ((mem_config & 0x0c) == 0x08) || ((mem_config & 0x0c) == 0x04) ) ) {
         if (rl_dos) {
             *base = rl_rom + rl_rombase - 0x8000;
             *start = 0x8000;
             *limit = 0x9ffd;
             return 1;
         }
-    } else if (addr >= 0xa000 && addr <= 0xbfff && ((mem_config & 0x0c) == 0x08)) {
+    } else if (addr >= 0xa000 && addr <= 0xbfff &&
+        ( ((mem_config & 0x0c) == 0x08) || ((mem_config & 0x0c) == 0x04) ) ) {
         if (rl_dos) {
             *base = rl_rom + rl_rombase + 0x2000 - 0xa000;
             *start = 0xa000;
@@ -1538,7 +1646,8 @@ int c128ramlink_mmu_translate(unsigned int addr, uint8_t **base, int *start, int
             return 0;
         }
         return 1;
-    } else if (addr >= 0xe000 && ((mem_config & 0x30) == 0x20)) {
+    } else if (addr >= 0xe000 &&
+        ( ((mem_config & 0x30) == 0x20) || ((mem_config & 0x30) == 0x10) ) ) {
         if (rl_on) {
     /* switched kernal */
     /* for $e000-$ffff, ramlink exposes the switched kernal, but there are a couple holes:
@@ -1989,6 +2098,7 @@ void ramlink_detach(void)
 
 int ramlink_enable(void)
 {
+    /* this will reload the BIOS */
     return set_enabled(1, (void*)1);
 }
 
@@ -2007,7 +2117,7 @@ int ramlink_disable(void)
    UINT32 | rombase        | rl_rombase
    UINT32 | kernbase       | rl_kernbase
    UINT32 | rambase        | rl_rambase
-   UINT32 | cardbase       | rl_cardbase
+   UINT32 | cardaddr       | rl_cardaddr
    UINT32 | io1mode        | rl_io1mode
    UINT32 | reu_trap       | rl_reu_trap
    BYTE   | on             | rl_on
@@ -2041,7 +2151,7 @@ int ramlink_snapshot_write_module(snapshot_t *s)
         || (SMW_DW(m, rl_rombase) < 0)
         || (SMW_DW(m, rl_kernbase) < 0)
         || (SMW_DW(m, rl_rambase) < 0)
-        || (SMW_DW(m, rl_cardbase) < 0)
+        || (SMW_DW(m, rl_cardaddr) < 0)
         || (SMW_DW(m, rl_io1mode) < 0)
         || (SMW_DW(m, rl_reu_trap) < 0)
         || (SMW_B(m, rl_on) < 0)
@@ -2095,7 +2205,7 @@ int ramlink_snapshot_read_module(snapshot_t *s)
         || (SMR_DW(m, &rl_rombase) < 0)
         || (SMR_DW(m, &rl_kernbase) < 0)
         || (SMR_DW(m, &rl_rambase) < 0)
-        || (SMR_DW(m, &rl_cardbase) < 0)
+        || (SMR_DW(m, &rl_cardaddr) < 0)
         || (SMR_DW(m, &rl_io1mode) < 0)
         || (SMR_DW(m, &rl_reu_trap) < 0)
         || (SMR_B(m, &rl_on) < 0)
@@ -2113,7 +2223,10 @@ int ramlink_snapshot_read_module(snapshot_t *s)
 
     set_enabled(1, NULL);
 
+    /* set ramcard size */
     set_size(size, NULL);
+    /* set the cardbase via a dummy write to the address system */
+    ramlink_io2_a0_a3_store(0,3);
 
     if (SMR_BA(m, rl_card, rl_cardsize) < 0) {
         goto fail;

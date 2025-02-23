@@ -81,10 +81,8 @@ SOURCES_C += \
     $(EMU)/drive/iecieee/iecieee.c \
     $(EMU)/drive/iecieee/via2d.c \
     $(SOURCES_C_JOYPORT) \
-    $(EMU)/plus4/digiblaster.c \
     $(EMU)/plus4/plus4-cmdline-options.c \
     $(EMU)/plus4/plus4-resources.c \
-    $(EMU)/plus4/plus4-sidcart.c \
     $(EMU)/plus4/plus4-stubs.c \
     $(EMU)/plus4/plus4.c \
     $(EMU)/plus4/plus4acia.c \
@@ -92,6 +90,7 @@ SOURCES_C += \
     $(EMU)/plus4/plus4cpu.c \
     $(EMU)/plus4/plus4datasette.c \
     $(EMU)/plus4/plus4drive.c \
+    $(EMU)/plus4/plus4export.c \
     $(EMU)/plus4/plus4iec.c \
     $(EMU)/plus4/plus4io.c \
     $(EMU)/plus4/plus4mem.c \
@@ -112,10 +111,12 @@ SOURCES_C += \
     $(EMU)/plus4/plus4tcbm.c \
     $(EMU)/plus4/plus4video.c \
     $(EMU)/plus4/cart/debugcart.c \
+    $(EMU)/plus4/cart/digiblaster.c \
     $(EMU)/plus4/cart/jacint1mb.c \
     $(EMU)/plus4/cart/magiccart.c \
     $(EMU)/plus4/cart/multicart.c \
     $(EMU)/plus4/cart/plus4-generic.c \
+    $(EMU)/plus4/cart/plus4-sidcart.c \
     $(EMU)/plus4/cart/plus4cart.c \
     $(EMU)/plus4/ted-badline.c \
     $(EMU)/plus4/ted-cmdline-options.c \

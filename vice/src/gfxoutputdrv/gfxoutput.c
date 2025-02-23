@@ -62,7 +62,7 @@ typedef struct gfxoutputdrv_list_s gfxoutputdrv_list_t;
 
 static gfxoutputdrv_list_t *gfxoutputdrv_list = NULL;
 static int gfxoutputdrv_list_count = 0;
-static log_t gfxoutput_log = LOG_ERR;
+static log_t gfxoutput_log = LOG_DEFAULT;
 static gfxoutputdrv_list_t *gfxoutputdrv_list_iter = NULL;
 
 
@@ -112,12 +112,13 @@ int gfxoutput_early_init(int help)
     gfxoutput_init_iff(help);
     gfxoutput_init_pcx(help);
     gfxoutput_init_ppm(help);
+
     /* video related */
+    gfxoutput_init_zmbv(help);
 #ifdef HAVE_FFMPEG
     gfxoutput_init_ffmpeg(help);
 #endif
     gfxoutput_init_ffmpegexe(help);
-    gfxoutput_init_zmbv(help);
 
     /* C64 formats */
     gfxoutput_init_godot(help);

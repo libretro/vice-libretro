@@ -219,7 +219,7 @@ static const trap_t c64_serial_traps[] = {
     }
 };
 
-static log_t c64_log = LOG_ERR;
+static log_t c64_log = LOG_DEFAULT;
 static machine_timing_t machine_timing;
 
 /* ------------------------------------------------------------------------ */
@@ -513,18 +513,11 @@ int machine_resources_init(void)
         init_resource_fail("drive");
         return -1;
     }
-    if (userport_joystick_hummer_resources_init() < 0) {
-        init_resource_fail("userport hummer joystick");
-        return -1;
-    }
-    if (userport_io_sim_resources_init() < 0) {
-        init_resource_fail("userport I/O simulation");
-        return -1;
-    }
     if (debugcart_resources_init() < 0) {
         init_resource_fail("debug cart");
         return -1;
     }
+
     return 0;
 }
 
@@ -543,6 +536,7 @@ void machine_resources_shutdown(void)
     sampler_resources_shutdown();
     debugcart_resources_shutdown();
     joyport_resources_shutdown();
+    userport_resources_shutdown();
 }
 
 /* C64DTV-specific command-line option initialization.  */

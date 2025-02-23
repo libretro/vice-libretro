@@ -194,12 +194,12 @@ am__DEPENDENCIES_8 = $(archdep_lib) $(c64dtv_lib) $(c64c64dtv_lib) \
 	$(datasette_lib) $(driveiec_lib) $(driveiecieee_lib) \
 	$(driveiecc64exp_lib) $(driveieee_lib) $(drive_lib) \
 	$(drivetcbm_lib) $(p64_lib) $(iecbus_lib) $(parallel_lib) \
-	$(diag_lib) $(vdrive_lib) $(sid_dtv_lib) $(monitor_lib) \
-	$(driver_libs) $(viciidtv_lib) $(raster_lib) $(video_lib) \
+	$(vdrive_lib) $(sid_dtv_lib) $(monitor_lib) $(driver_libs) \
+	$(viciidtv_lib) $(raster_lib) $(video_lib) \
 	$(am__DEPENDENCIES_2) $(imagecontents_lib) \
-	$(am__DEPENDENCIES_3) $(c64dtvstubs_lib) $(joyport_lib) \
-	$(rtc_lib) $(hvsc_lib) $(hotkeys_lib) $(zmbv_lib) \
-	$(userport_lib)
+	$(am__DEPENDENCIES_3) $(userport_lib) $(c64dtvstubs_lib) \
+	$(diag_lib) $(joyport_lib) $(rtc_lib) $(hvsc_lib) \
+	$(hotkeys_lib) $(zmbv_lib)
 x64dtv_LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(x64dtv_LDFLAGS) \
 	$(LDFLAGS) -o $@
 am_x64sc_OBJECTS = $(am__objects_1) $(am__objects_2)
@@ -257,14 +257,15 @@ xpet_LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(xpet_LDFLAGS) $(LDFLAGS) \
 am_xplus4_OBJECTS = $(am__objects_1)
 xplus4_OBJECTS = $(am_xplus4_OBJECTS)
 am__DEPENDENCIES_13 = $(archdep_lib) $(tapeport_lib) $(datasette_lib) \
-	$(plus4_lib) $(plus4cart_lib) $(diag_lib) $(driveiec_lib) \
-	$(driveiecieee_lib) $(driveiecplus4exp_lib) $(drivetcbm_lib) \
-	$(drive_lib) $(driveieee_lib) $(parallel_lib) $(driveieee_lib) \
-	$(p64_lib) $(iecbus_lib) $(vdrive_lib) $(monitor_lib) \
-	$(sid_lib) $(driver_libs) $(raster_lib) $(rtc_lib) \
-	$(video_lib) $(am__DEPENDENCIES_2) $(userport_lib) \
+	$(plus4_lib) $(plus4cart_lib) $(diag_lib) $(userport_lib) \
+	$(driveiec_lib) $(driveiecieee_lib) $(driveiecplus4exp_lib) \
+	$(drivetcbm_lib) $(drive_lib) $(driveieee_lib) $(parallel_lib) \
+	$(driveieee_lib) $(p64_lib) $(iecbus_lib) $(vdrive_lib) \
+	$(monitor_lib) $(sid_lib) $(driver_libs) $(raster_lib) \
+	$(rtc_lib) $(video_lib) $(am__DEPENDENCIES_2) \
 	$(imagecontents_lib) $(joyport_lib) $(am__DEPENDENCIES_3) \
-	$(hvsc_lib) $(hotkeys_lib) $(zmbv_lib) $(plus4stubs_lib)
+	$(hvsc_lib) $(hotkeys_lib) $(zmbv_lib) $(plus4stubs_lib) \
+	$(plus4_lib)
 xplus4_LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(xplus4_LDFLAGS) \
 	$(LDFLAGS) -o $@
 am_xscpu64_OBJECTS = $(am__objects_1) $(am__objects_2)
@@ -629,6 +630,8 @@ install_sh = @install_sh@
 libcurl_CFLAGS = @libcurl_CFLAGS@
 libcurl_LIBS = @libcurl_LIBS@
 libdir = @libdir@
+libevdev_CFLAGS = @libevdev_CFLAGS@
+libevdev_LIBS = @libevdev_LIBS@
 libexecdir = @libexecdir@
 localedir = @localedir@
 localstatedir = @localstatedir@
@@ -651,13 +654,29 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_FALSE@vsid_LDFLAGS = @vsid_LDFLAGS@ -Wl,-Map=vsid.map
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_TRUE@vsid_LDFLAGS = @vsid_LDFLAGS@ -Wl,-map -Wl,vsid.map
 vsid_LDFLAGS = @vsid_LDFLAGS@
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_FALSE@x128_LDFLAGS = @x128_LDFLAGS@ -Wl,-Map=x128.map
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_TRUE@x128_LDFLAGS = @x128_LDFLAGS@ -Wl,-map -Wl,x128.map
 x128_LDFLAGS = @x128_LDFLAGS@
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_FALSE@x64_LDFLAGS = @x64_LDFLAGS@ -Wl,-Map=x64.map
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_TRUE@x64_LDFLAGS = @x64_LDFLAGS@ -Wl,-map -Wl,x64.map
 x64_LDFLAGS = @x64_LDFLAGS@
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_FALSE@xcbm2_LDFLAGS = @xcbm2_LDFLAGS@ -Wl,-Map=xcbm2.map
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_TRUE@xcbm2_LDFLAGS = @xcbm2_LDFLAGS@ -Wl,-map -Wl,xcbm2.map
 xcbm2_LDFLAGS = @xcbm2_LDFLAGS@
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_FALSE@xpet_LDFLAGS = @xpet_LDFLAGS@ -Wl,-Map=xpet.map
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_TRUE@xpet_LDFLAGS = @xpet_LDFLAGS@ -Wl,-map -Wl,xpet.map
 xpet_LDFLAGS = @xpet_LDFLAGS@
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_FALSE@xplus4_LDFLAGS = @xplus4_LDFLAGS@ -Wl,-Map=xplus4.map
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_TRUE@xplus4_LDFLAGS = @xplus4_LDFLAGS@ -Wl,-map -Wl,xplus4.map
 xplus4_LDFLAGS = @xplus4_LDFLAGS@
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_FALSE@xscpu64_LDFLAGS = @xscpu64_LDFLAGS@ -Wl,-Map=xscpu64.map
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_TRUE@xscpu64_LDFLAGS = @xscpu64_LDFLAGS@ -Wl,-map -Wl,xscpu64.map
 xscpu64_LDFLAGS = @xscpu64_LDFLAGS@
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_FALSE@xvic_LDFLAGS = @xvic_LDFLAGS@ -Wl,-Map=xvic.map
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_TRUE@xvic_LDFLAGS = @xvic_LDFLAGS@ -Wl,-map -Wl,xvic.map
 xvic_LDFLAGS = @xvic_LDFLAGS@
 
 # We have to override the automake default, because we need to use
@@ -1330,7 +1349,8 @@ x64sc_libs = \
 x64sc_SOURCES = $(base_sources) $(midi_sources)
 x64sc_LDADD = $(x64sc_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ $(X64SC_RES)
 x64sc_DEPENDENCIES = $(x64sc_libs)
-x64sc_LDFLAGS = @x64_LDFLAGS@
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_FALSE@x64sc_LDFLAGS = @x64_LDFLAGS@ -Wl,-Map=x64sc.map
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_TRUE@x64sc_LDFLAGS = @x64_LDFLAGS@ -Wl,-map -Wl,x64sc.map
 
 # x64dtv
 x64dtv_libs = \
@@ -1347,7 +1367,6 @@ x64dtv_libs = \
 	$(p64_lib) \
 	$(iecbus_lib) \
 	$(parallel_lib) \
-	$(diag_lib) \
 	$(vdrive_lib) \
 	$(sid_dtv_lib) \
 	$(monitor_lib) \
@@ -1358,19 +1377,21 @@ x64dtv_libs = \
 	$(common_libs) \
 	$(imagecontents_lib) \
 	$(resid_dtv_libs) \
+	$(userport_lib) \
 	$(c64dtvstubs_lib) \
+	$(diag_lib) \
 	$(joyport_lib) \
 	$(joystickdrv_lib) \
 	$(rtc_lib) \
 	$(hvsc_lib) \
 	$(hotkeys_lib) \
-	$(zmbv_lib)\
-	$(userport_lib)
+	$(zmbv_lib)
 
 x64dtv_SOURCES = $(base_sources) $(ps2mouse_sources)
 x64dtv_LDADD = $(x64dtv_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ $(X64DTV_RES)
 x64dtv_DEPENDENCIES = $(x64dtv_libs)
-x64dtv_LDFLAGS = @x64_LDFLAGS@
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_FALSE@x64dtv_LDFLAGS = @x64_LDFLAGS@ -Wl,-Map=x64dtv.map
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_TRUE@x64dtv_LDFLAGS = @x64_LDFLAGS@ -Wl,-map -Wl,x64dtv.map
 
 # xscpu64
 xscpu64_libs = \
@@ -1539,6 +1560,7 @@ xplus4_libs = \
 	$(plus4_lib) \
 	$(plus4cart_lib) \
 	$(diag_lib) \
+	$(userport_lib) \
 	$(driveiec_lib) \
 	$(driveiecieee_lib) \
 	$(driveiecplus4exp_lib) \
@@ -1557,7 +1579,6 @@ xplus4_libs = \
 	$(rtc_lib) \
 	$(video_lib) \
 	$(common_libs) \
-	$(userport_lib) \
 	$(imagecontents_lib) \
 	$(joyport_lib) \
 	$(joystickdrv_lib) \
@@ -1565,8 +1586,13 @@ xplus4_libs = \
 	$(hvsc_lib) \
 	$(hotkeys_lib) \
 	$(zmbv_lib) \
-	$(plus4stubs_lib)
+	$(plus4stubs_lib) \
+	\
+	$(plus4_lib)
 
+
+# NOTE: ^^^ link a second time against plus4_lib to solve a nasty problem with
+#           unresolved symbols
 xplus4_SOURCES = $(base_sources)
 xplus4_LDADD = $(xplus4_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ $(XPLUS4_RES)
 xplus4_DEPENDENCIES = $(xplus4_libs)
@@ -1646,7 +1672,8 @@ xcbm5x0_libs = \
 xcbm5x0_SOURCES = $(base_sources)
 xcbm5x0_LDADD = $(xcbm5x0_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ $(XCBM5x0_RES)
 xcbm5x0_DEPENDENCIES = $(xcbm5x0_libs)
-xcbm5x0_LDFLAGS = @xcbm2_LDFLAGS@
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_FALSE@xcbm5x0_LDFLAGS = @xcbm2_LDFLAGS@ -Wl,-Map=xcbm5x0.map
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_TRUE@xcbm5x0_LDFLAGS = @xcbm2_LDFLAGS@ -Wl,-map -Wl,xcbm5x0.map
 
 # c1541
 c1541_SOURCES = \
@@ -1686,6 +1713,9 @@ c1541_LDADD = \
 	@SDL_EXTRA_LIBS@ \
 	@ZLIB_LIBS@ @DYNLIB_LIBS@
 
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_FALSE@c1541_LDFLAGS = @c1541_LDFLAGS@ -Wl,-Map=c1541.map
+@HAVE_DEBUG_TRUE@@MACOS_COMPILE_TRUE@c1541_LDFLAGS = @c1541_LDFLAGS@ -Wl,-map -Wl,c1541.map
+@WINDOWS_COMPILE_FALSE@c1541_LDFLAGS = 
 @WINDOWS_COMPILE_TRUE@c1541_LDFLAGS = -mconsole
 
 # distclean

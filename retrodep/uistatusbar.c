@@ -287,7 +287,7 @@ void ui_display_reset(int device, int mode)
 /* uiapi.h */
 
 /* Display a mesage without interrupting emulation */
-void ui_display_statustext(const char *text, int fade_out)
+void ui_display_statustext(const char *text, bool fade_out)
 {
 #ifdef SDL_DEBUG
     fprintf(stderr, "%s: \"%s\", %i\n", __func__, text, fade_out);

@@ -48,6 +48,7 @@
 #include "menu_debug.h"
 #include "menu_help.h"
 #include "menu_jam.h"
+#include "menu_log.h"
 #include "menu_monitor.h"
 #include "menu_reset.h"
 #include "menu_settings.h"
@@ -146,7 +147,7 @@ static UI_MENU_CALLBACK(vsidui_tune_callback)
 
         if (tune != sdl_vsid_current_tune) {
             sdl_vsid_current_tune = tune;
-            sdl_ui_menu_radio_helper(1, (ui_callback_data_t)int_to_void_ptr(tune), "PSIDTune");
+            sdl_ui_menu_radio_helper(1, (ui_callback_data_t)vice_int_to_ptr(tune), "PSIDTune");
         }
     } else {
         if (command_or_tune == sdl_vsid_current_tune) {
@@ -460,6 +461,11 @@ static const ui_menu_entry_t vsid_main_menu[] = {
         .type     = MENU_ENTRY_SUBMENU,
         .callback = submenu_callback,
         .data     = (ui_callback_data_t)settings_manager_menu_vsid
+    },
+    {   .string   = "Log settings",
+        .type     = MENU_ENTRY_SUBMENU,
+        .callback = submenu_callback,
+        .data     = (ui_callback_data_t)log_menu
     },
     {   .action   = ACTION_QUIT,
         .string   = "Quit emulator",
