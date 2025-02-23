@@ -533,6 +533,7 @@ int uistatusbar_init_resources(void)
 static void display_joyport(void)
 {
     unsigned char tmpstr[25] = {0};
+    unsigned char tmplen = 0;
 
 #if !defined(__XPET__) && !defined(__XCBM2__) && !defined(__XVIC__)
     unsigned char joy1[2];
@@ -542,29 +543,29 @@ static void display_joyport(void)
 
     /* Lightpen/gun */
     if (opt_joyport_type > 10 && cur_port == 1)
-        snprintf(tmpstr, sizeof(tmpstr), "L%s%3s ", joy1, joystick_value_human(mouse_value[1], 1));
+        tmplen += snprintf(tmpstr, sizeof(tmpstr), "L%s%3s ", joy1, joystick_value_human(mouse_value[1], 1));
     /* Mouse */
     else if (opt_joyport_type > 2 && cur_port == 1)
-        snprintf(tmpstr, sizeof(tmpstr), "M%s%3s ", joy1, joystick_value_human(mouse_value[1], 1));
+        tmplen += snprintf(tmpstr, sizeof(tmpstr), "M%s%3s ", joy1, joystick_value_human(mouse_value[1], 1));
     /* Paddles */
     else if (opt_joyport_type == 2)
-        snprintf(tmpstr, sizeof(tmpstr), "P%s%3s ", joy1, joystick_value_human(mouse_value[1], 1));
+        tmplen += snprintf(tmpstr, sizeof(tmpstr), "P%s%3s ", joy1, joystick_value_human(mouse_value[1], 1));
     /* Joystick */
     else
-        snprintf(tmpstr, sizeof(tmpstr), "J%s%3s ", joy1, joystick_value_human(get_joystick_value(1-1), 0));
+        tmplen += snprintf(tmpstr, sizeof(tmpstr), "J%s%3s ", joy1, joystick_value_human(get_joystick_value(1-1), 0));
 
     /* Lightpen/gun */
     if (opt_joyport_type > 10 && cur_port == 2)
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "L%s%3s ", joy2, joystick_value_human(mouse_value[2], 1));
+        tmplen += snprintf(tmpstr + tmplen, sizeof(tmpstr) - tmplen, "L%s%3s ", joy2, joystick_value_human(mouse_value[2], 1));
     /* Mouse */
     else if (opt_joyport_type > 2 && cur_port == 2)
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "M%s%3s ", joy2, joystick_value_human(mouse_value[2], 1));
+        tmplen += snprintf(tmpstr + tmplen, sizeof(tmpstr) - tmplen, "M%s%3s ", joy2, joystick_value_human(mouse_value[2], 1));
     /* Paddles */
     else if (opt_joyport_type == 2)
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "P%s%3s ", joy2, joystick_value_human(mouse_value[2], 1));
+        tmplen += snprintf(tmpstr + tmplen, sizeof(tmpstr) - tmplen, "P%s%3s ", joy2, joystick_value_human(mouse_value[2], 1));
     /* Joystick */
     else
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%s%3s ", joy2, joystick_value_human(get_joystick_value(2-1), 0));
+        tmplen += snprintf(tmpstr + tmplen, sizeof(tmpstr) - tmplen, "J%s%3s ", joy2, joystick_value_human(get_joystick_value(2-1), 0));
 #elif defined(__XVIC__)
     char joy1[2];
     snprintf(joy1, sizeof(joy1), "%s", "1");
@@ -586,20 +587,20 @@ static void display_joyport(void)
 #if !defined(__XPET__) && !defined(__XCBM2__) && !defined(__XVIC__)
     if (vice_opt.UserportJoyType != -1)
     {
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 3, joystick_value_human(get_joystick_value(3-1), 0));
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 4, joystick_value_human(get_joystick_value(4-1), 0));
+        tmplen += snprintf(tmpstr + tmplen, sizeof(tmpstr) - tmplen, "J%d%3s ", 3, joystick_value_human(get_joystick_value(3-1), 0));
+        tmplen += snprintf(tmpstr + tmplen, sizeof(tmpstr) - tmplen, "J%d%3s ", 4, joystick_value_human(get_joystick_value(4-1), 0));
     }
 #elif defined(__XVIC__)
     if (vice_opt.UserportJoyType != -1)
     {
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 2, joystick_value_human(get_joystick_value(2-1), 0));
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 3, joystick_value_human(get_joystick_value(3-1), 0));
+        tmplen += snprintf(tmpstr + tmplen, sizeof(tmpstr) - tmplen, "J%d%3s ", 2, joystick_value_human(get_joystick_value(2-1), 0));
+        tmplen += snprintf(tmpstr + tmplen, sizeof(tmpstr) - tmplen, "J%d%3s ", 3, joystick_value_human(get_joystick_value(3-1), 0));
     }
 #elif defined(__XPET__) || defined(__XCBM2__)
     if (vice_opt.UserportJoyType != -1)
     {
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 1, joystick_value_human(get_joystick_value(1-1), 0));
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "J%d%3s ", 2, joystick_value_human(get_joystick_value(2-1), 0));
+        tmplen += snprintf(tmpstr + tmplen, sizeof(tmpstr) - tmplen, "J%d%3s ", 1, joystick_value_human(get_joystick_value(1-1), 0));
+        tmplen += snprintf(tmpstr + tmplen, sizeof(tmpstr) - tmplen, "J%d%3s ", 2, joystick_value_human(get_joystick_value(2-1), 0));
     }
 #endif
 
@@ -609,10 +610,10 @@ static void display_joyport(void)
         int offset = 7 - offset_multi;
 
         for (int i = 0; i < offset + 1; i++)
-            snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%1s", "");
+            tmplen += snprintf(tmpstr + tmplen, sizeof(tmpstr) - tmplen, "%1s", "");
 
 #if defined(__X128__)
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%2s %2s", "CL", "SL");
+        tmplen += snprintf(tmpstr + tmplen, sizeof(tmpstr) - tmplen, "%2s %2s", "CL", "SL");
 
         if (c128_capslock)
         {
@@ -620,7 +621,7 @@ static void display_joyport(void)
             tmpstr[6+6+offset+2] |= 0x80;
         }
 #else
-        snprintf(tmpstr + strlen(tmpstr), sizeof(tmpstr), "%2s %2s", "  ", "SL");
+        tmplen += snprintf(tmpstr + tmplen, sizeof(tmpstr) - tmplen, "%2s %2s", "  ", "SL");
 #endif
         if (retro_capslock)
         {
