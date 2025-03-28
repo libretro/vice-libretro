@@ -88,6 +88,7 @@ int mem_cartridge_type = CARTRIDGE_NONE;
 /* Core options */
 extern unsigned int opt_joyport_type;
 static int opt_joyport_type_prev = -1;
+extern bool opt_joyport_paddles_split;
 extern int opt_joyport_pointer_color;
 extern unsigned int opt_dpadmouse_speed;
 extern unsigned int opt_analogmouse;
@@ -1403,7 +1404,7 @@ void retro_poll_event()
        * Therefore treat RetroPort0 vertical axis as RetroPort1 horizontal axis, and second fire as RetroPort1 fire.
        * Bypassed VICE limitation of one mouse when using paddles for maximum 4 paddles. */
       unsigned retro_j_max = 2;
-      if (opt_joyport_type == 2)
+      if (opt_joyport_type == 2 && opt_joyport_paddles_split)
          retro_j_max = 4;
 
       /* Joypad and mouse control only when VKBD is closed */
@@ -1485,7 +1486,7 @@ void retro_poll_event()
             else if (joypad_bits[retro_j] & (1 << RETRO_DEVICE_ID_JOYPAD_LEFT))
                retro_mouse_x[retro_j] -= dpadmouse_speed[retro_j];
 
-            if (opt_joyport_type != 2)
+            if (opt_joyport_type != 2 || !opt_joyport_paddles_split)
             {
                if (joypad_bits[retro_j] & (1 << RETRO_DEVICE_ID_JOYPAD_DOWN))
                   retro_mouse_y[retro_j] += dpadmouse_speed[retro_j];
@@ -1587,7 +1588,7 @@ void retro_poll_event()
          vice_j = j + 1;
          vice_j = (vice_j > 2) ? 0 : vice_j;
 
-         if (opt_joyport_type == 2)
+         if (opt_joyport_type == 2 && opt_joyport_paddles_split)
          {
             if (retro_j == 0)
             {

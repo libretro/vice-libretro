@@ -208,6 +208,7 @@ bool opt_keyboard_pass_through = false;
 unsigned int opt_keyboard_keymap = KBD_INDEX_POS;
 unsigned int opt_retropad_options = RETROPAD_OPTIONS_DISABLED;
 unsigned int opt_joyport_type = 0;
+bool opt_joyport_paddles_split = true;
 int opt_joyport_pointer_color = -1;
 unsigned int opt_dpadmouse_speed = 6;
 unsigned int opt_mouse_speed = 100;
@@ -4721,12 +4722,13 @@ static void retro_set_core_options()
          "vice_joyport_type",
          "RetroPad > Joystick Port Type",
          "Joystick Port Type",
-         "Non-joysticks are plugged in current port only and are controlled with left analog stick or mouse. Paddles are split to 1st and 2nd RetroPort.",
+         "Non-joysticks are plugged in current port only and are controlled with left analog stick or mouse.",
          NULL,
          "input",
          {
             { "1", "Joystick" },
-            { "2", "Paddles" },
+            { "2", "Paddles (Split)" },
+            { "2R", "Paddles (Raw)" },
             { "3", "Mouse (1351)" },
             { "4", "Mouse (NEOS)" },
             { "5", "Mouse (Amiga)" },
@@ -7003,6 +7005,10 @@ static void update_variables(void)
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
    {
       opt_joyport_type = atoi(var.value);
+
+      opt_joyport_paddles_split = true;
+      if (!strcmp(var.value, "2R"))
+         opt_joyport_paddles_split = false;
 
       /* Light guns/pens only possible in port 1 */
       if (opt_joyport_type > 10)
