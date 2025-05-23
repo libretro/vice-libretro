@@ -5892,6 +5892,7 @@ static void update_variables(void)
    GET_VAR("vic20_model")
    {
       int model = 0;
+      bool opt_model_auto_prev = opt_model_auto;
 
       if (strstr(var.value, "auto")) opt_model_auto = true;
       else                           opt_model_auto = false;
@@ -5902,7 +5903,7 @@ static void update_variables(void)
       else if (!strcmp(var.value, "VIC20 NTSC"))      model = VIC20MODEL_VIC20_NTSC;
       else if (!strcmp(var.value, "VIC21"))           model = VIC20MODEL_VIC21;
 
-      if (retro_ui_finalized && vice_opt.Model != model)
+      if (retro_ui_finalized && (vice_opt.Model != model || opt_model_auto != opt_model_auto_prev))
       {
          request_model_set = model;
          request_restart = true;
@@ -6008,7 +6009,7 @@ static void update_variables(void)
       else if (!strcmp(var.value, "C128 DCR PAL"))       model = C128MODEL_C128DCR_PAL;
       else if (!strcmp(var.value, "C128 DCR NTSC"))      model = C128MODEL_C128DCR_NTSC;
 
-      if (retro_ui_finalized && vice_opt.Model != model || opt_model_auto != opt_model_auto_prev)
+      if (retro_ui_finalized && (vice_opt.Model != model || opt_model_auto != opt_model_auto_prev))
       {
          request_model_set = model;
          request_restart = true;
@@ -6201,7 +6202,7 @@ static void update_variables(void)
       else if (!strcmp(var.value, "C64 OLD PAL"))    model = C64MODEL_C64_OLD_PAL;
       else if (!strcmp(var.value, "C64 OLD NTSC"))   model = C64MODEL_C64_OLD_NTSC;
 
-      if (retro_ui_finalized && vice_opt.Model != model || opt_model_auto != opt_model_auto_prev)
+      if (retro_ui_finalized && (vice_opt.Model != model || opt_model_auto != opt_model_auto_prev))
       {
          request_model_set = model;
          request_restart = true;
