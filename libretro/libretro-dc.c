@@ -966,17 +966,37 @@ void dc_parse_list(dc_storage* dc, const char* list_file, bool is_vfl, const cha
          char image_prg[D64_NAME_LEN + 1] = {0};
          if (strstr(file_name, ":") && file_name[1] != ':' && file_name[2] != ':')
          {
+            uint8_t cnt = 0;
             char *token = strtok((char*)file_name, ":");
             while (token != NULL)
             {
                char *token_temp;
 
-               /* Quote handling */
-               if (strstr(token, "\""))
-                  token_temp = string_replace_substring(token, strlen(token), "\"", strlen("\""), "", strlen(""));
-               else
-                  token_temp = strdup(token);
-               snprintf(image_prg, sizeof(image_prg), "%s", token_temp);
+               cnt++;
+
+               if (cnt == 2 && token[0] == ',')
+                  cnt++;
+
+               if (cnt == 1)
+               {
+                  /* Not used */
+               }
+               else if (cnt == 2)
+               {
+                  /* Quote handling */
+                  if (strstr(token, "\""))
+                     token_temp = string_replace_substring(token, strlen(token), "\"", strlen("\""), "", strlen(""));
+                  else
+                     token_temp = strdup(token);
+                  snprintf(image_prg, sizeof(image_prg), "%s", token_temp);
+               }
+               else if (cnt == 3)
+               {
+                  /* Non-basic load toggler */
+                  if (string_is_equal(token, ",1,1"))
+                     pending_AutostartTapeBasicLoad = true;
+               }
+
                token = strtok(NULL, ":");
 
                free(token_temp);

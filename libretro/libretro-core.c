@@ -1223,7 +1223,7 @@ static int process_cmdline(const char* argv)
       /* GMod2 cart eeprom handling to 'saves' */
       {
          const char *content_path = !string_is_empty(dc->files[0]) ? dc->files[0] : argv;
-         int carttype = crt_getid(content_path);
+         int carttype = (dc_get_image_type(content_path) == DC_IMAGE_TYPE_MEM) ? crt_getid(content_path) : 0;
          if (carttype == CARTRIDGE_GMOD2)
          {
             char eeprom_path[RETRO_PATH_MAX];

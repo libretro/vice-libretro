@@ -79,6 +79,8 @@ extern char retro_system_data_directory[RETRO_PATH_MAX];
 extern bool log_resource_set;
 extern retro_log_printf_t log_cb;
 
+bool pending_AutostartTapeBasicLoad = false;
+
 static const cmdline_option_t cmdline_options[] = {
    { NULL }
 };
@@ -347,6 +349,10 @@ int ui_init_finalize(void)
 
    /* Mute sound at startup to hide 6581 ReSID init pop, and set back to 100 in retro_run() after 3 frames */
    resources_set_int("SoundVolume", 0);
+
+   /* M3U parsed non-basic tape load force */
+   if (pending_AutostartTapeBasicLoad)
+      log_resources_set_int("AutostartTapeBasicLoad", 0);
 
    /* Sensible defaults */
    log_resources_set_int("AutostartPrgMode", 1);

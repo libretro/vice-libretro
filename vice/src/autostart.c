@@ -403,7 +403,11 @@ static resource_int_t resources_int_basicload[] = {
     { "AutostartBasicLoad", 0, RES_EVENT_NO, (resource_value_t)0,
       &autostart_basic_load, set_autostart_basic_load, NULL },
     /* caution: position is hardcoded below */
+#ifdef __LIBRETRO__
+    { "AutostartTapeBasicLoad", 1, RES_EVENT_NO, (resource_value_t)1,
+#else
     { "AutostartTapeBasicLoad", 0, RES_EVENT_NO, (resource_value_t)1,
+#endif
       &autostart_tape_basic_load, set_autostart_tape_basic_load, NULL },
     RESOURCE_INT_LIST_END
 };
@@ -1115,11 +1119,24 @@ static void advance_hastape(void)
                     tmp = lib_strdup("LOAD\"\",2\r");
                 }
             } else {
+#ifdef __LIBRETRO__
+                if (autostart_program_name) {
+                    tmp = util_concat("LOAD\"", autostart_program_name, "\"",
+                                    autostart_tape_basic_load ? "" : ",1,1", "\r", NULL);
+                } else {
+                    if (autostart_tape_basic_load) {
+                        tmp = lib_strdup("LOAD\r");
+                    } else {
+                        tmp = lib_strdup("LOAD\"\",1,1\r");
+                    }
+                }
+#else
                 if (autostart_program_name) {
                     tmp = util_concat("LOAD\"", autostart_program_name, "\"\r", NULL);
                 } else {
                     tmp = lib_strdup("LOAD\r");
                 }
+#endif
             }
             kbdbuf_feed(tmp);
             lib_free(tmp);
