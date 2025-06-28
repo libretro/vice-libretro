@@ -411,8 +411,7 @@ static void display_tape(void)
         snprintf(tmpstr, sizeof(tmpstr), "%c%03d", tape_chars[tape_control], tape_counter);
 
     /* Skip null terminator */
-    if (tmpstr[0])
-        strncpy(&statusbar_chars[STATUSBAR_TAPE_POS], tmpstr, sizeof(tmpstr)-1);
+    strncpy(&statusbar_chars[STATUSBAR_TAPE_POS], tmpstr, sizeof(tmpstr)-1);
 
     if (uistatusbar_state & UISTATUSBAR_ACTIVE) {
         uistatusbar_state |= UISTATUSBAR_REPAINT;
