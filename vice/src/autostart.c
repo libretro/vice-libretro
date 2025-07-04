@@ -84,13 +84,7 @@
 #include "vsync.h"
 
 #ifdef __LIBRETRO__
-#include "keyboard.h"
-#include "libretro.h"
-#include "libretro-glue.h"
-#include "libretro-mapper.h"
-extern int tape_counter;
 extern unsigned int retro_warpmode;
-extern unsigned int opt_autostart;
 #endif
 
 #ifdef DEBUG_AUTOSTART
@@ -1174,11 +1168,6 @@ static void advance_loadingtape(void)
 {
     switch (check("READY.", AUTOSTART_WAIT_BLINK)) {
         case YES:
-#ifdef __LIBRETRO__
-            /* Kludge required for T64s */
-            if (opt_autostart && retro_key_state_internal[RETROK_LCTRL])
-               retro_key_up(RETROK_LCTRL);
-#endif
             disable_warp_if_was_requested();
             autostart_finish();
             autostart_done(); /* -> AUTOSTART_DONE */
@@ -1190,20 +1179,6 @@ static void advance_loadingtape(void)
         case NOT_YET:
             /* leave autostart and disable warp if ROM area was left */
             check_rom_area();
-#ifdef __LIBRETRO__
-            if (!opt_autostart || !tape_counter)
-                break;
-            if (retro_key_state_internal[RETROK_LCTRL] && tape_counter > 5 && tape_counter < 1000)
-                retro_key_up(RETROK_LCTRL);
-            switch (check2("FOUND ", AUTOSTART_NOWAIT_BLINK, 0 , 0)) {
-                case YES:
-                    if (!retro_key_state_internal[RETROK_LCTRL])
-                        retro_key_down(RETROK_LCTRL);
-                    break;
-                default:
-                    break;
-            }
-#endif
             break;
     }
 }
