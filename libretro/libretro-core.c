@@ -1769,6 +1769,9 @@ void update_from_vice(void)
                tape_image_attach(dc->unit, attachedImage);
             }
          }
+         else
+            /* In 3.9 some tapes fail to start properly without forced restart.. */
+            request_restart = true;
       }
       else if (dc->unit == 8)
       {
