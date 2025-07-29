@@ -186,7 +186,7 @@ bool opt_model_auto = true;
 static bool opt_model_auto_locked = false;
 unsigned int opt_autostart = 1;
 unsigned int opt_autoloadwarp = 0;
-unsigned int opt_warp_boost = 1;
+unsigned int opt_warp_boost = 0;
 unsigned int opt_read_vicerc = 0;
 unsigned int opt_work_disk_type = 0;
 unsigned int opt_work_disk_unit = 8;
@@ -2312,7 +2312,10 @@ bool audio_playing(void)
    static unsigned int audio_timer_stopped = 0;
    bool audio_alive = false;
 
-   if (audio_is_ignored || sound_volume_counter)
+   if (sound_volume_counter)
+      return audio_is_playing;
+
+   if (audio_is_ignored)
    {
       audio_is_playing = false;
       return audio_is_playing;
@@ -2912,7 +2915,7 @@ static void retro_set_core_options()
          "vice_warp_boost",
          "Media > Warp Boost",
          "Warp Boost",
-         "Make warp mode much faster by changing SID emulation to 'FastSID' while warping. Affects audio detection during warp.",
+         "Make warp mode faster by changing SID engine to 'FastSID' while warping. Affects audio detection during warp.",
          NULL,
          "media",
          {
@@ -7363,7 +7366,7 @@ void emu_reset(int type)
    if (request_reload_restart)
       reload_restart();
 
-   /* Disable Warp */
+   /* Disable warp */
    if (vsync_get_warp_mode())
       vsync_set_warp_mode(0);
 
@@ -8334,7 +8337,7 @@ void retro_run(void)
          {
             vsync_set_warp_mode(1);
 #if AUTOLOADWARP_TAPE_DEBUG
-            printf("Tape Warp  ON, control:%d motor:%d audio:%d\n", tape_control, tape_motor, audio);
+            printf("Tape Warp  ON, counter:%3d control:%d motor:%d audio:%d\n", tape_counter, tape_control, tape_motor, audio);
 #endif
          }
          else if (vsync_get_warp_mode()
@@ -8346,7 +8349,7 @@ void retro_run(void)
          {
             vsync_set_warp_mode(0);
 #if AUTOLOADWARP_TAPE_DEBUG
-            printf("Tape Warp OFF, control:%d motor:%d audio:%d\n", tape_control, tape_motor, audio);
+            printf("Tape Warp OFF, counter:%3d control:%d motor:%d audio:%d\n", tape_counter, tape_control, tape_motor, audio);
 #endif
          }
       }
@@ -8438,9 +8441,9 @@ void retro_run(void)
       sound_volume_counter--;
       if (sound_volume_counter == 0)
 #if defined(__XPLUS4__)
-         resources_set_int("SoundVolume", 50);
+         resources_set_int("SoundVolume", MASTER_VOLUME_MAX / 2);
 #else
-         resources_set_int("SoundVolume", 100);
+         resources_set_int("SoundVolume", MASTER_VOLUME_MAX);
 #endif
    }
 

@@ -347,7 +347,7 @@ int ui_init_finalize(void)
    /* Keyboard map */
    keyboard_init();
 
-   /* Mute sound at startup to hide 6581 ReSID init pop, and set back to 100 in retro_run() after 3 frames */
+   /* Mute sound at startup to hide 6581 ReSID init pop */
    resources_set_int("SoundVolume", 0);
 
    /* M3U parsed non-basic tape load force */
