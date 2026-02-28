@@ -365,8 +365,8 @@ struct vice_raster_s
 
 extern struct vice_raster_s vice_raster;
 
-/* Dynamic cartridge core option info */
-struct vice_cart_info
+/* Dynamic core option info */
+struct vice_core_option_info
 {
    char *value;
    char *label;

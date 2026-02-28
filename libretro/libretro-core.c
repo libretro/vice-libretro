@@ -67,7 +67,7 @@ static char* autostartString = NULL;
 static char* autostartProgram = NULL;
 char full_path[RETRO_PATH_MAX] = {0};
 
-static struct vice_cart_info vice_carts[RETRO_NUM_CORE_OPTION_VALUES_MAX] = {0};
+static struct vice_core_option_info vice_carts[RETRO_NUM_CORE_OPTION_VALUES_MAX] = {0};
 struct vice_raster_s vice_raster;
 
 static snapshot_stream_t* snapshot_stream = NULL;
@@ -2425,21 +2425,16 @@ static void retro_set_paths(void)
             retro_system_directory, ARCHDEP_DIR_SEP_STR, "vice");
 }
 
-static void free_vice_carts(void)
+static void free_vice_core_options(void)
 {
    size_t i;
    for (i = 0; i < RETRO_NUM_CORE_OPTION_VALUES_MAX; i++)
    {
-      if (vice_carts[i].value)
-      {
-         free(vice_carts[i].value);
-         vice_carts[i].value = NULL;
-      }
-      if (vice_carts[i].label)
-      {
-         free(vice_carts[i].label);
-         vice_carts[i].label = NULL;
-      }
+      free(vice_carts[i].value);
+      vice_carts[i].value = NULL;
+
+      free(vice_carts[i].label);
+      vice_carts[i].label = NULL;
    }
 }
 
@@ -3036,7 +3031,6 @@ static void retro_set_core_options()
       },
 #endif /* !defined(__X64DTV__) */
 #if !defined(__XPET__) && !defined(__X64DTV__)
-      /* Sublabel and options filled dynamically in retro_set_environment() */
       {
          "vice_cartridge",
          "Media > Cartridge",
@@ -3045,6 +3039,7 @@ static void retro_set_core_options()
          NULL,
          "media",
          {
+            /* Options filled dynamically in retro_set_environment() */
             { NULL, NULL },
          },
          NULL
@@ -4782,7 +4777,7 @@ static void retro_set_core_options()
       { NULL, NULL, NULL, NULL, NULL, NULL, {{0}}, NULL },
    };
 
-   free_vice_carts();
+   free_vice_core_options();
 
    /* Fill in the values for all the mappers */
    int i = 0;
@@ -7776,8 +7771,8 @@ void retro_deinit(void)
    if (dc)
       dc_free(dc);
 
-   /* Clean dynamic cartridge info */
-   free_vice_carts();
+   /* Clean dynamic core option info */
+   free_vice_core_options();
 
    /* Free buffers used by libretro-graph */
    libretro_graph_free();
