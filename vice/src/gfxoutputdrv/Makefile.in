@@ -133,8 +133,7 @@ DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/src
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/artstudiodrv.Po \
-	./$(DEPDIR)/bmpdrv.Po ./$(DEPDIR)/ffmpegdrv.Po \
-	./$(DEPDIR)/ffmpegexedrv.Po ./$(DEPDIR)/ffmpeglib.Po \
+	./$(DEPDIR)/bmpdrv.Po ./$(DEPDIR)/ffmpegexedrv.Po \
 	./$(DEPDIR)/gfxoutput.Po ./$(DEPDIR)/gifdrv.Po \
 	./$(DEPDIR)/godotdrv.Po ./$(DEPDIR)/iffdrv.Po \
 	./$(DEPDIR)/koaladrv.Po ./$(DEPDIR)/minipaintdrv.Po \
@@ -218,6 +217,7 @@ CYGPATH_W = @CYGPATH_W@
 DEBUGBUILD = @DEBUGBUILD@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
+DESKTOP_FILE_INSTALL = @DESKTOP_FILE_INSTALL@
 DOS2UNIX = @DOS2UNIX@
 DYNLIB_LIBS = @DYNLIB_LIBS@
 ECHO_C = @ECHO_C@
@@ -227,15 +227,6 @@ ENABLE_ARCH = @ENABLE_ARCH@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 FCCACHE = @FCCACHE@
-FFMPEG_AVRESAMPLE_CFLAGS = @FFMPEG_AVRESAMPLE_CFLAGS@
-FFMPEG_AVRESAMPLE_LIBS = @FFMPEG_AVRESAMPLE_LIBS@
-FFMPEG_AV_CFLAGS = @FFMPEG_AV_CFLAGS@
-FFMPEG_AV_LIBS = @FFMPEG_AV_LIBS@
-FFMPEG_INCLUDES = @FFMPEG_INCLUDES@
-FFMPEG_SWRESAMPLE_CFLAGS = @FFMPEG_SWRESAMPLE_CFLAGS@
-FFMPEG_SWRESAMPLE_LIBS = @FFMPEG_SWRESAMPLE_LIBS@
-FFMPEG_SWSCALE_CFLAGS = @FFMPEG_SWSCALE_CFLAGS@
-FFMPEG_SWSCALE_LIBS = @FFMPEG_SWSCALE_LIBS@
 FONTCONFIG_CFLAGS = @FONTCONFIG_CFLAGS@
 FONTCONFIG_LIBS = @FONTCONFIG_LIBS@
 FW_DIR = @FW_DIR@
@@ -266,6 +257,8 @@ LEXLIB = @LEXLIB@
 LEX_OUTPUT_ROOT = @LEX_OUTPUT_ROOT@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
+LIBUSB_CFLAGS = @LIBUSB_CFLAGS@
+LIBUSB_LIBS = @LIBUSB_LIBS@
 LINKCC = @LINKCC@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
@@ -329,6 +322,7 @@ TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
 UNZIPBIN = @UNZIPBIN@
+UPDATE_DESKTOP_DATABASE = @UPDATE_DESKTOP_DATABASE@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -348,7 +342,7 @@ VTE_CXXFLAGS = @VTE_CXXFLAGS@
 WINDRES = @WINDRES@
 WINDRES_LIB = @WINDRES_LIB@
 XA = @XA@
-XDG_DESKTOP_MENU = @XDG_DESKTOP_MENU@
+XDG_ICON_RESOURCE = @XDG_ICON_RESOURCE@
 YACC = @YACC@
 ZLIB_LIBS = @ZLIB_LIBS@
 abs_builddir = @abs_builddir@
@@ -426,7 +420,6 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/src/lib/libzmbv \
 	-I$(top_srcdir)/src/arch/shared/sounddrv \
-	@FFMPEG_INCLUDES@ \
 	@ARCH_INCLUDES@
 
 AM_CFLAGS = @VICE_CFLAGS@
@@ -436,10 +429,6 @@ noinst_LIBRARIES = libgfxoutputdrv.a
 
 # These sources are linked only under certain circumstances.
 EXTRA_libgfxoutputdrv_a_SOURCES = \
-	ffmpegdrv.c \
-	ffmpegdrv.h \
-	ffmpeglib.c \
-	ffmpeglib.h \
 	gifdrv.c \
 	gifdrv.h \
 	pngdrv.c \
@@ -523,9 +512,7 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/artstudiodrv.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bmpdrv.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ffmpegdrv.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ffmpegexedrv.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ffmpeglib.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gfxoutput.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gifdrv.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/godotdrv.Po@am__quote@ # am--include-marker
@@ -683,9 +670,7 @@ clean-am: clean-generic clean-noinstLIBRARIES mostlyclean-am
 distclean: distclean-am
 		-rm -f ./$(DEPDIR)/artstudiodrv.Po
 	-rm -f ./$(DEPDIR)/bmpdrv.Po
-	-rm -f ./$(DEPDIR)/ffmpegdrv.Po
 	-rm -f ./$(DEPDIR)/ffmpegexedrv.Po
-	-rm -f ./$(DEPDIR)/ffmpeglib.Po
 	-rm -f ./$(DEPDIR)/gfxoutput.Po
 	-rm -f ./$(DEPDIR)/gifdrv.Po
 	-rm -f ./$(DEPDIR)/godotdrv.Po
@@ -744,9 +729,7 @@ installcheck-am:
 maintainer-clean: maintainer-clean-am
 		-rm -f ./$(DEPDIR)/artstudiodrv.Po
 	-rm -f ./$(DEPDIR)/bmpdrv.Po
-	-rm -f ./$(DEPDIR)/ffmpegdrv.Po
 	-rm -f ./$(DEPDIR)/ffmpegexedrv.Po
-	-rm -f ./$(DEPDIR)/ffmpeglib.Po
 	-rm -f ./$(DEPDIR)/gfxoutput.Po
 	-rm -f ./$(DEPDIR)/gifdrv.Po
 	-rm -f ./$(DEPDIR)/godotdrv.Po

@@ -45,7 +45,7 @@ struct sid_snapshot_state_s;
 #define SID_ENGINE_CATWEASELMKIII 2
 #define SID_ENGINE_HARDSID        3
 #define SID_ENGINE_PARSID         4
-#define SID_ENGINE_SSI2001        5
+#define SID_ENGINE_USBSID         5
 #ifdef HAVE_RESID33
 #define SID_ENGINE_RESID33        6
 #endif
@@ -56,7 +56,8 @@ enum {
     SID_ENGINE_RESID,
     SID_ENGINE_CATWEASELMKIII,
     SID_ENGINE_HARDSID,
-    SID_ENGINE_PARSID
+    SID_ENGINE_PARSID,
+    SID_ENGINE_USBSID = 7
 };
 #endif /* __LIBRETRO__ */
 
@@ -79,6 +80,9 @@ enum {
 
 /** \brief  Maximum number of supported SIDs for the ParSID engine */
 #define SID_ENGINE_PARSID_NUM_SIDS          1
+
+/** \brief  Maximum number of supported SIDs for the USBSID engine */
+#define SID_ENGINE_USBSID_NUM_SIDS          4
 
 enum {
     SID_RESID_SAMPLING_FAST = 0,
@@ -118,6 +122,7 @@ enum {
 #define SID_CATWEASELMKIII        (SID_ENGINE_CATWEASELMKIII << 8)
 #define SID_HARDSID               (SID_ENGINE_HARDSID << 8)
 #define SID_PARSID                (SID_ENGINE_PARSID << 8)
+#define SID_USBSID                (SID_ENGINE_USBSID << 8)
 
 #define SIDTYPE_SID       0
 #define SIDTYPE_SIDDTV    1

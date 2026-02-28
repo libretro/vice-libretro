@@ -29,6 +29,15 @@
 
 #include <stdio.h>
 
+/* #define DEBUG_LIGHTPEN */
+
+#ifdef DEBUG_LIGHTPEN
+#include "log.h"
+#define DBG(x) log_printf x
+#else
+#define DBG(x)
+#endif
+
 #if defined(HAVE_MOUSE) && defined(HAVE_LIGHTPEN)
 
 #include "joyport.h"
@@ -146,7 +155,7 @@ static lightpen_trigger_callback_ptr_t chip_trigger_callback;
 
 /* Lightpen/gun type */
 struct lp_type_s {
-    /* PEN needs button to be pressed to register, GUN doesn't */
+    /* PEN needs right host button to be pressed to register, GUN doesn't */
     enum { PEN, GUN } type;
     /* Buttons: bitmask for joyport 1 pins, with 0x20 for potY and 0x40 for potX */
     uint8_t button1;
@@ -265,16 +274,16 @@ static inline void lightpen_update_buttons(int buttons)
     lightpen_buttons = buttons;
 
     /* check potx/poty */
-    lightpen_button_y = ((((lp_type[lightpen_type].button1 & 0x20) == 0x20) && (buttons & LP_HOST_BUTTON_1))
-                         || (((lp_type[lightpen_type].button2 & 0x20) == 0x20) && (buttons & LP_HOST_BUTTON_2)))
+    lightpen_button_y = ((((lp_type[lightpen_type].button1 & 0x20) == 0x20) && (buttons & LP_HOST_BUTTON_LEFT))
+                         || (((lp_type[lightpen_type].button2 & 0x20) == 0x20) && (buttons & LP_HOST_BUTTON_RIGHT)))
                         ? 1 : 0;
 
-    lightpen_button_x = ((((lp_type[lightpen_type].button1 & 0x40) == 0x40) && (buttons & LP_HOST_BUTTON_1))
-                         || (((lp_type[lightpen_type].button2 & 0x40) == 0x40) && (buttons & LP_HOST_BUTTON_2)))
+    lightpen_button_x = ((((lp_type[lightpen_type].button1 & 0x40) == 0x40) && (buttons & LP_HOST_BUTTON_LEFT))
+                         || (((lp_type[lightpen_type].button2 & 0x40) == 0x40) && (buttons & LP_HOST_BUTTON_RIGHT)))
                         ? 1 : 0;
 
-    lightpen_check_button_mask((uint8_t)(lp_type[lightpen_type].button1 & 0x1f), buttons & LP_HOST_BUTTON_1);
-    lightpen_check_button_mask((uint8_t)(lp_type[lightpen_type].button2 & 0x1f), buttons & LP_HOST_BUTTON_2);
+    lightpen_check_button_mask((uint8_t)(lp_type[lightpen_type].button1 & 0x1f), buttons & LP_HOST_BUTTON_LEFT);
+    lightpen_check_button_mask((uint8_t)(lp_type[lightpen_type].button2 & 0x1f), buttons & LP_HOST_BUTTON_RIGHT);
 }
 
 /* --------------------------------------------------------- */
@@ -538,10 +547,16 @@ int lightpen_register_trigger_callback(lightpen_trigger_callback_ptr_t trigger_c
     return 0;
 }
 
-/* Update lightpen coordinates and button status. Called at the end of each frame.
+/* Update lightpen coordinates and button status.
+   Called at the end of each frame by the UI code.
+
    For x128, window 1 is VICII, window 0 is VDC. Others always use window 0.
-   x and y are the canvas coordinates; double size, hwscale and offsets are removed in the arch side.
-   Negative values of x and/or y can be used to indicate that the pointer is off the (emulated) screen. */
+
+   x and y are the host canvas coordinates; double size, hwscale and offsets are
+   removed in the arch side.
+
+   Negative values of x and/or y can be used to indicate that the pointer is off
+   the (emulated) screen. */
 void lightpen_update(int window, int x, int y, int buttons)
 {
     CLOCK pulse_time;
@@ -553,6 +568,8 @@ void lightpen_update(int window, int x, int y, int buttons)
     if ((!lightpen_enabled) || (chip_timing_callback[window] == NULL) || (chip_trigger_callback == NULL)) {
         return;
     }
+
+/* DBG(("lightpen_update: x: %i y: %i buttons: %04x", x, y, buttons)); */
 
     lightpen_update_buttons(buttons);
 
@@ -567,7 +584,8 @@ void lightpen_update(int window, int x, int y, int buttons)
         return;
     }
 
-    if ((lp_type[lightpen_type].type == PEN) && !(buttons & LP_HOST_BUTTON_1)) {
+    /* type "PEN" only sends events when right host button is pressed */
+    if ((lp_type[lightpen_type].type == PEN) && !(buttons & LP_HOST_BUTTON_RIGHT)) {
         return;
     }
 

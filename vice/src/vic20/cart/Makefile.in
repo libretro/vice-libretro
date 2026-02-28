@@ -116,11 +116,12 @@ libvic20cart_a_AR = $(AR) $(ARFLAGS)
 libvic20cart_a_LIBADD =
 am_libvic20cart_a_OBJECTS = behrbonz.$(OBJEXT) debugcart.$(OBJEXT) \
 	finalexpansion.$(OBJEXT) ioramcart.$(OBJEXT) \
-	megacart.$(OBJEXT) mikroassembler.$(OBJEXT) rabbit.$(OBJEXT) \
-	superexpander.$(OBJEXT) ultimem.$(OBJEXT) vic-fp.$(OBJEXT) \
-	vic20-generic.$(OBJEXT) vic20-ieee488.$(OBJEXT) \
-	vic20-midi.$(OBJEXT) vic20-sidcart.$(OBJEXT) \
-	vic20cart.$(OBJEXT) vic20cartmem.$(OBJEXT)
+	megacart.$(OBJEXT) mikroassembler.$(OBJEXT) minimon.$(OBJEXT) \
+	rabbit.$(OBJEXT) superexpander.$(OBJEXT) ultimem.$(OBJEXT) \
+	vic-fp.$(OBJEXT) vic20-generic.$(OBJEXT) \
+	vic20-ieee488.$(OBJEXT) vic20-midi.$(OBJEXT) \
+	vic20-sidcart.$(OBJEXT) vic20cart.$(OBJEXT) \
+	vic20cartmem.$(OBJEXT) writenow.$(OBJEXT)
 libvic20cart_a_OBJECTS = $(am_libvic20cart_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -140,12 +141,13 @@ am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/behrbonz.Po ./$(DEPDIR)/debugcart.Po \
 	./$(DEPDIR)/finalexpansion.Po ./$(DEPDIR)/ioramcart.Po \
 	./$(DEPDIR)/mascuerade-stubs.Po ./$(DEPDIR)/megacart.Po \
-	./$(DEPDIR)/mikroassembler.Po ./$(DEPDIR)/rabbit.Po \
-	./$(DEPDIR)/superexpander.Po ./$(DEPDIR)/ultimem.Po \
-	./$(DEPDIR)/vic-fp.Po ./$(DEPDIR)/vic20-generic.Po \
-	./$(DEPDIR)/vic20-ieee488.Po ./$(DEPDIR)/vic20-midi.Po \
-	./$(DEPDIR)/vic20-sidcart.Po ./$(DEPDIR)/vic20cart.Po \
-	./$(DEPDIR)/vic20cartmem.Po
+	./$(DEPDIR)/mikroassembler.Po ./$(DEPDIR)/minimon.Po \
+	./$(DEPDIR)/rabbit.Po ./$(DEPDIR)/superexpander.Po \
+	./$(DEPDIR)/ultimem.Po ./$(DEPDIR)/vic-fp.Po \
+	./$(DEPDIR)/vic20-generic.Po ./$(DEPDIR)/vic20-ieee488.Po \
+	./$(DEPDIR)/vic20-midi.Po ./$(DEPDIR)/vic20-sidcart.Po \
+	./$(DEPDIR)/vic20cart.Po ./$(DEPDIR)/vic20cartmem.Po \
+	./$(DEPDIR)/writenow.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -221,6 +223,7 @@ CYGPATH_W = @CYGPATH_W@
 DEBUGBUILD = @DEBUGBUILD@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
+DESKTOP_FILE_INSTALL = @DESKTOP_FILE_INSTALL@
 DOS2UNIX = @DOS2UNIX@
 DYNLIB_LIBS = @DYNLIB_LIBS@
 ECHO_C = @ECHO_C@
@@ -230,15 +233,6 @@ ENABLE_ARCH = @ENABLE_ARCH@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 FCCACHE = @FCCACHE@
-FFMPEG_AVRESAMPLE_CFLAGS = @FFMPEG_AVRESAMPLE_CFLAGS@
-FFMPEG_AVRESAMPLE_LIBS = @FFMPEG_AVRESAMPLE_LIBS@
-FFMPEG_AV_CFLAGS = @FFMPEG_AV_CFLAGS@
-FFMPEG_AV_LIBS = @FFMPEG_AV_LIBS@
-FFMPEG_INCLUDES = @FFMPEG_INCLUDES@
-FFMPEG_SWRESAMPLE_CFLAGS = @FFMPEG_SWRESAMPLE_CFLAGS@
-FFMPEG_SWRESAMPLE_LIBS = @FFMPEG_SWRESAMPLE_LIBS@
-FFMPEG_SWSCALE_CFLAGS = @FFMPEG_SWSCALE_CFLAGS@
-FFMPEG_SWSCALE_LIBS = @FFMPEG_SWSCALE_LIBS@
 FONTCONFIG_CFLAGS = @FONTCONFIG_CFLAGS@
 FONTCONFIG_LIBS = @FONTCONFIG_LIBS@
 FW_DIR = @FW_DIR@
@@ -269,6 +263,8 @@ LEXLIB = @LEXLIB@
 LEX_OUTPUT_ROOT = @LEX_OUTPUT_ROOT@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
+LIBUSB_CFLAGS = @LIBUSB_CFLAGS@
+LIBUSB_LIBS = @LIBUSB_LIBS@
 LINKCC = @LINKCC@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
@@ -332,6 +328,7 @@ TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
 UNZIPBIN = @UNZIPBIN@
+UPDATE_DESKTOP_DATABASE = @UPDATE_DESKTOP_DATABASE@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -351,7 +348,7 @@ VTE_CXXFLAGS = @VTE_CXXFLAGS@
 WINDRES = @WINDRES@
 WINDRES_LIB = @WINDRES_LIB@
 XA = @XA@
-XDG_DESKTOP_MENU = @XDG_DESKTOP_MENU@
+XDG_ICON_RESOURCE = @XDG_ICON_RESOURCE@
 YACC = @YACC@
 ZLIB_LIBS = @ZLIB_LIBS@
 abs_builddir = @abs_builddir@
@@ -450,6 +447,8 @@ libvic20cart_a_SOURCES = \
 	megacart.h \
 	mikroassembler.c \
 	mikroassembler.h \
+	minimon.c \
+	minimon.h \
 	rabbit.c \
 	rabbit.h \
 	superexpander.c \
@@ -468,7 +467,9 @@ libvic20cart_a_SOURCES = \
 	vic20cart.c \
 	vic20cart.h \
 	vic20cartmem.c \
-	vic20cartmem.h
+	vic20cartmem.h \
+	writenow.c \
+	writenow.h
 
 libmascuerade_a_SOURCES = \
 	mascuerade-stubs.h \
@@ -534,6 +535,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mascuerade-stubs.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/megacart.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mikroassembler.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/minimon.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rabbit.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/superexpander.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ultimem.Po@am__quote@ # am--include-marker
@@ -544,6 +546,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vic20-sidcart.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vic20cart.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vic20cartmem.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/writenow.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -695,6 +698,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/mascuerade-stubs.Po
 	-rm -f ./$(DEPDIR)/megacart.Po
 	-rm -f ./$(DEPDIR)/mikroassembler.Po
+	-rm -f ./$(DEPDIR)/minimon.Po
 	-rm -f ./$(DEPDIR)/rabbit.Po
 	-rm -f ./$(DEPDIR)/superexpander.Po
 	-rm -f ./$(DEPDIR)/ultimem.Po
@@ -705,6 +709,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/vic20-sidcart.Po
 	-rm -f ./$(DEPDIR)/vic20cart.Po
 	-rm -f ./$(DEPDIR)/vic20cartmem.Po
+	-rm -f ./$(DEPDIR)/writenow.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -757,6 +762,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/mascuerade-stubs.Po
 	-rm -f ./$(DEPDIR)/megacart.Po
 	-rm -f ./$(DEPDIR)/mikroassembler.Po
+	-rm -f ./$(DEPDIR)/minimon.Po
 	-rm -f ./$(DEPDIR)/rabbit.Po
 	-rm -f ./$(DEPDIR)/superexpander.Po
 	-rm -f ./$(DEPDIR)/ultimem.Po
@@ -767,6 +773,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/vic20-sidcart.Po
 	-rm -f ./$(DEPDIR)/vic20cart.Po
 	-rm -f ./$(DEPDIR)/vic20cartmem.Po
+	-rm -f ./$(DEPDIR)/writenow.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

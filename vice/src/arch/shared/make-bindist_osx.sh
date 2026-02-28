@@ -36,18 +36,23 @@ WARN_CODE_SIGN=false
 [ -z ${DEPS_PREFIX+set} ] && (>&2 echo "ERROR: Please set DEPS_PREFIX environment variable to something like /opt/local, /usr/local, or /opt/homebrew"; exit 1)
 
 if [ -z ${CODE_SIGN_ID+set} ]; then
-  CODE_SIGN_ID=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -n1 | awk -F'"' '{ print $2 }')
+  # Sign as ad-hoc if no identity is provided
+  CODE_SIGN_ID="-"
   WARN_CODE_SIGN=true
 fi
 
-if which gtk-update-icon-cache-3.0 > /dev/null; then
-  # macports
-  GTK_UPDATE_ICON_CACHE=gtk-update-icon-cache-3.0
-elif which gtk3-update-icon-cache >/dev/null; then
-  GTK_UPDATE_ICON_CACHE=gtk3-update-icon-cache
-else
-  >&2 echo "ERROR: Could not find gtk-update-icon-cache-3.0 or gtk3-update-icon-cache"
-  exit 1
+if [ "$UI_TYPE" = "GTK3" ]; then
+  if which gtk-update-icon-cache-3.0 > /dev/null; then
+    # macports
+    GTK_UPDATE_ICON_CACHE=gtk-update-icon-cache-3.0
+  elif which gtk3-update-icon-cache >/dev/null; then
+    GTK_UPDATE_ICON_CACHE=gtk3-update-icon-cache
+  elif which gtk-update-icon-cache >/dev/null; then
+    GTK_UPDATE_ICON_CACHE=gtk-update-icon-cache
+  else
+    >&2 echo "ERROR: Could not find gtk-update-icon-cache-3.0, gtk3-update-icon-cache, nor gtk-update-icon-cache."
+    exit 1
+  fi
 fi
 
 CPU_ARCH=$(uname -m | tr _ -)
@@ -59,12 +64,17 @@ echo " CPU arch: $CPU_ARCH"
 # setup BUILD dir
 BUILD_DIR=$(echo "vice-$CPU_ARCH-$UI_TYPE-$VICE_VERSION" | tr '[:upper:]' '[:lower:]')
 
-SVN_VERSION=$(svn info --show-item revision "$TOP_DIR" 2>/dev/null || true)
-if [[ ! -z "$SVN_VERSION" ]]; then
-  BUILD_DIR="$BUILD_DIR-r$SVN_VERSION"
-  # if the source is not clean, add '-uncommitted-changes' to the name
-  if [[ ! -z "$(svn status -q "$TOP_DIR")" ]]; then
-    BUILD_DIR="$BUILD_DIR-uncommitted-changes"
+if [[ ! -z "${GITHUB_REF_NAME:-}" ]]; then
+  #GitHub Actions build
+  BUILD_DIR="$BUILD_DIR-$GITHUB_REF_NAME"
+else
+  SVN_VERSION=$(svn info --show-item revision "$TOP_DIR" 2>/dev/null || true)
+  if [[ ! -z "$SVN_VERSION" ]]; then
+    BUILD_DIR="$BUILD_DIR-r$SVN_VERSION"
+    # if the source is not clean, add '-uncommitted-changes' to the name
+    if [[ ! -z "$(svn status -q "$TOP_DIR")" ]]; then
+      BUILD_DIR="$BUILD_DIR-uncommitted-changes"
+    fi
   fi
 fi
 
@@ -100,13 +110,12 @@ elif [ "$UI_TYPE" = "SDL2" ]; then
 fi
 
 # define droppable file types
-DROP_TYPES="x64|p64|g64|d64|d71|d81|t64|tap|prg|p00|crt|reu"
-DROP_FORMATS="x64 p64 g64 d64 d71 d81 t64 tap prg p00 crt reu"
+DROP_EXTENSIONS="x64 p64 g64 d64 d71 d81 t64 tap prg p00 crt reu"
 
 # runtime scripts
 MACOS_SCRIPTS=macOS-runtime-scripts.inc
 LAUNCHER=../shared/macOS-launcher.sh
-REDIRECT_LAUNCHER=../shared/macOS-redirect-launcher.sh
+REDIRECT_LAUNCHER=../shared/macOS-redirect-launcher.applescript
 
 copy_tree () {
   (cd "$1" && tar --exclude 'Makefile*' --exclude .svn -c -f - .) | (cd "$2" && tar xf -)
@@ -119,24 +128,108 @@ resolve_link () {
   echo "$(cd $(dirname $link) && cd $(dirname $link_target) && pwd -P)/$(basename $link_target)"
 }
 
-copy_lib_recursively () {
-  local lib="$1"
-  local lib_basename=`basename "$lib"`
-  local lib_dest="$APP_LIB/$lib_basename"
+extract_rpaths () {
+  local thing="$1"
 
-  if [ "$lib" = "" ] || [ -e "$lib_dest" ]; then
-    return
-  fi
+  LOADER_PATH=$(dirname "$thing")
+  # >&2 echo "Loader path for $thing: $LOADER_PATH"
 
-  cp "$lib" "$lib_dest"
-  chmod 644 "$lib_dest"
+  RPATHS=$(
+    otool -l "$thing" \
+    | grep -A 2 LC_RPATH \
+    | grep path \
+    | sed 's/.*path //' \
+    | sed 's/ (offset.*//' \
+    | sed "s,@loader_path/,$LOADER_PATH/,"
+  )
 
-  # copy this lib's libs
-  LIB_LIBS=`otool -L "$lib_dest" | egrep "^\s+$DEPS_PREFIX/" | grep -v "$lib_basename" | awk '{print $1}'`
+  # >&2 echo "RPATHs for $thing:"
+  # >&2 echo "$RPATHS"
 
-  for lib_lib in $LIB_LIBS; do
-    copy_lib_recursively "$lib_lib"
+  echo "$RPATHS"
+}
+
+find_thing_libs () {
+  local thing="$1"
+
+  otool -L "$thing" \
+    | grep -v "$thing" \
+    | egrep -v "^\s+/usr/lib/" \
+    | egrep -v "^\s+/System/Library/" \
+    | awk '{print $1}'
+
+  true
+}
+
+copy_thing_libs_internal () {
+  local thing="$1"
+
+  shift
+  local exe_rpaths="$@"
+
+  THING_LIBS=$(find_thing_libs "$thing")
+  # >&2 echo "*** $thing libs:"
+  # >&2 echo "$THING_LIBS"
+
+  # copy this lib's libs. Some resolution of @rpath and @loader_path is needed for some libs.
+  RPATHS=$(extract_rpaths "$thing")
+
+  # >&2 echo "Combined lib + exe RPATHs for $thing:"
+  # >&2 echo -e "$RPATHS\n$exe_rpaths"
+
+  for lib in $THING_LIBS; do
+    resolved_lib="$lib"
+    if [[ "$resolved_lib" == @rpath/* ]]; then
+      # >&2 echo "Considering @rpath lib: $resolved_lib"
+      for rpath in $RPATHS $exe_rpaths; do
+        # >&2 echo "  considering rpath: $rpath"
+        candidate_lib="$rpath/${resolved_lib#@rpath/}"
+
+        if [[ "$candidate_lib" == @loader_path/* ]]; then
+          candidate_lib="$LOADER_PATH/${candidate_lib#@loader_path/}"
+        fi
+
+        if [ -e "$candidate_lib" ]; then
+          # >&2 echo "  candidate lib exists: $candidate_lib"
+          resolved_lib="$candidate_lib"
+          break
+        fi
+      done
+
+    elif [[ "$lib" == @loader_path/* ]]; then
+      candidate_lib="$LOADER_PATH/${lib#@loader_path/}"
+      if [ -e "$candidate_lib" ]; then
+        resolved_lib="$candidate_lib"
+      fi
+    fi
+
+    # >&2 echo "Found lib to copy: $lib"
+    # >&2 echo "  resolved to: $resolved_lib"
+
+    if [ ! -e "$resolved_lib" ]; then
+      >&2 echo "  ERROR: resolved lib $resolved_lib does not exist!"
+      exit 1
+    fi
+
+    basename_lib=$(basename "$resolved_lib")
+    if [ -e "$APP_LIB/$basename_lib" ]; then
+      # >&2 echo "  already copied, skipping."
+      continue
+    fi
+
+    # >&2 echo "  copying to bundle."
+    cp "$resolved_lib" "$APP_LIB/"
+    chmod 644 "$APP_LIB/$basename_lib"
+
+    # Recursively copy this lib's libs
+    copy_thing_libs_internal "$resolved_lib" "$exe_rpaths"
   done
+}
+
+copy_thing_libs () {
+  local thing="$1"
+
+  copy_thing_libs_internal "$thing" "$(extract_rpaths "$thing")"
 }
 
 # --- create bundle ------------------------------------------------------------
@@ -157,56 +250,100 @@ APP_DOCS=$APP_SHARE/vice/doc
 APP_BIN=$APP_RESOURCES/bin
 APP_LIB=$APP_RESOURCES/lib
 
-if ! which -s platypus; then
-  echo "ERROR: platypus not found (sudo port install platypus / brew install platypus)"
-  exit 1
-fi
-
 make_app_bundle() {
-  local app_name=$1
-  local app_path=$BUILD_DIR/$app_name.app
-  local app_launcher=$2
-  local output=$(mktemp)
+  local app_name="$1"
+  local app_launcher="$2"
+  local app_path="$BUILD_DIR/$app_name.app"
+  local contents="$app_path/Contents"
+  local macos="$contents/MacOS"
+  local resources="$contents/Resources"
+  local info_plist="$contents/Info.plist"
+  local bundle_id="org.viceteam.$app_name"
+  local icon_name="VICE.icns"
+  local min_macos="${MIN_MACOS_VER:-12.0}"  # override with MIN_MACOS_VER if you want
+  local app_exe_filename="$app_name"
 
-  platypus \
-    -a $app_name \
-    -o None \
-    -i "$RUN_PATH/Resources/VICE.icns" \
-    -V "$VICE_VERSION" \
-    -u "The VICE Team" \
-    -I "org.viceteam.$app_name" \
-    -c "$app_launcher" \
-    -D \
-    -X $DROP_TYPES \
-    -R \
-    -B \
-    "$app_path" \
-    > /dev/null \
-    2> $output
-  
-  PLATYPUS_STATUS=$?
-  
-  if [ $PLATYPUS_STATUS -ne 0 ]; then
-    echo "ERROR: platypus failed with $PLATYPUS_STATUS. Output:"
-    cat $output
-    rm $output
+  rm -rf "$app_path"
 
+  # 2) Install launcher
+  if [[ "$app_launcher" == *.applescript ]]; then
+    osacompile -o "$app_path" "$app_launcher"
+    app_exe_filename=droplet
+
+    # Install emu specific icon
+    if [[ "$app_name" == "x64sc" ]]; then
+      src_icon_name="x64"
+    elif [[ "$app_name" == "xcbm5x0" ]]; then
+      src_icon_name="xcbm2"
+    else
+      src_icon_name="$app_name"
+    fi
+
+    rm "$resources/droplet.icns"
+    mkdir -p "$resources/VICE.iconset"
+    cp "$TOP_DIR/data/common/vice-${src_icon_name}_256.png" "$resources/VICE.iconset/icon_256x256.png"
+    iconutil -c icns "$resources/VICE.iconset" -o "$resources/$icon_name"
+    rm -rf "$resources/VICE.iconset"
+  elif [[ "$app_launcher" == *.sh ]]; then
+    mkdir -p "$macos"
+
+    # A native wrapper is needed for macOS to not think it needs Rosetta
+    cp src/arch/shared/macOS-launcher "$macos/$app_name"
+
+    # Move shell script to Resources to avoid code signing issues
+    mkdir -p "$resources"
+    cp "$app_launcher" "$resources/${app_name}.sh"
+    chmod +x "$resources/${app_name}.sh"
+
+    # Install icon
+    cp "$RUN_PATH/Resources/VICE.icns" "$resources/$icon_name"
+  else
+    >&2 echo "ERROR: Unknown launcher type: $app_launcher"
     exit 1
   fi
 
-  #
-  # For some reason can't set the CFBundlePackageType key directly using platypus.
-  # Without this the codesigning works but spctl --assess --verbose *.app results
-  # in "rejected (the code is valid but does not seem to be an app)" -- which
-  # means it won't get past gatekeeper properly, at least on 10.14. But it will on
-  # 10.15 if it's notarised. Wtf Apple.
-  #
-  # Also, with newer versions of platypus, the key WILL be there already.
-  # So, we check for it, and add it if missing.
-  #
+  # 3) Minimal Info.plist
+  /usr/bin/env cat > "$info_plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>    <string>en</string>
+  <key>CFBundleName</key>                 <string>${app_name}</string>
+  <key>CFBundleDisplayName</key>          <string>${app_name}</string>
+  <key>CFBundleIdentifier</key>           <string>${bundle_id}</string>
+  <key>CFBundleVersion</key>              <string>${VICE_VERSION}</string>
+  <key>CFBundleShortVersionString</key>   <string>${VICE_VERSION}</string>
+  <key>CFBundlePackageType</key>          <string>APPL</string>
+  <key>CFBundleExecutable</key>           <string>${app_exe_filename}</string>
+  <key>CFBundleIconFile</key>             <string>${icon_name}</string>
+  <key>CFBundlePackageType</key>          <string>APPL</string>
+  <key>LSMinimumSystemVersion</key>       <string>${min_macos}</string>
+  <key>NSHighResolutionCapable</key>      <true/>
+  <key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+	<key>NSHumanReadableCopyright</key>
+	<string>© 2025 The VICE Team</string>
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key><string>VICE Files</string>
+      <key>CFBundleTypeRole</key><string>Viewer</string>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+$(for ext in $DROP_EXTENSIONS; do printf '        <string>%s</string>\n' "$ext"; done)
+      </array>
+    </dict>
+  </array>
+</dict>
+</plist>
+PLIST
 
-  /usr/libexec/PlistBuddy -c 'print ":CFBundlePackageType"' "$app_path/Contents/Info.plist" >/dev/null 2>&1 || \
-    /usr/libexec/PlistBuddy -c "Add CFBundlePackageType string APPL" "$app_path/Contents/Info.plist"
+  # Strip extended attrs from script (reduces Gatekeeper false positives when copying from net fs)
+  xattr -cr "$app_path" || true
 }
 
 echo "  bundling $BUNDLE.app: "
@@ -255,7 +392,7 @@ if [ -d etc ]; then
   echo -n "] "
 fi
 
-echo  
+echo
 
 
 # --- embed emu binaries -------------------------------------------------------
@@ -284,11 +421,7 @@ for emu in $BINARIES ; do
   fi
 
   # copy any needed "local" libs
-  LOCAL_LIBS=`otool -L $APP_BIN/$emu | egrep "^\s+$DEPS_PREFIX/" | awk '{print $1}'`
-
-  for lib in $LOCAL_LIBS; do
-    copy_lib_recursively $lib
-  done
+  copy_thing_libs "$APP_BIN/$emu"
 
   # copy emulator ROM
   eval "ROM=\${ROM_$emu}"
@@ -303,7 +436,7 @@ for emu in $BINARIES ; do
   copy_tree "$TOP_DIR/data/$ROM" "$APP_ROMS/$ROM"
   (cd $APP_ROMS/$ROM && eval "rm -f $ROM_REMOVE")
 
-  echo -n "[platypus] "
+  echo -n "[app] "
   make_app_bundle $emu $RUN_PATH/$REDIRECT_LAUNCHER
 
   # ready
@@ -374,41 +507,50 @@ elif [ "$UI_TYPE" = "GTK3" ]; then
   }
 
   mkdir $APP_SHARE/icons
-
   import_scalable_gtk_icons Adwaita
 
   # hicolor is small, just copy it. It doesn't have any scalable assets.
   cp -r $DEPS_PREFIX/share/icons/hicolor "$APP_SHARE/icons/"
   $GTK_UPDATE_ICON_CACHE "$APP_SHARE/icons/hicolor"
+
+  export GTK_EXE_PREFIX="$APP_RESOURCES"
+  export GTK_PATH="$APP_LIB/gtk-3.0"
+  export DYLD_LIBRARY_PATH="$APP_LIB"
+
+  # Keep only the necessary GTK schemas
+  TMPDIR=$(mktemp -d)
+  mv "$APP_SHARE/glib-2.0/schemas/org.gtk.Settings."*.xml $TMPDIR/
+  find "$APP_SHARE"/glib-2.0/schemas/ -name "*.xml" -exec rm {} \;
+  mv $TMPDIR/* "$APP_SHARE/glib-2.0/schemas/"
+  rmdir $TMPDIR
+  glib-compile-schemas "$APP_SHARE/glib-2.0/schemas"
 fi
 
 # .so libs need their libs too
 for lib in `find $APP_LIB -name '*.so'`; do
-  LIB_LIBS=`otool -L $lib | egrep "^\s+$DEPS_PREFIX/" | awk '{print $1}'`
-
-  for lib_lib in $LIB_LIBS; do
-    copy_lib_recursively $lib_lib
-  done
+  copy_thing_libs "$lib"
 done
 
 # Some libs are loaded at runtime
 if grep -q "^#define HAVE_EXTERNAL_LAME " "src/config.h"; then
-  copy_lib_recursively $DEPS_PREFIX/lib/libmp3lame.dylib
+  cp $DEPS_PREFIX/lib/libmp3lame.dylib "$APP_LIB/"
+  copy_thing_libs $DEPS_PREFIX/lib/libmp3lame.dylib
 fi
 
-# ffmpeg
-if grep -q "^#define EXTERNAL_FFMPEG " "src/config.h"; then
-  copy_lib_recursively "$(find $DEPS_PREFIX/lib -type f -name 'libavformat.*.dylib')"
-  copy_lib_recursively "$(find $DEPS_PREFIX/lib -type f -name 'libavcodec.*.dylib')"
-  copy_lib_recursively "$(find $DEPS_PREFIX/lib -type f -name 'libavutil.*.dylib')"
-  copy_lib_recursively "$(find $DEPS_PREFIX/lib -type f -name 'libswscale.*.dylib')"
-  if grep -q "^#define HAVE_FFMPEG_AVRESAMPLE " "src/config.h"; then
-    copy_lib_recursively "$(find $DEPS_PREFIX/lib -type f -name 'libavresample.*.dylib')"
-  fi
-  if grep -q "^#define HAVE_FFMPEG_SWRESAMPLE " "src/config.h"; then
-    copy_lib_recursively "$(find $DEPS_PREFIX/lib -type f -name 'libswresample.*.dylib')"
-  fi
+if [ "$UI_TYPE" = "GTK3" ]; then
+  # GDK-Pixbuf loaders.cache
+  # Discover loader .so files from the bundle and feed them to the query tool:
+  gdk-pixbuf-query-loaders $(find "$APP_LIB/gdk-pixbuf-2.0/2.10.0/loaders" -name '*.so') \
+     > "$APP_LIB/gdk-pixbuf-2.0/2.10.0/loaders.cache"
+  sed -i '' -e "s,$(pwd)/$APP_LIB/,,g" "$APP_LIB/gdk-pixbuf-2.0/2.10.0/loaders.cache"
+
+  # GTK3 IM modules cache
+  # keep only im-quartz.so and replace the cache
+  find "$APP_LIB/gtk-3.0/3.0.0/immodules/" -name '*.so' ! -name 'im-quartz.so' -exec rm -f {} \;
+  echo '"gtk-3.0/3.0.0/immodules/im-quartz.so"' > "$APP_LIB/gtk-3.0/3.0.0/immodules.cache"
+  echo '"quartz" "Mac OS X Quartz" "gtk30" "" "ja:ko:zh:*"' >> "$APP_LIB/gtk-3.0/3.0.0/immodules.cache"
 fi
+
 
 # --- copy tools ---------------------------------------------------------------
 
@@ -426,7 +568,7 @@ for tool_file in $TOOLS ; do
     exit 1
   fi
   cp src/$tool_file $APP_BIN/$tool_name
-  
+
   # strip binary
   if [ x"$STRIP" = "xstrip" ]; then
     echo -n "[strip] "
@@ -434,11 +576,7 @@ for tool_file in $TOOLS ; do
   fi
 
   # copy any needed "local" libs
-  LOCAL_LIBS=`otool -L $APP_BIN/$tool_name | egrep "^\s+$DEPS_PREFIX/" | awk '{print $1}'`
-
-  for lib in $LOCAL_LIBS; do
-      copy_lib_recursively $lib
-  done
+  copy_thing_libs "$APP_BIN/$tool_name"
 
   # ready
   echo
@@ -448,6 +586,10 @@ done
 # --- deduplicate libs ---------------------------------------------------------
 
 echo "Deduplicating libs"
+
+relative_path() {
+  python3 -c 'import os,sys; print(os.path.relpath(sys.argv[1], os.path.dirname(sys.argv[2])))' "$1" "$2"
+}
 
 for lib in $(find $APP_LIB -name '*.dylib' | sort -V -r); do
   if [ -L "$lib" ]; then
@@ -460,9 +602,10 @@ for lib in $(find $APP_LIB -name '*.dylib' | sort -V -r); do
     fi
 
     if cmp -s "$potential_duplicate" "$lib"; then
-      echo "Replacing $(basename $potential_duplicate) with symlink to $(basename $lib)"
+      echo "Replacing $(basename $potential_duplicate) with symlink to $(relative_path "$lib" "$potential_duplicate")"
+      chmod u+w "$potential_duplicate"
       rm "$potential_duplicate"
-      ln -s "$(basename "$lib")" "$potential_duplicate"
+      ln -s "$(relative_path "$lib" "$potential_duplicate")" "$potential_duplicate"
     fi
   done
 done
@@ -478,12 +621,10 @@ relink () {
   # Any link to a lib in $DEPS_PREFIX is updated to @rpath/$lib
   #
 
-  set +o pipefail
-  THING_LIBS=`otool -L $thing | egrep "^\s+$DEPS_PREFIX/" | awk '{print $1}'`
-  set -o pipefail
+  THING_LIBS=$(find_thing_libs "$thing")
 
   for thing_lib in $THING_LIBS; do
-    install_name_tool -change $thing_lib @rpath/$(basename $thing_lib) $thing \
+    install_name_tool -change $thing_lib "@rpath/$(basename $thing_lib)" $thing \
       2> >(grep -v "invalidate the code signature")
   done
 
@@ -508,7 +649,7 @@ relink () {
     install_name_tool -delete_rpath $rpath $thing \
       2> >(grep -v "invalidate the code signature")
   done
-  
+
   install_name_tool -add_rpath @executable_path/../lib $thing \
     2> >(grep -v "invalidate the code signature")
 }
@@ -525,27 +666,6 @@ for bin in $BINARIES $TOOLS; do
   chmod 555 $APP_BIN/$(basename $bin)
 done
 
-if [ "$UI_TYPE" = "GTK3" ]; then
-  # these copied cache files would otherwise point to local files
-  if [ -e $APP_ETC/gtk-3.0/gtk.immodules ]; then
-    # macports
-    sed -i '' -e "s,$DEPS_PREFIX,@executable_path/..," $APP_ETC/gtk-3.0/gtk.immodules
-  fi
-
-  if [ -e $APP_LIB/gtk-3.0/3.0.0/immodules.cache ]; then
-    # homebrew
-    sed -i '' -e "s,$DEPS_PREFIX[^ ]immodules/,@executable_path/../lib/gtk-3.0/3.0.0/immodules/," $APP_LIB/gtk-3.0/3.0.0/immodules.cache
-  fi
-
-  if [ -e $APP_ETC/gtk-3.0/gdk-pixbuf.loaders ]; then
-    # macports
-    sed -i '' -e "s,$DEPS_PREFIX,@executable_path/..," $APP_ETC/gtk-3.0/gdk-pixbuf.loaders
-  fi
-
-  sed -i '' -e "s,$DEPS_PREFIX,@executable_path/..," $(find $APP_LIB/gdk-pixbuf-* -name loaders.cache)
-fi
-
-
 # --- create general command line launchers ------------------------------------
 
 echo "  creating command line launchers"
@@ -556,7 +676,7 @@ for emu in $EMULATORS $TOOLS; do
     #!/bin/bash
     export VICE_INITIAL_CWD="$(pwd)"
     export PROGRAM="$(basename "$0")"
-    "$(dirname "$0")/../VICE.app/Contents/Resources/script" "$@"
+    "$(dirname "$0")/../VICE.app/Contents/MacOS/VICE" "$@"
 HEREDOC
   chmod +x "$BIN_DIR/$emu"
 done
@@ -589,10 +709,9 @@ fi
 
 # --- copy fonts ---------------------------------------------------------------
 
-FONTS="C64_Pro_Mono-STYLE.ttf"
 echo "  copying fonts"
-for FONT in $FONTS ; do
-  cp "$TOP_DIR/data/common/$FONT" "$APP_COMMON/"
+for FONT in $(ls -1 $TOP_DIR/data/common/*.ttf) ; do
+  cp "$FONT" "$APP_COMMON/"
 done
 
 if [ "$UI_TYPE" = "GTK3" ]; then
@@ -611,18 +730,33 @@ fi
 cp "$TOP_DIR/data/hotkeys/"*.vhk "$APP_HOTKEYS/"
 
 
-# --- wtf permissions. ---------------------------------------------------------
-
-# platypus produces 777 binaries, which is awesome.
-
-find $BUILD_DIR -type f -exec chmod a-w {} \;
-find $BUILD_DIR -type d -exec chmod 755 {} \;
-
-
 # --- code signing (for Apple notarisation) ------------------------------------
 
 code_sign_file () {
-  codesign -s "$CODE_SIGN_ID" --timestamp --options runtime -f "$1"
+  if [ "$CODE_SIGN_ID" = "-" ]; then
+    # Ad-hoc signing
+    codesign --force --sign - -f "$1"
+  else
+    # Signing with provided identity. Can intermittently fail due to server allocated timestamps.
+    local codesign_succeeded=false
+    for in in $(seq 1 4)
+    do
+      if codesign -s "$CODE_SIGN_ID" --timestamp --options runtime -f "$1"
+      then
+        codesign_succeeded=true
+        break
+      else
+        >&2 echo "Codesign failed, will retry"
+        sleep 1
+      fi
+    done
+
+    if ! $codesign_succeeded
+    then
+      >&2 echo "Codesign failed, giving up"
+      false
+    fi
+  fi
 }
 
 if [ -n "$CODE_SIGN_ID" ]; then
@@ -660,7 +794,7 @@ else
   mkdir $DMG_DIR
   ln -s /Applications $DMG_DIR/
   mv $BUILD_DIR $DMG_DIR
-  
+
   # Create the image and format it
   echo "  creating DMG"
   hdiutil create -fs HFS+ -srcfolder $DMG_DIR $BUILD_TMP_IMG -volname $BUILD_DIR -ov -quiet
@@ -686,25 +820,13 @@ fi
 
 # --- show warnings ------------------------------------------------------------
 
-if [ -z "$CODE_SIGN_ID" ]; then
-  cat <<HEREDOC | sed 's/^ *//'
-
-    ****
-    Bindist is not codesigned. To sign, export the CODE_SIGN_ID environment variable to
-    something like "Developer ID Application: <NAME> (<ID>)".
-
-    Run 'security find-identity -v -p codesigning' to list available identities.
-    ****
-
-HEREDOC
-fi
-
 if $WARN_CODE_SIGN; then
   cat <<HEREDOC | sed 's/^ *//'
 
     ****
-    CODE_SIGN_ID environment variable not set, using detected value: $CODE_SIGN_ID
-    
+    CODE_SIGN_ID environment variable not set, using ad-hoc signature. User will
+    need to override Gatekeeper to run the apps.
+
     Run 'security find-identity -v -p codesigning' to list available identities,
     and set CODE_SIGN_ID to something like "Developer ID Application: <NAME> (<ID>)".
     ****
@@ -714,7 +836,7 @@ fi
 
 if test x"$ENABLEARCH" = "xyes"; then
   cat <<HEREDOC | sed 's/^ *//'
-    
+
     ****
     Warning: binaries are optimized for your system and might not run on a different system,
     use --enable-arch=no to avoid this.
@@ -725,7 +847,7 @@ fi
 
 if [ ! -e doc/vice.pdf ]; then
   cat <<HEREDOC | sed 's/^ *//'
-    
+
     ****
     Warning: This binary distribution does not include vice.pdf as it was not built.
     ****

@@ -59,6 +59,14 @@
 #include "math.h"
 #include "ui.h"
 
+/* #define DEBUG_SOUND */
+
+#ifdef DEBUG_SOUND
+#define DBG(x) log_printf x
+#else
+#define DBG(x)
+#endif
+
 
 log_t sound_log = LOG_DEFAULT;
 
@@ -135,8 +143,12 @@ static const sound_register_devices_t sound_register_devices[] = {
        works, no files will be created accidently */
     { "dummy", "Dummy sound output (no sound)", sound_init_dummy_device, SOUND_PLAYBACK_DEVICE },
 
+    /* FIXME: the dump device (and part of the sound system) needs to be
+       rewritten somehow, so it can be used while actually playing sound, ie as
+       a record device */
+    { "dump", "Sound chip write recording", sound_init_dump_device, SOUND_PLAYBACK_DEVICE },
+
     { "fs", "Raw sound recording", sound_init_fs_device, SOUND_RECORD_DEVICE },
-    { "dump", "Sound chip state recording", sound_init_dump_device, SOUND_RECORD_DEVICE },
     { "wav", "RIFF/WAV sound recording", sound_init_wav_device, SOUND_RECORD_DEVICE },
     { "voc", "Creative Voice VOC sound recording", sound_init_voc_device, SOUND_RECORD_DEVICE },
     { "iff", "AmigaOS IFF/8SVX sound recording", sound_init_iff_device, SOUND_RECORD_DEVICE },
@@ -153,7 +165,7 @@ static const sound_register_devices_t sound_register_devices[] = {
 #ifdef USE_VORBIS
     { "ogg", "OGG sound recording", sound_init_vorbis_device, SOUND_RECORD_DEVICE },
 #endif
-
+    /* the driver used for recording sound when actually recording video+sound */
     { "soundmovie", "Movie sound recording", sound_init_movie_device, SOUND_MOVIE_RECORD_DEVICE },
 #endif /* __LIBRETRO__ */
     { NULL, NULL, NULL, 0 }
@@ -480,6 +492,7 @@ static int sound_machine_calculate_samples(sound_t **psid, int16_t *pbuf, int nr
 #endif
 }
 
+/* perform the actual write to the sound chip */
 static void sound_machine_store(sound_t *psid, uint16_t addr, uint8_t val)
 {
     if (sound_calls[addr >> 5]->store) {
@@ -639,6 +652,7 @@ static int set_device_name(const char *val, void *param)
     } else {
         util_string_set(&device_name, val);
     }
+    DBG(("set_device_name device_name:'%s'", device_name));
     sound_state_changed = TRUE;
     return 0;
 }
@@ -744,6 +758,7 @@ static const resource_int_t resources_int[] = {
 
 int sound_resources_init(void)
 {
+    DBG(("sound_resources_init"));
     /* Set the first device in the list as default factory value. We do this
        here so the default value will not end up in the config file. */
     if (archdep_is_haiku() == 0) {
@@ -755,6 +770,7 @@ int sound_resources_init(void)
     if (resources_register_string(resources_string) < 0) {
         return -1;
     }
+    DBG(("sound_resources_init resources_string[0].factory_value:'%s'", resources_string[0].factory_value));
 
     return resources_register_int(resources_int);
 }
@@ -885,7 +901,7 @@ sound_desc_t *sound_get_valid_devices(int type, int sort)
 
     for (i = 0; sound_register_devices[i].name; ++i) {
         if (sound_register_devices[i].device_type == type) {
-               ++valid;
+            ++valid;
         }
     }
 
@@ -1333,7 +1349,7 @@ int sound_open(void)
 static void sounddev_close(const sound_device_t **dev)
 {
     if (*dev) {
-        log_message(sound_log, "Closing device `%s'", (*dev)->name);
+        log_verbose(sound_log, "Closing device `%s'", (*dev)->name);
         if ((*dev)->close) {
             (*dev)->close();
         }
@@ -1493,7 +1509,6 @@ void sound_reset(void)
 bool sound_flush(void)
 {
     int c, i, nr, space;
-    char *state;
 
     /*
      * It's possible when changing settings via UI to end up
@@ -1551,8 +1566,24 @@ bool sound_flush(void)
     }
     sound_resume();
 
+#if 0
+    /* FIXME: This code does not make sense - whatever it is trying to do does
+              not work at all:
+       - ONLY the "dump" device even has a "flush" method registered
+       - this is called every frame, which makes the "dump" device flood the log
+         with useless data
+       - even if other drivers had a "flush" method, calling this complex string
+         constructing function every frame seems like a really bad idea.
+    */
     if (snddata.playdev->flush) {
+        char *state;
+        /* dumps the state of the sound emulator - this seems to be ReSID always -
+           into a string(!). This function usually is used for the monitor
+           io command */
         state = sound_machine_dump_state(snddata.psid[0]);
+        /* calls the "flush" method of the sound output driver with said string
+           as argument. the "dump" device would now output this string to the
+           sound log (vicesound.sid) */
         i = snddata.playdev->flush(state);
         lib_free(state);
         if (i) {
@@ -1560,6 +1591,7 @@ bool sound_flush(void)
             goto done;
         }
     }
+#endif
 
     /* Calculate the number of samples to flush - whole fragments. */
     nr = snddata.bufptr - snddata.bufptr % snddata.fragsize;
@@ -1741,8 +1773,13 @@ long sound_sample_position(void)
                         / snddata.clkstep);
 }
 
+/* dump the state of the sound chip to the monitor
+
+   NOTE: for some reason this function is only used for SID?
+ */
 int sound_dump(int chipno)
 {
+    DBG(("sound_dump chipno:%d", chipno));
     if (chipno >= snddata.sound_chip_channels) {
         return -1;
     }
@@ -1775,8 +1812,11 @@ void sound_store(uint16_t addr, uint8_t val, int chipno)
         return;
     }
 
+    /* perform the actual write to the sound chip */
     sound_machine_store(snddata.psid[chipno], addr, val);
 
+    /* now check if we have a "dump" method (which dumps the details of the
+       write access to a file), and if so, call it */
     if (!snddata.playdev->dump) {
         return;
     }

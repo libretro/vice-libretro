@@ -38,6 +38,7 @@
 #include "catweaselmkiii.h"
 #include "fastsid.h"
 #include "hardsid.h"
+#include "usbsid.h"
 #include "joyport.h"
 #include "lib.h"
 #include "machine.h"
@@ -115,7 +116,12 @@ sid_engine_t fakesid_hooks =
     fakesid_resid_state_write
 };
 
-struct sound_s {};
+struct sound_s {
+/* empty struct is a GNU extension, so add a dummy for non GNU compilers */
+#ifndef __GNUC__
+    uint8_t dummy;
+#endif
+};
 
 /* ------------------------------------------------------------------------- */
 
@@ -178,6 +184,45 @@ static void sid_alarm_init(void)
 #endif
 /* ------------------------------------------------------------------------- */
 
+/* Add some randomness to the pot value(s). Note that _with paddles_ the error
+   gets gradually worse depending on the sampled value (the larger the value,
+   the bigger error. This does _not_ happen with the 1351 mouse */
+static inline uint8_t makepotval(int value)
+{
+    unsigned int fuzz;
+
+    if (get_joyport_pot_type() == JOYPORT_POT_TYPE_ANALOG) {
+        fuzz = lib_unsigned_rand(0, (value * 5) / 255);
+    } else {
+        fuzz = lib_unsigned_rand(0, 1);
+    }
+
+    value += fuzz;
+    if (value > 255) {
+        return 255;
+    }
+    return value;
+}
+
+/* this creates a "glitched" value that might be read in the first incomplete
+   sample period after switching the control port */
+static inline uint8_t makebadpotval(int value, int clkdiff)
+{
+    unsigned int fuzz;
+
+    if (get_joyport_pot_type() == JOYPORT_POT_TYPE_ANALOG) {
+        fuzz = lib_unsigned_rand(0, (clkdiff * 32) / 255);
+    } else {
+        fuzz = lib_unsigned_rand(0, 255);
+    }
+
+    value += fuzz;
+    if (value > 255) {
+        return 255;
+    }
+    return value;
+}
+
 static uint8_t sid_read_chip(uint16_t addr, int chipno)
 {
     int val = -1;
@@ -189,15 +234,26 @@ static uint8_t sid_read_chip(uint16_t addr, int chipno)
 #ifdef HAVE_MOUSE
     if (chipno == 0 && (addr == 0x19 || addr == 0x1a)) {
 #if 1
-        if ((maincpu_clk ^ pot_cycle) & ~511) {
-            pot_cycle = maincpu_clk & ~511; /* simplistic 512 cycle sampling */
+        CLOCK port_changed_clk = get_joyport_pot_mask_clk();
+        CLOCK port_changed_diff_clk = maincpu_clk - port_changed_clk;
+        if (port_changed_diff_clk > 511) {
+            /* produce a regular value */
+            if ((maincpu_clk ^ pot_cycle) & ~511) {
+                pot_cycle = maincpu_clk & ~511; /* simplistic 512 cycle sampling */
 
-            if (_mouse_enabled) {
-                mouse_poll();
+                if (_mouse_enabled) {
+                    mouse_poll();
+                }
+
+                val_pot_x = makepotval(read_joyport_potx());
+                val_pot_y = makepotval(read_joyport_poty());
             }
-
-            val_pot_x = read_joyport_potx();
-            val_pot_y = read_joyport_poty();
+        } else {
+            /* produce a "bad" value in case the POT register was read within
+               the first sample period after switching the port */
+            pot_cycle = port_changed_clk & ~511;
+            val_pot_x = makebadpotval(read_joyport_potx(), 512 - (int)port_changed_diff_clk);
+            val_pot_y = makebadpotval(read_joyport_poty(), 512 - (int)port_changed_diff_clk);
         }
 #endif
         val = (addr == 0x19) ? val_pot_x : val_pot_y;
@@ -589,6 +645,9 @@ int sid_sound_machine_init_vbr(sound_t *psid, int speed, int cycles_per_sec, int
 
 int sid_sound_machine_init(sound_t *psid, int speed, int cycles_per_sec)
 {
+    #ifdef HAVE_USBSID
+    usbsid_open();
+    #endif
     return sid_engine.init(psid, speed, cycles_per_sec, 1000);
 }
 
@@ -633,6 +692,9 @@ void sid_sound_machine_close(sound_t *psid)
         buf7 = NULL;
     }
 #endif
+#ifdef HAVE_USBSID
+    usbsid_close();
+#endif
 }
 
 uint8_t sid_sound_machine_read(sound_t *psid, uint16_t addr)
@@ -648,6 +710,9 @@ void sid_sound_machine_store(sound_t *psid, uint16_t addr, uint8_t byte)
 void sid_sound_machine_reset(sound_t *psid, CLOCK cpu_clk)
 {
     sid_engine.reset(psid, cpu_clk);
+    #ifdef HAVE_USBSID
+    usbsid_reset(true); /* This is called when the STOP button is pressed */
+    #endif
 }
 
 #ifdef SOUND_SYSTEM_FLOAT
@@ -984,6 +1049,10 @@ int sid_sound_machine_cycle_based(void)
             return 0;
 #endif
 #endif
+#ifdef HAVE_USBSID
+        case SID_ENGINE_USBSID:
+            return 0;
+#endif
     }
 
     return 0;
@@ -1050,6 +1119,13 @@ static void set_sound_func(void)
         }
 #endif
 #endif
+#ifdef HAVE_USBSID
+        if (sid_engine_type == SID_ENGINE_USBSID) {
+            sid_read_func = usbsid_read;
+            sid_store_func = usbsid_store;
+            sid_dump_func = NULL; /* TODO: usbsid dump */
+        }
+#endif
     } else {
         sid_read_func = sid_read_off;
         sid_store_func = sid_write_off;
@@ -1104,7 +1180,18 @@ int sid_engine_set(int engine)
     }
 #endif
 #endif
-
+#ifdef HAVE_USBSID
+    if (engine == SID_ENGINE_USBSID
+        && sid_engine_type != SID_ENGINE_USBSID) {
+        if (usbsid_open() < 0) {
+            return -1;
+        }
+    }
+    if (engine != SID_ENGINE_USBSID
+        && sid_engine_type == SID_ENGINE_USBSID) {
+        usbsid_close();
+    }
+#endif
     sid_engine_type = engine;
 
     set_sound_func();
@@ -1141,6 +1228,9 @@ void sid_set_machine_parameter(long clock_rate)
 #ifdef HAVE_HARDSID
     hardsid_set_machine_parameter(clock_rate);
 #endif
+#ifdef HAVE_USBSID
+    usbsid_set_machine_parameter(clock_rate);
+#endif
 }
 
 
@@ -1171,6 +1261,8 @@ int sid_engine_get_max_sids(int engine)
         case SID_ENGINE_PARSID:
             return SID_ENGINE_PARSID_NUM_SIDS;
 #endif
+        case SID_ENGINE_USBSID:
+            return SID_ENGINE_USBSID_NUM_SIDS;
         default:
             /* unknow engine */
             return -1;

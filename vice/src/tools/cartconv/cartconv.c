@@ -261,6 +261,37 @@ static int load_easyflash_crt(void)
     }
 }
 
+/* load a megabyter crt, handle non existing banks */
+static int load_megabyter_crt(void)
+{
+    unsigned int load_position;
+
+    memset(filebuffer, 0xff, 0x100000);
+    while (1) {
+        if (fread(chipbuffer, 1, 16, infile) != 16) {
+            if (loadfile_size == 0) {
+                return -1;
+            } else {
+                return 0;
+            }
+        }
+        loadfile_size = 0x100000;
+        if (chipbuffer[0] != 'C' ||
+            chipbuffer[1] != 'H' ||
+            chipbuffer[2] != 'I' ||
+            chipbuffer[3] != 'P') {
+            return -1;
+        }
+        if (load_address == 0) {
+            load_address = (chipbuffer[CRT_CHIP_OFFS_LOAD_HI] << 8) + chipbuffer[CRT_CHIP_OFFS_LOAD_LO];
+        }
+        load_position = (unsigned int)(chipbuffer[CRT_CHIP_OFFS_BANK_LO] * 0x2000);
+        if (fread(filebuffer + load_position, 1, 0x2000, infile) != 0x2000) {
+            return -1;
+        }
+    }
+}
+
 static int load_multicart_crt(void)
 {
     unsigned int load_position;
@@ -306,6 +337,9 @@ static int load_all_banks_from_crt(void)
     if (machine_class == VICE_MACHINE_C64) {
         if (loadfile_cart_type == CARTRIDGE_EASYFLASH) {
             return load_easyflash_crt();
+        }
+        if (loadfile_cart_type == CARTRIDGE_MEGABYTER) {
+            return load_megabyter_crt();
         }
     } else if (machine_class == VICE_MACHINE_PLUS4) {
         if (loadfile_cart_type == CARTRIDGE_PLUS4_MULTI) {
@@ -1342,7 +1376,7 @@ static void usage(void)
             "-i <name>                   input filename\n"
             "-o <name>                   output filename\n"
             "-n <name>                   crt cart name\n"
-            "-l <addr>                   load address\n"
+            "-l <addr>                   load address (decimal, use 0x-prefix for hexadecimal, e.g. 0xc000)\n"
             "-q                          quiet\n"
             "-v --verbose                verbose\n"
             "--types                     show the supported cart types\n"
@@ -1419,9 +1453,19 @@ static int checkflag(char *flg, char *arg)
                 }
                 return 2;
             case 'l':
+            {
+                char *endptr = NULL;
                 checkarg(arg);
-                load_address = (int)strtoul(arg, NULL, 0);
+                load_address = (int)strtoul(arg, &endptr, 0);
+                if (strlen(arg) != (endptr - arg)) {
+                    fprintf(stderr, "ERROR: invalid characters in number '%s'.\n", arg);
+                    exit(-1);
+                }
+                if (load_address == 0) {
+                    fprintf(stderr, "WARNING: load address is 0, are you sure?\n");
+                }
                 return 2;
+            }
             case 's':
                 checkarg(arg);
                 if (cart_subtype == 0) {

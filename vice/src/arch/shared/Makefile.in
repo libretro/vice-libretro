@@ -26,6 +26,7 @@
 #
 # -- compyx, 2020-02-08
 
+
 VPATH = @srcdir@
 am__is_gnu_make = { \
   if test -z '$(MAKELEVEL)'; then \
@@ -101,6 +102,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 @USE_HEADLESSUI_FALSE@am__append_1 = hotkeys
+@MACOS_COMPILE_TRUE@noinst_PROGRAMS = macOS-launcher$(EXEEXT)
 @USE_SDLUI_TRUE@am__append_2 = uiactions.c
 @USE_SDL2UI_TRUE@am__append_3 = uiactions.c
 @USE_GTK3UI_TRUE@am__append_4 = uiactions.c
@@ -109,6 +111,9 @@ host_triplet = @host@
 @UNIX_COMPILE_TRUE@	rawnetarch_unix.c
 
 @MACOS_COMPILE_TRUE@am__append_6 = macOS-util.m
+
+# Distribute the native launcher source on non-macOS platforms
+@MACOS_COMPILE_FALSE@am__append_7 = macOS-launcher.c
 subdir = src/arch/shared
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cxx_compile_stdcxx.m4 \
@@ -124,6 +129,7 @@ mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = $(top_builddir)/src/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
+PROGRAMS = $(noinst_PROGRAMS)
 LIBRARIES = $(noinst_LIBRARIES)
 AM_V_AR = $(am__v_AR_@AM_V@)
 am__v_AR_ = $(am__v_AR_@AM_DEFAULT_V@)
@@ -154,7 +160,7 @@ am__libarchdep_a_SOURCES_DIST = archdep_access.c archdep_boot_path.c \
 	archdep_get_hvsc_dir.c archdep_get_runtime_info.c \
 	archdep_get_vice_datadir.c archdep_get_vice_docsdir.c \
 	archdep_get_vice_drivesdir.c archdep_get_vice_hotkeysdir.c \
-	archdep_get_vice_machinedir.c archdep_getcwd.c \
+	archdep_get_vice_machinedir.c archdep_getcwd.c archdep_glob.c \
 	archdep_home_path.c archdep_icon_path.c archdep_is_haiku.c \
 	archdep_is_macos_bindist.c archdep_is_windows_nt.c \
 	archdep_kbd_get_host_mapping.c archdep_list_drives.c \
@@ -167,13 +173,13 @@ am__libarchdep_a_SOURCES_DIST = archdep_access.c archdep_boot_path.c \
 	archdep_require_vkbd.c archdep_rmdir.c \
 	archdep_rtc_get_centisecond.c archdep_sanitize_filename.c \
 	archdep_set_current_drive.c archdep_set_openmp_wait_policy.c \
-	archdep_signals.c archdep_socketpeek.c archdep_sound.c \
-	archdep_spawn.c archdep_startup_log_error.c archdep_stat.c \
-	archdep_tick.c archdep_tmpnam.c archdep_user_cache_path.c \
-	archdep_user_config_path.c archdep_user_state_path.c \
-	archdep_usleep.c archdep_xdg.c console.c coproc.c dynlib.c \
-	rawnetarch.c rs232dev.c signals.c uiactions.c \
-	rawnetarch_tuntap.c rawnetarch_unix.c macOS-util.m
+	archdep_signals.c archdep_sleep.c archdep_socketpeek.c \
+	archdep_sound.c archdep_spawn.c archdep_startup_log_error.c \
+	archdep_stat.c archdep_tick.c archdep_tmpnam.c \
+	archdep_user_cache_path.c archdep_user_config_path.c \
+	archdep_user_state_path.c archdep_usleep.c archdep_xdg.c \
+	console.c coproc.c dynlib.c rawnetarch.c rs232dev.c signals.c \
+	uiactions.c rawnetarch_tuntap.c rawnetarch_unix.c macOS-util.m
 @USE_SDLUI_TRUE@am__objects_1 = uiactions.$(OBJEXT)
 @USE_SDL2UI_TRUE@am__objects_2 = uiactions.$(OBJEXT)
 @USE_GTK3UI_TRUE@am__objects_3 = uiactions.$(OBJEXT)
@@ -213,8 +219,9 @@ am_libarchdep_a_OBJECTS = archdep_access.$(OBJEXT) \
 	archdep_get_vice_drivesdir.$(OBJEXT) \
 	archdep_get_vice_hotkeysdir.$(OBJEXT) \
 	archdep_get_vice_machinedir.$(OBJEXT) archdep_getcwd.$(OBJEXT) \
-	archdep_home_path.$(OBJEXT) archdep_icon_path.$(OBJEXT) \
-	archdep_is_haiku.$(OBJEXT) archdep_is_macos_bindist.$(OBJEXT) \
+	archdep_glob.$(OBJEXT) archdep_home_path.$(OBJEXT) \
+	archdep_icon_path.$(OBJEXT) archdep_is_haiku.$(OBJEXT) \
+	archdep_is_macos_bindist.$(OBJEXT) \
 	archdep_is_windows_nt.$(OBJEXT) \
 	archdep_kbd_get_host_mapping.$(OBJEXT) \
 	archdep_list_drives.$(OBJEXT) \
@@ -232,11 +239,11 @@ am_libarchdep_a_OBJECTS = archdep_access.$(OBJEXT) \
 	archdep_sanitize_filename.$(OBJEXT) \
 	archdep_set_current_drive.$(OBJEXT) \
 	archdep_set_openmp_wait_policy.$(OBJEXT) \
-	archdep_signals.$(OBJEXT) archdep_socketpeek.$(OBJEXT) \
-	archdep_sound.$(OBJEXT) archdep_spawn.$(OBJEXT) \
-	archdep_startup_log_error.$(OBJEXT) archdep_stat.$(OBJEXT) \
-	archdep_tick.$(OBJEXT) archdep_tmpnam.$(OBJEXT) \
-	archdep_user_cache_path.$(OBJEXT) \
+	archdep_signals.$(OBJEXT) archdep_sleep.$(OBJEXT) \
+	archdep_socketpeek.$(OBJEXT) archdep_sound.$(OBJEXT) \
+	archdep_spawn.$(OBJEXT) archdep_startup_log_error.$(OBJEXT) \
+	archdep_stat.$(OBJEXT) archdep_tick.$(OBJEXT) \
+	archdep_tmpnam.$(OBJEXT) archdep_user_cache_path.$(OBJEXT) \
 	archdep_user_config_path.$(OBJEXT) \
 	archdep_user_state_path.$(OBJEXT) archdep_usleep.$(OBJEXT) \
 	archdep_xdg.$(OBJEXT) console.$(OBJEXT) coproc.$(OBJEXT) \
@@ -244,6 +251,11 @@ am_libarchdep_a_OBJECTS = archdep_access.$(OBJEXT) \
 	signals.$(OBJEXT) $(am__objects_1) $(am__objects_2) \
 	$(am__objects_3) $(am__objects_4) $(am__objects_5)
 libarchdep_a_OBJECTS = $(am_libarchdep_a_OBJECTS)
+am__macOS_launcher_SOURCES_DIST = macOS-launcher.c
+@MACOS_COMPILE_TRUE@am_macOS_launcher_OBJECTS =  \
+@MACOS_COMPILE_TRUE@	macOS-launcher.$(OBJEXT)
+macOS_launcher_OBJECTS = $(am_macOS_launcher_OBJECTS)
+macOS_launcher_LDADD = $(LDADD)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -297,7 +309,8 @@ am__depfiles_remade = ./$(DEPDIR)/archdep_access.Po \
 	./$(DEPDIR)/archdep_get_vice_drivesdir.Po \
 	./$(DEPDIR)/archdep_get_vice_hotkeysdir.Po \
 	./$(DEPDIR)/archdep_get_vice_machinedir.Po \
-	./$(DEPDIR)/archdep_getcwd.Po ./$(DEPDIR)/archdep_home_path.Po \
+	./$(DEPDIR)/archdep_getcwd.Po ./$(DEPDIR)/archdep_glob.Po \
+	./$(DEPDIR)/archdep_home_path.Po \
 	./$(DEPDIR)/archdep_icon_path.Po \
 	./$(DEPDIR)/archdep_is_haiku.Po \
 	./$(DEPDIR)/archdep_is_macos_bindist.Po \
@@ -321,7 +334,7 @@ am__depfiles_remade = ./$(DEPDIR)/archdep_access.Po \
 	./$(DEPDIR)/archdep_sanitize_filename.Po \
 	./$(DEPDIR)/archdep_set_current_drive.Po \
 	./$(DEPDIR)/archdep_set_openmp_wait_policy.Po \
-	./$(DEPDIR)/archdep_signals.Po \
+	./$(DEPDIR)/archdep_signals.Po ./$(DEPDIR)/archdep_sleep.Po \
 	./$(DEPDIR)/archdep_socketpeek.Po ./$(DEPDIR)/archdep_sound.Po \
 	./$(DEPDIR)/archdep_spawn.Po \
 	./$(DEPDIR)/archdep_startup_log_error.Po \
@@ -332,8 +345,9 @@ am__depfiles_remade = ./$(DEPDIR)/archdep_access.Po \
 	./$(DEPDIR)/archdep_user_state_path.Po \
 	./$(DEPDIR)/archdep_usleep.Po ./$(DEPDIR)/archdep_xdg.Po \
 	./$(DEPDIR)/console.Po ./$(DEPDIR)/coproc.Po \
-	./$(DEPDIR)/dynlib.Po ./$(DEPDIR)/macOS-util.Po \
-	./$(DEPDIR)/rawnetarch.Po ./$(DEPDIR)/rawnetarch_tuntap.Po \
+	./$(DEPDIR)/dynlib.Po ./$(DEPDIR)/macOS-launcher.Po \
+	./$(DEPDIR)/macOS-util.Po ./$(DEPDIR)/rawnetarch.Po \
+	./$(DEPDIR)/rawnetarch_tuntap.Po \
 	./$(DEPDIR)/rawnetarch_unix.Po ./$(DEPDIR)/rs232dev.Po \
 	./$(DEPDIR)/signals.Po ./$(DEPDIR)/uiactions.Po
 am__mv = mv -f
@@ -362,8 +376,9 @@ AM_V_OBJCLD = $(am__v_OBJCLD_@AM_V@)
 am__v_OBJCLD_ = $(am__v_OBJCLD_@AM_DEFAULT_V@)
 am__v_OBJCLD_0 = @echo "  OBJCLD  " $@;
 am__v_OBJCLD_1 = 
-SOURCES = $(libarchdep_a_SOURCES)
-DIST_SOURCES = $(am__libarchdep_a_SOURCES_DIST)
+SOURCES = $(libarchdep_a_SOURCES) $(macOS_launcher_SOURCES)
+DIST_SOURCES = $(am__libarchdep_a_SOURCES_DIST) \
+	$(am__macOS_launcher_SOURCES_DIST)
 RECURSIVE_TARGETS = all-recursive check-recursive cscopelist-recursive \
 	ctags-recursive dvi-recursive html-recursive info-recursive \
 	install-data-recursive install-dvi-recursive \
@@ -466,6 +481,7 @@ CYGPATH_W = @CYGPATH_W@
 DEBUGBUILD = @DEBUGBUILD@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
+DESKTOP_FILE_INSTALL = @DESKTOP_FILE_INSTALL@
 DOS2UNIX = @DOS2UNIX@
 DYNLIB_LIBS = @DYNLIB_LIBS@
 ECHO_C = @ECHO_C@
@@ -475,15 +491,6 @@ ENABLE_ARCH = @ENABLE_ARCH@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 FCCACHE = @FCCACHE@
-FFMPEG_AVRESAMPLE_CFLAGS = @FFMPEG_AVRESAMPLE_CFLAGS@
-FFMPEG_AVRESAMPLE_LIBS = @FFMPEG_AVRESAMPLE_LIBS@
-FFMPEG_AV_CFLAGS = @FFMPEG_AV_CFLAGS@
-FFMPEG_AV_LIBS = @FFMPEG_AV_LIBS@
-FFMPEG_INCLUDES = @FFMPEG_INCLUDES@
-FFMPEG_SWRESAMPLE_CFLAGS = @FFMPEG_SWRESAMPLE_CFLAGS@
-FFMPEG_SWRESAMPLE_LIBS = @FFMPEG_SWRESAMPLE_LIBS@
-FFMPEG_SWSCALE_CFLAGS = @FFMPEG_SWSCALE_CFLAGS@
-FFMPEG_SWSCALE_LIBS = @FFMPEG_SWSCALE_LIBS@
 FONTCONFIG_CFLAGS = @FONTCONFIG_CFLAGS@
 FONTCONFIG_LIBS = @FONTCONFIG_LIBS@
 FW_DIR = @FW_DIR@
@@ -514,6 +521,8 @@ LEXLIB = @LEXLIB@
 LEX_OUTPUT_ROOT = @LEX_OUTPUT_ROOT@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
+LIBUSB_CFLAGS = @LIBUSB_CFLAGS@
+LIBUSB_LIBS = @LIBUSB_LIBS@
 LINKCC = @LINKCC@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
@@ -577,6 +586,7 @@ TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
 UNZIPBIN = @UNZIPBIN@
+UPDATE_DESKTOP_DATABASE = @UPDATE_DESKTOP_DATABASE@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -596,7 +606,7 @@ VTE_CXXFLAGS = @VTE_CXXFLAGS@
 WINDRES = @WINDRES@
 WINDRES_LIB = @WINDRES_LIB@
 XA = @XA@
-XDG_DESKTOP_MENU = @XDG_DESKTOP_MENU@
+XDG_ICON_RESOURCE = @XDG_ICON_RESOURCE@
 YACC = @YACC@
 ZLIB_LIBS = @ZLIB_LIBS@
 abs_builddir = @abs_builddir@
@@ -691,6 +701,7 @@ AM_CXXFLAGS = @VICE_CXXFLAGS@
 AM_OBJCFLAGS = @VICE_OBJCFLAGS@
 AM_LDFLAGS = @VICE_LDFLAGS@
 noinst_LIBRARIES = libarchdep.a
+@MACOS_COMPILE_TRUE@macOS_launcher_SOURCES = macOS-launcher.c
 libarchdep_a_SOURCES = archdep_access.c archdep_boot_path.c \
 	archdep_cbmfont.c archdep_chdir.c archdep_close.c \
 	archdep_create_user_cache_dir.c \
@@ -714,7 +725,7 @@ libarchdep_a_SOURCES = archdep_access.c archdep_boot_path.c \
 	archdep_get_hvsc_dir.c archdep_get_runtime_info.c \
 	archdep_get_vice_datadir.c archdep_get_vice_docsdir.c \
 	archdep_get_vice_drivesdir.c archdep_get_vice_hotkeysdir.c \
-	archdep_get_vice_machinedir.c archdep_getcwd.c \
+	archdep_get_vice_machinedir.c archdep_getcwd.c archdep_glob.c \
 	archdep_home_path.c archdep_icon_path.c archdep_is_haiku.c \
 	archdep_is_macos_bindist.c archdep_is_windows_nt.c \
 	archdep_kbd_get_host_mapping.c archdep_list_drives.c \
@@ -727,123 +738,63 @@ libarchdep_a_SOURCES = archdep_access.c archdep_boot_path.c \
 	archdep_require_vkbd.c archdep_rmdir.c \
 	archdep_rtc_get_centisecond.c archdep_sanitize_filename.c \
 	archdep_set_current_drive.c archdep_set_openmp_wait_policy.c \
-	archdep_signals.c archdep_socketpeek.c archdep_sound.c \
-	archdep_spawn.c archdep_startup_log_error.c archdep_stat.c \
-	archdep_tick.c archdep_tmpnam.c archdep_user_cache_path.c \
-	archdep_user_config_path.c archdep_user_state_path.c \
-	archdep_usleep.c archdep_xdg.c console.c coproc.c dynlib.c \
-	rawnetarch.c rs232dev.c signals.c $(am__append_2) \
-	$(am__append_3) $(am__append_4) $(am__append_5) \
-	$(am__append_6)
-EXTRA_DIST = \
-	archapi.h \
-	archdep_access.h \
-	archdep_beos.h \
-	archdep_boot_path.h \
-	archdep_cbmfont.h \
-	archdep_chdir.h \
-	archdep_close.h \
-	archdep_create_user_cache_dir.h \
+	archdep_signals.c archdep_sleep.c archdep_socketpeek.c \
+	archdep_sound.c archdep_spawn.c archdep_startup_log_error.c \
+	archdep_stat.c archdep_tick.c archdep_tmpnam.c \
+	archdep_user_cache_path.c archdep_user_config_path.c \
+	archdep_user_state_path.c archdep_usleep.c archdep_xdg.c \
+	console.c coproc.c dynlib.c rawnetarch.c rs232dev.c signals.c \
+	$(am__append_2) $(am__append_3) $(am__append_4) \
+	$(am__append_5) $(am__append_6)
+EXTRA_DIST = archapi.h archdep_access.h archdep_beos.h \
+	archdep_boot_path.h archdep_cbmfont.h archdep_chdir.h \
+	archdep_close.h archdep_create_user_cache_dir.h \
 	archdep_create_user_config_dir.h \
-	archdep_create_user_state_dir.h \
-	archdep_current_dir.h \
+	archdep_create_user_state_dir.h archdep_current_dir.h \
 	archdep_default_autostart_disk_image_file_name.h \
 	archdep_default_fliplist_file_name.h \
-	archdep_default_joymap_file_name.h \
-	archdep_default_logfile.h \
+	archdep_default_joymap_file_name.h archdep_default_logfile.h \
 	archdep_default_logger.h \
 	archdep_default_portable_resource_file_name.h \
 	archdep_default_resource_file_name.h \
 	archdep_default_rtc_file_name.h \
-	archdep_default_sysfile_pathlist.h \
-	archdep_defs.h \
-	archdep_dir.h \
-	archdep_ethernet_available.h \
-	archdep_exit.h \
-	archdep_expand_path.h \
-	archdep_extra_title_text.h \
-	archdep_fdopen.h \
-	archdep_file_exists.h \
-	archdep_file_is_blockdev.h \
-	archdep_file_is_chardev.h \
-	archdep_file_size.h \
-	archdep_filename_parameter.h \
-	archdep_fix_permissions.h \
-	archdep_fix_streams.h \
-	archdep_fseeko.h \
-	archdep_ftello.h \
-	archdep_get_current_drive.h \
-	archdep_get_hvsc_dir.h \
-	archdep_get_runtime_info.h \
-	archdep_get_vice_datadir.h \
-	archdep_get_vice_docsdir.h \
-	archdep_get_vice_drivesdir.h \
-	archdep_get_vice_hotkeysdir.h \
-	archdep_get_vice_machinedir.h \
-	archdep_getcwd.h \
-	archdep_home_path.h \
-	archdep_icon_path.h \
-	archdep_is_haiku.h \
-	archdep_is_macos_bindist.h \
-	archdep_is_windows_nt.h \
-	archdep_kbd_get_host_mapping.h \
-	archdep_list_drives.h \
-	archdep_make_backup_filename.h \
-	archdep_mkdir.h \
-	archdep_mkstemp_fd.h \
-	archdep_network.h \
-	archdep_open_default_log_file.h \
-	archdep_path_is_relative.h \
-	archdep_program_name.h \
-	archdep_program_path.h \
-	archdep_quote_parameter.h \
-	archdep_quote_unzip.h \
-	archdep_rawnet_capability.h \
-	archdep_real_path.h \
-	archdep_remove.h \
-	archdep_rename.h \
-	archdep_require_vkbd.h \
-	archdep_rmdir.h \
-	archdep_rtc_get_centisecond.h \
-	archdep_sanitize_filename.h \
-	archdep_set_current_drive.h \
-	archdep_set_openmp_wait_policy.h \
-	archdep_signals.h \
-	archdep_socketpeek.h \
-	archdep_sound.h \
-	archdep_spawn.h \
-	archdep_startup_log_error.h \
-	archdep_stat.h \
-	archdep_tick.h \
-	archdep_tmpnam.h \
-	archdep_unix.h \
-	archdep_unix.h \
-	archdep_user_cache_path.h \
-	archdep_user_config_path.h \
-	archdep_user_state_path.h \
-	archdep_usleep.h \
-	archdep_win32.h \
-	archdep_xdg.h \
-	console_none.c \
-	console_unix.c \
-	coproc.h \
-	dynlib-unix.c \
-	dynlib-win32.c \
-	macOS-common-runtime.sh \
-	macOS-launcher.sh \
-	macOS-redirect-launcher.sh \
-	macOS-util.h \
-	macOS-wrap-ar.sh \
-	macOS-wrap-ranlib.sh \
-	make-bindist_osx.sh \
-	make_bindist_win32.sh \
-	rawnetarch.h \
-	rawnetarch_win32.c \
-	rs232-unix-dev.c \
-	rs232-win32-dev.c \
-	uiactions.h \
-	README-bindist.txt
-
+	archdep_default_sysfile_pathlist.h archdep_defs.h \
+	archdep_dir.h archdep_ethernet_available.h archdep_exit.h \
+	archdep_expand_path.h archdep_extra_title_text.h \
+	archdep_fdopen.h archdep_file_exists.h \
+	archdep_file_is_blockdev.h archdep_file_is_chardev.h \
+	archdep_file_size.h archdep_filename_parameter.h \
+	archdep_fix_permissions.h archdep_fix_streams.h \
+	archdep_fseeko.h archdep_ftello.h archdep_get_current_drive.h \
+	archdep_get_hvsc_dir.h archdep_get_runtime_info.h \
+	archdep_get_vice_datadir.h archdep_get_vice_docsdir.h \
+	archdep_get_vice_drivesdir.h archdep_get_vice_hotkeysdir.h \
+	archdep_get_vice_machinedir.h archdep_getcwd.h archdep_glob.h \
+	archdep_home_path.h archdep_icon_path.h archdep_is_haiku.h \
+	archdep_is_macos_bindist.h archdep_is_windows_nt.h \
+	archdep_kbd_get_host_mapping.h archdep_list_drives.h \
+	archdep_make_backup_filename.h archdep_mkdir.h \
+	archdep_mkstemp_fd.h archdep_network.h \
+	archdep_open_default_log_file.h archdep_path_is_relative.h \
+	archdep_program_name.h archdep_program_path.h \
+	archdep_quote_parameter.h archdep_quote_unzip.h \
+	archdep_rawnet_capability.h archdep_real_path.h \
+	archdep_remove.h archdep_rename.h archdep_require_vkbd.h \
+	archdep_rmdir.h archdep_rtc_get_centisecond.h \
+	archdep_sanitize_filename.h archdep_set_current_drive.h \
+	archdep_set_openmp_wait_policy.h archdep_signals.h \
+	archdep_sleep.h archdep_socketpeek.h archdep_sound.h \
+	archdep_spawn.h archdep_startup_log_error.h archdep_stat.h \
+	archdep_tick.h archdep_tmpnam.h archdep_unix.h archdep_unix.h \
+	archdep_user_cache_path.h archdep_user_config_path.h \
+	archdep_user_state_path.h archdep_usleep.h archdep_win32.h \
+	archdep_xdg.h console_none.c console_unix.c coproc.h \
+	dynlib-unix.c dynlib-win32.c macOS-common-runtime.sh \
+	macOS-launcher.sh macOS-redirect-launcher.applescript \
+	macOS-util.h macOS-wrap-ar.sh macOS-wrap-ranlib.sh \
+	make-bindist_osx.sh make_bindist_win32.sh rawnetarch.h \
+	rawnetarch_win32.c rs232-unix-dev.c rs232-win32-dev.c \
+	uiactions.h README-bindist.txt $(am__append_7)
 all: all-recursive
 
 .SUFFIXES:
@@ -878,6 +829,9 @@ $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(am__aclocal_m4_deps):
 
+clean-noinstPROGRAMS:
+	-test -z "$(noinst_PROGRAMS)" || rm -f $(noinst_PROGRAMS)
+
 clean-noinstLIBRARIES:
 	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
 
@@ -885,6 +839,10 @@ libarchdep.a: $(libarchdep_a_OBJECTS) $(libarchdep_a_DEPENDENCIES) $(EXTRA_libar
 	$(AM_V_at)-rm -f libarchdep.a
 	$(AM_V_AR)$(libarchdep_a_AR) libarchdep.a $(libarchdep_a_OBJECTS) $(libarchdep_a_LIBADD)
 	$(AM_V_at)$(RANLIB) libarchdep.a
+
+@MACOS_COMPILE_FALSE@macOS-launcher$(EXEEXT): $(macOS_launcher_OBJECTS) $(macOS_launcher_DEPENDENCIES) $(EXTRA_macOS_launcher_DEPENDENCIES) 
+@MACOS_COMPILE_FALSE@	@rm -f macOS-launcher$(EXEEXT)
+@MACOS_COMPILE_FALSE@	$(AM_V_CCLD)$(LINK) $(macOS_launcher_OBJECTS) $(macOS_launcher_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -934,6 +892,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_get_vice_hotkeysdir.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_get_vice_machinedir.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_getcwd.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_glob.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_home_path.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_icon_path.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_is_haiku.Po@am__quote@ # am--include-marker
@@ -961,6 +920,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_set_current_drive.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_set_openmp_wait_policy.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_signals.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_sleep.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_socketpeek.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_sound.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/archdep_spawn.Po@am__quote@ # am--include-marker
@@ -976,6 +936,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/console.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/coproc.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dynlib.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/macOS-launcher.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/macOS-util.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rawnetarch.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rawnetarch_tuntap.Po@am__quote@ # am--include-marker
@@ -1176,7 +1137,7 @@ distdir-am: $(DISTFILES)
 	done
 check-am: all-am
 check: check-recursive
-all-am: Makefile $(LIBRARIES)
+all-am: Makefile $(PROGRAMS) $(LIBRARIES)
 installdirs: installdirs-recursive
 installdirs-am:
 install: install-recursive
@@ -1211,7 +1172,8 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-recursive
 
-clean-am: clean-generic clean-noinstLIBRARIES mostlyclean-am
+clean-am: clean-generic clean-noinstLIBRARIES clean-noinstPROGRAMS \
+	mostlyclean-am
 
 distclean: distclean-recursive
 		-rm -f ./$(DEPDIR)/archdep_access.Po
@@ -1256,6 +1218,7 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/archdep_get_vice_hotkeysdir.Po
 	-rm -f ./$(DEPDIR)/archdep_get_vice_machinedir.Po
 	-rm -f ./$(DEPDIR)/archdep_getcwd.Po
+	-rm -f ./$(DEPDIR)/archdep_glob.Po
 	-rm -f ./$(DEPDIR)/archdep_home_path.Po
 	-rm -f ./$(DEPDIR)/archdep_icon_path.Po
 	-rm -f ./$(DEPDIR)/archdep_is_haiku.Po
@@ -1283,6 +1246,7 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/archdep_set_current_drive.Po
 	-rm -f ./$(DEPDIR)/archdep_set_openmp_wait_policy.Po
 	-rm -f ./$(DEPDIR)/archdep_signals.Po
+	-rm -f ./$(DEPDIR)/archdep_sleep.Po
 	-rm -f ./$(DEPDIR)/archdep_socketpeek.Po
 	-rm -f ./$(DEPDIR)/archdep_sound.Po
 	-rm -f ./$(DEPDIR)/archdep_spawn.Po
@@ -1298,6 +1262,7 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/console.Po
 	-rm -f ./$(DEPDIR)/coproc.Po
 	-rm -f ./$(DEPDIR)/dynlib.Po
+	-rm -f ./$(DEPDIR)/macOS-launcher.Po
 	-rm -f ./$(DEPDIR)/macOS-util.Po
 	-rm -f ./$(DEPDIR)/rawnetarch.Po
 	-rm -f ./$(DEPDIR)/rawnetarch_tuntap.Po
@@ -1392,6 +1357,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/archdep_get_vice_hotkeysdir.Po
 	-rm -f ./$(DEPDIR)/archdep_get_vice_machinedir.Po
 	-rm -f ./$(DEPDIR)/archdep_getcwd.Po
+	-rm -f ./$(DEPDIR)/archdep_glob.Po
 	-rm -f ./$(DEPDIR)/archdep_home_path.Po
 	-rm -f ./$(DEPDIR)/archdep_icon_path.Po
 	-rm -f ./$(DEPDIR)/archdep_is_haiku.Po
@@ -1419,6 +1385,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/archdep_set_current_drive.Po
 	-rm -f ./$(DEPDIR)/archdep_set_openmp_wait_policy.Po
 	-rm -f ./$(DEPDIR)/archdep_signals.Po
+	-rm -f ./$(DEPDIR)/archdep_sleep.Po
 	-rm -f ./$(DEPDIR)/archdep_socketpeek.Po
 	-rm -f ./$(DEPDIR)/archdep_sound.Po
 	-rm -f ./$(DEPDIR)/archdep_spawn.Po
@@ -1434,6 +1401,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/console.Po
 	-rm -f ./$(DEPDIR)/coproc.Po
 	-rm -f ./$(DEPDIR)/dynlib.Po
+	-rm -f ./$(DEPDIR)/macOS-launcher.Po
 	-rm -f ./$(DEPDIR)/macOS-util.Po
 	-rm -f ./$(DEPDIR)/rawnetarch.Po
 	-rm -f ./$(DEPDIR)/rawnetarch_tuntap.Po
@@ -1462,20 +1430,24 @@ uninstall-am:
 
 .PHONY: $(am__recursive_targets) CTAGS GTAGS TAGS all all-am \
 	am--depfiles check check-am clean clean-generic \
-	clean-noinstLIBRARIES cscopelist-am ctags ctags-am distclean \
-	distclean-compile distclean-generic distclean-tags distdir dvi \
-	dvi-am html html-am info info-am install install-am \
-	install-data install-data-am install-dvi install-dvi-am \
-	install-exec install-exec-am install-html install-html-am \
-	install-info install-info-am install-man install-pdf \
-	install-pdf-am install-ps install-ps-am install-strip \
-	installcheck installcheck-am installdirs installdirs-am \
-	maintainer-clean maintainer-clean-generic mostlyclean \
-	mostlyclean-compile mostlyclean-generic pdf pdf-am ps ps-am \
-	tags tags-am uninstall uninstall-am
+	clean-noinstLIBRARIES clean-noinstPROGRAMS cscopelist-am ctags \
+	ctags-am distclean distclean-compile distclean-generic \
+	distclean-tags distdir dvi dvi-am html html-am info info-am \
+	install install-am install-data install-data-am install-dvi \
+	install-dvi-am install-exec install-exec-am install-html \
+	install-html-am install-info install-info-am install-man \
+	install-pdf install-pdf-am install-ps install-ps-am \
+	install-strip installcheck installcheck-am installdirs \
+	installdirs-am maintainer-clean maintainer-clean-generic \
+	mostlyclean mostlyclean-compile mostlyclean-generic pdf pdf-am \
+	ps ps-am tags tags-am uninstall uninstall-am
 
 .PRECIOUS: Makefile
 
+# Don't link this launcher app to the usual deps
+@MACOS_COMPILE_TRUE@macOS-launcher$(EXEEXT): CPPFLAGS =
+@MACOS_COMPILE_TRUE@macOS-launcher$(EXEEXT): CFLAGS =
+@MACOS_COMPILE_TRUE@macOS-launcher$(EXEEXT): LDFLAGS =
 
 # FIXME: the Extra MacOS script stuff should live elsewhere
 

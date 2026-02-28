@@ -53,4 +53,12 @@ void joystick_update(void)
 {
 }
 
+void joystick_arch_init(void)
+{
+}
+
+void joystick_arch_shutdown(void)
+{
+}
+
 /* ------------------------------------------------------------------------- */

@@ -440,8 +440,8 @@ static void toggle_tde(int on)
    {
       log_resources_set_int("Drive8TrueEmulation", on);
       log_resources_set_int("Drive9TrueEmulation", on);
-      log_resources_set_int("VirtualDevice8", !on);
-      log_resources_set_int("VirtualDevice9", !on);
+      log_resources_set_int("TrapDevice8", !on);
+      log_resources_set_int("TrapDevice9", !on);
    }
 }
 
@@ -1209,8 +1209,8 @@ static int process_cmdline(const char* argv)
       }
       else if (path_is_directory(argv))
       {
-         Add_Option("-iecdevice8");
-         Add_Option("-device8");
+         Add_Option("-busdevice8");
+         Add_Option("-devicebackend8");
          Add_Option("1");
          Add_Option("-fs8");
 
@@ -1545,14 +1545,14 @@ void update_work_disk(void)
 
          if (string_is_empty(full_path) && (attached_image = fsdevice_get_path(8)) != NULL)
          {
-            log_resources_set_int("IECDevice8", 0);
+            log_resources_set_int("BusDevice8", 0);
             log_resources_set_int("FileSystemDevice8", 0);
             log_resources_set_string("FSDevice8Dir", "");
          }
 
          if ((attached_image = fsdevice_get_path(9)) != NULL)
          {
-            log_resources_set_int("IECDevice9", 0);
+            log_resources_set_int("BusDevice9", 0);
             log_resources_set_int("FileSystemDevice9", 0);
             log_resources_set_string("FSDevice9Dir", "");
          }
@@ -1571,12 +1571,12 @@ void update_work_disk(void)
                {
                   default:
                   case 8:
-                     log_resources_set_int("IECDevice8", 1);
+                     log_resources_set_int("BusDevice8", 1);
                      log_resources_set_int("FileSystemDevice8", 1);
                      log_resources_set_string("FSDevice8Dir", work_disk_filepath);
                      break;
                   case 9:
-                     log_resources_set_int("IECDevice9", 1);
+                     log_resources_set_int("BusDevice9", 1);
                      log_resources_set_int("FileSystemDevice9", 1);
                      log_resources_set_string("FSDevice9Dir", work_disk_filepath);
                      break;
@@ -1609,7 +1609,7 @@ void update_work_disk(void)
          if (string_is_empty(full_path) || (!string_is_empty(full_path) && !strstr(full_path, work_disk_filename)))
          {
             log_cb(RETRO_LOG_INFO, "Work directory \"%s\" detached from drive #%d.\n", attached_image, 8);
-            log_resources_set_int("IECDevice8", 0);
+            log_resources_set_int("BusDevice8", 0);
             log_resources_set_int("FileSystemDevice8", 0);
             if (string_is_empty(full_path))
                display_current_image("", false);
@@ -1628,7 +1628,7 @@ void update_work_disk(void)
       if ((attached_image = fsdevice_get_path(9)) != NULL && strstr(attached_image, work_disk_basename))
       {
          log_cb(RETRO_LOG_INFO, "Work directory \"%s\" detached from drive #%d.\n", attached_image, 9);
-         log_resources_set_int("IECDevice9", 0);
+         log_resources_set_int("BusDevice9", 0);
          log_resources_set_int("FileSystemDevice9", 0);
          if (string_is_empty(full_path))
             display_current_image("", false);
@@ -2595,7 +2595,7 @@ static void retro_set_core_options()
          "vice_c128_video_output",
          "System > Video Output",
          "Video Output",
-         "",
+         "Can be toggled with the '40/80 DISPLAY' key (F7).",
          NULL,
          "system",
          {
@@ -2609,7 +2609,7 @@ static void retro_set_core_options()
          "vice_c128_vdc_ram",
          "System > VDC Video RAM",
          "VDC Video RAM",
-         "",
+         "VDC memory size.",
          NULL,
          "system",
          {
@@ -2793,7 +2793,7 @@ static void retro_set_core_options()
          "vice_supercpu_speed_switch",
          "System > SuperCPU Speed Switch",
          "SuperCPU Speed Switch",
-         "",
+         "Normal or Turbo 20MHz.",
          NULL,
          "system",
          {
@@ -2910,7 +2910,7 @@ static void retro_set_core_options()
          "vice_warp_boost",
          "Media > Warp Boost",
          "Warp Boost",
-         "Make warp mode faster by changing SID engine to 'FastSID' while warping. Affects audio detection during warp.",
+         "Warp mode speedup by changing SID engine to 'FastSID' while warping. Affects audio detection during warp.",
          NULL,
          "media",
          {
@@ -3139,6 +3139,8 @@ static void retro_set_core_options()
          "VIC top border height:\n- 48px PAL\n- 22px NTSC",
 #elif defined(__XPLUS4__)
          "TED top border height:\n- 40px PAL\n- 18px NTSC",
+#elif defined(__XPET__) || defined(__XCBM2__)
+         "CRTC top border height:\n- 28px",
 #else
          "",
 #endif
@@ -3157,6 +3159,8 @@ static void retro_set_core_options()
          "VIC bottom border height:\n- 52px PAL\n- 28px NTSC",
 #elif defined(__XPLUS4__)
          "TED bottom border height:\n- 48px PAL\n- 24px NTSC",
+#elif defined(__XPET__) || defined(__XCBM2__)
+         "CRTC bottom border height:\n- 28px",
 #else
          "",
 #endif
@@ -3175,6 +3179,8 @@ static void retro_set_core_options()
          "VIC left border width:\n- 48px PAL\n- 32px NTSC",
 #elif defined(__XPLUS4__)
          "TED left border width:\n- 32px",
+#elif defined(__XPET__) || defined(__XCBM2__)
+         "CRTC left border width:\n- 8px",
 #else
          "",
 #endif
@@ -3193,6 +3199,8 @@ static void retro_set_core_options()
          "VIC right border width:\n- 48px PAL\n- 16px NTSC",
 #elif defined(__XPLUS4__)
          "TED right border width:\n- 32px",
+#elif defined(__XPET__) || defined(__XCBM2__)
+         "CRTC right border width:\n- 8px",
 #else
          "",
 #endif
@@ -3337,7 +3345,7 @@ static void retro_set_core_options()
          "vice_pet_external_palette",
          "Video > CRTC Color Palette",
          "CRTC Color Palette",
-         "",
+         "Native default is green.",
          NULL,
          "video",
          {
@@ -3354,7 +3362,7 @@ static void retro_set_core_options()
          "vice_cbm2_external_palette",
          "Video > CRTC Color Palette",
          "CRTC Color Palette",
-         "",
+         "Native default is green.",
          NULL,
          "video",
          {
@@ -3841,7 +3849,7 @@ static void retro_set_core_options()
          "vice_resid_sampling",
          "Audio > ReSID Sampling",
          "ReSID Sampling",
-         "'Resampling' provides best quality. 'Fast' improves performance dramatically on PS Vita.",
+         "'Resampling' provides best quality.",
          NULL,
          "audio",
          {
@@ -5772,26 +5780,26 @@ static void update_variables(void)
       {
 #if 1
          /* Printer only */
-         if (!strcmp(var.value, "disabled") && vice_opt.VirtualDevices)
-            log_resources_set_int("VirtualDevice4", 0);
-         else if (!strcmp(var.value, "enabled") && !vice_opt.VirtualDevices)
-            log_resources_set_int("VirtualDevice4", 1);
+         if (!strcmp(var.value, "disabled") && vice_opt.TrapDevices)
+            log_resources_set_int("TrapDevice4", 0);
+         else if (!strcmp(var.value, "enabled") && !vice_opt.TrapDevices)
+            log_resources_set_int("TrapDevice4", 1);
 #else
-         if (!strcmp(var.value, "disabled") && vice_opt.VirtualDevices)
+         if (!strcmp(var.value, "disabled") && vice_opt.TrapDevices)
          {
-            log_resources_set_int("VirtualDevice8", 0);
-            log_resources_set_int("VirtualDevice9", 0);
+            log_resources_set_int("TrapDevice8", 0);
+            log_resources_set_int("TrapDevice9", 0);
          }
-         else if (!strcmp(var.value, "enabled") && !vice_opt.VirtualDevices)
+         else if (!strcmp(var.value, "enabled") && !vice_opt.TrapDevices)
          {
-            log_resources_set_int("VirtualDevice8", 1);
-            log_resources_set_int("VirtualDevice9", 1);
+            log_resources_set_int("TrapDevice8", 1);
+            log_resources_set_int("TrapDevice9", 1);
          }
 #endif
       }
 
-      if (!strcmp(var.value, "disabled")) vice_opt.VirtualDevices = 0;
-      else                                vice_opt.VirtualDevices = 1;
+      if (!strcmp(var.value, "disabled")) vice_opt.TrapDevices = 0;
+      else                                vice_opt.TrapDevices = 1;
    }
 #endif
 
@@ -5812,16 +5820,16 @@ static void update_variables(void)
          {
             log_resources_set_int("Drive8TrueEmulation", 0);
             log_resources_set_int("Drive9TrueEmulation", 0);
-            log_resources_set_int("VirtualDevice8", 1);
-            log_resources_set_int("VirtualDevice9", 1);
+            log_resources_set_int("TrapDevice8", 1);
+            log_resources_set_int("TrapDevice9", 1);
 
          }
          else if (!strcmp(var.value, "enabled") && !vice_opt.DriveTrueEmulation)
          {
             log_resources_set_int("Drive8TrueEmulation", 1);
             log_resources_set_int("Drive9TrueEmulation", 1);
-            log_resources_set_int("VirtualDevice8", 0);
-            log_resources_set_int("VirtualDevice9", 0);
+            log_resources_set_int("TrapDevice8", 0);
+            log_resources_set_int("TrapDevice9", 0);
          }
       }
 
@@ -7964,7 +7972,7 @@ void update_geometry(int mode)
          if (retrow > 384)
          {
             crop_width_max         *= 2;
-            crop_height_max        += CROP_TOP_BORDER - 8;
+            crop_height_max        += CROP_TOP_BORDER - 4;
          }
 #endif
 

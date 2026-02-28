@@ -79,6 +79,7 @@
 #include "ioramcart.h"
 #include "megacart.h"
 #include "mikroassembler.h"
+#include "minimon.h"
 #include "rabbit.h"
 #include "sfx_soundexpander.h"
 #include "sfx_soundsampler.h"
@@ -86,27 +87,101 @@
 #include "sidcart.h"
 #include "ultimem.h"
 #include "vic-fp.h"
+#include "writenow.h"
 
 #ifdef DEBUGCART
-#define DBG(x)  printf x
+#define DBG(x)  log_printf x
 #else
 #define DBG(x)
 #endif
+
+/*
+    as a first step to a completely generic cart system, everything should
+    get reorganised based on the following assumptions:
+
+    - it is pointless to attach/use several cartridges of the same type at
+      once. by not supporting this, we can use the cartridge id as a unique
+      id for a given cart, regardless of the underlaying "slot logic"
+    - moreover it is also pointless to support a lot of combinations of
+      cartridges, simply because they won't work anyway.
+
+    "Slot 0"
+    - carts that have a passthrough port go here
+    - the passthrough of individual "Slot 0" carts must be handled on a
+      per case basis.
+    - if any "Slot 0" cart is active, then all following slots are assumed
+      to be attached to the respective "Slot 0" passthrough port.
+    - only ONE of the carts in the "Slot 0" can be active at a time
+
+    minimon
+
+
+    "Slot 1"
+    - other ROM/RAM carts that can be enabled individually
+    - only ONE of the carts in the "Slot 1" can be active at a time
+
+    (none yet)
+
+
+    "Main Slot"
+    - the vast majority of carts go here, since only one of them
+      can be used at a time anyway.
+    - only ONE of the carts in the "Main Slot" can be active at a time
+
+    this pretty much resembles the remains of the old cart system. ultimativly
+    all carts should go into one of the other slots (to be completely generic),
+    but it doesnt make a lot of sense to rewrite them all before passthrough-
+    and mapping is handled correctly.
+
+    behrbonz
+    final expansion
+    mega cart
+    mikro assembler
+    rabbit
+    super expander
+    ultimem
+    vic flash plugin
+    write now
+
+
+    "IO Slot"
+    - all carts that do not use the blk3/5 lines, and which do only
+      map into io2/io3 go here
+    - any number of "IO Slot" carts can be, in theory, active at a time
+
+    ieee488(VIC1112)
+    midi
+
+    c64 cartridges via masquerade:
+
+    digimax
+    ds12c887 RTC
+    ethernet
+    georam
+    sfx soundexpander
+    sfx sound sampler
+
+
+    - all cards *except* those in the "Main Slot" should:
+      - maintain a resource (preferably XYZCartridgeEnabled) that tells
+        wether said cart is "inserted" into our virtual "expansion port expander".
+      - maintain their own arrays to store rom/ram content.
+      - as a consequence, changing said resource equals attaching/detaching the
+        cartridge.
+*/
 
 /* flag for indicating if cartridge is from snapshot, used for
    disabling "set as default" and write back */
 int cartridge_is_from_snapshot = 0;
 
 /* actual resources */
-static char *cartridge_file = NULL;
-static int cartridge_type;
-static int vic20cartridge_reset;
+static char *cartridge_file = NULL; /* filename of the default cartridge */
+static int cartridge_type;          /* type of the default cartridge */
+static int vic20cartridge_reset;    /* if 1, reset VIC20 on cartridge change */
 
 /* local shadow of some resources (e.g not yet set as default) */
 static int vic20cart_type = CARTRIDGE_NONE;
 static char *cartfile = NULL;
-
-static int cartres_flags = 0;
 
 static int cartridge_attach_from_resource(int type, const char *filename);
 
@@ -127,9 +202,11 @@ static cartridge_info_t cartlist[] = {
     { CARTRIDGE_VIC20_NAME_FP,              CARTRIDGE_VIC20_FP,                 CARTRIDGE_GROUP_UTIL },
     { CARTRIDGE_VIC20_NAME_MEGACART,        CARTRIDGE_VIC20_MEGACART,           CARTRIDGE_GROUP_UTIL },
     { CARTRIDGE_VIC20_NAME_MIKRO_ASSEMBLER, CARTRIDGE_VIC20_MIKRO_ASSEMBLER,    CARTRIDGE_GROUP_UTIL },
+    { CARTRIDGE_VIC20_NAME_MINIMON,         CARTRIDGE_VIC20_MINIMON,            CARTRIDGE_GROUP_UTIL }, /* slot 0 */
     { CARTRIDGE_VIC20_NAME_RABBIT,          CARTRIDGE_VIC20_RABBIT,             CARTRIDGE_GROUP_UTIL },
     { CARTRIDGE_VIC20_NAME_SUPEREXPANDER,   CARTRIDGE_VIC20_SUPEREXPANDER,      CARTRIDGE_GROUP_UTIL },
     { CARTRIDGE_VIC20_NAME_UM,              CARTRIDGE_VIC20_UM,                 CARTRIDGE_GROUP_UTIL },
+    { CARTRIDGE_VIC20_NAME_WRITE_NOW,       CARTRIDGE_VIC20_WRITE_NOW,          CARTRIDGE_GROUP_UTIL },
 
     { NULL, 0, 0 }
 };
@@ -139,41 +216,33 @@ cartridge_info_t *cartridge_get_info_list(void)
     return &cartlist[0];
 }
 
-void reset_try_flags(void)
-{
-    cartres_flags = 0;
-}
-
+/* this function coordinates the handling of the different resources that are
+   used for the cartridges, in particular the generic cartridge, and the
+   separate resources that exist for cartridges in each block */
 int try_cartridge_attach(int c)
 {
-/* FIXME: whatever this was trying to do, it doesnt work. eg having a default
-          (generic) cartridge in vicerc doesnt work when this logic is active.
-*/
-/*
-    cartres_flags ^= c;
-    if (cartres_flags) {
-        return 0;
-    }
-*/
-    DBG(("try_cartridge_attach '%d'\n", c));
+    DBG(("try_cartridge_attach '%d'", c));
     return cartridge_attach_from_resource(vic20cart_type, cartfile);
 }
 
+/* sets the "default cartridge type" resource */
 static int set_cartridge_type(int val, void *param)
 {
-    DBG(("set_cartridge_type '%d'\n", val));
+    DBG(("set_cartridge_type '%d'", val));
     switch (val) {
         case CARTRIDGE_NONE:
         case CARTRIDGE_VIC20_GENERIC:
 
         case CARTRIDGE_VIC20_BEHRBONZ:
         case CARTRIDGE_VIC20_MEGACART:
+        case CARTRIDGE_VIC20_MINIMON:
         case CARTRIDGE_VIC20_RABBIT:
         case CARTRIDGE_VIC20_FINAL_EXPANSION:
         case CARTRIDGE_VIC20_UM:
         case CARTRIDGE_VIC20_FP:
         case CARTRIDGE_VIC20_IEEE488:
         case CARTRIDGE_VIC20_SIDCART:
+        case CARTRIDGE_VIC20_WRITE_NOW:
 
         case CARTRIDGE_VIC20_DETECT:
         case CARTRIDGE_VIC20_4KB_2000:
@@ -239,6 +308,7 @@ int cartridge_resources_init(void)
         || vic_fp_resources_init() < 0
         || vic_um_resources_init() < 0
         || megacart_resources_init() < 0
+        || minimon_resources_init() < 0
 #ifdef HAVE_RAWNET
         || ethernetcart_resources_init() < 0
 #endif
@@ -271,9 +341,53 @@ void cartridge_resources_shutdown(void)
     georam_resources_shutdown();
     debugcart_resources_shutdown();
 
+    /* "Main Slot" */
     lib_free(cartridge_file);
     lib_free(cartfile);
+
+    /* slot 0 */
+    minimon_resources_shutdown();
 }
+
+/* ------------------------------------------------------------------------- */
+
+/*
+    returns 1 if given cart type is in "Main Slot"
+*/
+static int cart_is_slotmain(int type)
+{
+    switch (type) {
+        /* slot 0 */
+        case CARTRIDGE_VIC20_MINIMON:
+        /* io slot */
+        case CARTRIDGE_DIGIMAX:
+        case CARTRIDGE_DS12C887RTC:
+        case CARTRIDGE_GEORAM:
+        case CARTRIDGE_MIDI_PASSPORT:
+        case CARTRIDGE_MIDI_DATEL:
+        case CARTRIDGE_MIDI_SEQUENTIAL:
+        case CARTRIDGE_MIDI_NAMESOFT:
+        case CARTRIDGE_MIDI_MAPLIN:
+        case CARTRIDGE_REU:
+        case CARTRIDGE_SFX_SOUND_EXPANDER:
+        case CARTRIDGE_SFX_SOUND_SAMPLER:
+        case CARTRIDGE_TFE:
+        case CARTRIDGE_TURBO232:
+            return 0;
+        default:
+            return 1;
+    }
+}
+
+#if 0
+static int cart_getid_slot0(void)
+{
+    if (minimon_cart_enabled()) {
+        return CARTRIDGE_VIC20_MINIMON;
+    }
+    return CARTRIDGE_NONE;
+}
+#endif
 
 static int detach_cartridge_cmdline(const char *param, void *extra_param)
 {
@@ -288,11 +402,18 @@ static int detach_cartridge_cmdline(const char *param, void *extra_param)
 
 static int attach_cartridge_cmdline(const char *param, void *extra_param)
 {
-    return cartridge_attach_image(vice_ptr_to_int(extra_param), param);
+    int lasttype = cartridge_get_id(0);
+    if (lasttype == CARTRIDGE_NONE) {
+        /* first cartridge */
+        return cartridge_attach_image(vice_ptr_to_int(extra_param), param);
+    }
+    /* extra images */
+    return cartridge_attach_add_image(vice_ptr_to_int(extra_param), param);
 }
 
 static const cmdline_option_t cmdline_options[] =
 {
+    /* hardreset on cartridge change */
     { "-cartreset", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
       NULL, NULL, "CartridgeReset", (void *)1,
       NULL, "Reset machine if a cartridge is attached or detached" },
@@ -347,7 +468,13 @@ static const cmdline_option_t cmdline_options[] =
     { "-cartma", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
       attach_cartridge_cmdline, (void *)CARTRIDGE_VIC20_MIKRO_ASSEMBLER, NULL, NULL,
       "<Name>", "Specify " CARTRIDGE_VIC20_NAME_MIKRO_ASSEMBLER " cartridge ROM name" },
-
+    { "-cartmini", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
+      attach_cartridge_cmdline, (void *)CARTRIDGE_VIC20_MINIMON, NULL, NULL,
+      "<Name>", "Specify " CARTRIDGE_VIC20_NAME_MINIMON " cartridge ROM name" },
+    { "-cartwn", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
+      attach_cartridge_cmdline, (void *)CARTRIDGE_VIC20_WRITE_NOW, NULL, NULL,
+      "<Name>", "Specify " CARTRIDGE_VIC20_NAME_WRITE_NOW " cartridge ROM name" },
+    /* no cartridge */
     { "+cart", CALL_FUNCTION, CMDLINE_ATTRIB_NONE,
       detach_cartridge_cmdline, NULL, NULL, NULL,
       NULL, "Disable default cartridge" },
@@ -358,13 +485,25 @@ int cartridge_cmdline_options_init(void)
 {
     mon_cart_cmd.cartridge_attach_image = cartridge_attach_image;
     mon_cart_cmd.cartridge_detach_image = cartridge_detach_image;
+    mon_cart_cmd.cartridge_trigger_freeze = cartridge_trigger_freeze;
     mon_cart_cmd.export_dump = export_dump;
 
+    /* slot 0 */
+    if (minimon_cmdline_options_init() < 0) {
+        return -1;
+    }
+
+    /* main slot */
     if (cmdline_register_options(cmdline_options) < 0
         || finalexpansion_cmdline_options_init() < 0
         || vic_fp_cmdline_options_init() < 0
         || vic_um_cmdline_options_init() < 0
-        || megacart_cmdline_options_init() < 0
+        || megacart_cmdline_options_init() < 0) {
+        return -1;
+    }
+
+    /* io slot */
+    if (0
 #ifdef HAVE_RAWNET
         || ethernetcart_cmdline_options_init() < 0
 #endif
@@ -381,10 +520,21 @@ int cartridge_cmdline_options_init(void)
     return 0;
 }
 
+/*
+    returns ID of cart in "Main Slot"
+*/
+static int cart_getid_slotmain(void)
+{
+    /* DBG(("CART: cart_getid_slotmain mem_cartridge_type: %d \n", mem_cartridge_type)); */
+    return mem_cartridge_type;
+}
+
 /* ------------------------------------------------------------------------- */
+
+/* FIXME: type is passed, but vic20cart_type used instead? */
 static int cartridge_attach_from_resource(int type, const char *filename)
 {
-    DBG(("cartridge_attach_from_resource type: %d name: '%s'\n", type, filename));
+    DBG(("cartridge_attach_from_resource type: %d name: '%s'", type, filename));
     if (vic20cart_type == CARTRIDGE_VIC20_GENERIC) {
         /* special case handling for the multiple file generic type */
         return generic_attach_from_resource(vic20cart_type, cartfile);
@@ -404,7 +554,7 @@ static int crt_attach(const char *filename, uint8_t *rawcart)
     int ret, new_crttype;
     FILE *fd;
 
-    DBG(("crt_attach: %s\n", filename));
+    DBG(("crt_attach: %s", filename));
 
     fd = crt_open(filename, &header);
 
@@ -417,7 +567,7 @@ static int crt_attach(const char *filename, uint8_t *rawcart)
         /* handle our negative test IDs */
         new_crttype -= 0x10000;
     }
-    DBG(("crt_attach ID: %d\n", new_crttype));
+    DBG(("crt_attach ID: %d", new_crttype));
 
 /*  cart should always be detached. there is no reason for doing fancy checks
     here, and it will cause problems incase a cart MUST be detached before
@@ -451,6 +601,9 @@ static int crt_attach(const char *filename, uint8_t *rawcart)
         case CARTRIDGE_VIC20_MIKRO_ASSEMBLER:
             ret = mikroassembler_crt_attach(fd, rawcart);
             break;
+        case CARTRIDGE_VIC20_MINIMON:
+            ret = minimon_crt_attach(fd, rawcart);
+            break;
         case CARTRIDGE_VIC20_RABBIT:
             ret = rabbit_crt_attach(fd, rawcart);
             break;
@@ -460,8 +613,11 @@ static int crt_attach(const char *filename, uint8_t *rawcart)
         case CARTRIDGE_VIC20_UM:
             ret = vic_um_crt_attach(fd, rawcart, filename);
             break;
+        case CARTRIDGE_VIC20_WRITE_NOW:
+            ret = writenow_crt_attach(fd, rawcart);
+            break;
         default:
-            archdep_startup_log_error("unknown CRT ID: %d\n", new_crttype);
+            archdep_startup_log_error("unknown CRT ID: %d", new_crttype);
             ret = -1;
             break;
     }
@@ -469,18 +625,25 @@ static int crt_attach(const char *filename, uint8_t *rawcart)
     fclose(fd);
 
     if (ret == -1) {
-        DBG(("crt_attach error (%d)\n", ret));
+        DBG(("crt_attach error (%d)", ret));
         return -1;
     }
-    DBG(("crt_attach return ID: %d\n", new_crttype));
+    DBG(("crt_attach return ID: %d", new_crttype));
     return new_crttype;
 }
 
+/* attach a binary image. note that for carts not in the main slot, the image
+   name is usually kept in a resource, and the cartridge is enabled via another
+   resource - the function called from here must also do this */
 static int cart_bin_attach(int type, const char *filename, uint8_t *rawcart)
 {
     int ret = -1;
 
     switch (type) {
+        /* "Slot 0" */
+        case CARTRIDGE_VIC20_MINIMON:
+            return minimon_bin_attach(filename, rawcart);
+        /* "Main SLot" */
         case CARTRIDGE_VIC20_GENERIC:
         case CARTRIDGE_VIC20_DETECT:
         case CARTRIDGE_VIC20_4KB_2000:
@@ -522,8 +685,11 @@ static int cart_bin_attach(int type, const char *filename, uint8_t *rawcart)
         case CARTRIDGE_VIC20_UM:
             ret = vic_um_bin_attach(filename);
             break;
+        case CARTRIDGE_VIC20_WRITE_NOW:
+            ret = writenow_bin_attach(filename);
+            break;
     }
-    DBG(("cart_bin_attach type: %d ret: %d\n", type, ret));
+    DBG(("cart_bin_attach type: %d ret: %d", type, ret));
 
     return ret;
 }
@@ -542,9 +708,10 @@ int cartridge_attach_image(int type, const char *filename)
     char *abs_filename;
     int carttype = CARTRIDGE_NONE;
     int cartid = CARTRIDGE_NONE;
-    int generic_multifile = 0;
+    int oldmain = CARTRIDGE_NONE;
+    int slotmain = 0;
 
-    DBG(("cartridge_attach_image type '%d' name: '%s'\n", type, filename));
+    DBG(("cartridge_attach_image type '%d'(0x%04x) name: '%s'", type, (unsigned)type, filename));
 /*
     if (filename == NULL) {
         return -1;
@@ -555,6 +722,7 @@ int cartridge_attach_image(int type, const char *filename)
         return 0;
     }
 
+    /* get absolute path to image */
     if (archdep_path_is_relative(filename)) {
         archdep_expand_path(&abs_filename, filename);
     } else {
@@ -574,10 +742,31 @@ int cartridge_attach_image(int type, const char *filename)
     /* allocate temporary array */
     rawcart = lib_malloc(VIC20CART_IMAGE_LIMIT);
 
-    DBG(("CART: cartridge_attach_image type: %d ID: %d\n", type, carttype));
+    DBG(("CART: cartridge_attach_image type: %d ID: %d", type, carttype));
 
     log_message(LOG_DEFAULT, "Attached cartridge type %d, file=`%s'.", type, filename);
+#if 0
+    /* always detach all other carts */
+    cartridge_detach_image(-1);
+#else
+/*  cart should always be detached. there is no reason for doing fancy checks
+    here, and it will cause problems incase a cart MUST be detached before
+    attaching another, or even itself. (eg for initialization reasons)
 
+    most obvious reason: attaching a different ROM (software) for the same
+    cartridge (hardware) */
+
+    slotmain = cart_is_slotmain(carttype);
+    if (slotmain) {
+        /* if the cart to be attached is in the "Main Slot", detach whatever
+           cart currently is in the "Main Slot" */
+        oldmain = cart_getid_slotmain();
+        if (oldmain != CARTRIDGE_NONE) {
+            DBG(("CART: detach slot main ID: %d", oldmain));
+            cartridge_detach_image(oldmain);
+        }
+    }
+#endif
     switch (carttype) {
         case CARTRIDGE_VIC20_DETECT:
         case CARTRIDGE_VIC20_4KB_2000:
@@ -593,60 +782,126 @@ int cartridge_attach_image(int type, const char *filename)
         case CARTRIDGE_VIC20_16KB_2000:
         case CARTRIDGE_VIC20_16KB_4000:
         case CARTRIDGE_VIC20_16KB_6000:
-            /*
-             * For specific layouts only detach if we were something else than
-             * CARTRIDGE_VIC20_GENERIC before.
-             * This allows us to add images to a generic type.
-             */
-            if (vic20cart_type != CARTRIDGE_VIC20_GENERIC) {
-                cartridge_detach_image(-1);
-            }
-            generic_multifile = 1;
-            carttype = CARTRIDGE_VIC20_GENERIC;
+            vic20cart_type = CARTRIDGE_VIC20_GENERIC;
             break;
-        case CARTRIDGE_VIC20_GENERIC:
-            /*
-             * this is because the only generic cart that is attachable
-             * will be attached as a auto detected multi file cart for now
-             * Remove when this changes.
-             */
-            generic_multifile = 1;
-            break;
-        default:
-            cartridge_detach_image(-1);
     }
 
     if (type == CARTRIDGE_CRT) {
-        DBG(("CART: attach CRT ID: %d '%s'\n", carttype, filename));
+        DBG(("CART: attach CRT ID: %d '%s'", carttype, filename));
         cartid = crt_attach(abs_filename, rawcart);
         if (cartid == CARTRIDGE_NONE) {
             goto exiterror;
         }
-        carttype = cartid;
+        vic20cart_type = cartid;
     } else {
-        DBG(("CART: attach BIN ID: %d '%s'\n", carttype, filename));
+        DBG(("CART: attach BIN ID: %d '%s'", carttype, filename));
         if (cart_bin_attach(carttype, abs_filename, rawcart) < 0) {
             goto exiterror;
         }
+        if (vic20cart_type != CARTRIDGE_VIC20_GENERIC) {
+            vic20cart_type = carttype;
+        }
     }
 
-    DBG(("CART: attach RAW ID: %d carttype: %d\n", cartid, carttype));
-    vic20cart_type = carttype;
-    if (generic_multifile) {
-        util_string_set(&cartfile, NULL);
-    } else {
-        util_string_set(&cartfile, filename);
-    }
-    cartridge_attach(carttype, NULL);
+    DBG(("CART: attach RAW ID: %d carttype: %d vic20cart_type:%d",
+         cartid, carttype, vic20cart_type));
 
-    DBG(("CART: cartridge_attach_image type: %d ID: %d done.\n", type, carttype));
+    util_string_set(&cartfile, filename);
+    cartridge_attach(vic20cart_type, NULL);
+
+    DBG(("CART: cartridge_attach_image type: %d ID: %d done.", type, carttype));
     lib_free(rawcart);
     log_message(LOG_DEFAULT, "CART: attached '%s' as ID %d.", abs_filename, carttype);
     lib_free(abs_filename);
     return 0;
 
 exiterror:
-    DBG(("CART: error\n"));
+    DBG(("CART: error"));
+    lib_free(rawcart);
+    log_message(LOG_DEFAULT, "CART: could not attach '%s'.", abs_filename);
+    lib_free(abs_filename);
+    return -1;
+}
+
+/*
+    attach cartridge image (add to generic cartridge)
+
+    type == -1  NONE
+    type ==  0  CRT format
+
+    returns -1 on error, 0 on success
+*/
+int cartridge_attach_add_image(int type, const char *filename)
+{
+    uint8_t *rawcart;
+    char *abs_filename;
+    int carttype = CARTRIDGE_NONE;
+    int cartid = CARTRIDGE_NONE;
+
+    DBG(("cartridge_attach_add_image type '%d'(0x%04x) name: '%s'", type, (unsigned)type, filename));
+/*
+    if (filename == NULL) {
+        return -1;
+    }
+*/
+    /* Attaching no cartridge always works.  */
+    if (type == CARTRIDGE_NONE || filename == NULL || *filename == '\0') {
+        return 0;
+    }
+
+    /* get absolute path to image */
+    if (archdep_path_is_relative(filename)) {
+        archdep_expand_path(&abs_filename, filename);
+    } else {
+        abs_filename = lib_strdup(filename);
+    }
+
+    if (type == CARTRIDGE_CRT) {
+        carttype = crt_getid(abs_filename);
+        if (carttype == -1) {
+            log_message(LOG_DEFAULT, "CART: '%s' is not a valid CRT file.", abs_filename);
+            lib_free(abs_filename);
+            return -1;
+        }
+    } else {
+        carttype = type;
+    }
+    /* allocate temporary array */
+    rawcart = lib_malloc(VIC20CART_IMAGE_LIMIT);
+
+    DBG(("CART: cartridge_attach_add_image type: %d ID: %d", type, carttype));
+
+    log_message(LOG_DEFAULT, "Attached cartridge type %d, file=`%s'.", type, filename);
+
+    if (type == CARTRIDGE_CRT) {
+        DBG(("CART: attach CRT ID: %d '%s'", carttype, filename));
+        cartid = crt_attach(abs_filename, rawcart);
+        if (cartid == CARTRIDGE_NONE) {
+            goto exiterror;
+        }
+        carttype = cartid;
+    } else {
+        DBG(("CART: attach BIN ID: %d '%s'", carttype, filename));
+        if (cart_bin_attach(carttype, abs_filename, rawcart) < 0) {
+            goto exiterror;
+        }
+    }
+
+    DBG(("CART: attach RAW ID: %d carttype: %d vic20cart_type:%d",
+         cartid, carttype, vic20cart_type));
+
+    /* NOTE: when we use more than one .bin file, we cant set it as default cartridge */
+    util_string_set(&cartfile, NULL);
+    cartridge_attach(vic20cart_type, NULL);
+
+    DBG(("CART: cartridge_attach_add_image type: %d ID: %d done.", type, carttype));
+    lib_free(rawcart);
+    log_message(LOG_DEFAULT, "CART: attached '%s' as ID %d.", abs_filename, carttype);
+    lib_free(abs_filename);
+    return 0;
+
+exiterror:
+    DBG(("CART: error"));
     lib_free(rawcart);
     log_message(LOG_DEFAULT, "CART: could not attach '%s'.", abs_filename);
     lib_free(abs_filename);
@@ -655,6 +910,7 @@ exiterror:
 
 void cartridge_detach_image(int type)
 {
+    DBG(("CART: cartridge_detach_image vic20cart_type:%d type:%d", vic20cart_type, type));
     cartridge_detach(vic20cart_type);
     vic20cart_type = CARTRIDGE_NONE;
     cartridge_is_from_snapshot = 0;
@@ -665,30 +921,36 @@ void cartridge_detach_image(int type)
 */
 int cartridge_enable(int type)
 {
-    DBG(("CART: enable type: %d\n", type));
+    int ret = -1;
+    DBG(("CART: enable type: %d", type));
     switch (type) {
+        /* slot 0 */
+        case CARTRIDGE_VIC20_MINIMON:
+            ret = minimon_enable();
+            break;
+        /* io slot */
         case CARTRIDGE_DIGIMAX:
-            digimax_enable();
+            ret = digimax_enable();
             break;
         case CARTRIDGE_DS12C887RTC:
-            ds12c887rtc_enable();
+            ret = ds12c887rtc_enable();
             break;
         case CARTRIDGE_GEORAM:
-            georam_enable();
+            ret = georam_enable();
             break;
         case CARTRIDGE_SFX_SOUND_EXPANDER:
-            sfx_soundexpander_enable();
+            ret = sfx_soundexpander_enable();
             break;
         case CARTRIDGE_SFX_SOUND_SAMPLER:
-            sfx_soundsampler_enable();
+            ret = sfx_soundsampler_enable();
             break;
 #ifdef HAVE_RAWNET
         case CARTRIDGE_TFE:
-            ethernetcart_enable();
+            ret = ethernetcart_enable();
             break;
 #endif
         default:
-            DBG(("CART: no enable hook %d\n", type));
+            DBG(("CART: no enable hook %d", type));
             break;
     }
 
@@ -700,7 +962,7 @@ int cartridge_enable(int type)
     log_error(LOG_DEFAULT, "Failed to enable cartridge with ID %d.", type);
     return -1;
 #endif
-    return 0;
+    return ret;
 }
 
 
@@ -714,34 +976,40 @@ int cartridge_enable(int type)
  */
 int cartridge_disable(int type)
 {
+    int ret = -1;
     /*
     fprintf(stderr, "%s:%d: %s() isn't implemented yet, continuing\n",
             __FILE__, __LINE__, __func__);
     */
-    DBG(("CART: enable type: %d\n", type));
+    DBG(("CART: disable type: %d", type));
     switch (type) {
+        /* slot 0 */
+        case CARTRIDGE_VIC20_MINIMON:
+            ret = minimon_disable();
+            break;
+        /* io slot */
         case CARTRIDGE_DIGIMAX:
-            digimax_disable();
+            ret = digimax_disable();
             break;
         case CARTRIDGE_DS12C887RTC:
-            ds12c887rtc_disable();
+            ret = ds12c887rtc_disable();
             break;
         case CARTRIDGE_GEORAM:
-            georam_disable();
+            ret = georam_disable();
             break;
         case CARTRIDGE_SFX_SOUND_EXPANDER:
-            sfx_soundexpander_disable();
+            ret = sfx_soundexpander_disable();
             break;
         case CARTRIDGE_SFX_SOUND_SAMPLER:
-            sfx_soundsampler_disable();
+            ret = sfx_soundsampler_disable();
             break;
 #ifdef HAVE_RAWNET
         case CARTRIDGE_TFE:
-            ethernetcart_disable();
+            ret = ethernetcart_disable();
             break;
 #endif
         default:
-            DBG(("CART: no disable hook %d\n", type));
+            DBG(("CART: no disable hook %d", type));
             break;
     }
 
@@ -751,12 +1019,13 @@ int cartridge_disable(int type)
     if (!cart_type_enabled(type)) {
         return 0;
     }
-    log_error(LOG_DEFAULT, "Failed to disable cartridge with ID %d.\n", type);
+    log_error(LOG_DEFAULT, "Failed to disable cartridge with ID %d.", type);
     return -1;
 #endif
-    return 0;
+    return ret;
 }
 
+/* set the currently attached cartridge(s) as default */
 void cartridge_set_default(void)
 {
     if (cartridge_is_from_snapshot) {
@@ -766,11 +1035,9 @@ void cartridge_set_default(void)
     }
     set_cartridge_type(vic20cart_type, NULL);
     set_cartridge_file((vic20cart_type == CARTRIDGE_NONE) ? "" : cartfile, NULL);
-    /* special case handling for the multiple file generic type */
-    generic_set_default();
 
-    /* reset the try flags (we've only called the set function once each) */
-    reset_try_flags();
+    /* clear the filenames of the separate files for the generic cartridge */
+    generic_set_default();
 }
 
 /** \brief  Wipe "default cartidge"
@@ -778,16 +1045,36 @@ void cartridge_set_default(void)
 void cartridge_unset_default(void)
 {
     util_string_set(&cartridge_file, "");
-    /* special case handling for the multiple file generic type */
+    /* clear the filenames of the separate files for the generic cartridge */
     generic_unset_default();
     cartridge_type = CARTRIDGE_NONE;
 }
 
+/* FIXME: passing the address is a weird idea - get rid of this! */
 const char *cartridge_get_filename_by_type(int addr)
 {
+    /* main slot */
     if (vic20cart_type == CARTRIDGE_VIC20_GENERIC) {
         /* special case handling for the multiple file generic type */
         return generic_get_file_name((uint16_t)addr);
+    }
+
+    return cartfile;
+}
+
+/* FIXME: this should be the global function instead! */
+static const char *cartridge_get_filename_by_crtid(int crtid)
+{
+    /* slot 0 */
+    switch (crtid) {
+        case CARTRIDGE_VIC20_MINIMON:
+            return minimon_get_file_name();
+    }
+
+    /* main slot */
+    if (crtid == CARTRIDGE_VIC20_GENERIC) {
+        /* special case handling for the multiple file generic type */
+        return generic_get_file_name((uint16_t)crtid);
     }
 
     return cartfile;
@@ -811,6 +1098,8 @@ int cartridge_bin_save(int type, const char *filename)
             return vic_um_bin_save(filename);
         case CARTRIDGE_VIC20_FINAL_EXPANSION:
             return finalexpansion_bin_save(filename);
+        case CARTRIDGE_VIC20_MINIMON:
+            return minimon_bin_save(filename);
     }
     log_error(LOG_DEFAULT, "Failed saving binary cartridge image for cartridge ID %d.", type);
     return -1;
@@ -833,6 +1122,8 @@ int cartridge_crt_save(int type, const char *filename)
             return vic_um_crt_save(filename);
         case CARTRIDGE_VIC20_FINAL_EXPANSION:
             return finalexpansion_crt_save(filename);
+        case CARTRIDGE_VIC20_MINIMON:
+            return minimon_crt_save(filename);
     }
     log_error(LOG_DEFAULT, "Failed saving .crt cartridge image for cartridge ID %d.", type);
     return -1;
@@ -854,6 +1145,8 @@ int cartridge_flush_image(int type)
             return vic_um_flush_image();
         case CARTRIDGE_VIC20_FINAL_EXPANSION:
             return finalexpansion_flush_image();
+        case CARTRIDGE_VIC20_MINIMON:
+            return minimon_flush_image();
     }
     return -1;
 }
@@ -885,11 +1178,19 @@ int cartridge_save_secondary_image(int type, const char *filename)
     return -1;
 }
 
+/* returns 1 if cartridge with given crtid is enabled */
 int cartridge_type_enabled(int crtid)
 {
+    /* slot 0 */
+    switch (crtid) {
+        case CARTRIDGE_VIC20_MINIMON:
+            return minimon_cart_enabled();
+    }
+    /* main slot */
     if (crtid == vic20cart_type) {
         return 1;
     }
+    /* io slot */
     switch (crtid) {
         case CARTRIDGE_VIC20_GEORAM:
             return georam_cart_enabled();
@@ -902,12 +1203,16 @@ int cartridge_can_flush_image(int crtid)
 {
     const char *p;
     if (!cartridge_type_enabled(crtid)) {
+        DBG(("cartridge_can_flush_image crtid:%d ret: 0", crtid));
         return 0;
     }
-    p = cartridge_get_filename_by_type(crtid);
+    p = cartridge_get_filename_by_crtid(crtid);
     if ((p == NULL) || (*p == '\x0')) {
+        DBG(("cartridge_can_flush_image crtid:%d ret: 0", crtid));
         return 0;
     }
+
+    DBG(("cartridge_can_flush_image crtid:%d ret: 1", crtid));
     return 1;
 }
 
@@ -928,8 +1233,10 @@ int cartridge_can_flush_secondary_image(int crtid)
 int cartridge_can_save_image(int crtid)
 {
     if (!cartridge_type_enabled(crtid)) {
+        DBG(("cartridge_can_save_image crtid:%d ret: 0", crtid));
         return 0;
     }
+    DBG(("cartridge_can_save_image crtid:%d ret: 1", crtid));
     return 1;
 }
 
@@ -946,12 +1253,14 @@ int cartridge_can_save_secondary_image(int crtid)
     return 0;
 }
 
-/* return cartridge type of main slot
-   returns 0 (CARTRIDGE_CRT) if crt file */
+/* FIXME: slot arg is ignored right now.
+   this should return a valid cartridge ID for a given slot, or CARTRIDGE_NONE
+   (it does NOT return CARTRIDGE_CRT)
+*/
 int cartridge_get_id(int slot)
 {
-    int type = cartridge_type;
-    /*DBG(("cartridge_get_id(slot:%d): type:%d\n", slot, type));*/
+    int type = vic20cart_type;
+    DBG(("cartridge_get_id(slot:%d): %d %d type:%d", slot, cartridge_type, vic20cart_type, type));
     return type;
 }
 
@@ -980,7 +1289,20 @@ char *cartridge_get_secondary_filename_by_slot(int slot)
 
 void cartridge_trigger_freeze(void)
 {
-    /* We have no freezer on VIC20 :) */
+    DBG(("cartridge_trigger_freeze(type:%d)", vic20cart_type));
+
+    /* slot 0 */
+    if (minimon_cart_enabled()) {
+        minimon_freeze();
+    }
+
+    /* Main slot */
+#if 0
+    switch (vic20cart_type) {
+        case CARTRIDGE_VIC20_MINIMON:
+            break;
+    }
+#endif
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1004,7 +1326,7 @@ int vic20cart_snapshot_write_module(snapshot_t *s)
 
     while (e != NULL) {
         if (number_of_carts == VIC20CART_DUMP_MAX_CARTS) {
-            DBG(("CART snapshot save: active carts > max (%i)\n", number_of_carts));
+            DBG(("CART snapshot save: active carts > max (%i)", number_of_carts));
             return -1;
         }
         if (last_cart != (int)e->device->cartid) {
@@ -1069,6 +1391,11 @@ int vic20cart_snapshot_write_module(snapshot_t *s)
                     return -1;
                 }
                 break;
+            case CARTRIDGE_VIC20_MINIMON:
+                if (minimon_snapshot_write_module(s) < 0) {
+                    return -1;
+                }
+                break;
             case CARTRIDGE_VIC20_RABBIT:
                 if (rabbit_snapshot_write_module(s) < 0) {
                     return -1;
@@ -1081,6 +1408,11 @@ int vic20cart_snapshot_write_module(snapshot_t *s)
                 break;
             case CARTRIDGE_VIC20_UM:
                 if (vic_um_snapshot_write_module(s) < 0) {
+                    return -1;
+                }
+                break;
+            case CARTRIDGE_VIC20_WRITE_NOW:
+                if (writenow_snapshot_write_module(s) < 0) {
                     return -1;
                 }
                 break;
@@ -1203,7 +1535,7 @@ int vic20cart_snapshot_read_module(snapshot_t *s)
         }
 
         if (number_of_carts > VIC20CART_DUMP_MAX_CARTS) {
-            DBG(("CART snapshot read: carts %i > max %i\n", number_of_carts, VIC20CART_DUMP_MAX_CARTS));
+            DBG(("CART snapshot read: carts %i > max %i", number_of_carts, VIC20CART_DUMP_MAX_CARTS));
             goto fail;
         }
 
@@ -1257,6 +1589,11 @@ int vic20cart_snapshot_read_module(snapshot_t *s)
                     return -1;
                 }
                 break;
+            case CARTRIDGE_VIC20_MINIMON:
+                if (minimon_snapshot_read_module(s) < 0) {
+                    return -1;
+                }
+                break;
             case CARTRIDGE_VIC20_RABBIT:
                 if (rabbit_snapshot_read_module(s) < 0) {
                     return -1;
@@ -1269,6 +1606,11 @@ int vic20cart_snapshot_read_module(snapshot_t *s)
                 break;
             case CARTRIDGE_VIC20_UM:
                 if (vic_um_snapshot_read_module(s) < 0) {
+                    return -1;
+                }
+                break;
+            case CARTRIDGE_VIC20_WRITE_NOW:
+                if (writenow_snapshot_read_module(s) < 0) {
                     return -1;
                 }
                 break;

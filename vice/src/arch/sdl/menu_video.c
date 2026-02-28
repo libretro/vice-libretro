@@ -349,7 +349,8 @@ UI_MENU_DEFINE_RADIO(SDLLimitMode)
 #endif
 UI_MENU_DEFINE_INT(Window0Width)
 UI_MENU_DEFINE_INT(Window0Height)
-
+UI_MENU_DEFINE_TOGGLE(StartMinimized)
+UI_MENU_DEFINE_TOGGLE(StartMaximized)
 
 #define VICE_SDL_SIZE_MENU_DOUBLESIZE(chip)                         \
     {   .string   = "Double size",                                  \
@@ -547,8 +548,10 @@ UI_MENU_DEFINE_TOGGLE(CrtcVSync)
 UI_MENU_DEFINE_TOGGLE(VICIIDoubleSize)
 UI_MENU_DEFINE_TOGGLE(VICIIDoubleScan)
 
+#if defined(HAVE_HWSCALE) || defined(USE_SDL2UI)
 UI_MENU_DEFINE_RADIO(VICIIAspectMode)
 UI_MENU_DEFINE_STRING(VICIIAspectRatio)
+#endif
 
 UI_MENU_DEFINE_RADIO(VICIIFullscreenMode)
 
@@ -568,8 +571,10 @@ static const ui_menu_entry_t vicii_size_menu[] = {
 UI_MENU_DEFINE_TOGGLE(VDCDoubleSize)
 UI_MENU_DEFINE_TOGGLE(VDCStretchVertical)
 
+#if defined(HAVE_HWSCALE) || defined(USE_SDL2UI)
 UI_MENU_DEFINE_RADIO(VDCAspectMode)
 UI_MENU_DEFINE_STRING(VDCAspectRatio)
+#endif
 
 UI_MENU_DEFINE_TOGGLE(VDCDoubleScan)
 UI_MENU_DEFINE_RADIO(VDCFullscreenMode)
@@ -593,8 +598,10 @@ UI_MENU_DEFINE_TOGGLE(CrtcDoubleSize)
 UI_MENU_DEFINE_TOGGLE(CrtcStretchVertical)
 UI_MENU_DEFINE_TOGGLE(CrtcDoubleScan)
 
+#if defined(HAVE_HWSCALE) || defined(USE_SDL2UI)
 UI_MENU_DEFINE_RADIO(CrtcAspectMode)
 UI_MENU_DEFINE_STRING(CrtcAspectRatio)
+#endif
 
 static const ui_menu_entry_t crtc_size_menu[] = {
     VICE_SDL_SIZE_MENU_DOUBLESIZE(Crtc)
@@ -613,8 +620,10 @@ static const ui_menu_entry_t crtc_size_menu[] = {
 UI_MENU_DEFINE_TOGGLE(TEDDoubleSize)
 UI_MENU_DEFINE_TOGGLE(TEDDoubleScan)
 
+#if defined(HAVE_HWSCALE) || defined(USE_SDL2UI)
 UI_MENU_DEFINE_RADIO(TEDAspectMode)
 UI_MENU_DEFINE_STRING(TEDAspectRatio)
+#endif
 
 UI_MENU_DEFINE_RADIO(TEDFullscreenMode)
 
@@ -634,8 +643,10 @@ static const ui_menu_entry_t ted_size_menu[] = {
 UI_MENU_DEFINE_TOGGLE(VICDoubleSize)
 UI_MENU_DEFINE_TOGGLE(VICDoubleScan)
 
+#if defined(HAVE_HWSCALE) || defined(USE_SDL2UI)
 UI_MENU_DEFINE_RADIO(VICAspectMode)
 UI_MENU_DEFINE_STRING(VICAspectRatio)
+#endif
 
 UI_MENU_DEFINE_RADIO(VICFullscreenMode)
 
@@ -816,6 +827,14 @@ const ui_menu_entry_t c128_video_menu[] = {
         .string   = "Restore window size",
         .type     = MENU_ENTRY_OTHER,
     },
+    {   .string   = "Start with minimized window",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_StartMinimized_callback,
+    },
+    {   .string   = "Start with maximized window",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_StartMaximized_callback,
+    },
     SDL_MENU_ITEM_SEPARATOR,
 
     {   .string   = "VICII Video cache",
@@ -915,6 +934,14 @@ const ui_menu_entry_t c64_video_menu[] = {
         .string   = "Restore window size",
         .type     = MENU_ENTRY_OTHER,
     },
+    {   .string   = "Start with minimized window",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_StartMinimized_callback,
+    },
+    {   .string   = "Start with maximized window",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_StartMaximized_callback,
+    },
     SDL_MENU_ITEM_SEPARATOR,
 
     {   .string   = "Video cache",
@@ -982,6 +1009,14 @@ const ui_menu_entry_t c64sc_video_menu[] = {
         .string   = "Restore window size",
         .type     = MENU_ENTRY_OTHER,
     },
+    {   .string   = "Start with minimized window",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_StartMinimized_callback,
+    },
+    {   .string   = "Start with maximized window",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_StartMaximized_callback,
+    },
     SDL_MENU_ITEM_SEPARATOR,
 
     {   .string   = "VICII border mode",
@@ -1046,6 +1081,14 @@ const ui_menu_entry_t c64dtv_video_menu[] = {
     {   .action   = ACTION_RESTORE_DISPLAY,
         .string   = "Restore window size",
         .type     = MENU_ENTRY_OTHER,
+    },
+    {   .string   = "Start with minimized window",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_StartMinimized_callback,
+    },
+    {   .string   = "Start with maximized window",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_StartMaximized_callback,
     },
     SDL_MENU_ITEM_SEPARATOR,
 
@@ -1123,6 +1166,14 @@ const ui_menu_entry_t cbm5x0_video_menu[] = {
     {   .action   = ACTION_RESTORE_DISPLAY,
         .string   = "Restore window size",
         .type     = MENU_ENTRY_OTHER,
+    },
+    {   .string   = "Start with minimized window",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_StartMinimized_callback,
+    },
+    {   .string   = "Start with maximized window",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_StartMaximized_callback,
     },
     SDL_MENU_ITEM_SEPARATOR,
 
@@ -1204,6 +1255,14 @@ const ui_menu_entry_t cbm6x0_7x0_video_menu[] = {
         .string   = "Restore window size",
         .type     = MENU_ENTRY_OTHER,
     },
+    {   .string   = "Start with minimized window",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_StartMinimized_callback,
+    },
+    {   .string   = "Start with maximized window",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_StartMaximized_callback,
+    },
     SDL_MENU_ITEM_SEPARATOR,
 
     {   .string   = "Video cache",
@@ -1252,6 +1311,14 @@ const ui_menu_entry_t pet_video_menu[] = {
         .string   = "Restore window size",
         .type     = MENU_ENTRY_OTHER,
     },
+    {   .string   = "Start with minimized window",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_StartMinimized_callback,
+    },
+    {   .string   = "Start with maximized window",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_StartMaximized_callback,
+    },
     SDL_MENU_ITEM_SEPARATOR,
 
     {   .string   = "Video cache",
@@ -1299,6 +1366,14 @@ const ui_menu_entry_t plus4_video_menu[] = {
     {   .action   = ACTION_RESTORE_DISPLAY,
         .string   = "Restore window size",
         .type     = MENU_ENTRY_OTHER,
+    },
+    {   .string   = "Start with minimized window",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_StartMinimized_callback,
+    },
+    {   .string   = "Start with maximized window",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_StartMaximized_callback,
     },
     SDL_MENU_ITEM_SEPARATOR,
 
@@ -1378,6 +1453,14 @@ const ui_menu_entry_t vic20_video_menu[] = {
     {   .action   = ACTION_RESTORE_DISPLAY,
         .string   = "Restore window size",
         .type     = MENU_ENTRY_OTHER,
+    },
+    {   .string   = "Start with minimized window",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_StartMinimized_callback,
+    },
+    {   .string   = "Start with maximized window",
+        .type     = MENU_ENTRY_RESOURCE_TOGGLE,
+        .callback = toggle_StartMaximized_callback,
     },
     SDL_MENU_ITEM_SEPARATOR,
 

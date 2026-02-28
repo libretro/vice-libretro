@@ -82,6 +82,10 @@
 #define WIC64_VERSION_DEVEL 0
 #define WIC64_SHORT_VERSION "2.1.0"
 #define WIC64_VERSION_STRING "2.1.0 ("PACKAGE"; "VERSION")"
+#define WIC64_PROT_LEGACY 'W'
+#define WIC64_PROT_REVISED 'R'
+#define WIC64_PROT_EXTENDED 'E'
+#define WIC64_PROT_UNKNOWN 'U'
 #define HTTP_AGENT_REVISED "WiC64/"WIC64_SHORT_VERSION" ("PACKAGE"; "VERSION")"
 #define HTTP_AGENT_LEGACY "ESP32HTTPClient"
 static char *http_user_agent = HTTP_AGENT_REVISED;
@@ -104,6 +108,7 @@ static int wic64_set_macaddress(const char *val, void *p);
 static int wic64_set_ipaddress(const char *val, void *p);
 static int wic64_set_sectoken(const char *val, void *p);
 static int wic64_set_timezone(int val, void *param);
+static int wic64_set_dhcp(int val, void *param);
 static int wic64_set_logenabled(int val, void *param);
 static int wic64_set_loglevel(int val, void *param);
 static int wic64_set_resetuser(int val, void *param);
@@ -170,6 +175,7 @@ static char *default_server_hostname = NULL;
 static char *wic64_mac_address = NULL; /* c-string std. notation e.g 0a:02:0b:04:05:0c */
 static char *wic64_internal_ip = NULL; /* c-string std. notation e.g. 192.168.1.10 */
 static unsigned char wic64_external_ip[4] = { 0, 0, 0, 0 }; /* just a dummy, report not implemented to user cmd 0x13 */
+
 static uint8_t wic64_timezone[2] = { 0, 0};
 static uint16_t wic64_udp_port = 0;
 static uint16_t wic64_tcp_port = 0;
@@ -177,15 +183,15 @@ static uint8_t wic64_timeout = WIC64_DEFAULT_TRANSFER_TIMEOUT;
 static int wic64_remote_timeout; /* used for resource */
 static int remote_to = WIC64_DEFAULT_REMOTE_TIMEOUT;
 static uint8_t wic64_remote_timeout_triggered = 0;
-static int force_timeout = 0;
 static char *wic64_sec_token = NULL;
-static int current_tz = 2;
+static int current_tz = 2; /* WIC64Timezone */
+static int current_dhcp = 1; /* WIC64DHCP */
 static int wic64_logenabled = 0;
 static int wic64_loglevel = 0;
 static int wic64_resetuser = 0;
 static int wic64_hexdumplines = 0;
 
-static char wic64_protocol = 'U'; /* invalid, so we see in trace even the legacy */
+static char wic64_protocol = WIC64_PROT_UNKNOWN; /* invalid, so we see in trace even the legacy */
 static int big_load = 0;
 static char wic64_last_status[40]; /* according spec 40 bytes, hold status string. incl. \0 */
 static char *post_data = NULL;
@@ -304,15 +310,19 @@ static void debug_hexdump(const char *col, const int lv, const char *buf, int le
 
 /* ---------------------------------------------------------------------*/
 
+#define IPADDR_INVALID      "255.255.255.255"
+#define MACADDR_INVALID     "FF:FF:FF:FF:FF:FF"
+#define SECTOKEN_INVALID    "0123456789ab"
+
 static const resource_string_t wic64_resources[] =
 {
     { "WIC64DefaultServer", "http://x.wic64.net/", (resource_event_relevant_t)0, NULL,
       &default_server_hostname, wic64_set_default_server, NULL },
-    { "WIC64MACAddress", "DEADBE", (resource_event_relevant_t)0, NULL,
+    { "WIC64MACAddress", MACADDR_INVALID, (resource_event_relevant_t)0, NULL,
       (char **) &wic64_mac_address, wic64_set_macaddress, NULL },
-    { "WIC64IPAddress", "AAAA", (resource_event_relevant_t)0, NULL,
+    { "WIC64IPAddress", IPADDR_INVALID, (resource_event_relevant_t)0, NULL,
       (char **) &wic64_internal_ip, wic64_set_ipaddress, NULL },
-    { "WIC64SecToken", "0123456789ab", (resource_event_relevant_t)0, NULL,
+    { "WIC64SecToken", SECTOKEN_INVALID, (resource_event_relevant_t)0, NULL,
       (char **) &wic64_sec_token, wic64_set_sectoken, NULL },
     RESOURCE_STRING_LIST_END,
 };
@@ -320,6 +330,8 @@ static const resource_string_t wic64_resources[] =
 static const resource_int_t wic64_resources_int[] = {
     { "WIC64Timezone", 2, RES_EVENT_NO, NULL,
       &current_tz, wic64_set_timezone, NULL },
+    { "WIC64DHCP", 1, RES_EVENT_NO, NULL,
+      &current_dhcp, wic64_set_dhcp, NULL },
     { "WIC64Logenabled", 0, RES_EVENT_NO, NULL,
       &wic64_logenabled, wic64_set_logenabled, NULL },
     { "WIC64LogLevel", 0, RES_EVENT_NO, NULL,
@@ -376,6 +388,21 @@ static const cmdline_option_t cmdline_options[] =
     { "-wic64timezone", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
       NULL, NULL, "WIC64Timezone", NULL,
       "<0..31>", "Specify default timezone index, e.g. 2: European Central Time" },
+    { "-wic64ipaddress", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
+      NULL, NULL, "WIC64IPAddress", NULL,
+      "<IP>", "Specify WiC64 IP" },
+    { "-wic64macaddress", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
+      NULL, NULL, "WIC64MACAddress", NULL,
+      "<MAC>", "Specify WiC64 MAC" },
+    { "-wic64token", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
+      NULL, NULL, "WIC64SecToken", NULL,
+      "<token>", "Specify WiC64 security token" },
+    { "-wic64dhcp", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
+      NULL, NULL, "WIC64DHCP", (void *)1,
+      NULL, "Enable WiC64 DHCP" },
+    { "+wic64DHCP", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
+      NULL, NULL, "WIC64DHCP", (void *)0,
+      NULL, "Disable WiC64 DHCP" },
     { "-wic64trace", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
       NULL, NULL, "WIC64Logenabled", (void *)1,
       NULL, "Enable WiC64 tracing" },
@@ -464,9 +491,6 @@ static const cmdline_option_t cmdline_options[] =
 
 #define WIC64_CMD_NONE 0xff
 
-#define WIC64_PROT_LEGACY 'W'
-#define WIC64_PROT_REVISED 'R'
-#define WIC64_PROT_EXTENDED 'E'
 #define INPUT_EXP_PROT 0
 #define INPUT_EXP_CMD 1
 #define INPUT_EXP_LL 2
@@ -489,6 +513,7 @@ static char *err2string[] = { "SUCCESS", "INTERNAL", "CLIENT", "CONNECTION", "NE
 static size_t httpbufferptr = 0;
 static uint8_t *httpbuffer = NULL;
 static char *replybuffer = NULL;
+static uint8_t *commandbuffer = NULL;
 
 #define COMMANDBUFFER_MAXLEN    0x100010
 #define URL_MAXLEN              8192
@@ -537,6 +562,10 @@ static int userport_wic64_enable(int value)
         debug_log(CONS_COL_NO, 2, "%s: encoded_helper allocated 0x%xkB", __FUNCTION__,
                    COMMANDBUFFER_MAXLEN / 1024);
 
+        commandbuffer = lib_malloc(COMMANDBUFFER_MAXLEN);
+        debug_log(CONS_COL_NO, 2, "%s: commandbuffer allocated 0x%xkB", __FUNCTION__,
+                   COMMANDBUFFER_MAXLEN / 1024);
+
         curl_send_buf = lib_malloc(COMMANDBUFFER_MAXLEN);
         debug_log(CONS_COL_NO, 2, "%s: curl_send_buf allocated 0x%xkB", __FUNCTION__,
                    COMMANDBUFFER_MAXLEN / 1014);
@@ -545,7 +574,7 @@ static int userport_wic64_enable(int value)
         log_message(wic64_loghandle, "WiC64 enabled");
 
         prep_wic64_str();
-
+        userport_wic64_reset();
     } else {
         if (httpbuffer) {
             lib_free(httpbuffer);
@@ -558,6 +587,10 @@ static int userport_wic64_enable(int value)
         if (encoded_helper) {
             lib_free(encoded_helper);
             encoded_helper = NULL;
+        }
+        if (commandbuffer) {
+            lib_free(commandbuffer);
+            commandbuffer = NULL;
         }
         if (curl_send_buf) {
             lib_free(curl_send_buf);
@@ -635,18 +668,42 @@ static int wic64_set_default_server(const char *val, void *v)
 
 static int wic64_set_macaddress(const char *val, void *v)
 {
-    util_string_set((char **)&wic64_mac_address, val);
-    return 0;
+    unsigned int a, b, c, d, e, f;
+    int ret;
+    /* validate string */
+    ret = sscanf(val, "%02x:%02x:%02x:%02x:%02x:%02x", &a, &b, &c, &d, &e, &f);
+    if ((ret == 6) &&
+       (/*(a >= 0) &&*/ (a <= 255)) &&
+       (/*(b >= 0) &&*/ (b <= 255)) &&
+       (/*(c >= 0) &&*/ (c <= 255)) &&
+       (/*(d >= 0) &&*/ (d <= 255)) &&
+       (/*(e >= 0) &&*/ (e <= 255)) &&
+       (/*(f >= 0) &&*/ (f <= 255))) {
+        util_string_set((char **)&wic64_mac_address, val);
+        return 0;
+    }
+    return -1;
 }
 
 static int wic64_set_ipaddress(const char *val, void *v)
 {
-    util_string_set((char **)&wic64_internal_ip, val);
-    return 0;
+    int ret, a, b, c, d;
+    /* validate string */
+    ret = sscanf(val, "%d.%d.%d.%d", &a, &b, &c, &d);
+    if ((ret == 4) &&
+       ((a >= 0) && (a <= 255)) &&
+       ((b >= 0) && (b <= 255)) &&
+       ((c >= 0) && (c <= 255)) &&
+       ((d >= 0) && (d <= 255))) {
+        util_string_set((char **)&wic64_internal_ip, val);
+        return 0;
+    }
+    return -1;
 }
 
 static int wic64_set_sectoken(const char *val, void *v)
 {
+    /* TODO: validate string */
     util_string_set((char **)&wic64_sec_token, val);
     return 0;
 }
@@ -654,6 +711,12 @@ static int wic64_set_sectoken(const char *val, void *v)
 static int wic64_set_timezone(int val, void *param)
 {
     current_tz = val;
+    return 0;
+}
+
+static int wic64_set_dhcp(int val, void *param)
+{
+    current_dhcp = val;
     return 0;
 }
 
@@ -778,7 +841,7 @@ static void wic64_reset_user_helper(void)
              lib_unsigned_rand(0, 15),
              lib_unsigned_rand(0, 15));
     resources_set_string("WIC64MACAddress", tmp);
-    resources_set_string("WIC64SecToken", "0123456789ab");
+    resources_set_string("WIC64SecToken", SECTOKEN_INVALID);
 }
 
 void userport_wic64_factory_reset(void)
@@ -901,10 +964,18 @@ static void add_transfer(CURLM *cmulti, char *url)
     curl_easy_setopt(eh, CURLOPT_WRITEFUNCTION, write_cb);
     curl_easy_setopt(eh, CURLOPT_URL, url);
     curl_easy_setopt(eh, CURLOPT_PRIVATE, url);
-    /* work around bug 1964 (https://sourceforge.net/p/vice-emu/bugs/1964/) */
+    curl_easy_setopt(eh, CURLOPT_FOLLOWLOCATION, 1L);
+    /* need to decied if we want to ship a certificate file
+    curl_easy_setopt(eh, CURLOPT_CAINFO, PREFIX "/share/vice/etc/ca-bundle.crt");
+    curl_easy_setopt(eh, CURLOPT_CAPATH, PREFIX "/share/vice/etc/ca-bundle.crt");
+    */
+    curl_easy_setopt(eh, CURLOPT_SSL_VERIFYPEER, 0L);
+
+    /* work around bug 1964 (https://sourceforge.net/p/vice-emu/bugs/1964/) - maybe not needed anymore !*/
 #ifdef CURLSSLOPT_NATIVE_CA
     curl_easy_setopt(eh, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
 #endif
+
     /* set USERAGENT: otherwise the server won't return data, e.g. wicradio */
     if (wic64_protocol == WIC64_PROT_LEGACY) {
         http_user_agent = HTTP_AGENT_LEGACY;
@@ -964,7 +1035,7 @@ static void update_prefs(uint8_t *buffer, size_t len)
 
 static void http_get_alarm_handler(CLOCK offset, void *data)
 {
-    CURLMsg *msg;
+    CURLMsg *msg = NULL;
     CURLMcode r;
     int msgs_left = -1;
     long response = -1;
@@ -992,6 +1063,7 @@ static void http_get_alarm_handler(CLOCK offset, void *data)
         send_reply_revised(NETWORK_ERROR, "Remote timeout", NULL, 0, "!0");
         wic64_remote_timeout_triggered = 0;
         remote_to = wic64_remote_timeout;
+        msg = curl_multi_info_read(cm, &msgs_left); /* ensure all handles are freed when leaving below */
         goto out;
     }
 
@@ -1007,6 +1079,9 @@ static void http_get_alarm_handler(CLOCK offset, void *data)
     remote_to = wic64_remote_timeout;
 
     msg = curl_multi_info_read(cm, &msgs_left);
+    if (msgs_left > 0) {
+        wic64_log(LOG_COL_LRED, "%s, msgs_left: %d (>0! not handled), msg = %p", __FUNCTION__, msgs_left, msg);
+    }
     if (msg) {
         CURLcode res;
         res = curl_easy_getinfo(msg->easy_handle,
@@ -1021,10 +1096,12 @@ static void http_get_alarm_handler(CLOCK offset, void *data)
         res = curl_easy_getinfo(msg->easy_handle, CURLINFO_EFFECTIVE_URL, &url);
         if (res != CURLE_OK) {
             /* ignore problem, URL is only for debugging */
-            wic64_log(LOG_COL_LRED, "%s: curl_easy_getinfo(...&URL failed: %s", __FUNCTION__,
+            debug_log(CONS_COL_NO, 2, "%s: curl_easy_getinfo(...&URL failed: %s", __FUNCTION__,
                       curl_easy_strerror(res));
             url = "<unknown>";
         }
+    } else {
+        wic64_log(LOG_COL_LRED, "%s, msgs_left: %d, msg = %p!", __FUNCTION__, msgs_left, msg);
     }
 
     if (response == 201) {
@@ -1055,7 +1132,7 @@ static void http_get_alarm_handler(CLOCK offset, void *data)
     } else {
         /* firmeare handles codes: 301, 302, 307, 308 - check if needed with libcurl */
         char m[64];
-        snprintf(m, 64, "Unhandled http response %ld, received %"PRI_SIZE_T" bytes", response, httpbufferptr);
+        snprintf(m, 64, "Unhandled http response %ld, received %llu bytes", response, (unsigned long long)httpbufferptr);
         wic64_log(LOG_COL_LRED, m);
         if (httpbufferptr > 0) {
             send_reply_revised(SUCCESS, "Success", httpbuffer,
@@ -1067,6 +1144,11 @@ static void http_get_alarm_handler(CLOCK offset, void *data)
     }
 
   out:
+    if (msg) {
+        /* cleanup easy handly, fixes FD leak */
+        curl_multi_remove_handle(cm, msg->easy_handle);
+        curl_easy_cleanup(msg->easy_handle);
+    }
     curl_multi_cleanup(cm);
     curl_global_cleanup();
     alarm_unset(http_get_alarm);
@@ -1107,7 +1189,6 @@ static void do_http_get(char *url)
 static uint8_t input_state = 0, input_command = WIC64_CMD_NONE;
 static uint8_t wic64_inputmode = 1;
 static uint32_t input_length = 0, commandptr = 0;
-static uint8_t commandbuffer[COMMANDBUFFER_MAXLEN];
 
 static uint32_t replyptr = 0, reply_length = 0;
 static uint8_t reply_port_value = 0;
@@ -1115,7 +1196,10 @@ static uint8_t reply_port_value = 0;
 static void flag2_alarm_handler(CLOCK offset, void *data)
 {
     debug_log(LOG_COL_OFF, 4, "%s: handshake expired", __FUNCTION__);
-    set_userport_flag(FLAG2_INACTIVE);
+    /* CAUTION: only call set_userport_flag() when we are actually the active userport device */
+    if (userport_get_device() == USERPORT_DEVICE_WIC64) {
+        set_userport_flag(FLAG2_INACTIVE);
+    }
     alarm_unset(flag2_alarm);
 }
 
@@ -1133,8 +1217,11 @@ static void handshake_flag2(void)
     alarm_set(flag2_alarm, maincpu_clk + FLAG2_TOGGLE_DELAY);
     debug_log(LOG_COL_OFF, 4, "%s: armed handshake", __FUNCTION__);
 
-    set_userport_flag(FLAG2_ACTIVE);
-    /* set_userport_flag(FLAG2_INACTIVE); */
+    /* CAUTION: only call set_userport_flag() when we are actually the active userport device */
+    if (userport_get_device() == USERPORT_DEVICE_WIC64) {
+        set_userport_flag(FLAG2_ACTIVE);
+        /* set_userport_flag(FLAG2_INACTIVE); */
+    }
 }
 
 static void cycle_alarm_handler(CLOCK offset, void *data)
@@ -1328,7 +1415,7 @@ static int _encode(char **p, int len)
 {
     int enc_it = 0;
     int i;
-    static char hextab[16] = "0123456789abcdef";
+    static char hextab[16 + 1] = "0123456789abcdef";
 
     for (i = 0; i < len; i++) {
         encoded_helper[enc_it++] = hextab[((**p) >> 4) & 0xf];
@@ -1649,6 +1736,12 @@ static void cmd_http_post(int cmd)
         } else {
             curl_easy_setopt(curl, CURLOPT_VERBOSE, 0L);
         }
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+        /* need to decied if we want to ship a certificate file
+           curl_easy_setopt(curl, CURLOPT_CAINFO, PREFIX "/share/vice/etc/ca-bundle.crt");
+           curl_easy_setopt(curl, CURLOPT_CAPATH, PREFIX "/share/vice/etc/ca-bundle.crt");
+        */
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
         res = curl_easy_setopt(curl, CURLOPT_USERAGENT, http_user_agent);
         if (res != CURLE_OK) {
             wic64_log(CONS_COL_NO, "curl set user agent failed: %s", curl_easy_strerror(res));
@@ -1825,6 +1918,12 @@ static void do_connect(uint8_t *buffer)
         curl_easy_setopt(curl, CURLOPT_VERBOSE, 0L);
     }
 
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    /* need to decied if we want to ship a certificate file
+    curl_easy_setopt(curl, CURLOPT_CAINFO, PREFIX "/share/vice/etc/ca-bundle.crt");
+    curl_easy_setopt(curl, CURLOPT_CAPATH, PREFIX "/share/vice/etc/ca-bundle.crt");
+    */
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(curl, CURLOPT_URL, buffer);
     /* Do not do the transfer - only connect to host */
     curl_easy_setopt(curl, CURLOPT_CONNECT_ONLY, 1L);
@@ -1875,6 +1974,7 @@ static void cmd_tcp_available(void)
         send_reply_revised(NETWORK_ERROR, "NETWORK ERROR", NULL, 0, NULL);
         return;
     }
+    debug_log(CONS_COL_NO, 3, "%s: bytes_available = %d", __FUNCTION__, bytes_available);
     t[0] = bytes_available & 0xff;
     t[1] = (bytes_available >> 8) & 0xff;
     send_reply_revised(SUCCESS, "Success", t, 2, NULL);
@@ -1934,7 +2034,7 @@ static void cmd_tcp_read(void)
                                   tcp_get_alarm_handler, NULL);
     }
     alarm_unset(tcp_get_alarm);
-    alarm_set(tcp_get_alarm, maincpu_clk + (312 * 65));
+    alarm_set(tcp_get_alarm, maincpu_clk + (312 * 65 / 2));
     /* no reply here, but from alarm handler */
 }
 
@@ -1999,8 +2099,12 @@ static void cmd_tcp_close(void)
         curl_global_cleanup();
         curl = NULL;
     }
-    alarm_unset(tcp_send_alarm);
-    alarm_unset(tcp_get_alarm);
+    if (tcp_send_alarm) {
+        alarm_unset(tcp_send_alarm);
+    }
+    if (tcp_get_alarm) {
+        alarm_unset(tcp_get_alarm);
+    }
     send_reply_revised(SUCCESS, "Success", NULL, 0, "0");
 }
 
@@ -2027,7 +2131,7 @@ static void cmd_get_statusmsg(void)
 static void cmd_force_timeout_alarm_handler(CLOCK offset, void *data)
 {
     wic64_log(LOG_COL_LRED, "force timeout expired");
-    replyptr = reply_length = force_timeout = 0;
+    replyptr = reply_length = 0;
     input_state = INPUT_EXP_PROT;
     commandptr = 0;
     alarm_unset(cmd_force_timeout_alarm);
@@ -2041,7 +2145,6 @@ static void cmd_force_timeout(void)
     }
     int timeout = (commandptr > 0) ? commandbuffer[0] : 1;
     wic64_log(CONS_COL_NO, "forcing timeout after %ds", timeout);
-    force_timeout = 1;
 
     /* set_userport_flag(FLAG2_ACTIVE); */
 
@@ -2374,11 +2477,6 @@ static void run_command_helper(void)
 /* PC2 irq (pulse) triggers when C64 reads/writes to userport */
 static void userport_wic64_store_pbx(uint8_t value, int pulse)
 {
-    if (force_timeout) {
-        debug_log(LOG_COL_OFF, 3, "%s: force timeout running %d/%d", __FUNCTION__, value, pulse);
-        set_userport_flag(FLAG2_INACTIVE);
-        return;
-    }
     if (pulse == 1) {
         if (wic64_inputmode) {
             debug_log(LOG_COL_LBLUE, 3, "receiving '%c'/0x%02x, input_state = %d",
@@ -2398,10 +2496,10 @@ static void userport_wic64_store_pbx(uint8_t value, int pulse)
                     input_state = INPUT_EXP_CMD;
                     break;
                 default:
-                    wic64_log(LOG_COL_LRED, "unknown protocol '%c'/0x%02x, using revised.",
+                    debug_log(LOG_COL_LRED, 3, "unknown protocol '%c'/0x%02x.",
                               isprint(value) ? value: '.', value);
-                    wic64_protocol = WIC64_PROT_REVISED;
-                    input_state = INPUT_EXP_CMD;
+                    wic64_protocol = WIC64_PROT_UNKNOWN;
+                    input_state = INPUT_EXP_PROT;
                     break;
                 }
 
@@ -2446,8 +2544,9 @@ static uint8_t userport_wic64_read_pbx(uint8_t orig)
     cmd_timeout(0);
     /* FIXME: trigger mainloop */
 
-    if (wic64_loglevel < 3)
-        return retval;
+    if (wic64_loglevel < 3) {
+        return (wic64_protocol != WIC64_PROT_UNKNOWN) ? retval : 0xff;
+    }
 
     if (stage_retcode < 0) {
         stage = NULL;
@@ -2482,6 +2581,9 @@ static uint8_t userport_wic64_read_pbx(uint8_t orig)
                   replyptr,
                   reply_length, reply_length);
     } else {
+        if (wic64_protocol == WIC64_PROT_UNKNOWN) {
+            retval = 0xff;
+        }
         debug_log(LOG_COL_LGREEN, 3, "sending '%c'/0x%02x - ptr = %d, rl = %d/0x%x",
                   isprint(retval) ? retval : '.', retval,
                   replyptr,
@@ -2493,10 +2595,6 @@ static uint8_t userport_wic64_read_pbx(uint8_t orig)
 /* PA2 interrupt toggles input/output mode */
 static void userport_wic64_store_pa2(uint8_t value)
 {
-    if (force_timeout == 1) {
-        debug_log(LOG_COL_OFF, 3, "%s: force timeout pending...%d", __FUNCTION__, value);
-        return;
-    }
     debug_log(CONS_COL_NO, 2, "userport mode %s...(len = %d)",
                value ? "sending" : "receiving",
                reply_length);
@@ -2521,47 +2619,67 @@ static void userport_wic64_store_pa2(uint8_t value)
     }
 }
 
+/*
+    return a reasonable "local IP"
+
+    this is used in two cases:
+    - the WIC64IPAddress in the config is empty, and WIC64DHCP is 0. In that
+      case we use the local IP as default
+    - WIC64DHCP is 1. In that case we should always use the local IP
+
+    Note: This is a surprisingly non trivial operation. For instance, due to
+    the high level approach of the emulation, we can't really tell what our
+    local IP is, without trying to connect somewhere.
+
+    What we really intend to do here, is determining the IP address, which will
+    be used by libcurl when we make connections, so it can be shown to the user
+    in the emulation.
+*/
+static int getlocalip(char *str)
+{
+    char *ip;
+    CURLcode res;
+    CURL *c = curl_easy_init();
+
+    *str = 0;
+
+    /* try to connect to the default server */
+    curl_easy_setopt(c, CURLOPT_URL, default_server_hostname);
+    curl_easy_setopt(c, CURLOPT_CONNECT_ONLY, 0L);
+
+    /* Perform the connect */
+    res = curl_easy_perform(c);
+    /* Check for errors */
+    if((res == CURLE_OK) &&
+        !curl_easy_getinfo(c, CURLINFO_LOCAL_IP, &ip) && ip) {
+        /* if the connection was successful, libcurl will return the local ip */
+        strcpy(str, ip);
+    } else {
+        /* as a last resort, just produce a random 'local' IP */
+        snprintf(str, 16, "192.168.%u.%u",
+            lib_unsigned_rand(1, 254),
+            lib_unsigned_rand(1, 254));
+    }
+
+    /* always cleanup */
+    curl_easy_reset(c);
+    curl_easy_cleanup(c);
+
+    return 0;
+}
+
 static void userport_wic64_reset(void)
 {
     char *tmp;
     int tmp_tz;
+    int tmp_dhcp;
 
     wic64_log(CONS_COL_NO, "%s", __FUNCTION__);
-    commandptr = input_state = input_length = force_timeout = 0;
+    commandptr = input_state = input_length = 0;
     input_command = WIC64_CMD_NONE;
     wic64_inputmode = 1;
     memset(sec_token, 0, 32);
     sec_init = 0;
-
-    if ((resources_get_string("WIC64MACAddress", (const char **)&tmp) == -1) ||
-        (tmp == NULL) ||
-        (strcmp((const char*)tmp, "DEADBE") == 0)) {
-        wic64_mac_address = lib_malloc(32);
-        snprintf(wic64_mac_address, 32, "08:d1:f9:%02x:%02x:%02x",
-                 lib_unsigned_rand(0, 15),
-                 lib_unsigned_rand(0, 15),
-                 lib_unsigned_rand(0, 15));
-        debug_log(CONS_COL_NO, 2, "WIC64: generated MAC: %s", wic64_mac_address);
-    } else {
-        wic64_mac_address = tmp;
-    }
-
-    if ((resources_get_string("WIC64IPAddress", (const char **)&tmp) == -1) ||
-        (tmp == NULL) ||
-        (strcmp((const char *)tmp, "AAAA") == 0)) {
-        wic64_internal_ip = lib_malloc(16);
-        snprintf(wic64_internal_ip, 16, "192.168.%u.%u",
-                 lib_unsigned_rand(1, 254),
-                 lib_unsigned_rand(1, 254));
-        debug_log(CONS_COL_NO, 2, "WIC64: generated internal IP: %s", wic64_internal_ip);
-    } else {
-        wic64_internal_ip = tmp;
-    }
-    if (resources_get_int("WIC64Timezone", &tmp_tz) == -1) {
-        current_tz = 2;
-    } else {
-        current_tz = tmp_tz;
-    }
 
     if (http_get_alarm) {
         alarm_unset(http_get_alarm);
@@ -2597,6 +2715,58 @@ static void userport_wic64_reset(void)
         lib_free(post_url);
         post_url = NULL;
     }
+
+    if (resources_get_int("WIC64Timezone", &tmp_tz) == -1) {
+        current_tz = 2;
+    } else {
+        current_tz = tmp_tz;
+    }
+
+    if (resources_get_int("WIC64DHCP", &tmp_dhcp) == -1) {
+        current_dhcp = 1;
+    } else {
+        current_dhcp = tmp_dhcp;
+    }
+
+    if ((resources_get_string("WIC64MACAddress", (const char **)&tmp) == -1) ||
+        (tmp == NULL) ||
+        (strcmp((const char*)tmp, MACADDR_INVALID) == 0)) {
+        /* if MAC is empty in the config, then generate a random one and save it
+           in the resource */
+        wic64_mac_address = lib_malloc(32);
+        snprintf(wic64_mac_address, 32, "08:d1:f9:%02x:%02x:%02x",
+                 lib_unsigned_rand(0, 15),
+                 lib_unsigned_rand(0, 15),
+                 lib_unsigned_rand(0, 15));
+        debug_log(CONS_COL_NO, 2, "WIC64: generated MAC: %s", wic64_mac_address);
+    } else {
+        wic64_mac_address = tmp;
+        debug_log(CONS_COL_NO, 2, "WIC64: using saved MAC: %s", wic64_mac_address);
+    }
+
+    if (current_dhcp) {
+        if (wic64_internal_ip == NULL) {
+            wic64_internal_ip = lib_malloc(16);
+        }
+        getlocalip(wic64_internal_ip);
+        debug_log(CONS_COL_NO, 2, "WIC64: generated internal IP: %s", wic64_internal_ip);
+    }
+
+    if ((resources_get_string("WIC64IPAddress", (const char **)&tmp) == -1) ||
+        (tmp == NULL) ||
+        (strcmp((const char *)tmp, IPADDR_INVALID) == 0)) {
+        /* ip is empty */
+        if (wic64_internal_ip == NULL) {
+            wic64_internal_ip = lib_malloc(16);
+        }
+        getlocalip(wic64_internal_ip);
+        debug_log(CONS_COL_NO, 2, "WIC64: generated internal IP: %s", wic64_internal_ip);
+    } else {
+        /* use saved ip */
+        wic64_internal_ip = tmp;
+    }
+
+
     /* wic64_set_status("RESET"); real HW doesn't tell this */
 
     wic64_log(LOG_COL_LBLUE, "cyan color: host -> WiC64 communication");

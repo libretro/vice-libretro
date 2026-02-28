@@ -88,6 +88,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
+@HAVE_USBSID_TRUE@am__append_1 = libusbsiddrv
 subdir = src/lib
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_cxx_compile_stdcxx.m4 \
@@ -157,7 +158,7 @@ am__define_uniq_tagged_files = \
   unique=`for i in $$list; do \
     if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
   done | $(am__uniquify_input)`
-DIST_SUBDIRS = $(SUBDIRS)
+DIST_SUBDIRS = p64 linenoise-ng libzmbv md5 libusbsiddrv
 am__DIST_COMMON = $(srcdir)/Makefile.in $(top_srcdir)/mkinstalldirs
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 am__relativize = \
@@ -220,6 +221,7 @@ CYGPATH_W = @CYGPATH_W@
 DEBUGBUILD = @DEBUGBUILD@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
+DESKTOP_FILE_INSTALL = @DESKTOP_FILE_INSTALL@
 DOS2UNIX = @DOS2UNIX@
 DYNLIB_LIBS = @DYNLIB_LIBS@
 ECHO_C = @ECHO_C@
@@ -229,15 +231,6 @@ ENABLE_ARCH = @ENABLE_ARCH@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 FCCACHE = @FCCACHE@
-FFMPEG_AVRESAMPLE_CFLAGS = @FFMPEG_AVRESAMPLE_CFLAGS@
-FFMPEG_AVRESAMPLE_LIBS = @FFMPEG_AVRESAMPLE_LIBS@
-FFMPEG_AV_CFLAGS = @FFMPEG_AV_CFLAGS@
-FFMPEG_AV_LIBS = @FFMPEG_AV_LIBS@
-FFMPEG_INCLUDES = @FFMPEG_INCLUDES@
-FFMPEG_SWRESAMPLE_CFLAGS = @FFMPEG_SWRESAMPLE_CFLAGS@
-FFMPEG_SWRESAMPLE_LIBS = @FFMPEG_SWRESAMPLE_LIBS@
-FFMPEG_SWSCALE_CFLAGS = @FFMPEG_SWSCALE_CFLAGS@
-FFMPEG_SWSCALE_LIBS = @FFMPEG_SWSCALE_LIBS@
 FONTCONFIG_CFLAGS = @FONTCONFIG_CFLAGS@
 FONTCONFIG_LIBS = @FONTCONFIG_LIBS@
 FW_DIR = @FW_DIR@
@@ -268,6 +261,8 @@ LEXLIB = @LEXLIB@
 LEX_OUTPUT_ROOT = @LEX_OUTPUT_ROOT@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
+LIBUSB_CFLAGS = @LIBUSB_CFLAGS@
+LIBUSB_LIBS = @LIBUSB_LIBS@
 LINKCC = @LINKCC@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
@@ -331,6 +326,7 @@ TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
 UNZIPBIN = @UNZIPBIN@
+UPDATE_DESKTOP_DATABASE = @UPDATE_DESKTOP_DATABASE@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -350,7 +346,7 @@ VTE_CXXFLAGS = @VTE_CXXFLAGS@
 WINDRES = @WINDRES@
 WINDRES_LIB = @WINDRES_LIB@
 XA = @XA@
-XDG_DESKTOP_MENU = @XDG_DESKTOP_MENU@
+XDG_ICON_RESOURCE = @XDG_ICON_RESOURCE@
 YACC = @YACC@
 ZLIB_LIBS = @ZLIB_LIBS@
 abs_builddir = @abs_builddir@
@@ -421,7 +417,7 @@ xpet_LDFLAGS = @xpet_LDFLAGS@
 xplus4_LDFLAGS = @xplus4_LDFLAGS@
 xscpu64_LDFLAGS = @xscpu64_LDFLAGS@
 xvic_LDFLAGS = @xvic_LDFLAGS@
-SUBDIRS = p64 linenoise-ng libzmbv md5
+SUBDIRS = p64 linenoise-ng libzmbv md5 $(am__append_1)
 AM_CFLAGS = @VICE_CFLAGS@
 AM_CXXFLAGS = @VICE_CXXFLAGS@
 noinst_HEADERS = \
@@ -743,6 +739,10 @@ libp64:
 
 libzmbv:
 	(cd libzmbv; $(MAKE))
+
+.PHONY: libusbsiddrv
+@HAVE_USBSID_TRUE@libusbsiddrv:
+@HAVE_USBSID_TRUE@	(cd libusbsiddrv; $(MAKE))
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

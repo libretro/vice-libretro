@@ -112,10 +112,11 @@ libcore_a_AR = $(AR) $(ARFLAGS)
 libcore_a_LIBADD =
 am_libcore_a_OBJECTS = ata.$(OBJEXT) ciacore.$(OBJEXT) \
 	ciatimer.$(OBJEXT) cs8900.$(OBJEXT) flash040core.$(OBJEXT) \
-	fmopl.$(OBJEXT) i8255a.$(OBJEXT) mc6821core.$(OBJEXT) \
-	m93c86.$(OBJEXT) riotcore.$(OBJEXT) ser-eeprom.$(OBJEXT) \
-	scsi.$(OBJEXT) spi-flash.$(OBJEXT) spi-sdcard.$(OBJEXT) \
-	t6721.$(OBJEXT) tpicore.$(OBJEXT) viacore.$(OBJEXT)
+	flash800core.$(OBJEXT) fmopl.$(OBJEXT) i8255a.$(OBJEXT) \
+	mc6821core.$(OBJEXT) m93c86.$(OBJEXT) riotcore.$(OBJEXT) \
+	ser-eeprom.$(OBJEXT) scsi.$(OBJEXT) spi-flash.$(OBJEXT) \
+	spi-sdcard.$(OBJEXT) t6721.$(OBJEXT) tpicore.$(OBJEXT) \
+	viacore.$(OBJEXT)
 libcore_a_OBJECTS = $(am_libcore_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -134,13 +135,13 @@ depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/ata.Po ./$(DEPDIR)/ciacore.Po \
 	./$(DEPDIR)/ciatimer.Po ./$(DEPDIR)/cs8900.Po \
-	./$(DEPDIR)/flash040core.Po ./$(DEPDIR)/fmopl.Po \
-	./$(DEPDIR)/i8255a.Po ./$(DEPDIR)/m93c86.Po \
-	./$(DEPDIR)/mc6821core.Po ./$(DEPDIR)/riotcore.Po \
-	./$(DEPDIR)/scsi.Po ./$(DEPDIR)/ser-eeprom.Po \
-	./$(DEPDIR)/spi-flash.Po ./$(DEPDIR)/spi-sdcard.Po \
-	./$(DEPDIR)/t6721.Po ./$(DEPDIR)/tpicore.Po \
-	./$(DEPDIR)/viacore.Po
+	./$(DEPDIR)/flash040core.Po ./$(DEPDIR)/flash800core.Po \
+	./$(DEPDIR)/fmopl.Po ./$(DEPDIR)/i8255a.Po \
+	./$(DEPDIR)/m93c86.Po ./$(DEPDIR)/mc6821core.Po \
+	./$(DEPDIR)/riotcore.Po ./$(DEPDIR)/scsi.Po \
+	./$(DEPDIR)/ser-eeprom.Po ./$(DEPDIR)/spi-flash.Po \
+	./$(DEPDIR)/spi-sdcard.Po ./$(DEPDIR)/t6721.Po \
+	./$(DEPDIR)/tpicore.Po ./$(DEPDIR)/viacore.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -258,6 +259,7 @@ CYGPATH_W = @CYGPATH_W@
 DEBUGBUILD = @DEBUGBUILD@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
+DESKTOP_FILE_INSTALL = @DESKTOP_FILE_INSTALL@
 DOS2UNIX = @DOS2UNIX@
 DYNLIB_LIBS = @DYNLIB_LIBS@
 ECHO_C = @ECHO_C@
@@ -267,15 +269,6 @@ ENABLE_ARCH = @ENABLE_ARCH@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 FCCACHE = @FCCACHE@
-FFMPEG_AVRESAMPLE_CFLAGS = @FFMPEG_AVRESAMPLE_CFLAGS@
-FFMPEG_AVRESAMPLE_LIBS = @FFMPEG_AVRESAMPLE_LIBS@
-FFMPEG_AV_CFLAGS = @FFMPEG_AV_CFLAGS@
-FFMPEG_AV_LIBS = @FFMPEG_AV_LIBS@
-FFMPEG_INCLUDES = @FFMPEG_INCLUDES@
-FFMPEG_SWRESAMPLE_CFLAGS = @FFMPEG_SWRESAMPLE_CFLAGS@
-FFMPEG_SWRESAMPLE_LIBS = @FFMPEG_SWRESAMPLE_LIBS@
-FFMPEG_SWSCALE_CFLAGS = @FFMPEG_SWSCALE_CFLAGS@
-FFMPEG_SWSCALE_LIBS = @FFMPEG_SWSCALE_LIBS@
 FONTCONFIG_CFLAGS = @FONTCONFIG_CFLAGS@
 FONTCONFIG_LIBS = @FONTCONFIG_LIBS@
 FW_DIR = @FW_DIR@
@@ -306,6 +299,8 @@ LEXLIB = @LEXLIB@
 LEX_OUTPUT_ROOT = @LEX_OUTPUT_ROOT@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
+LIBUSB_CFLAGS = @LIBUSB_CFLAGS@
+LIBUSB_LIBS = @LIBUSB_LIBS@
 LINKCC = @LINKCC@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
@@ -369,6 +364,7 @@ TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
 UNZIPBIN = @UNZIPBIN@
+UPDATE_DESKTOP_DATABASE = @UPDATE_DESKTOP_DATABASE@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -388,7 +384,7 @@ VTE_CXXFLAGS = @VTE_CXXFLAGS@
 WINDRES = @WINDRES@
 WINDRES_LIB = @WINDRES_LIB@
 XA = @XA@
-XDG_DESKTOP_MENU = @XDG_DESKTOP_MENU@
+XDG_ICON_RESOURCE = @XDG_ICON_RESOURCE@
 YACC = @YACC@
 ZLIB_LIBS = @ZLIB_LIBS@
 abs_builddir = @abs_builddir@
@@ -479,6 +475,7 @@ libcore_a_SOURCES = \
 	cs8900.c \
 	cs8900.h \
 	flash040core.c \
+	flash800core.c \
 	fmopl.c \
 	fmopl.h \
 	i8255a.c \
@@ -554,6 +551,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ciatimer.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cs8900.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/flash040core.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/flash800core.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fmopl.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/i8255a.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/m93c86.Po@am__quote@ # am--include-marker
@@ -788,6 +786,7 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/ciatimer.Po
 	-rm -f ./$(DEPDIR)/cs8900.Po
 	-rm -f ./$(DEPDIR)/flash040core.Po
+	-rm -f ./$(DEPDIR)/flash800core.Po
 	-rm -f ./$(DEPDIR)/fmopl.Po
 	-rm -f ./$(DEPDIR)/i8255a.Po
 	-rm -f ./$(DEPDIR)/m93c86.Po
@@ -850,6 +849,7 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/ciatimer.Po
 	-rm -f ./$(DEPDIR)/cs8900.Po
 	-rm -f ./$(DEPDIR)/flash040core.Po
+	-rm -f ./$(DEPDIR)/flash800core.Po
 	-rm -f ./$(DEPDIR)/fmopl.Po
 	-rm -f ./$(DEPDIR)/i8255a.Po
 	-rm -f ./$(DEPDIR)/m93c86.Po

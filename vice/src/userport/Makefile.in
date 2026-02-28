@@ -117,10 +117,11 @@ am_libuserport_a_OBJECTS = userport.$(OBJEXT) \
 	userport_hks_joystick.$(OBJEXT) \
 	userport_hummer_joystick.$(OBJEXT) userport_io_sim.$(OBJEXT) \
 	userport_joystick.$(OBJEXT) userport_petscii_snespad.$(OBJEXT) \
-	userport_rtc_58321a.$(OBJEXT) userport_rtc_ds1307.$(OBJEXT) \
-	userport_spt_joystick.$(OBJEXT) userport_superpad64.$(OBJEXT) \
+	userport_ps2mouse.$(OBJEXT) userport_rtc_58321a.$(OBJEXT) \
+	userport_rtc_ds1307.$(OBJEXT) userport_spt_joystick.$(OBJEXT) \
+	userport_superpad64.$(OBJEXT) \
 	userport_synergy_joystick.$(OBJEXT) userport_wic64.$(OBJEXT) \
-	userport_woj_joystick.$(OBJEXT)
+	userport_funmp3.$(OBJEXT) userport_woj_joystick.$(OBJEXT)
 libuserport_a_OBJECTS = $(am_libuserport_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -142,12 +143,13 @@ am__depfiles_remade = ./$(DEPDIR)/userport.Po \
 	./$(DEPDIR)/userport_8bss.Po ./$(DEPDIR)/userport_dac.Po \
 	./$(DEPDIR)/userport_diag_586220_harness.Po \
 	./$(DEPDIR)/userport_diag_pin.Po \
-	./$(DEPDIR)/userport_digimax.Po \
+	./$(DEPDIR)/userport_digimax.Po ./$(DEPDIR)/userport_funmp3.Po \
 	./$(DEPDIR)/userport_hks_joystick.Po \
 	./$(DEPDIR)/userport_hummer_joystick.Po \
 	./$(DEPDIR)/userport_io_sim.Po \
 	./$(DEPDIR)/userport_joystick.Po \
 	./$(DEPDIR)/userport_petscii_snespad.Po \
+	./$(DEPDIR)/userport_ps2mouse.Po \
 	./$(DEPDIR)/userport_rtc_58321a.Po \
 	./$(DEPDIR)/userport_rtc_ds1307.Po \
 	./$(DEPDIR)/userport_spt_joystick.Po \
@@ -230,6 +232,7 @@ CYGPATH_W = @CYGPATH_W@
 DEBUGBUILD = @DEBUGBUILD@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
+DESKTOP_FILE_INSTALL = @DESKTOP_FILE_INSTALL@
 DOS2UNIX = @DOS2UNIX@
 DYNLIB_LIBS = @DYNLIB_LIBS@
 ECHO_C = @ECHO_C@
@@ -239,15 +242,6 @@ ENABLE_ARCH = @ENABLE_ARCH@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 FCCACHE = @FCCACHE@
-FFMPEG_AVRESAMPLE_CFLAGS = @FFMPEG_AVRESAMPLE_CFLAGS@
-FFMPEG_AVRESAMPLE_LIBS = @FFMPEG_AVRESAMPLE_LIBS@
-FFMPEG_AV_CFLAGS = @FFMPEG_AV_CFLAGS@
-FFMPEG_AV_LIBS = @FFMPEG_AV_LIBS@
-FFMPEG_INCLUDES = @FFMPEG_INCLUDES@
-FFMPEG_SWRESAMPLE_CFLAGS = @FFMPEG_SWRESAMPLE_CFLAGS@
-FFMPEG_SWRESAMPLE_LIBS = @FFMPEG_SWRESAMPLE_LIBS@
-FFMPEG_SWSCALE_CFLAGS = @FFMPEG_SWSCALE_CFLAGS@
-FFMPEG_SWSCALE_LIBS = @FFMPEG_SWSCALE_LIBS@
 FONTCONFIG_CFLAGS = @FONTCONFIG_CFLAGS@
 FONTCONFIG_LIBS = @FONTCONFIG_LIBS@
 FW_DIR = @FW_DIR@
@@ -278,6 +272,8 @@ LEXLIB = @LEXLIB@
 LEX_OUTPUT_ROOT = @LEX_OUTPUT_ROOT@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
+LIBUSB_CFLAGS = @LIBUSB_CFLAGS@
+LIBUSB_LIBS = @LIBUSB_LIBS@
 LINKCC = @LINKCC@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
@@ -341,6 +337,7 @@ TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
 UNZIPBIN = @UNZIPBIN@
+UPDATE_DESKTOP_DATABASE = @UPDATE_DESKTOP_DATABASE@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -360,7 +357,7 @@ VTE_CXXFLAGS = @VTE_CXXFLAGS@
 WINDRES = @WINDRES@
 WINDRES_LIB = @WINDRES_LIB@
 XA = @XA@
-XDG_DESKTOP_MENU = @XDG_DESKTOP_MENU@
+XDG_ICON_RESOURCE = @XDG_ICON_RESOURCE@
 YACC = @YACC@
 ZLIB_LIBS = @ZLIB_LIBS@
 abs_builddir = @abs_builddir@
@@ -477,6 +474,8 @@ libuserport_a_SOURCES = \
 	userport_joystick.h \
 	userport_petscii_snespad.c \
 	userport_petscii_snespad.h \
+	userport_ps2mouse.c \
+	userport_ps2mouse.h \
 	userport_rtc_58321a.c \
 	userport_rtc_58321a.h \
 	userport_rtc_ds1307.c \
@@ -489,6 +488,8 @@ libuserport_a_SOURCES = \
 	userport_synergy_joystick.h \
 	userport_wic64.c \
 	userport_wic64.h \
+	userport_funmp3.c \
+	userport_funmp3.h \
 	userport_woj_joystick.c \
 	userport_woj_joystick.h
 
@@ -547,11 +548,13 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_diag_586220_harness.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_diag_pin.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_digimax.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_funmp3.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_hks_joystick.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_hummer_joystick.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_io_sim.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_joystick.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_petscii_snespad.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_ps2mouse.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_rtc_58321a.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_rtc_ds1307.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/userport_spt_joystick.Po@am__quote@ # am--include-marker
@@ -710,11 +713,13 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/userport_diag_586220_harness.Po
 	-rm -f ./$(DEPDIR)/userport_diag_pin.Po
 	-rm -f ./$(DEPDIR)/userport_digimax.Po
+	-rm -f ./$(DEPDIR)/userport_funmp3.Po
 	-rm -f ./$(DEPDIR)/userport_hks_joystick.Po
 	-rm -f ./$(DEPDIR)/userport_hummer_joystick.Po
 	-rm -f ./$(DEPDIR)/userport_io_sim.Po
 	-rm -f ./$(DEPDIR)/userport_joystick.Po
 	-rm -f ./$(DEPDIR)/userport_petscii_snespad.Po
+	-rm -f ./$(DEPDIR)/userport_ps2mouse.Po
 	-rm -f ./$(DEPDIR)/userport_rtc_58321a.Po
 	-rm -f ./$(DEPDIR)/userport_rtc_ds1307.Po
 	-rm -f ./$(DEPDIR)/userport_spt_joystick.Po
@@ -774,11 +779,13 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/userport_diag_586220_harness.Po
 	-rm -f ./$(DEPDIR)/userport_diag_pin.Po
 	-rm -f ./$(DEPDIR)/userport_digimax.Po
+	-rm -f ./$(DEPDIR)/userport_funmp3.Po
 	-rm -f ./$(DEPDIR)/userport_hks_joystick.Po
 	-rm -f ./$(DEPDIR)/userport_hummer_joystick.Po
 	-rm -f ./$(DEPDIR)/userport_io_sim.Po
 	-rm -f ./$(DEPDIR)/userport_joystick.Po
 	-rm -f ./$(DEPDIR)/userport_petscii_snespad.Po
+	-rm -f ./$(DEPDIR)/userport_ps2mouse.Po
 	-rm -f ./$(DEPDIR)/userport_rtc_58321a.Po
 	-rm -f ./$(DEPDIR)/userport_rtc_ds1307.Po
 	-rm -f ./$(DEPDIR)/userport_spt_joystick.Po

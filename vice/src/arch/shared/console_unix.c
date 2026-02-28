@@ -46,6 +46,13 @@
 
 #include "lib/linenoise-ng/linenoise.h"
 
+/*#define DEBUG_CONSOLE*/
+
+#ifdef DEBUG_CONSOLE
+#define DBG(x)  log_printf x
+#else
+#define DBG(x)
+#endif
 
 typedef struct console_private_s {
     FILE *input;
@@ -98,6 +105,9 @@ console_t *native_console_open(const char *id)
     console->console_can_stay_open = 1;
     console->console_cannot_output = 0;
 
+    DBG(("native_console_open console:%p console_can_stay_open:%d console_cannot_output:%d",
+        console, console->console_can_stay_open, console->console_cannot_output));
+
     return console;
 
 exitnull:
@@ -108,8 +118,10 @@ exitnull:
 
 int native_console_close(console_t *log)
 {
-    lib_free(log->private);
-    lib_free(log);
+    if(log != NULL) {
+        lib_free(log->private);
+        lib_free(log);
+    }
     linenoiseHistoryFree();
     return 0;
 }

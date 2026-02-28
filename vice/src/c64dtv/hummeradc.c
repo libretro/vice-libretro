@@ -27,10 +27,12 @@
 #include "vice.h"
 
 #include "c64dtv-resources.h"
+#include "cmdline.h"
 #include "hummeradc.h"
 #include "joystick.h"
 #include "log.h"
 #include "resources.h"
+#include "uiapi.h"
 
 static log_t hummeradc_log = LOG_DEFAULT;
 
@@ -45,12 +47,12 @@ static log_t hummeradc_log = LOG_DEFAULT;
 #define ADC_DIO_BIT 0x01
 
 /* Hummer ADC variables */
-uint8_t hummeradc_value;
-uint8_t hummeradc_channel;
-uint8_t hummeradc_control;
-uint8_t hummeradc_chanattr;
-uint8_t hummeradc_chanwakeup;
-uint8_t hummeradc_prev;
+static uint8_t hummeradc_value;
+static uint8_t hummeradc_channel;
+static uint8_t hummeradc_control;
+static uint8_t hummeradc_chanattr;
+static uint8_t hummeradc_chanwakeup;
+static uint8_t hummeradc_prev;
 
 /* Hummer ADC state */
 enum {
@@ -112,7 +114,7 @@ void hummeradc_store(uint8_t value)
 {
     uint16_t joyport_3_joystick_value;
 #ifdef HUMMERADC_DEBUG_ENABLED
-    HUMMERADC_DEBUG("write: value %02x, state %i", value, hummeradc_state);
+    HUMMERADC_DEBUG("write: value %02x, state %i, ADC:%2x", value, hummeradc_state, hummeradc_value);
 #endif
     if (value & ADC_START_BIT) {
         hummeradc_state = ADC_START;
@@ -232,13 +234,13 @@ void hummeradc_store(uint8_t value)
                     - "inertia" (hold down left/right for value++/--), handled elsewhere */
                 joyport_3_joystick_value = get_joystick_value(JOYPORT_3);
                 switch (joyport_3_joystick_value & 0x0c) {
-                    case 4:
+                    case 4:  /* left */
                         hummeradc_value = 0x00;
                         break;
-                    case 8:
+                    case 8:  /* right */
                         hummeradc_value = 0xff;
                         break;
-                    default:
+                    default: /* neutral */
                         hummeradc_value = 0x80;
                         break;
                 }
@@ -303,12 +305,18 @@ uint8_t hummeradc_read(void)
             break;
     }
 #ifdef HUMMERADC_DEBUG_ENABLED
-    HUMMERADC_DEBUG(" read: value %02x, state %i", retval, hummeradc_state);
+    HUMMERADC_DEBUG(" read: value %02x, state %i, ADC:%2x", retval, hummeradc_state, hummeradc_value);
 #endif
     return retval;
 }
 
 /* ------------------------------------------------------------------------- */
+
+
+int hummeradc_enable(int value)
+{
+    return 0;
+}
 
 void hummeradc_init(void)
 {
@@ -335,4 +343,140 @@ void hummeradc_reset(void)
     hummeradc_chanattr = 0;
     hummeradc_chanwakeup = 0;
     return;
+}
+
+int c64dtv_hummer_adc_enabled = 0;
+
+static int c64dtv_hummer_adc_set(int value, void *param)
+{
+    int val = value ? 1 : 0;
+
+    if (c64dtv_hummer_adc_enabled == val) {
+        return 0;
+    }
+
+    if (val) {
+        /* check if a different joystick adapter is already active */
+        if (joystick_adapter_get_id()) {
+            ui_error("Joystick adapter %s is already active", joystick_adapter_get_name());
+            return -1;
+        }
+        joystick_adapter_activate(JOYSTICK_ADAPTER_ID_GENERIC_USERPORT, "Hummer ADC");
+
+        /* Enable 1 extra joystick port, without +5VDC support */
+        joystick_adapter_set_ports(1, 0);
+    } else {
+        joystick_adapter_deactivate();
+    }
+
+    c64dtv_hummer_adc_enabled = val;
+
+    return 0;
+}
+
+static const resource_int_t resources_int[] = {
+    { "HummerADC", 0, RES_EVENT_SAME, NULL,
+      (int *)&c64dtv_hummer_adc_enabled, c64dtv_hummer_adc_set, NULL },
+    RESOURCE_INT_LIST_END
+};
+
+int hummeradc_resources_init(void)
+{
+    return resources_register_int(resources_int);
+}
+
+static const cmdline_option_t cmdline_options[] =
+{
+    { "-hummeradc", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
+      NULL, NULL, "HummerADC", (void *)1,
+      NULL, "Enable Hummer ADC" },
+    { "+hummeradc", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
+      NULL, NULL, "HummerADC", (void *)0,
+      NULL, "Disable Hummer ADC" },
+    CMDLINE_LIST_END
+};
+
+int hummeradc_cmdline_options_init(void)
+{
+    return cmdline_register_options(cmdline_options);
+}
+
+#define SNAP_MAJOR 0
+#define SNAP_MINOR 0
+static const char snap_misc_module_name[] = "HUMMERADC";
+
+int hummeradc_snapshot_write_module(snapshot_t *s)
+{
+    snapshot_module_t *m;
+
+    /* Misc. module.  */
+    m = snapshot_module_create(s, snap_misc_module_name, SNAP_MAJOR, SNAP_MINOR);
+    if (m == NULL) {
+        return -1;
+    }
+
+    if (SMW_B(m, hummeradc_value) < 0
+        || SMW_B(m, hummeradc_channel) < 0
+        || SMW_B(m, hummeradc_control) < 0
+        || SMW_B(m, hummeradc_chanattr) < 0
+        || SMW_B(m, hummeradc_chanwakeup) < 0
+        || SMW_B(m, hummeradc_prev) < 0) {
+        goto fail;
+    }
+
+    if (snapshot_module_close(m) < 0) {
+        goto fail;
+    }
+    m = NULL;
+
+    return 0;
+
+fail:
+    if (m != NULL) {
+        snapshot_module_close(m);
+    }
+    return -1;
+}
+
+int hummeradc_snapshot_read_module(snapshot_t *s)
+{
+    uint8_t major_version, minor_version;
+    snapshot_module_t *m;
+
+    /* Misc. module.  */
+    m = snapshot_module_open(s, snap_misc_module_name,
+                             &major_version, &minor_version);
+    if (m == NULL) {
+        return -1;
+    }
+
+    if (snapshot_version_is_bigger(major_version, minor_version, SNAP_MAJOR, SNAP_MINOR)) {
+        log_error(hummeradc_log,
+                  "Snapshot module version (%d.%d) newer than %d.%d.",
+                  major_version, minor_version,
+                  SNAP_MAJOR, SNAP_MINOR);
+        goto fail;
+    }
+
+    if (SMR_B(m, &hummeradc_value) < 0
+        || SMR_B(m, &hummeradc_channel) < 0
+        || SMR_B(m, &hummeradc_control) < 0
+        || SMR_B(m, &hummeradc_chanattr) < 0
+        || SMR_B(m, &hummeradc_chanwakeup) < 0
+        || SMR_B(m, &hummeradc_prev) < 0) {
+        goto fail;
+    }
+
+    if (snapshot_module_close(m) < 0) {
+        goto fail;
+    }
+    m = NULL;
+
+    return 0;
+
+fail:
+    if (m != NULL) {
+        snapshot_module_close(m);
+    }
+    return -1;
 }

@@ -84,27 +84,8 @@ SOURCES_C += \
     $(EMU)/drive/iecieee/iecieee.c \
     $(EMU)/drive/iecieee/via2d.c \
     $(SOURCES_C_JOYPORT) \
-    $(EMU)/printerdrv/driver-select.c \
-    $(EMU)/printerdrv/drv-ascii.c \
-    $(EMU)/printerdrv/drv-raw.c \
-    $(EMU)/printerdrv/interface-serial.c \
-    $(EMU)/printerdrv/interface-userport.c \
-    $(EMU)/printerdrv/output-graphics.c \
-    $(EMU)/printerdrv/output-select.c \
-    $(EMU)/printerdrv/output-text.c \
-    $(EMU)/printerdrv/printer-serial.c \
-    $(EMU)/printerdrv/printer-userport.c \
-    $(EMU)/printerdrv/printer.c \
-    $(EMU)/serial/fsdrive.c \
-    $(EMU)/serial/realdevice.c \
-    $(EMU)/serial/serial-device.c \
-    $(EMU)/serial/serial-iec-bus.c \
-    $(EMU)/serial/serial-iec-device.c \
-    $(EMU)/serial/serial-iec-lib.c \
-    $(EMU)/serial/serial-iec.c \
-    $(EMU)/serial/serial-realdevice.c \
-    $(EMU)/serial/serial-trap.c \
-    $(EMU)/serial/serial.c \
+    $(SOURCES_C_PRINTERDRV) \
+    $(SOURCES_C_SERIAL) \
     $(EMU)/sid/catweaselmkiii.c \
     $(EMU)/sid/fastsid.c \
     $(EMU)/sid/hardsid.c \
@@ -120,12 +101,7 @@ SOURCES_C += \
     $(EMU)/tape/tape-snapshot.c \
     $(EMU)/tape/tape.c \
     $(EMU)/tape/tapeimage.c \
-    $(EMU)/tapeport/cp-clockf83.c \
-    $(EMU)/tapeport/dtl-basic-dongle.c \
-    $(EMU)/tapeport/sense-dongle.c \
-    $(EMU)/tapeport/tape_diag_586220_harness.c \
-    $(EMU)/tapeport/tapecart.c \
-    $(EMU)/tapeport/tapeport.c \
+    $(SOURCES_C_TAPEPORT) \
     $(SOURCES_C_USERPORT) \
     $(EMU)/vic20/cart/behrbonz.c \
     $(EMU)/vic20/cart/debugcart.c \
@@ -134,6 +110,7 @@ SOURCES_C += \
     $(EMU)/vic20/cart/mascuerade-stubs.c \
     $(EMU)/vic20/cart/megacart.c \
     $(EMU)/vic20/cart/mikroassembler.c \
+    $(EMU)/vic20/cart/minimon.c \
     $(EMU)/vic20/cart/rabbit.c \
     $(EMU)/vic20/cart/superexpander.c \
     $(EMU)/vic20/cart/ultimem.c \
@@ -144,6 +121,7 @@ SOURCES_C += \
     $(EMU)/vic20/cart/vic20-sidcart.c \
     $(EMU)/vic20/cart/vic20cart.c \
     $(EMU)/vic20/cart/vic20cartmem.c \
+    $(EMU)/vic20/cart/writenow.c \
     $(EMU)/vic20/vic-cmdline-options.c \
     $(EMU)/vic20/vic-color.c \
     $(EMU)/vic20/vic-cycle.c \

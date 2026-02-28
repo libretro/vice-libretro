@@ -34,6 +34,7 @@
 #include "machine.h"
 #include "mem.h"
 #include "resources.h"
+#include "log.h"
 #ifdef HAVE_RAWNET
 #define CARTRIDGE_INCLUDE_PRIVATE_API
 #define CARTRIDGE_INCLUDE_PUBLIC_API
@@ -58,23 +59,26 @@
 #include "georam.h"
 #include "ioramcart.h"
 #include "megacart.h"
+#include "minimon.h"
 #include "mikroassembler.h"
 #include "rabbit.h"
+#include "reu.h"
 #include "sfx_soundexpander.h"
 #include "sfx_soundsampler.h"
 #include "sidcart.h"
 #include "superexpander.h"
 #include "ultimem.h"
+#include "writenow.h"
 
 #ifdef DEBUGCART
-#define DBG(x)  printf x
+#define DBG(x)  log_printf x
 #else
 #define DBG(x)
 #endif
 
 /* ------------------------------------------------------------------------- */
 
-int mem_cartridge_type = CARTRIDGE_NONE;
+int mem_cartridge_type = CARTRIDGE_NONE;    /* cartridge in the "main slot" */
 int mem_cart_blocks = 0;
 
 /* ------------------------------------------------------------------------- */
@@ -82,6 +86,7 @@ int mem_cart_blocks = 0;
 uint8_t cartridge_read_ram123(uint16_t addr)
 {
     switch (mem_cartridge_type) {
+        /* main slot */
         case CARTRIDGE_VIC20_GENERIC:
             vic20_cpu_last_data = generic_ram123_read(addr);
             break;
@@ -107,6 +112,7 @@ uint8_t cartridge_read_ram123(uint16_t addr)
             vic20_cpu_last_data = vic20_v_bus_last_data;
             break;
     }
+    /* open bus */
     vic20_mem_v_bus_read(addr);
     return vic20_cpu_last_data;
 }
@@ -114,6 +120,7 @@ uint8_t cartridge_read_ram123(uint16_t addr)
 uint8_t cartridge_peek_ram123(uint16_t addr)
 {
     switch (mem_cartridge_type) {
+        /* main slot */
         case CARTRIDGE_VIC20_GENERIC:
             return generic_ram123_read(addr);
         case CARTRIDGE_VIC20_UM:
@@ -131,6 +138,7 @@ uint8_t cartridge_peek_ram123(uint16_t addr)
         default:
             break;
     }
+    /* open bus */
     return 0;
 }
 
@@ -138,6 +146,7 @@ void cartridge_store_ram123(uint16_t addr, uint8_t value)
 {
     vic20_cpu_last_data = value;
     switch (mem_cartridge_type) {
+        /* main slot */
         case CARTRIDGE_VIC20_GENERIC:
             generic_ram123_store(addr, value);
             break;
@@ -166,6 +175,7 @@ void cartridge_store_ram123(uint16_t addr, uint8_t value)
 uint8_t cartridge_read_blk1(uint16_t addr)
 {
     switch (mem_cartridge_type) {
+        /* main slot */
         case CARTRIDGE_VIC20_BEHRBONZ:
             vic20_cpu_last_data = behrbonz_blk13_read(addr);
             break;
@@ -191,6 +201,7 @@ uint8_t cartridge_read_blk1(uint16_t addr)
 uint8_t cartridge_peek_blk1(uint16_t addr)
 {
     switch (mem_cartridge_type) {
+        /* main slot */
         case CARTRIDGE_VIC20_BEHRBONZ:
             return behrbonz_blk13_read(addr);
         case CARTRIDGE_VIC20_GENERIC:
@@ -211,6 +222,7 @@ void cartridge_store_blk1(uint16_t addr, uint8_t value)
 {
     vic20_cpu_last_data = value;
     switch (mem_cartridge_type) {
+        /* main slot */
         case CARTRIDGE_VIC20_GENERIC:
             generic_blk1_store(addr, value);
             break;
@@ -232,6 +244,7 @@ void cartridge_store_blk1(uint16_t addr, uint8_t value)
 uint8_t cartridge_read_blk2(uint16_t addr)
 {
     switch (mem_cartridge_type) {
+        /* main slot */
         case CARTRIDGE_VIC20_BEHRBONZ:
             vic20_cpu_last_data = behrbonz_blk25_read(addr);
             break;
@@ -257,6 +270,7 @@ uint8_t cartridge_read_blk2(uint16_t addr)
 uint8_t cartridge_peek_blk2(uint16_t addr)
 {
     switch (mem_cartridge_type) {
+        /* main slot */
         case CARTRIDGE_VIC20_BEHRBONZ:
             return behrbonz_blk25_read(addr);
         case CARTRIDGE_VIC20_GENERIC:
@@ -277,6 +291,7 @@ void cartridge_store_blk2(uint16_t addr, uint8_t value)
 {
     vic20_cpu_last_data = value;
     switch (mem_cartridge_type) {
+        /* main slot */
         case CARTRIDGE_VIC20_GENERIC:
             generic_blk2_store(addr, value);
             break;
@@ -298,6 +313,7 @@ void cartridge_store_blk2(uint16_t addr, uint8_t value)
 uint8_t cartridge_read_blk3(uint16_t addr)
 {
     switch (mem_cartridge_type) {
+        /* main slot */
         case CARTRIDGE_VIC20_BEHRBONZ:
             vic20_cpu_last_data = behrbonz_blk13_read(addr);
             break;
@@ -326,6 +342,7 @@ uint8_t cartridge_read_blk3(uint16_t addr)
 uint8_t cartridge_peek_blk3(uint16_t addr)
 {
     switch (mem_cartridge_type) {
+        /* main slot */
         case CARTRIDGE_VIC20_BEHRBONZ:
             return behrbonz_blk13_read(addr);
         case CARTRIDGE_VIC20_GENERIC:
@@ -346,6 +363,7 @@ void cartridge_store_blk3(uint16_t addr, uint8_t value)
 {
     vic20_cpu_last_data = value;
     switch (mem_cartridge_type) {
+        /* main slot */
         case CARTRIDGE_VIC20_GENERIC:
             generic_blk3_store(addr, value);
             break;
@@ -364,8 +382,26 @@ void cartridge_store_blk3(uint16_t addr, uint8_t value)
     }
 }
 
+/* A000-BFFF */
 uint8_t cartridge_read_blk5(uint16_t addr)
 {
+    int res = CART_READ_THROUGH;
+    uint8_t value;
+    /* DBG(("cartridge_read_blk5 (%d) 0x%04x", mem_cartridge_type, addr)); */
+
+    /* "Slot 0" */
+
+    if (minimon_cart_enabled()) {
+
+        if ((res = minimon_blk5_read(addr, &value)) == CART_READ_VALID) {
+            return value;
+        }
+        /* open bus value, in case no cartridge is attached to pass through */
+        vic20_cpu_last_data = (addr >> 8);
+        /* DBG(("cartridge_read_blk5 %02x %04x", vic20_cpu_last_data, addr)); */
+    }
+
+    /* main slot */
     switch (mem_cartridge_type) {
         case CARTRIDGE_VIC20_BEHRBONZ:
             vic20_cpu_last_data = behrbonz_blk25_read(addr);
@@ -391,12 +427,28 @@ uint8_t cartridge_read_blk5(uint16_t addr)
         case CARTRIDGE_VIC20_SUPEREXPANDER:
             vic20_cpu_last_data = superexpander_blk5_read(addr);
             break;
+        case CARTRIDGE_VIC20_WRITE_NOW:
+            vic20_cpu_last_data = writenow_blk5_read(addr);
+            break;
     }
     return vic20_cpu_last_data;
 }
 
+/* A000-BFFF */
 uint8_t cartridge_peek_blk5(uint16_t addr)
 {
+    int res = CART_READ_THROUGH;
+    uint8_t value;
+
+    /* "Slot 0" */
+
+    if (minimon_cart_enabled()) {
+        if ((res = minimon_blk5_read(addr, &value)) == CART_READ_VALID) {
+            return value;
+        }
+    }
+
+    /* main slot */
     switch (mem_cartridge_type) {
         case CARTRIDGE_VIC20_BEHRBONZ:
             return behrbonz_blk25_read(addr);
@@ -412,12 +464,18 @@ uint8_t cartridge_peek_blk5(uint16_t addr)
             return megacart_blk5_read(addr);
         case CARTRIDGE_VIC20_SUPEREXPANDER:
             return superexpander_blk5_read(addr);
+        case CARTRIDGE_VIC20_WRITE_NOW:
+            return writenow_blk5_read(addr);
     }
     return 0;
 }
 
+/* A000-BFFF */
 void cartridge_store_blk5(uint16_t addr, uint8_t value)
 {
+    /* "Slot 0" */
+
+    /* main slot */
     vic20_cpu_last_data = value;
     switch (mem_cartridge_type) {
         case CARTRIDGE_VIC20_GENERIC:
@@ -442,12 +500,14 @@ void cartridge_store_blk5(uint16_t addr, uint8_t value)
 
 void cartridge_init(void)
 {
-    generic_init();
+    /* main slot */
     behrbonz_init();
     finalexpansion_init();
     megacart_init();
     superexpander_init();
     vic_fp_init();
+
+    /* io slot */
 #ifdef HAVE_RAWNET
     ethernetcart_init();
 #endif
@@ -457,26 +517,7 @@ void cartridge_init(void)
 
 void cartridge_reset(void)
 {
-    switch (mem_cartridge_type) {
-        case CARTRIDGE_VIC20_BEHRBONZ:
-            behrbonz_reset();
-            break;
-        case CARTRIDGE_VIC20_GENERIC:
-            generic_reset();
-            break;
-        case CARTRIDGE_VIC20_UM:
-            vic_um_reset();
-            break;
-        case CARTRIDGE_VIC20_FP:
-            vic_fp_reset();
-            break;
-        case CARTRIDGE_VIC20_MEGACART:
-            megacart_reset();
-            break;
-        case CARTRIDGE_VIC20_FINAL_EXPANSION:
-            finalexpansion_reset();
-            break;
-    }
+    /* io slot */
 #ifdef HAVE_RAWNET
     if (ethernetcart_cart_enabled()) {
         ethernetcart_reset();
@@ -500,10 +541,45 @@ void cartridge_reset(void)
     if (georam_cart_enabled()) {
         georam_reset();
     }
+
+    /* main slot */
+    switch (mem_cartridge_type) {
+        case CARTRIDGE_VIC20_BEHRBONZ:
+            behrbonz_reset();
+            break;
+        case CARTRIDGE_VIC20_UM:
+            vic_um_reset();
+            break;
+        case CARTRIDGE_VIC20_FP:
+            vic_fp_reset();
+            break;
+        case CARTRIDGE_VIC20_MEGACART:
+            megacart_reset();
+            break;
+        case CARTRIDGE_VIC20_FINAL_EXPANSION:
+            finalexpansion_reset();
+            break;
+    }
+
+    /* slot 0 */
+    if (minimon_cart_enabled()) {
+        minimon_reset();
+    }
 }
 
 void cartridge_powerup(void)
 {
+    /* "IO Slot" */
+    if (georam_cart_enabled()) {
+        georam_powerup();
+    }
+#if 0
+    /* FIXME */
+    if (reu_cart_enabled()) {
+        reu_powerup();
+    }
+#endif
+    /* main slot */
     switch (mem_cartridge_type) {
         case CARTRIDGE_VIC20_UM:
             vic_um_powerup();
@@ -518,6 +594,11 @@ void cartridge_powerup(void)
             finalexpansion_powerup();
             break;
     }
+
+    /* slot 0 */
+    if (minimon_cart_enabled()) {
+        minimon_powerup();
+    }
 }
 
 void cartridge_attach(int type, uint8_t *rawcart)
@@ -526,7 +607,7 @@ void cartridge_attach(int type, uint8_t *rawcart)
 
     mem_cartridge_type = type;
 
-    DBG(("cartridge_attach type: %d\n", type));
+    DBG(("cartridge_attach type: %d", type));
 #if 0
     switch (type) {
         case CARTRIDGE_VIC20_GENERIC:
@@ -559,21 +640,14 @@ void cartridge_attach(int type, uint8_t *rawcart)
 
 static void cart_detach_all(void)
 {
-    /* vic20 carts */
-    behrbonz_detach();
-    generic_detach();
-    finalexpansion_detach();
-    ioramcart_io2_detach();
-    ioramcart_io3_detach();
-    rabbit_detach();
-    megacart_detach();
-    vic_um_detach();
+    /* io slot */
     vic20_ieee488_detach();
 #ifdef HAVE_MIDI
     vic20_midi_detach();
 #endif
     sidcart_detach();
-    vic_fp_detach();
+    ioramcart_io2_detach();
+    ioramcart_io3_detach();
 
     /* c64 through mascuerade carts */
     aciacart_detach();
@@ -585,6 +659,18 @@ static void cart_detach_all(void)
 #ifdef HAVE_RAWNET
     ethernetcart_detach();
 #endif
+    /* main slot */
+    behrbonz_detach();
+    generic_detach();
+    finalexpansion_detach();
+    rabbit_detach();
+    megacart_detach();
+    vic_um_detach();
+    vic_fp_detach();
+    writenow_detach();
+
+    /* slot 0 */
+    minimon_detach();
 }
 
 void cartridge_detach(int type)
@@ -610,11 +696,17 @@ void cartridge_detach(int type)
         case CARTRIDGE_VIC20_MEGACART:
             megacart_detach();
             break;
+        case CARTRIDGE_VIC20_MINIMON:
+            minimon_detach();
+            break;
         case CARTRIDGE_VIC20_FINAL_EXPANSION:
             finalexpansion_detach();
             break;
         case CARTRIDGE_VIC20_RABBIT:
             rabbit_detach();
+            break;
+        case CARTRIDGE_VIC20_WRITE_NOW:
+            writenow_detach();
             break;
     }
     mem_cartridge_type = CARTRIDGE_NONE;
@@ -635,6 +727,7 @@ void cartridge_detach(int type)
 
 void cartridge_sound_chip_init(void)
 {
+    /* io slot */
     digimax_sound_chip_init();
     sfx_soundexpander_sound_chip_init();
     sfx_soundsampler_sound_chip_init();

@@ -26,6 +26,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src/hvsc \
 	-I$(top_srcdir)/src/vdrive \
 	-I$(top_srcdir)/src/fsdevice \
+	-I$(top_srcdir)/src/diag \
 	-I$(top_srcdir)/src/imagecontents
 
 AM_CFLAGS = @VICE_CFLAGS@
@@ -216,8 +217,6 @@ libc64c64dtv_a_SOURCES = \
 	c64fastiec.h \
 	c64keyboard.c \
 	c64keyboard.h \
-	c64parallel.c \
-	c64parallel.h \
 	c64rom.c \
 	c64rom.h \
 	c64romset.c \

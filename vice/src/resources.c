@@ -955,8 +955,8 @@ int resources_set_defaults(void)
 {
     unsigned int i;
 
-    log_message(LOG_DEFAULT, "%s", ""); /* ugly hack to produce a blank log line, but not trigger a warning */
-    log_message(LOG_DEFAULT, "Setting resources to default...");
+    log_verbose(LOG_DEFAULT, "%s", ""); /* ugly hack to produce a blank log line, but not trigger a warning */
+    log_verbose(LOG_DEFAULT, "Setting resources to default...");
 
     /* the cartridge system uses internal state variables so the default cartridge
        can be unset without changing the attached cartridge and/or attach another
@@ -1016,6 +1016,7 @@ int resources_set_event_safe(void)
         switch (resources[i].type) {
             case RES_INTEGER:
                 if (resources[i].event_relevant == RES_EVENT_STRICT) {
+                    DBG(("seting event-safe resource value for '%s'", resources[i].name));
                     if ((*resources[i].set_func_int)(vice_ptr_to_int(resources[i].event_strict_value),
                                                      resources[i].param) < 0) {
                         log_error(LOG_DEFAULT, "failed to set event-safe resource value for '%s'", resources[i].name);
@@ -1025,6 +1026,7 @@ int resources_set_event_safe(void)
                 break;
             case RES_STRING:
                 if (resources[i].event_relevant == RES_EVENT_STRICT) {
+                    DBG(("seting event-safe resource value for '%s'", resources[i].name));
                     if ((*resources[i].set_func_string)((const char *)(resources[i].event_strict_value),
                                                         resources[i].param) < 0) {
                         log_error(LOG_DEFAULT, "failed to set event-safe resource value for '%s'", resources[i].name);

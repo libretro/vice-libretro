@@ -18,9 +18,6 @@
 /* Are we compiling for DragonFly BSD? */
 #undef DRAGONFLYBSD_COMPILE
 
-/* External FFMPEG libraries are used */
-#undef EXTERNAL_FFMPEG
-
 /* Use the 65xx cpu history feature. */
 #undef FEATURE_CPUMEMHISTORY
 
@@ -143,21 +140,6 @@
 /* Define to 1 if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
 
-/* Have FFMPEG av* libs available */
-#undef HAVE_FFMPEG
-
-/* Have libav avresample lib available */
-#undef HAVE_FFMPEG_AVRESAMPLE
-
-/* FFMPEG uses subdirs for headers */
-#undef HAVE_FFMPEG_HEADER_SUBDIRS
-
-/* Have FFMPEG swresample lib available */
-#undef HAVE_FFMPEG_SWRESAMPLE
-
-/* Have FFMPEG swscale lib available */
-#undef HAVE_FFMPEG_SWSCALE
-
 /* Define to 1 if you have the <FLAC/stream_decoder.h> header file. */
 #undef HAVE_FLAC_STREAM_DECODER_H
 
@@ -202,6 +184,9 @@
 
 /* Can we use the GIF or UNGIF library? */
 #undef HAVE_GIF
+
+/* Define to 1 if you have the <glob.h> header file. */
+#undef HAVE_GLOB_H
 
 /* Support for HardSID. */
 #undef HAVE_HARDSID
@@ -269,6 +254,9 @@
 /* Define to 1 if you have the `m' library (-lm). */
 #undef HAVE_LIBM
 
+/* Support for libnet library */
+#undef HAVE_LIBNET
+
 /* Define to 1 if you have the `ogg' library (-logg). */
 #undef HAVE_LIBOGG
 
@@ -283,6 +271,9 @@
 
 /* Define to 1 if you have the <libusbhid.h> header file. */
 #undef HAVE_LIBUSBHID_H
+
+/* Define to 1 if you have the <libusb-1.0/libusb.h> header file. */
+#undef HAVE_LIBUSB_1_0_LIBUSB_H
 
 /* Define to 1 if you have the <libusb.h> header file. */
 #undef HAVE_LIBUSB_H
@@ -613,6 +604,9 @@
 /* Define to 1 if you have the <usbhid.h> header file. */
 #undef HAVE_USBHID_H
 
+/* Support for USBSID */
+#undef HAVE_USBSID
+
 /* Define to 1 if you have the <usb.h> header file. */
 #undef HAVE_USB_H
 
@@ -658,17 +652,14 @@
 /* Define to 1 if you have the `_ftelli64' function. */
 #undef HAVE__FTELLI64
 
+/* Install XDG desktop files and icons */
+#undef INSTALL_DESKTOP_FILES
+
 /* Are we compiling for Linux? */
 #undef LINUX_COMPILE
 
-/* Enable support for Linux style joysticks. */
-#undef LINUX_JOYSTICK
-
 /* Enable MacOS-specific code. */
 #undef MACOS_COMPILE
-
-/* Enable Mac Joystick support. */
-#undef MAC_JOYSTICK
 
 /* Whether struct sockaddr::__ss_family exists */
 #undef NEED_PREFIXED_SS_FAMILY
@@ -795,9 +786,6 @@
 
 /* Version number of package */
 #undef VERSION
-
-/* Support for The Final Ethernet */
-#undef VICE_USE_LIBNET_1_1
 
 /* Are we compiling for win32? */
 #undef WINDOWS_COMPILE

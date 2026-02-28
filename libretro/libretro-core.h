@@ -219,10 +219,15 @@ extern bool crop_delay;
 #define CROP_TOP_BORDER  CROP_TOP_BORDER_PAL
 #define CROP_LEFT_BORDER ted.screen_leftborderwidth
 #else /* CRTC */
+#include "crtctypes.h"
 #define CROP_WIDTH_MAX   320
 #define CROP_HEIGHT_MAX  200
-#define CROP_TOP_BORDER  33
-#define CROP_LEFT_BORDER 32
+#if defined(__XCBM2__)
+#define CROP_TOP_BORDER  25
+#elif defined(__XPET__)
+#define CROP_TOP_BORDER  28
+#endif
+#define CROP_LEFT_BORDER CRTC_SCREEN_BORDERWIDTH
 #endif
 
 /* LED interface */
@@ -292,7 +297,7 @@ struct vice_core_options
    int AttachDevice8Readonly;
    int EasyFlashWriteCRT;
    int Printer;
-   int VirtualDevices;
+   int TrapDevices;
    int DriveTrueEmulation;
    int DriveSoundEmulation;
    int DatasetteSound;

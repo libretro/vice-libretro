@@ -154,6 +154,10 @@ static size_t embedded_match_file(const char *name, unsigned char *dest, int min
     int i = 0;
 
     while (emb[i].name != NULL) {
+        /* Search only */
+        if (!strcmp(name, emb[i].name) && !minsize && !maxsize)
+            return emb[i].size;
+        /* Copy data */
         if (!strcmp(name, emb[i].name) && minsize == emb[i].minsize && maxsize == emb[i].maxsize) {
             if (emb[i].esrc != NULL) {
                 if (emb[i].size != minsize) {

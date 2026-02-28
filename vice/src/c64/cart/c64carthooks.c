@@ -117,6 +117,7 @@
 #include "magicformel.h"
 #include "magicvoice.h"
 #include "maxbasic.h"
+#include "megabyter.h"
 #include "mikroass.h"
 #include "mmc64.h"
 #include "mmcreplay.h"
@@ -127,6 +128,7 @@
 #include "pagefox.h"
 #include "partner64.h"
 #include "prophet64.h"
+#include "profidos.h"
 #include "ramcart.h"
 #include "ramlink.h"
 #include "retroreplay.h"
@@ -164,7 +166,7 @@
 /* #define DEBUGCART */
 
 #ifdef DEBUGCART
-#define DBG(x)  printf x
+#define DBG(x)  log_printf x
 #else
 #define DBG(x)
 #endif
@@ -372,6 +374,9 @@ static const cmdline_option_t cmdline_options[] =
     { "-cartmd16", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
       cart_attach_cmdline, (void *)CARTRIDGE_MAGIC_DESK_16, NULL, NULL,
       "<Name>", "Attach raw up to 2048KiB Magic Desk 16K cartridge image" },
+    { "-cartmb", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
+      cart_attach_cmdline, (void *)CARTRIDGE_MEGABYTER, NULL, NULL,
+      "<Name>", "Attach raw 1024KiB " CARTRIDGE_NAME_MEGABYTER " cartridge image" },
     { "-cartmf", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
       cart_attach_cmdline, (void *)CARTRIDGE_MAGIC_FORMEL, NULL, NULL,
       "<Name>", "Attach raw Magic Formel cartridge image" },
@@ -405,6 +410,9 @@ static const cmdline_option_t cmdline_options[] =
     { "-cartpartner64", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
       cart_attach_cmdline, (void *)CARTRIDGE_PARTNER64, NULL, NULL,
       "<Name>", "Attach raw 16KiB " CARTRIDGE_NAME_PARTNER64 " cartridge image" },
+    { "-cartpd", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
+      cart_attach_cmdline, (void *)CARTRIDGE_PROFIDOS, NULL, NULL,
+      "<Name>", "Attach raw 16KiB " CARTRIDGE_NAME_PROFIDOS " cartridge image" },
     { "-cartramcart", CALL_FUNCTION, CMDLINE_ATTRIB_NEED_ARGS,
       cart_attach_cmdline, (void *)CARTRIDGE_RAMCART, NULL, NULL,
       "<Name>", "Attach raw RamCart cartridge image" },
@@ -523,12 +531,14 @@ int cart_cmdline_options_init(void)
         || ethernetcart_cmdline_options_init() < 0
 #endif
         /* "Main Slot" */
+        || comal80_cmdline_options_init() < 0
         || easyflash_cmdline_options_init() < 0
         || gmod2_cmdline_options_init() < 0
         || gmod3_cmdline_options_init() < 0
         || ide64_cmdline_options_init() < 0
         || ieeeflash64_cmdline_options_init() < 0
         || ltkernal_cmdline_options_init() < 0
+        || megabyter_cmdline_options_init() < 0
         || mmcreplay_cmdline_options_init() < 0
         || retroreplay_cmdline_options_init() < 0
         || rexramfloppy_cmdline_options_init() < 0
@@ -589,11 +599,13 @@ int cart_resources_init(void)
         || aciacart_resources_init() < 0
 #endif
         /* "Main Slot" */
+        || comal80_resources_init() < 0
         || easyflash_resources_init() < 0
         || gmod2_resources_init() < 0
         || gmod3_resources_init() < 0
         || ide64_resources_init() < 0
         || ltkernal_resources_init() < 0
+        || megabyter_resources_init() < 0
         || mmcreplay_resources_init() < 0
         || retroreplay_resources_init() < 0
         || rexramfloppy_resources_init() < 0
@@ -639,11 +651,13 @@ void cart_resources_shutdown(void)
 #endif
 
     /* "Main Slot" */
+    comal80_resources_shutdown();
     easyflash_resources_shutdown();
     gmod2_resources_shutdown();
     gmod3_resources_shutdown();
     ide64_resources_shutdown();
     ltkernal_resources_shutdown();
+    megabyter_resources_shutdown();
     mmcreplay_resources_shutdown();
     retroreplay_resources_shutdown();
     rexramfloppy_resources_shutdown();
@@ -1017,6 +1031,8 @@ int cart_bin_attach(int type, const char *filename, uint8_t *rawcart)
             return magicformel_bin_attach(filename, rawcart);
         case CARTRIDGE_MAX_BASIC:
             return maxbasic_bin_attach(filename, rawcart);
+        case CARTRIDGE_MEGABYTER:
+            return megabyter_bin_attach(filename, rawcart);
         case CARTRIDGE_MIKRO_ASSEMBLER:
             return mikroass_bin_attach(filename, rawcart);
         case CARTRIDGE_MMC_REPLAY:
@@ -1031,6 +1047,8 @@ int cart_bin_attach(int type, const char *filename, uint8_t *rawcart)
             return pagefox_bin_attach(filename, rawcart);
         case CARTRIDGE_PARTNER64:
             return partner64_bin_attach(filename, rawcart);
+        case CARTRIDGE_PROFIDOS:
+            return profidos_bin_attach(filename, rawcart);
         case CARTRIDGE_RETRO_REPLAY:
             return retroreplay_bin_attach(filename, rawcart);
         case CARTRIDGE_REX:
@@ -1285,6 +1303,9 @@ void cart_attach(int type, uint8_t *rawcart)
         case CARTRIDGE_MAX_BASIC:
             maxbasic_config_setup(rawcart);
             break;
+        case CARTRIDGE_MEGABYTER:
+            megabyter_config_setup(rawcart);
+            break;
         case CARTRIDGE_MIKRO_ASSEMBLER:
             mikroass_config_setup(rawcart);
             break;
@@ -1305,6 +1326,9 @@ void cart_attach(int type, uint8_t *rawcart)
             break;
         case CARTRIDGE_PARTNER64:
             partner64_config_setup(rawcart);
+            break;
+        case CARTRIDGE_PROFIDOS:
+            profidos_config_setup(rawcart);
             break;
         case CARTRIDGE_RETRO_REPLAY:
             retroreplay_config_setup(rawcart);
@@ -1385,7 +1409,7 @@ void cart_attach(int type, uint8_t *rawcart)
             zippcode48_config_setup(rawcart);
             break;
         default:
-            DBG(("CART: no attach hook %d\n", type));
+            DBG(("CART: no attach hook %d", type));
             break;
     }
 }
@@ -1420,7 +1444,7 @@ static void cart_detach_conflicts0(int *list, int type)
             while (*list != 0) {
                 if (*list != type) {
                     if (cartridge_type_enabled(*list)) {
-                        DBG(("CART: detach conflicting cart: %d (only one Slot 0 cart can be active)\n", *list));
+                        DBG(("CART: detach conflicting cart: %d (only one Slot 0 cart can be active)", *list));
                         cartridge_detach_image(*list);
                     }
                 }
@@ -1434,7 +1458,7 @@ static void cart_detach_conflicts0(int *list, int type)
 
 void cart_detach_conflicting(int type)
 {
-    DBG(("CART: detach conflicting for type: %d ...\n", type));
+    DBG(("CART: detach conflicting for type: %d ...", type));
     cart_detach_conflicts0(slot0conflicts, type);
     cart_detach_conflicts0(slot1conflicts, type);
 }
@@ -1444,7 +1468,7 @@ void cart_detach_conflicting(int type)
 */
 int cartridge_enable(int type)
 {
-    DBG(("CART: enable type: %d\n", type));
+    DBG(("CART: enable type: %d", type));
     switch (type) {
         /* "Slot 0" */
         case CARTRIDGE_IEEE488:
@@ -1518,7 +1542,7 @@ int cartridge_enable(int type)
 #endif
         /* "Main Slot" */
         default:
-            DBG(("CART: no enable hook %d\n", type));
+            DBG(("CART: no enable hook %d", type));
             break;
     }
     cart_detach_conflicting(type);
@@ -1545,7 +1569,7 @@ int cartridge_disable(int type)
     fprintf(stderr, "%s:%d: %s() isn't implemented yet, continuing\n",
             __FILE__, __LINE__, __func__);
     */
-    DBG(("CART: enable type: %d\n", type));
+    DBG(("CART: enable type: %d", type));
     switch (type) {
         /* "Slot 0" */
         case CARTRIDGE_IEEE488:
@@ -1619,7 +1643,7 @@ int cartridge_disable(int type)
 #endif
         /* "Main Slot" */
         default:
-            DBG(("CART: no disable hook %d\n", type));
+            DBG(("CART: no disable hook %d", type));
             break;
     }
 #if 0
@@ -1642,7 +1666,7 @@ int cartridge_disable(int type)
 */
 void cart_detach_all(void)
 {
-    DBG(("CART: detach all\n"));
+    DBG(("CART: detach all"));
     debugcart_detach();
     /* "slot 0" */
     tpi_detach();
@@ -1685,7 +1709,7 @@ void cart_detach_all(void)
 */
 void cart_detach(int type)
 {
-    DBG(("CART: cart_detach ID: %d\n", type));
+    DBG(("CART: cart_detach ID: %d", type));
 
     switch (type) {
         /* "Slot 0" */
@@ -1897,6 +1921,9 @@ void cart_detach(int type)
         case CARTRIDGE_MAX_BASIC:
             maxbasic_detach();
             break;
+        case CARTRIDGE_MEGABYTER:
+            megabyter_detach();
+            break;
         case CARTRIDGE_MIKRO_ASSEMBLER:
             mikroass_detach();
             break;
@@ -1917,6 +1944,9 @@ void cart_detach(int type)
             break;
         case CARTRIDGE_PARTNER64:
             partner64_detach();
+            break;
+        case CARTRIDGE_PROFIDOS:
+            profidos_detach();
             break;
         case CARTRIDGE_RETRO_REPLAY:
             retroreplay_detach();
@@ -1997,7 +2027,7 @@ void cart_detach(int type)
             zippcode48_detach();
             break;
         default:
-            DBG(("CART: no detach hook ID: %d\n", type));
+            DBG(("CART: no detach hook ID: %d", type));
             break;
     }
 }
@@ -2005,7 +2035,7 @@ void cart_detach(int type)
 /* called once by cartridge_init at machine init */
 void cart_init(void)
 {
-    DBG(("CART: cart_init\n"));
+    DBG(("CART: cart_init"));
 
     /* "Slot 0" */
     mmc64_init();
@@ -2205,6 +2235,9 @@ void cartridge_init_config(void)
             case CARTRIDGE_MAX_BASIC:
                 maxbasic_config_init();
                 break;
+            case CARTRIDGE_MEGABYTER:
+                megabyter_config_init();
+                break;
             case CARTRIDGE_MIKRO_ASSEMBLER:
                 mikroass_config_init();
                 break;
@@ -2225,6 +2258,9 @@ void cartridge_init_config(void)
                 break;
             case CARTRIDGE_PARTNER64:
                 partner64_config_init();
+                break;
+            case CARTRIDGE_PROFIDOS:
+                profidos_config_init();
                 break;
             case CARTRIDGE_RETRO_REPLAY:
                 retroreplay_config_init();
@@ -2308,7 +2344,7 @@ void cartridge_init_config(void)
             case CARTRIDGE_NONE:
                 break;
             default:
-                DBG(("CART: no init hook ID: %d\n", mem_cartridge_type));
+                DBG(("CART: no init hook ID: %d", mem_cartridge_type));
                 cart_config_changed_slotmain(CMODE_RAM, CMODE_RAM, CMODE_READ);
                 break;
         }
@@ -2446,6 +2482,9 @@ void cartridge_reset(void)
             break;
         case CARTRIDGE_PARTNER64:
             partner64_reset();
+            break;
+        case CARTRIDGE_PROFIDOS:
+            profidos_reset();
             break;
         case CARTRIDGE_REX_RAMFLOPPY:
             rexramfloppy_reset();
@@ -2611,7 +2650,7 @@ void cartridge_powerup(void)
 /* called by cart_nmi_alarm_triggered, after an alarm occured */
 static void cart_freeze(int type)
 {
-    DBG(("CART: freeze (type:%d)\n", type));
+    DBG(("CART: freeze (type:%d)", type));
     switch (type) {
         /* "Slot 0" (no freezer carts) */
         /* "Slot 1" */
@@ -2901,6 +2940,8 @@ int cartridge_flush_image(int type)
             return gmod2_flush_image();
         case CARTRIDGE_GMOD3:
             return gmod3_flush_image();
+        case CARTRIDGE_MEGABYTER:
+            return megabyter_flush_image();
         case CARTRIDGE_MMC_REPLAY:
             return mmcreplay_flush_image();
         case CARTRIDGE_RETRO_REPLAY:
@@ -2979,6 +3020,8 @@ int cartridge_bin_save(int type, const char *filename)
             return gmod2_bin_save(filename);
         case CARTRIDGE_GMOD3:
             return gmod3_bin_save(filename);
+        case CARTRIDGE_MEGABYTER:
+            return megabyter_bin_save(filename);
         case CARTRIDGE_MMC_REPLAY:
             return mmcreplay_bin_save(filename);
         case CARTRIDGE_RETRO_REPLAY:
@@ -3050,6 +3093,8 @@ int cartridge_crt_save(int type, const char *filename)
             return gmod2_crt_save(filename);
         case CARTRIDGE_GMOD3:
             return gmod3_crt_save(filename);
+        case CARTRIDGE_MEGABYTER:
+            return megabyter_crt_save(filename);
         case CARTRIDGE_MMC_REPLAY:
             return mmcreplay_crt_save(filename);
         case CARTRIDGE_RETRO_REPLAY:
@@ -3067,6 +3112,7 @@ int cartridge_crt_save(int type, const char *filename)
 
 void cartridge_sound_chip_init(void)
 {
+    DBG(("cartridge_sound_chip_init"));
     digimax_sound_chip_init();
     sfx_soundsampler_sound_chip_init();
     sfx_soundexpander_sound_chip_init();
@@ -3111,7 +3157,7 @@ void cartridge_sound_chip_init(void)
 */
 void cartridge_mmu_translate(unsigned int addr, uint8_t **base, int *start, int *limit)
 {
-    /* DBG(("CARTHOOKS: cartridge_mmu_translate(%x)\n",addr)); */
+    /* DBG(("CARTHOOKS: cartridge_mmu_translate(%x)",addr)); */
     int res = CART_READ_THROUGH;
 #if 0
     /* disable all the mmu translation stuff for testing */
@@ -3200,6 +3246,9 @@ void cartridge_mmu_translate(unsigned int addr, uint8_t **base, int *start, int 
         case CARTRIDGE_LT_KERNAL:
             ltkernal_mmu_translate(addr, base, start, limit);
             return;
+        case CARTRIDGE_MEGABYTER:
+            megabyter_mmu_translate(addr, base, start, limit);
+            return;
         case CARTRIDGE_RETRO_REPLAY:
             retroreplay_mmu_translate(addr, base, start, limit);
             return;
@@ -3250,7 +3299,7 @@ int cartridge_snapshot_write_modules(struct snapshot_s *s)
 
         while (e != NULL) {
             if (number_of_carts == C64CART_DUMP_MAX_CARTS) {
-                DBG(("CART snapshot save: active carts > max (%i)\n", number_of_carts));
+                DBG(("CART snapshot save: active carts > max (%i)", number_of_carts));
                 return -1;
             }
             if (last_cart != (int)e->device->cartid) {
@@ -3617,6 +3666,11 @@ int cartridge_snapshot_write_modules(struct snapshot_s *s)
                         return -1;
                     }
                     break;
+                case CARTRIDGE_MEGABYTER:
+                    if (megabyter_snapshot_write_module(s) < 0) {
+                        return -1;
+                    }
+                    break;
                 case CARTRIDGE_MIKRO_ASSEMBLER:
                     if (mikroass_snapshot_write_module(s) < 0) {
                         return -1;
@@ -3649,6 +3703,11 @@ int cartridge_snapshot_write_modules(struct snapshot_s *s)
                     break;
                 case CARTRIDGE_PARTNER64:
                     if (partner64_snapshot_write_module(s) < 0) {
+                        return -1;
+                    }
+                    break;
+                case CARTRIDGE_PROFIDOS:
+                    if (profidos_snapshot_write_module(s) < 0) {
                         return -1;
                     }
                     break;
@@ -3836,7 +3895,7 @@ int cartridge_snapshot_write_modules(struct snapshot_s *s)
                 default:
                     /* If the cart cannot be saved, we obviously can't load it either.
                     Returning an error at this point is better than failing at later. */
-                    DBG(("CART snapshot save: cart %i handler missing\n", cart_ids[i]));
+                    DBG(("CART snapshot save: cart %i handler missing", cart_ids[i]));
                     return -1;
             }
         }
@@ -3888,7 +3947,7 @@ int cartridge_snapshot_read_modules(struct snapshot_s *s)
     }
 
     if (number_of_carts > C64CART_DUMP_MAX_CARTS) {
-        DBG(("CART snapshot read: carts %i > max %i\n", number_of_carts, C64CART_DUMP_MAX_CARTS));
+        DBG(("CART snapshot read: carts %i > max %i", number_of_carts, C64CART_DUMP_MAX_CARTS));
         goto fail;
     }
 
@@ -4232,6 +4291,11 @@ int cartridge_snapshot_read_modules(struct snapshot_s *s)
                         goto fail2;
                     }
                     break;
+                case CARTRIDGE_MEGABYTER:
+                    if (megabyter_snapshot_read_module(s) < 0) {
+                        goto fail2;
+                    }
+                    break;
                 case CARTRIDGE_MIKRO_ASSEMBLER:
                     if (mikroass_snapshot_read_module(s) < 0) {
                         goto fail2;
@@ -4264,6 +4328,11 @@ int cartridge_snapshot_read_modules(struct snapshot_s *s)
                     break;
                 case CARTRIDGE_PARTNER64:
                     if (partner64_snapshot_read_module(s) < 0) {
+                        goto fail2;
+                    }
+                    break;
+                case CARTRIDGE_PROFIDOS:
+                    if (profidos_snapshot_read_module(s) < 0) {
                         goto fail2;
                     }
                     break;
@@ -4449,7 +4518,7 @@ int cartridge_snapshot_read_modules(struct snapshot_s *s)
 #endif
 
                 default:
-                    DBG(("CART snapshot read: cart %i handler missing\n", cart_ids[i]));
+                    DBG(("CART snapshot read: cart %i handler missing", cart_ids[i]));
                     goto fail2;
             }
         }

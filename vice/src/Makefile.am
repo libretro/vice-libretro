@@ -192,6 +192,7 @@ noinst_HEADERS = \
 	fixpoint.h \
 	fsdevice.h \
 	flash040.h \
+	flash800.h \
 	fliplist.h \
 	fullscreen.h \
 	gcr.h \
@@ -241,7 +242,6 @@ noinst_HEADERS = \
 	plus4ui.h \
 	profiler.h \
 	profiler_data.h \
-	ps2mouse.h \
 	r65c02.h \
 	ram.h \
 	rawfile.h \
@@ -268,6 +268,7 @@ noinst_HEADERS = \
 	uicmdline.h \
 	uicolor.h \
 	uimon.h \
+	usbsid.h \
 	util.h \
 	version.h.in \
 	version.h \
@@ -344,10 +345,6 @@ base_sources = \
 	vsync.c \
 	zfile.c \
 	zipcode.c
-
-
-ps2mouse_sources = \
-	ps2mouse.c
 
 midi_sources = \
 	midi.c
@@ -573,6 +570,9 @@ gfxoutputdrv_lib = $(top_builddir)/src/gfxoutputdrv/libgfxoutputdrv.a
 if !USE_HEADLESSUI
 hotkeys_lib = $(top_builddir)/src/arch/shared/hotkeys/libhotkeys.a
 endif
+if HAVE_USBSID
+usbsiddrv_lib = $(top_builddir)/src/lib/libusbsiddrv/libusbsiddrv.a
+endif
 hwsiddrv_lib = $(top_builddir)/src/arch/shared/hwsiddrv/libhwsiddrv.a
 hvsc_lib = $(top_builddir)/src/hvsc/libhvsc.a
 iecbus_lib = $(top_builddir)/src/iecbus/libiecbus.a
@@ -594,6 +594,7 @@ printerdrv_lib = $(top_builddir)/src/printerdrv/libprinterdrv.a
 resid_lib = $(top_builddir)/src/resid/libresid.a
 resid_dtv_lib = $(top_builddir)/src/resid-dtv/libresiddtv.a
 rs232drv_lib = $(top_builddir)/src/rs232drv/librs232drv.a
+rs232drvpet_lib = $(top_builddir)/src/rs232drv/librs232drvpet.a
 raster_lib = $(top_builddir)/src/raster/libraster.a
 rtc_lib = $(top_builddir)/src/core/rtc/librtc.a
 samplerdrv_lib = $(top_builddir)/src/samplerdrv/libsamplerdrv.a
@@ -631,7 +632,11 @@ resid_dtv_libs = @RESID_DTV_LIBS@
 # external libraries required for all emulators
 emu_extlibs = @UI_LIBS@ @SDL_EXTRA_LIBS@ @SOUND_LIBS@ @JOY_LIBS@ @GFXOUTPUT_LIBS@ @ZLIB_LIBS@ @DYNLIB_LIBS@ @ARCH_LIBS@ $(archdep_lib) $(linenoise_ng_lib)
 
-driver_libs = $(joyport_lib) $(samplerdrv_lib) $(sounddrv_lib) $(mididrv_lib) $(socketdrv_lib) $(hwsiddrv_lib) $(gfxoutputdrv_lib) $(printerdrv_lib) $(rs232drv_lib) $(diskimage_lib) $(fsdevice_lib) $(tape_lib) $(fileio_lib) $(serial_lib) $(core_lib)
+driver_libs = $(joyport_lib) $(samplerdrv_lib) $(sounddrv_lib) $(mididrv_lib) $(socketdrv_lib) $(hwsiddrv_lib) $(gfxoutputdrv_lib) $(printerdrv_lib) $(diskimage_lib) $(fsdevice_lib) $(tape_lib) $(fileio_lib) $(serial_lib) $(core_lib)
+
+if HAVE_USBSID
+driver_libs += $(usbsiddrv_lib)
+endif
 
 if SUPPORT_X64
 x64_bin = x64
@@ -671,6 +676,10 @@ vsid_libs =  \
 	$(hotkeys_lib) \
 	$(vsidstubs_lib) \
 	$(md5_lib)
+
+if HAVE_USBSID
+vsid_libs += $(usbsiddrv_lib)
+endif
 
 vsid_SOURCES = $(base_sources) $(midi_sources)
 vsid_LDADD = $(vsid_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ $(VSID_RES)
@@ -716,6 +725,7 @@ x64_libs =  \
 	$(sid_lib) \
 	$(monitor_lib) \
 	$(driver_libs) \
+	$(rs232drv_lib) \
 	$(vicii_lib) \
 	$(raster_lib) \
 	$(userport_lib) \
@@ -773,6 +783,7 @@ x64sc_libs =  \
 	$(sid_lib) \
 	$(monitor_lib) \
 	$(driver_libs) \
+	$(rs232drv_lib) \
 	$(viciisc_lib) \
 	$(raster_lib) \
 	$(userport_lib) \
@@ -851,7 +862,7 @@ x64dtv_libs =  \
 	$(hotkeys_lib) \
 	$(zmbv_lib)
 
-x64dtv_SOURCES = $(base_sources) $(ps2mouse_sources)
+x64dtv_SOURCES = $(base_sources)
 x64dtv_LDADD = $(x64dtv_libs) $(emu_extlibs) @TFE_LIBS@ @NETPLAY_LIBS@ $(X64DTV_RES)
 x64dtv_DEPENDENCIES = $(x64dtv_libs)
 if HAVE_DEBUG
@@ -895,6 +906,7 @@ xscpu64_libs =  \
 	$(sid_lib) \
 	$(monitor_lib) \
 	$(driver_libs) \
+	$(rs232drv_lib) \
 	$(viciisc_lib) \
 	$(raster_lib) \
 	$(userport_lib) \
@@ -954,6 +966,7 @@ x128_libs =  \
 	$(sid_lib) \
 	$(monitor_lib) \
 	$(driver_libs) \
+	$(rs232drv_lib) \
 	$(vicii_lib) \
 	$(vdc_lib) \
 	$(raster_lib) \
@@ -1011,6 +1024,7 @@ xvic_libs =  \
 	$(monitor_lib) \
 	$(sid_lib) \
 	$(driver_libs) \
+	$(rs232drv_lib) \
 	$(raster_lib) \
 	$(userport_lib) \
 	$(diag_lib) \
@@ -1063,6 +1077,7 @@ xpet_libs =  \
 	$(monitor_lib) \
 	$(sid_lib) \
 	$(driver_libs) \
+	$(rs232drvpet_lib) \
 	$(crtc_lib) \
 	$(raster_lib) \
 	$(video_lib) \
@@ -1122,6 +1137,7 @@ xplus4_libs =  \
 	$(monitor_lib) \
 	$(sid_lib) \
 	$(driver_libs) \
+	$(rs232drv_lib) \
 	$(raster_lib) \
 	$(rtc_lib) \
 	$(video_lib) \
@@ -1180,6 +1196,7 @@ xcbm2_libs = \
 	$(monitor_lib) \
 	$(sid_lib) \
 	$(driver_libs) \
+	$(rs232drvpet_lib) \
 	$(crtc_lib) \
 	$(raster_lib) \
 	$(video_lib) \
@@ -1236,6 +1253,7 @@ xcbm5x0_libs = \
 	$(xcbm5x0_lib) \
 	$(sid_lib) \
 	$(driver_libs) \
+	$(rs232drv_lib) \
 	$(vicii_lib) \
 	$(raster_lib) \
 	$(rtc_lib) \
@@ -1497,6 +1515,11 @@ $(gfxoutputdrv_lib):
 $(hvsc_lib):
 	@echo "making all in hvsc"
 	@(cd hvsc && $(MAKE))
+if HAVE_USBSID
+$(usbsiddrv_lib):
+	@echo "making all in lib/libusbsiddrv"
+	@(cd lib/libusbsiddrv && $(MAKE))
+endif
 $(hwsiddrv_lib):
 	@echo "making all in arch/shared/hwsiddrv"
 	@(cd arch/shared/hwsiddrv && $(MAKE))
@@ -1540,8 +1563,11 @@ $(printerdrv_lib):
 	@echo "making all in printerdrv"
 	@(cd printerdrv && $(MAKE))
 $(rs232drv_lib):
-	@echo "making all in rs232drv"
-	@(cd rs232drv && $(MAKE))
+	@echo "making librs232drv.a in rs232drv"
+	@(cd rs232drv && $(MAKE) librs232drv.a)
+$(rs232drvpet_lib):
+	@echo "making librs232drvpet.a in rs232drv"
+	@(cd rs232drv && $(MAKE) librs232drvpet.a)
 $(raster_lib):
 	@echo "making libraster.a in raster"
 	@(cd raster && $(MAKE) libraster.a)

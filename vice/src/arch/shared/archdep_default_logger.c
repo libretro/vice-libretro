@@ -27,7 +27,6 @@
  */
 
 #include "vice.h"
-#include "archdep_defs.h"
 
 #include <stdio.h>
 #include <errno.h>
@@ -48,6 +47,8 @@
 #include "lib.h"
 #include "util.h"
 
+#include "archdep_defs.h"
+#include "archdep_stat.h"
 #include "archdep_default_logger.h"
 
 
@@ -108,7 +109,7 @@ int archdep_default_logger_is_terminal(void)
     return 0;
 }
 
-#elif defined(UNIX_COMPILE) || defined(ARCHEP_OS_BEOS)
+#elif defined(UNIX_COMPILE)
 
 /** \brief  Write log message to stdout
  *

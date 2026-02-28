@@ -165,8 +165,9 @@ am_libwidgets_a_OBJECTS = aciawidget.$(OBJEXT) \
 	settings_isepic.$(OBJEXT) settings_jam.$(OBJEXT) \
 	settings_joystick.$(OBJEXT) settings_keyboard.$(OBJEXT) \
 	settings_ltkernal.$(OBJEXT) settings_magicvoice.$(OBJEXT) \
-	settings_megacart.$(OBJEXT) settings_midi.$(OBJEXT) \
-	settings_misc.$(OBJEXT) settings_mixer.$(OBJEXT) \
+	settings_megabyter.$(OBJEXT) settings_megacart.$(OBJEXT) \
+	settings_midi.$(OBJEXT) settings_misc.$(OBJEXT) \
+	settings_minimon.$(OBJEXT) settings_mixer.$(OBJEXT) \
 	settings_mmc64.$(OBJEXT) settings_mmcr.$(OBJEXT) \
 	settings_model.$(OBJEXT) settings_monitor.$(OBJEXT) \
 	settings_netplay.$(OBJEXT) \
@@ -298,10 +299,12 @@ am__depfiles_remade = ./$(DEPDIR)/aciawidget.Po \
 	./$(DEPDIR)/settings_keyboard.Po \
 	./$(DEPDIR)/settings_ltkernal.Po \
 	./$(DEPDIR)/settings_magicvoice.Po \
+	./$(DEPDIR)/settings_megabyter.Po \
 	./$(DEPDIR)/settings_megacart.Po ./$(DEPDIR)/settings_midi.Po \
-	./$(DEPDIR)/settings_misc.Po ./$(DEPDIR)/settings_mixer.Po \
-	./$(DEPDIR)/settings_mmc64.Po ./$(DEPDIR)/settings_mmcr.Po \
-	./$(DEPDIR)/settings_model.Po ./$(DEPDIR)/settings_monitor.Po \
+	./$(DEPDIR)/settings_minimon.Po ./$(DEPDIR)/settings_misc.Po \
+	./$(DEPDIR)/settings_mixer.Po ./$(DEPDIR)/settings_mmc64.Po \
+	./$(DEPDIR)/settings_mmcr.Po ./$(DEPDIR)/settings_model.Po \
+	./$(DEPDIR)/settings_monitor.Po \
 	./$(DEPDIR)/settings_netplay.Po \
 	./$(DEPDIR)/settings_petcolourgraphics.Po \
 	./$(DEPDIR)/settings_petdww.Po ./$(DEPDIR)/settings_pethre.Po \
@@ -472,6 +475,7 @@ CYGPATH_W = @CYGPATH_W@
 DEBUGBUILD = @DEBUGBUILD@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
+DESKTOP_FILE_INSTALL = @DESKTOP_FILE_INSTALL@
 DOS2UNIX = @DOS2UNIX@
 DYNLIB_LIBS = @DYNLIB_LIBS@
 ECHO_C = @ECHO_C@
@@ -481,15 +485,6 @@ ENABLE_ARCH = @ENABLE_ARCH@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 FCCACHE = @FCCACHE@
-FFMPEG_AVRESAMPLE_CFLAGS = @FFMPEG_AVRESAMPLE_CFLAGS@
-FFMPEG_AVRESAMPLE_LIBS = @FFMPEG_AVRESAMPLE_LIBS@
-FFMPEG_AV_CFLAGS = @FFMPEG_AV_CFLAGS@
-FFMPEG_AV_LIBS = @FFMPEG_AV_LIBS@
-FFMPEG_INCLUDES = @FFMPEG_INCLUDES@
-FFMPEG_SWRESAMPLE_CFLAGS = @FFMPEG_SWRESAMPLE_CFLAGS@
-FFMPEG_SWRESAMPLE_LIBS = @FFMPEG_SWRESAMPLE_LIBS@
-FFMPEG_SWSCALE_CFLAGS = @FFMPEG_SWSCALE_CFLAGS@
-FFMPEG_SWSCALE_LIBS = @FFMPEG_SWSCALE_LIBS@
 FONTCONFIG_CFLAGS = @FONTCONFIG_CFLAGS@
 FONTCONFIG_LIBS = @FONTCONFIG_LIBS@
 FW_DIR = @FW_DIR@
@@ -520,6 +515,8 @@ LEXLIB = @LEXLIB@
 LEX_OUTPUT_ROOT = @LEX_OUTPUT_ROOT@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
+LIBUSB_CFLAGS = @LIBUSB_CFLAGS@
+LIBUSB_LIBS = @LIBUSB_LIBS@
 LINKCC = @LINKCC@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
@@ -583,6 +580,7 @@ TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
 UNZIPBIN = @UNZIPBIN@
+UPDATE_DESKTOP_DATABASE = @UPDATE_DESKTOP_DATABASE@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -602,7 +600,7 @@ VTE_CXXFLAGS = @VTE_CXXFLAGS@
 WINDRES = @WINDRES@
 WINDRES_LIB = @WINDRES_LIB@
 XA = @XA@
-XDG_DESKTOP_MENU = @XDG_DESKTOP_MENU@
+XDG_ICON_RESOURCE = @XDG_ICON_RESOURCE@
 YACC = @YACC@
 ZLIB_LIBS = @ZLIB_LIBS@
 abs_builddir = @abs_builddir@
@@ -811,9 +809,11 @@ libwidgets_a_SOURCES = \
 	settings_keyboard.c \
 	settings_ltkernal.c \
 	settings_magicvoice.c \
+	settings_megabyter.c \
 	settings_megacart.c \
 	settings_midi.c \
 	settings_misc.c \
+	settings_minimon.c \
 	settings_mixer.c \
 	settings_mmc64.c \
 	settings_mmcr.c \
@@ -982,9 +982,11 @@ EXTRA_DIST = \
 	settings_keyboard.h \
 	settings_ltkernal.h \
 	settings_magicvoice.h \
+	settings_megabyter.h \
 	settings_megacart.h \
 	settings_midi.h \
 	settings_misc.h \
+	settings_minimon.h \
 	settings_mixer.h \
 	settings_mmc64.h \
 	settings_mmcr.h \
@@ -1200,8 +1202,10 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_keyboard.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_ltkernal.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_magicvoice.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_megabyter.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_megacart.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_midi.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_minimon.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_misc.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_mixer.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/settings_mmc64.Po@am__quote@ # am--include-marker
@@ -1586,8 +1590,10 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/settings_keyboard.Po
 	-rm -f ./$(DEPDIR)/settings_ltkernal.Po
 	-rm -f ./$(DEPDIR)/settings_magicvoice.Po
+	-rm -f ./$(DEPDIR)/settings_megabyter.Po
 	-rm -f ./$(DEPDIR)/settings_megacart.Po
 	-rm -f ./$(DEPDIR)/settings_midi.Po
+	-rm -f ./$(DEPDIR)/settings_minimon.Po
 	-rm -f ./$(DEPDIR)/settings_misc.Po
 	-rm -f ./$(DEPDIR)/settings_mixer.Po
 	-rm -f ./$(DEPDIR)/settings_mmc64.Po
@@ -1800,8 +1806,10 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/settings_keyboard.Po
 	-rm -f ./$(DEPDIR)/settings_ltkernal.Po
 	-rm -f ./$(DEPDIR)/settings_magicvoice.Po
+	-rm -f ./$(DEPDIR)/settings_megabyter.Po
 	-rm -f ./$(DEPDIR)/settings_megacart.Po
 	-rm -f ./$(DEPDIR)/settings_midi.Po
+	-rm -f ./$(DEPDIR)/settings_minimon.Po
 	-rm -f ./$(DEPDIR)/settings_misc.Po
 	-rm -f ./$(DEPDIR)/settings_mixer.Po
 	-rm -f ./$(DEPDIR)/settings_mmc64.Po

@@ -108,6 +108,9 @@ void machine_set_tape_motor_in(int port, int val)
 void machine_trigger_flux_change(int port, unsigned int on)
 {
 }
+void machine_set_tape_read_in(int port, unsigned int on)
+{
+}
 void machine_set_tape_sense(int port, int sense)
 {
 }
@@ -149,6 +152,11 @@ uint8_t *ultimax_romh_phi2_ptr(uint16_t addr)
 }
 
 int cartridge_attach_image(int type, const char *filename)
+{
+    return -1;
+}
+
+int cartridge_attach_add_image(int type, const char *filename)
 {
     return -1;
 }

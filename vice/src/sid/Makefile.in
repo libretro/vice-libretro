@@ -112,7 +112,7 @@ libsid_a_AR = $(AR) $(ARFLAGS)
 @HAVE_RESID_TRUE@am__DEPENDENCIES_1 = resid.o
 libsid_a_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am_libsid_a_OBJECTS = catweaselmkiii.$(OBJEXT) fastsid.$(OBJEXT) \
-	hardsid.$(OBJEXT) parsid.$(OBJEXT) \
+	hardsid.$(OBJEXT) parsid.$(OBJEXT) usbsid.$(OBJEXT) \
 	sid-cmdline-options.$(OBJEXT) sid-resources.$(OBJEXT) \
 	sid-snapshot.$(OBJEXT) sid.$(OBJEXT)
 libsid_a_OBJECTS = $(am_libsid_a_OBJECTS)
@@ -120,7 +120,7 @@ libsid_dtv_a_AR = $(AR) $(ARFLAGS)
 @HAVE_RESID_TRUE@am__DEPENDENCIES_2 = resid-dtv.o
 libsid_dtv_a_DEPENDENCIES = $(am__DEPENDENCIES_2)
 am__objects_1 = catweaselmkiii.$(OBJEXT) fastsid.$(OBJEXT) \
-	hardsid.$(OBJEXT) parsid.$(OBJEXT) \
+	hardsid.$(OBJEXT) parsid.$(OBJEXT) usbsid.$(OBJEXT) \
 	sid-cmdline-options.$(OBJEXT) sid-resources.$(OBJEXT) \
 	sid-snapshot.$(OBJEXT) sid.$(OBJEXT)
 am_libsid_dtv_a_OBJECTS = $(am__objects_1)
@@ -145,7 +145,7 @@ am__depfiles_remade = ./$(DEPDIR)/catweaselmkiii.Po \
 	./$(DEPDIR)/parsid.Po ./$(DEPDIR)/resid-dtv.Po \
 	./$(DEPDIR)/resid.Po ./$(DEPDIR)/sid-cmdline-options.Po \
 	./$(DEPDIR)/sid-resources.Po ./$(DEPDIR)/sid-snapshot.Po \
-	./$(DEPDIR)/sid.Po
+	./$(DEPDIR)/sid.Po ./$(DEPDIR)/usbsid.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -236,6 +236,7 @@ CYGPATH_W = @CYGPATH_W@
 DEBUGBUILD = @DEBUGBUILD@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
+DESKTOP_FILE_INSTALL = @DESKTOP_FILE_INSTALL@
 DOS2UNIX = @DOS2UNIX@
 DYNLIB_LIBS = @DYNLIB_LIBS@
 ECHO_C = @ECHO_C@
@@ -245,15 +246,6 @@ ENABLE_ARCH = @ENABLE_ARCH@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 FCCACHE = @FCCACHE@
-FFMPEG_AVRESAMPLE_CFLAGS = @FFMPEG_AVRESAMPLE_CFLAGS@
-FFMPEG_AVRESAMPLE_LIBS = @FFMPEG_AVRESAMPLE_LIBS@
-FFMPEG_AV_CFLAGS = @FFMPEG_AV_CFLAGS@
-FFMPEG_AV_LIBS = @FFMPEG_AV_LIBS@
-FFMPEG_INCLUDES = @FFMPEG_INCLUDES@
-FFMPEG_SWRESAMPLE_CFLAGS = @FFMPEG_SWRESAMPLE_CFLAGS@
-FFMPEG_SWRESAMPLE_LIBS = @FFMPEG_SWRESAMPLE_LIBS@
-FFMPEG_SWSCALE_CFLAGS = @FFMPEG_SWSCALE_CFLAGS@
-FFMPEG_SWSCALE_LIBS = @FFMPEG_SWSCALE_LIBS@
 FONTCONFIG_CFLAGS = @FONTCONFIG_CFLAGS@
 FONTCONFIG_LIBS = @FONTCONFIG_LIBS@
 FW_DIR = @FW_DIR@
@@ -284,6 +276,8 @@ LEXLIB = @LEXLIB@
 LEX_OUTPUT_ROOT = @LEX_OUTPUT_ROOT@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
+LIBUSB_CFLAGS = @LIBUSB_CFLAGS@
+LIBUSB_LIBS = @LIBUSB_LIBS@
 LINKCC = @LINKCC@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
@@ -347,6 +341,7 @@ TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
 UNZIPBIN = @UNZIPBIN@
+UPDATE_DESKTOP_DATABASE = @UPDATE_DESKTOP_DATABASE@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -366,7 +361,7 @@ VTE_CXXFLAGS = @VTE_CXXFLAGS@
 WINDRES = @WINDRES@
 WINDRES_LIB = @WINDRES_LIB@
 XA = @XA@
-XDG_DESKTOP_MENU = @XDG_DESKTOP_MENU@
+XDG_ICON_RESOURCE = @XDG_ICON_RESOURCE@
 YACC = @YACC@
 ZLIB_LIBS = @ZLIB_LIBS@
 abs_builddir = @abs_builddir@
@@ -461,6 +456,7 @@ libsid_a_SOURCES = \
 	fastsid.h \
 	hardsid.c \
 	parsid.c \
+	usbsid.c \
 	sid-cmdline-options.c \
 	sid-cmdline-options.h \
 	sid-resources.c \
@@ -548,6 +544,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sid-resources.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sid-snapshot.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sid.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/usbsid.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -716,6 +713,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/sid-resources.Po
 	-rm -f ./$(DEPDIR)/sid-snapshot.Po
 	-rm -f ./$(DEPDIR)/sid.Po
+	-rm -f ./$(DEPDIR)/usbsid.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -771,6 +769,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/sid-resources.Po
 	-rm -f ./$(DEPDIR)/sid-snapshot.Po
 	-rm -f ./$(DEPDIR)/sid.Po
+	-rm -f ./$(DEPDIR)/usbsid.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 

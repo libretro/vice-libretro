@@ -39,7 +39,7 @@
 #include "embedded.h"
 #include "driverom.h"
 
-//#define USE_PRINTER
+/* #define USE_PRINTER */
 
 #ifdef USE_PRINTER
 #define NL10_ROM_SIZE 0x8000
@@ -101,6 +101,10 @@ static size_t embedded_match_file(const char *name, unsigned char *dest, int min
     }
 
     while (emb[i].name != NULL) {
+        /* Search only */
+        if (!strcmp(name, emb[i].name) && !minsize && !maxsize)
+            return emb[i].size;
+        /* Copy data */
         if (!strcmp(name, emb[i].name) && minsize == emb[i].minsize && maxsize == emb[i].maxsize) {
             if (emb[i].esrc != NULL) {
                 if (emb[i].size != minsize || load_at_start) {

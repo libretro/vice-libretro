@@ -34,6 +34,12 @@ if [[ "$1" = -psn_* ]]; then
     shift
 fi
 
+# Accept --program <name> from stub apps
+if [[ "$1" == "--program" && -n "$2" ]]; then
+  PROGRAM="$2"
+  shift 2
+fi
+
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 
 cd "$ROOT_DIR"
@@ -75,13 +81,13 @@ if [ -z "$PROGRAM" ]; then
   xvic*)
     PROGRAM=xvic
     ;;
-  script*)
+  VICE*)
     # pick emu name in dialog
     PROGRAM=`osascript -e 'first item of (choose from list {"x128","x64dtv","x64sc","xcbm2","xcbm5x0","xpet","xplus4","xvic"} with title "VICE Emulator" with prompt "Please select an Emulator to run:" default items {"x64sc"})'`
     ;;
   *)
     # invalid bundle name
-    osascript -e 'display dialog "Invalid Bundle Name / PROGRAM var! (use: x128,x64dtv,x64sc,xcbm2,xcbm5x0,xpet,xplus4,xvic)" buttons {"Abort"} with icon stop'
+    osascript -e "display dialog \"Invalid Bundle Name / PROGRAM var: [$(basename "$0")] (use: x128,x64dtv,x64sc,xcbm2,xcbm5x0,xpet,xplus4,xvic)\" buttons {\"Abort\"} with icon stop"
     PROGRAM=""
     ;;
   esac

@@ -770,6 +770,7 @@ static void machine_model_handler_c64dtv(int model)
             break;
         case DTVMODEL_V3_PAL:       /* fall through */
         case DTVMODEL_V3_NTSC:      /* fall through */
+        case DTVMODEL_HUMMER_PAL:
         case DTVMODEL_HUMMER_NTSC:
             rev = DTVREV_3;
             break;
@@ -1687,6 +1688,7 @@ static GtkWidget *create_vsid_layout(GtkWidget *grid)
     gtk_grid_attach(GTK_GRID(grid), video_widget, 1, 0, 1, 1);
 
     sid_widget = sid_model_widget_create(machine_widget);
+    /*sid_model_widget_set_callback(sid_widget, sid_model_callback);*/
     gtk_grid_attach(GTK_GRID(grid), sid_widget, 0, 0, 1, 1);
     return grid;
 }

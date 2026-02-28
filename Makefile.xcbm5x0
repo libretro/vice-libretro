@@ -115,15 +115,7 @@ SOURCES_C += \
     $(EMU)/printerdrv/output-text.c \
     $(EMU)/printerdrv/printer-serial.c \
     $(EMU)/printerdrv/printer.c \
-    $(EMU)/serial/fsdrive.c \
-    $(EMU)/serial/serial-device.c \
-    $(EMU)/serial/serial-iec-bus.c \
-    $(EMU)/serial/serial-iec-device.c \
-    $(EMU)/serial/serial-iec-lib.c \
-    $(EMU)/serial/serial-iec.c \
-    $(EMU)/serial/serial-realdevice.c \
-    $(EMU)/serial/serial-trap.c \
-    $(EMU)/serial/serial.c \
+    $(SOURCES_C_SERIAL) \
     $(EMU)/sid/catweaselmkiii.c \
     $(EMU)/sid/fastsid.c \
     $(EMU)/sid/hardsid.c \
@@ -139,11 +131,7 @@ SOURCES_C += \
     $(EMU)/tape/tape-snapshot.c \
     $(EMU)/tape/tape.c \
     $(EMU)/tape/tapeimage.c \
-    $(EMU)/tapeport/cp-clockf83.c \
-    $(EMU)/tapeport/dtl-basic-dongle.c \
-    $(EMU)/tapeport/sense-dongle.c \
-    $(EMU)/tapeport/tapecart.c \
-    $(EMU)/tapeport/tapeport.c \
+    $(SOURCES_C_TAPEPORT) \
     $(EMU)/vicii/vicii-badline.c \
     $(EMU)/vicii/vicii-cmdline-options.c \
     $(EMU)/vicii/vicii-color.c \

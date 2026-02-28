@@ -1,8 +1,8 @@
 # VICE LIBRETRO
 
-Port of VICE, the Versatile Commodore Emulator 3.9
+Port of VICE, the Versatile Commodore Emulator 3.10
 
-Source base: [https://sourceforge.net/projects/vice-emu/files/releases/vice-3.9.tar.gz](https://sourceforge.net/projects/vice-emu/files/releases/vice-3.9.tar.gz)
+Source base: [https://sourceforge.net/projects/vice-emu/files/releases/vice-3.10.tar.gz](https://sourceforge.net/projects/vice-emu/files/releases/vice-3.10.tar.gz)
 
 Supported platforms: Linux, Windows, Apple, Android, emscripten, Switch, Vita
 
@@ -267,8 +267,7 @@ ndk-build
 
 ## VICE readme
 
-
-  VICE  3.9                                                          Dez 2024
+  VICE  3.10                                                          Dez 2025
 
 
                  _______________
@@ -293,7 +292,7 @@ ndk-build
 
  ----------------------------------------------------------------------------
 
- This is version 3.9 of VICE, the multi-platform C64, C128, VIC20,
+ This is version 3.10 of VICE, the multi-platform C64, C128, VIC20,
  PET, PLUS4 and CBM-II emulator.  This version can be compiled for
  Win32, macOS, Haiku and for most Unix systems provided with the X Window
  System version 11, R5 or later.
@@ -421,9 +420,9 @@ ndk-build
 
     - the VICE wiki at http://vice-emu.pokefinder.org/
 
- - Before reporting a bug, please try a recent nightly build and check if your
-   issue is already fixed. You can fine nightly builds for windows here:
-   <SF-uploads via Travis-CI?>
+ - Before reporting a bug, please try a recent development build and check if
+   your issue is already fixed. You can find development builds for windows
+   here: https://github.com/VICE-Team/svn-mirror/releases
 
  - When you report a bug, please try to be as accurate as possible and describe
    how it can be reproduced to the very detail. You should also tell us what
@@ -460,24 +459,24 @@ ndk-build
  VICE, the Versatile Commodore Emulator
 
     Core Team Members:
-    1999-2024 Pottendo
-    2005-2024 Marco van den Heuvel
-    2007-2024 Fabrizio Gennari
-    2009-2024 Groepaz
-    2009-2024 Errol Smith
-    2009-2024 Ingo Korb
-    2010-2024 Olaf Seibert
-    2011-2024 Marcus Sutton
-    2011-2024 Kajtar Zsolt
-    2016-2024 AreaScout
-    2016-2024 Bas Wassink
-    2017-2024 Michael C. Martin
-    2018-2024 Christopher Phillips
-    2019-2024 David Hogan
-    2020-2024 Empathic Qubit
-    2020-2024 Roberto Muscedere
-    2021-2024 June Tate-Gans
-    2021-2024 Pablo Roldan
+    1999-2025 Pottendo
+    2005-2025 Marco van den Heuvel
+    2007-2025 Fabrizio Gennari
+    2009-2025 Groepaz
+    2009-2025 Errol Smith
+    2009-2025 Ingo Korb
+    2010-2025 Olaf Seibert
+    2011-2025 Marcus Sutton
+    2011-2025 Kajtar Zsolt
+    2016-2025 AreaScout
+    2016-2025 Bas Wassink
+    2017-2025 Michael C. Martin
+    2018-2025 Christopher Phillips
+    2019-2025 David Hogan
+    2020-2025 Empathic Qubit
+    2020-2025 Roberto Muscedere
+    2021-2025 June Tate-Gans
+    2021-2025 Pablo Roldan
 
     Inactive/Ex Team Members:
     2011-2016 Stefan Haubenthal
@@ -536,13 +535,14 @@ ndk-build
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
   02111-1307  USA
 
- The ROM files in the 'C128', 'C64', 'CBM-II', 'DRIVES', 'PET', 'PLUS4'
- 'PRINTER' and 'VIC20' directories are Copyright C by Commodore
+ The ROM files in the `C128', `C64', `CBM-II', `DRIVES', `PET', `PLUS4'
+ `PRINTER' and `VIC20' directories are Copyright C by Commodore
  Business Machines.
 
- The ROM files in the 'C64DTV' directory are Copyright C by Commodore
+ The ROM files in the `C64DTV` directory are Copyright C by Commodore
  Business Machines, as well as Mammoth Toys, a division of nsi ltd.,
  Digital Concepts DC studios inc., Ironstone Partners ltd., and
+ Toy:Lobster company ltd.
  Toy:Lobster company ltd.
 
 ## NIBTOOLS

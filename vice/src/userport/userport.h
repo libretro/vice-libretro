@@ -70,6 +70,8 @@ enum {
     USERPORT_DEVICE_SPACEBALLS, /* CAUTION: also connects to the controller port(s) */
     USERPORT_DEVICE_SPT_JOYSTICK,
     USERPORT_DEVICE_DIAGNOSTIC_PIN,
+    USERPORT_DEVICE_MOUSE_PS2,
+    USERPORT_DEVICE_FUNMP3,
 
     /* This item always needs to be at the end */
     USERPORT_MAX_DEVICES
@@ -91,7 +93,8 @@ enum {
     USERPORT_DEVICE_TYPE_WIFI,
 #endif
     USERPORT_DEVICE_TYPE_IO_SIMULATION,
-    USERPORT_DEVICE_TYPE_DIAGNOSTIC
+    USERPORT_DEVICE_TYPE_DIAGNOSTIC,
+    USERPORT_DEVICE_TYPE_MOUSE_ADAPTER,
 };
 
 /* 24 pin userport pin defines */
@@ -366,7 +369,10 @@ void userport_reset(void);
 void userport_reset_end(void);
 void userport_powerup(void);
 
-/* use this function from userport device code to set the userport flag */
+/* use this function from userport device code to set the userport flag.
+   CAUTION: make sure to only call this from devices that are actually connected
+            to the userport!
+ */
 void set_userport_flag(uint8_t val);
 
 int userport_resources_init(void);

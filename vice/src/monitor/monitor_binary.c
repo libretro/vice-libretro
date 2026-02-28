@@ -52,6 +52,7 @@
 #include "machine-video.h"
 #include "palette.h"
 
+#include "mon_memmap.h"
 #include "mon_breakpoint.h"
 #include "mon_file.h"
 #include "mon_register.h"
@@ -110,6 +111,7 @@ enum t_binary_command {
     e_MON_CMD_REGISTERS_AVAILABLE = 0x83,
     e_MON_CMD_DISPLAY_GET = 0x84,
     e_MON_CMD_VICE_INFO = 0x85,
+    e_MON_CMD_CPUHISTORY_GET = 0x86,
 
     e_MON_CMD_PALETTE_GET = 0x91,
 
@@ -158,6 +160,7 @@ enum t_binary_response {
     e_MON_RESPONSE_REGISTERS_AVAILABLE = 0x83,
     e_MON_RESPONSE_DISPLAY_GET = 0x84,
     e_MON_RESPONSE_VICE_INFO = 0x85,
+    e_MON_RESPONSE_CPUHISTORY_GET = 0x86,
 
     e_MON_RESPONSE_PALETTE_GET = 0x91,
 
@@ -306,6 +309,15 @@ static unsigned char *write_uint32(uint32_t input, unsigned char *output) {
     return output + 4;
 }
 
+/*! \internal \brief Write uint64 to buffer and return pointer to byte after */
+static unsigned char *write_uint64(uint64_t input, unsigned char *output) {
+    for (int i = 0 ; i < 8 ; i++) {
+        output[i] = (uint8_t)(input >> (8 * i)) & 0xFFu;
+    }
+
+    return output + 8;
+}
+
 /*! \internal \brief Write string to buffer and return pointer to byte after */
 static unsigned char *write_string(uint8_t length, unsigned char *input, unsigned char *output) {
     output[0] = length;
@@ -416,46 +428,57 @@ static uint8_t memspace_to_uint8_t(MEMSPACE mem) {
     }
 }
 
-static void monitor_binary_response_register_info(uint32_t request_id, MEMSPACE memspace)
-{
-    mon_reg_list_t *regs;
-    mon_reg_list_t *regs_cursor;
-    unsigned char *response;
-    unsigned char *response_cursor;
-    uint32_t response_size = 2;
+#define MON_REGISTER_ITEM_SIZE 3
+
+static uint16_t count_registers(mon_reg_list_t *regs) {
     uint16_t count = 0;
-    uint8_t item_size = 3;
 
-    regs = mon_register_list_get(memspace);
-    regs_cursor = regs;
-
-    for( ; regs_cursor->name ; regs_cursor++) {
-        if (!ignore_fake_register(regs_cursor)) {
+    for( ; regs->name ; regs++) {
+        if (!ignore_fake_register(regs)) {
             ++count;
         }
     }
 
-    response_size += count * (item_size + 1);
-    response = lib_malloc(response_size);
-    response_cursor = response;
+    return count;
+}
 
-    regs_cursor = regs;
-
+static unsigned char *write_registers(mon_reg_list_t *regs, uint16_t count, unsigned char *response_cursor) {
     response_cursor = write_uint16(count, response_cursor);
 
-    for( ; regs_cursor->name ; regs_cursor++) {
-        if (ignore_fake_register(regs_cursor)) {
+    for( ; regs->name ; regs++) {
+        if (ignore_fake_register(regs)) {
             continue;
         }
 
-        *response_cursor = item_size;
+        *response_cursor = MON_REGISTER_ITEM_SIZE;
         ++response_cursor;
 
-        *response_cursor = regs_cursor->id;
+        *response_cursor = regs->id;
         ++response_cursor;
 
-        response_cursor = write_uint16((uint16_t)regs_cursor->val, response_cursor);
+        response_cursor = write_uint16((uint16_t)regs->val, response_cursor);
     }
+
+    return response_cursor;
+}
+
+static void monitor_binary_response_register_info(uint32_t request_id, MEMSPACE memspace)
+{
+    mon_reg_list_t *regs;
+    unsigned char *response;
+    unsigned char *response_cursor;
+    uint16_t count;
+    uint32_t response_size = 2;
+
+    regs = mon_register_list_get(memspace);
+
+    count = count_registers(regs);
+
+    response_size += count * (MON_REGISTER_ITEM_SIZE + 1);
+    response = lib_malloc(response_size);
+    response_cursor = response;
+
+    response_cursor = write_registers(regs, count, response_cursor);
 
     monitor_binary_response(response_size, e_MON_RESPONSE_REGISTER_INFO, e_MON_ERR_OK, request_id, response);
 
@@ -782,7 +805,7 @@ static void monitor_binary_process_registers_get(binary_command_t *command)
 
     if(memspace == e_invalid_space) {
         monitor_binary_error(e_MON_ERR_INVALID_MEMSPACE, command->request_id);
-        log_message(LOG_DEFAULT, "monitor binary memset: Unknown memspace %u", requested_memspace);
+        log_message(LOG_DEFAULT, "monitor binary registers get: Unknown memspace %u", requested_memspace);
         return;
     }
 
@@ -1005,7 +1028,7 @@ static void monitor_binary_process_resource_set(binary_command_t *command)
 
 static void monitor_binary_process_exit(binary_command_t *command)
 {
-    exit_mon = 1;
+    exit_mon = exit_mon_continue;
 
     monitor_binary_response(0, e_MON_RESPONSE_EXIT, e_MON_ERR_OK, command->request_id, NULL);
 }
@@ -1413,6 +1436,184 @@ static void monitor_binary_process_vice_info(binary_command_t *command)
     monitor_binary_response(sizeof(response), e_MON_RESPONSE_VICE_INFO, e_MON_ERR_OK, command->request_id, response);
 }
 
+#ifdef FEATURE_CPUMEMHISTORY
+static void monitor_binary_process_cpuhistory(binary_command_t *command)
+{
+    mon_reg_list_t *regs;
+    mon_reg_list_t *templates;
+    mon_reg_list_t *reg_a = NULL;
+    mon_reg_list_t *reg_x = NULL;
+    mon_reg_list_t *reg_y = NULL;
+    mon_reg_list_t *reg_sp = NULL;
+    mon_reg_list_t *reg_flags = NULL;
+    mon_reg_list_t *reg_pc = NULL;
+    mon_reg_list_t *reg_lin = NULL;
+    mon_reg_list_t *reg_cyc = NULL;
+    int i, j;
+    int registers_per_row = 8;
+    unsigned char *response;
+    unsigned char *response_cursor;
+    uint8_t instruction_length = 4;
+    uint16_t requested_count, count = 0;
+    uint64_t response_size;
+    int item_size = 2 + registers_per_row * (MON_REGISTER_ITEM_SIZE + 1) + 8 + 1 + instruction_length;
+
+    cpuhistory_t *current;
+
+    uint8_t requested_memspace = command->body[0];
+
+    MEMSPACE memspace;
+    if (command->length < 5) {
+        monitor_binary_error(e_MON_ERR_CMD_INVALID_LENGTH, command->request_id);
+        return;
+    }
+
+    memspace = get_requested_memspace(requested_memspace);
+
+    if (memspace == e_invalid_space) {
+        monitor_binary_error(e_MON_ERR_INVALID_MEMSPACE, command->request_id);
+        log_message(LOG_DEFAULT, "monitor binary cpuhistory: Unknown memspace %u", requested_memspace);
+        return;
+    }
+
+    requested_count = little_endian_to_uint32(&command->body[1]);
+
+    if (requested_count < 1) {
+        monitor_binary_error(e_MON_ERR_INVALID_PARAMETER, command->request_id);
+        log_message(LOG_DEFAULT, "monitor binary cpuhistory: Invalid count %u", count);
+        return;
+    }
+
+    current = mon_cpuhistory_seek(requested_count, memspace, memspace, memspace, memspace, memspace);
+    while ((current = mon_cpuhistory_next(current, memspace, memspace, memspace, memspace, memspace))) {
+        ++count;
+        response_size = 4 + count * (item_size + 1);
+        if (response_size >= UINT32_MAX) {
+            --count;
+            break;
+        }
+    }
+
+    response_size = 4 + count * (item_size + 1);
+    if (response_size > UINT32_MAX) {
+        monitor_binary_error(e_MON_ERR_INVALID_PARAMETER, command->request_id);
+        log_message(LOG_DEFAULT, "monitor binary cpuhistory: Response too long %"PRI_SIZE_T, response_size);
+        return;
+    }
+
+    response = lib_malloc(response_size);
+    response_cursor = response;
+
+
+    regs = lib_calloc(1, sizeof(mon_reg_list_t) * (registers_per_row + 1));
+
+    templates = mon_register_list_get(memspace);
+
+    for (i = 0, j = 0; templates[i].name != NULL; i++) {
+        unsigned int id = templates[i].id;
+        bool set_reg = false;
+        mon_reg_list_t *reg = &regs[j];
+        mon_reg_list_t *template = &templates[i];
+        if (ignore_fake_register(template)) {
+            continue;
+        } else if (id == e_PC) {
+            set_reg = true;
+            reg_pc = reg;
+        } else if (id == e_A) {
+            set_reg = true;
+            reg_a = reg;
+        } else if (id == e_X) {
+            set_reg = true;
+            reg_x = reg;
+        } else if (id == e_Y) {
+            set_reg = true;
+            reg_y = reg;
+        } else if (id == e_SP) {
+            set_reg = true;
+            reg_sp = reg;
+        } else if (id == e_FLAGS) {
+            set_reg = true;
+            reg_flags = reg;
+        } else if (id == e_Rasterline) {
+            set_reg = true;
+            reg_lin = reg;
+        } else if (id == e_Cycle) {
+            set_reg = true;
+            reg_cyc = reg;
+        }
+
+        if (set_reg) {
+            memcpy(reg, template, sizeof(mon_reg_list_t));
+            j++;
+        }
+    }
+
+    response_cursor = write_uint32(count, response_cursor);
+
+    current = mon_cpuhistory_seek(count, memspace, memspace, memspace, memspace, memspace);
+    while ((current = mon_cpuhistory_next(current, memspace, memspace, memspace, memspace, memspace))) {
+        if(reg_a != NULL) {
+            reg_a->val = current->reg_a;
+        }
+        if (reg_x != NULL) {
+            reg_x->val = current->reg_x;
+        }
+        if (reg_y != NULL) {
+            reg_y->val = current->reg_y;
+        }
+        if (reg_sp != NULL) {
+            reg_sp->val = current->reg_sp;
+        }
+        if (reg_flags != NULL) {
+            reg_flags->val = current->reg_st;
+        }
+        if (reg_pc != NULL) {
+            reg_pc->val = current->addr;
+        }
+        if (reg_lin != NULL) {
+            reg_lin->val = 0xffff;
+        }
+        if (reg_cyc != NULL) {
+            reg_cyc->val = 0xffff;
+        }
+
+        *response_cursor = item_size;
+        ++response_cursor;
+
+        response_cursor = write_registers(regs, registers_per_row, response_cursor);
+
+        /* This is here so that the register array doesn't separate it from future fields. */
+        response_cursor = write_uint64(current->cycle, response_cursor);
+
+        *response_cursor = instruction_length;
+        ++response_cursor;
+
+        *response_cursor = current->op;
+        ++response_cursor;
+
+        *response_cursor = current->p1;
+        ++response_cursor;
+
+        *response_cursor = current->p2;
+        ++response_cursor;
+
+        /* Placeholder for third parameter, which exists on some machines */
+        *response_cursor = 0xff;
+        ++response_cursor;
+    }
+
+    monitor_binary_response((uint32_t)response_size, e_MON_RESPONSE_CPUHISTORY_GET, e_MON_ERR_OK, command->request_id, response);
+
+    lib_free(templates);
+    lib_free(response);
+}
+#else
+static void monitor_binary_process_cpuhistory(binary_command_t *command)
+{
+    monitor_binary_error(e_MON_ERR_CMD_FAILURE, command->request_id);
+}
+#endif /* FEATURE_CPUMEMHISTORY */
+
 static void monitor_binary_process_mem_get(binary_command_t *command)
 {
     unsigned char *response;
@@ -1628,6 +1829,8 @@ static void monitor_binary_process_command(unsigned char * pbuffer)
         monitor_binary_process_display_get(&command);
     } else if (command_type == e_MON_CMD_VICE_INFO) {
         monitor_binary_process_vice_info(&command);
+    } else if (command_type == e_MON_CMD_CPUHISTORY_GET) {
+        monitor_binary_process_cpuhistory(&command);
 
     } else if (command_type == e_MON_CMD_EXIT) {
         monitor_binary_process_exit(&command);
@@ -1752,7 +1955,7 @@ int monitor_binary_get_command_line(void)
 
         monitor_binary_process_command(buffer);
 
-        if (exit_mon) {
+        if (exit_mon != exit_mon_no) {
             return 0;
         }
     }

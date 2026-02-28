@@ -48,6 +48,14 @@
 #include "monitor_binary.h"
 #endif
 
+/*#define DEBUG_BREAKPOINTS*/
+
+#ifdef DEBUG_BREAKPOINTS
+#define DBG(x)  log_printf x
+#else
+#define DBG(x)
+#endif
+
 struct checkpoint_list_s {
     mon_checkpoint_t *checkpt;
     struct checkpoint_list_s *next;
@@ -327,6 +335,19 @@ void mon_breakpoint_print_checkpoints(void)
     }
 }
 
+#ifdef DEBUG_BREAKPOINTS
+/* show checkpoint list in the order it is in the list */
+static void dump_checkpoint_list(void)
+{
+    checkpoint_list_t *ptr = all_checkpoints;
+    mon_out("dump_checkpoint_list:\n");
+    while (ptr) {
+        print_checkpoint_info(ptr->checkpt);
+        ptr = ptr->next;
+    }
+}
+#endif
+
 void mon_breakpoint_delete_checkpoint(int cp_num)
 {
     int i;
@@ -423,7 +444,7 @@ static int compare_checkpoints(mon_checkpoint_t *bp1, mon_checkpoint_t *bp2)
     */
 
     addr1 = addr_location(bp1->start_addr);
-    addr2 = addr_location(bp2->end_addr);
+    addr2 = addr_location(bp2->start_addr);
 
     if (addr1 < addr2) {
         return -1;
@@ -513,10 +534,12 @@ bool mon_breakpoint_check_checkpoint(MEMSPACE mem, unsigned int addr, unsigned i
 
     ptr = search_checkpoint_list(list, addr);
 
-    while (ptr && mon_is_in_range(ptr->checkpt->start_addr, ptr->checkpt->end_addr, addr)) {
+    while (ptr) {
         cp = ptr->checkpt;
         ptr = ptr->next;
-        if (cp && cp->enabled == e_ON) {
+        if (cp && (cp->enabled == e_ON) &&
+            mon_is_in_range(cp->start_addr, cp->end_addr, addr)) {
+
             /* If condition test fails, skip this checkpoint */
             if (cp->condition) {
                 if (!mon_evaluate_conditional(cp->condition)) {
@@ -612,11 +635,18 @@ static void add_to_checkpoint_list(checkpoint_list_t **head, mon_checkpoint_t *c
     if (!prev_entry) {
         *head = new_entry;
         new_entry->next = cur_entry;
+#ifdef DEBUG_BREAKPOINTS
+        dump_checkpoint_list();
+#endif
         return;
     }
 
     prev_entry->next = new_entry;
     new_entry->next = cur_entry;
+
+#ifdef DEBUG_BREAKPOINTS
+    dump_checkpoint_list();
+#endif
 }
 
 static
@@ -659,7 +689,7 @@ int breakpoint_add_checkpoint(MON_ADDR start_addr, MON_ADDR end_addr,
     update_checkpoint_state(mem);
 
     if (is_temp) {
-        exit_mon = 1;
+        exit_mon = exit_mon_continue;
     }
 
     if (do_print) {

@@ -76,7 +76,7 @@ int kernal_revision = C64_KERNAL_REV3;
 int cia1_model;
 int cia2_model;
 
-static int board_type = BOARD_C64;
+int board_type = BOARD_C64;
 static int iec_reset = 0;
 
 static log_t res_log = LOG_DEFAULT;
@@ -145,7 +145,7 @@ static int set_basic_rom_name(const char *val, void *param)
 static int set_board_type(int val, void *param)
 {
     int old_board_type = board_type;
-    if ((val < 0) || (val > 1)) {
+    if ((val < 0) || (val > BOARD_LAST_C64)) {
         return -1;
     }
     board_type = val;
@@ -211,7 +211,7 @@ static unsigned int get_trapflags(void)
     int ret = 0;
     int trapfl;
     for(i = 0; trapdevices[i] != -1; i++) {
-        resources_get_int_sprintf("VirtualDevice%d", &trapfl, trapdevices[i]);
+        resources_get_int_sprintf("TrapDevice%d", &trapfl, trapdevices[i]);
         /*val |= trapfl;*/
         if (trapfl) {
             ret |= (1 << i);
@@ -225,7 +225,7 @@ static void clear_trapflags(void)
 {
     int i;
     for(i = 0; trapdevices[i] != -1; i++) {
-        resources_set_int_sprintf("VirtualDevice%d", 0, trapdevices[i]);
+        resources_set_int_sprintf("TrapDevice%d", 0, trapdevices[i]);
     }
     /*printf("clear_trapflags\n");*/
 }
@@ -237,7 +237,7 @@ static void restore_trapflags(unsigned int flags)
     int trapfl;
     for(i = 0; trapdevices[i] != -1; i++) {
         trapfl = (flags & (1 << i)) ? 1 : 0;
-        resources_set_int_sprintf("VirtualDevice%d", trapfl, trapdevices[i]);
+        resources_set_int_sprintf("TrapDevice%d", trapfl, trapdevices[i]);
         /*val |= trapfl;*/
     }
     /*printf("restore_trapflags(%d)\n", val);*/

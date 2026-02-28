@@ -31,13 +31,6 @@
     driver. Instead of linking in the libraries, this one calls the ffmpeg
     executable and pipes the data to it.
 
-    This driver was implemented based on a copy of the original driver, and it
-    can co-exist with the original driver AND USE THE SAME RESOURCES AND SHARE
-    COMMANDLINE OPTIONS for the time being. To make sure this keeps working,
-    do NOT alter the resource- or commandline related code, before all of the
-    old FFMPEG code was removed. (And at this point some of the code in this
-    file can likely be more simplified too).
-
     bugs/open ends:
     - audio-only saving does not work correctly, apparently due to how the codecs
       are being listed (and somehow the results come out wrong)
@@ -64,13 +57,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <inttypes.h>
-#include <unistd.h>
 #include <math.h>
 
 #include "archdep.h"
+#include "archdep_sleep.h"
 #include "cmdline.h"
 #include "coproc.h"
-#include "ffmpegdrv.h"
 #include "ffmpegexedrv.h"
 #include "gfxoutput.h"
 #include "lib.h"
@@ -98,10 +90,6 @@
 #define DBGFRAMES(x)
 #endif
 
-/* FIXME: use IDs from libavformat while we coexist with the old ffmpeg code */
-#ifdef HAVE_FFMPEG
-#  include "libavformat/avformat.h"
-#else
 #define AV_CODEC_ID_NONE      0
 #define AV_CODEC_ID_MP2             1
 #define AV_CODEC_ID_MP3             2
@@ -115,7 +103,6 @@
 #define AV_CODEC_ID_H264            10
 #define AV_CODEC_ID_THEORA          11
 #define AV_CODEC_ID_H265            12
-#endif
 
 /* FIXME: check/fix make sure this returns valid ffmpeg vcodec/acodec strings */
 static char *av_codec_get_option(int id)
@@ -142,10 +129,6 @@ static char *av_codec_get_option(int id)
 
 /* FIXME: some SDL UIs use ffmpegdrv_formatlist directly */
 #define ffmpegexedrv_formatlist ffmpegdrv_formatlist
-
-#ifdef HAVE_FFMPEG
-/* FIXME: while we coexist with the old driver, do not use our own format list */
-#else
 
 static gfxoutputdrv_codec_t mp4_audio_codeclist[] = {
     { AV_CODEC_ID_AAC,          "AAC" },
@@ -228,7 +211,6 @@ static gfxoutputdrv_format_t output_formats_to_test[] =
     { "mp2",        mp2_audio_codeclist, NULL,                AUDIO_OPTIONS },
     { NULL, NULL, NULL, 0 }
 };
-#endif
 
 /******************************************************************************/
 
@@ -240,8 +222,10 @@ static int file_init_done;
 
 #define AUDIO_SKIP_SECONDS  4
 
-#define SOCKETS_VIDEO_PORT  60000
-#define SOCKETS_AUDIO_PORT  60001
+#define SOCKETS_RANGE_FIRST 53248
+#define SOCKETS_RANGE_LAST  57343
+static int current_video_port = SOCKETS_RANGE_FIRST;
+static int current_audio_port = SOCKETS_RANGE_FIRST + 1;
 
 /* input video stream */
 #define INPUT_VIDEO_BPP     3
@@ -298,7 +282,6 @@ static void ffmpegexedrv_shutdown(void);
 /******************************************************************************/
 /* resources */
 
-/* FIXME: shadowed by resources */
 static char *ffmpegexe_format = NULL;    /* FFMPEGFormat */
 static int format_index;    /* FFMPEGFormat */
 static int audio_codec;
@@ -307,8 +290,6 @@ static int audio_bitrate;
 static int video_bitrate;
 static int video_halve_framerate;
 
-/* FIXME: resource stuff, use this one instead of the one from internal ffmpeg */
-#ifndef HAVE_FFMPEG
 static int set_container_format(const char *val, void *param)
 {
     int i;
@@ -386,22 +367,18 @@ static int set_video_halve_framerate(int value, void *param)
 
     return 0;
 }
-#endif
 
 /*---------- Resources ------------------------------------------------*/
 
 static const resource_string_t resources_string[] = {
 /* FIXME: register only here, not in the internal ffmpeg driver */
-#ifndef HAVE_FFMPEG
     { "FFMPEGFormat", "mp4", RES_EVENT_NO, NULL,
       &ffmpegexe_format, set_container_format, NULL },
-#endif
     RESOURCE_STRING_LIST_END
 };
 
 static const resource_int_t resources_int[] = {
 /* FIXME: register only here, not in the internal ffmpeg driver */
-#ifndef HAVE_FFMPEG
     { "FFMPEGAudioBitrate", VICE_FFMPEG_AUDIO_RATE_DEFAULT,
       RES_EVENT_NO, NULL,
       &audio_bitrate, set_audio_bitrate, NULL },
@@ -414,7 +391,6 @@ static const resource_int_t resources_int[] = {
       &video_codec, set_video_codec, NULL },
     { "FFMPEGVideoHalveFramerate", 0, RES_EVENT_NO, NULL,
       &video_halve_framerate, set_video_halve_framerate, NULL },
-#endif
     RESOURCE_INT_LIST_END
 };
 
@@ -435,14 +411,12 @@ static int ffmpegexedrv_resources_init(void)
 static const cmdline_option_t cmdline_options[] =
 {
 /* FIXME: register only here, not in the internal ffmpeg driver */
-#ifndef HAVE_FFMPEG
     { "-ffmpegaudiobitrate", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
       NULL, NULL, "FFMPEGAudioBitrate", NULL,
       "<value>", "Set bitrate for audio stream in media file" },
     { "-ffmpegvideobitrate", SET_RESOURCE, CMDLINE_ATTRIB_NEED_ARGS,
       NULL, NULL, "FFMPEGVideoBitrate", NULL,
       "<value>", "Set bitrate for video stream in media file" },
-#endif
     CMDLINE_LIST_END
 };
 
@@ -454,30 +428,6 @@ static int ffmpegexedrv_cmdline_options_init(void)
 
 /*---------------------------------------------------------------------*/
 
-#ifdef HAVE_FFMPEG
-/* FIXME: when we coexist with the old FFMPEG driver, we use this function to
-          read the actual resource values (defined in the old driver) into the
-          variables local to this file, so other code can use these "as if" the
-          resources were defined in this file, rather than the old driver. */
-static void get_resource_values(void)
-{
-    int i;
-    resources_get_string("FFMPEGFormat", (const char**)&ffmpegexe_format);
-    format_index = -1;
-    for (i = 0; ffmpegexedrv_formatlist[i].name != NULL; i++) {
-        if (strcmp(ffmpegexe_format, ffmpegexedrv_formatlist[i].name) == 0) {
-            format_index = i;
-        }
-    }
-
-    resources_get_int("FFMPEGVideoCodec", &video_codec);
-    resources_get_int("FFMPEGVideoBitrate", &video_bitrate);
-    resources_get_int("FFMPEGAudioCodec", &audio_codec);
-    resources_get_int("FFMPEGAudioBitrate", &audio_bitrate);
-    resources_get_int("FFMPEGVideoHalveFramerate", &video_halve_framerate);
-}
-#endif
-
 static void log_resource_values(const char *func)
 {
     DBG(("%s FFMPEGFormat:%s", func, ffmpegexe_format));
@@ -488,16 +438,32 @@ static void log_resource_values(const char *func)
     DBG(("%s FFMPEGVideoHalveFramerate:%d", func, video_halve_framerate));
 }
 
+static void prepare_port_numbers(void)
+{
+    current_video_port += 2;
+    current_audio_port += 2;
+    if (current_audio_port > SOCKETS_RANGE_LAST) {
+        current_video_port = SOCKETS_RANGE_FIRST;
+        current_audio_port = SOCKETS_RANGE_FIRST + 1;
+    }
+    log_message(ffmpeg_log, "prepare_port_numbers %d:%d", current_video_port, current_audio_port);
+}
+
 static ssize_t write_video_frame(VIDEOFrame *pic)
 {
     ssize_t len = INPUT_VIDEO_BPP * video_height * video_width;
+    ssize_t res;
 
     if ((video_has_codec > 0) && (video_codec != AV_CODEC_ID_NONE)) {
         if (ffmpeg_video_socket == 0) {
             log_error(ffmpeg_log, "FFMPEG: write_video_frame ffmpeg_video_socket is 0 (framecount:%"PRIu64")", framecounter);
             return -1;
         }
-        return len - vice_network_send(ffmpeg_video_socket, pic->data, len, 0 /* flags */);
+        res = vice_network_send(ffmpeg_video_socket, pic->data, len, 0 /* flags */);
+        if (res < 0) {
+            return -1;
+        }
+        return len - res;
     }
     return 0;
 }
@@ -578,6 +544,7 @@ static void find_ports(void)
 
 static int test_ffmpeg_executable(void)
 {
+#if 0
     int ret;
     char *argv[5];
     /* `exec*()' does not want these to be constant...  */
@@ -594,11 +561,82 @@ static int test_ffmpeg_executable(void)
     lib_free(argv[2]);
     lib_free(argv[3]);
 
+    /* NOTE: ffmpeg returns 1 (not 0) on success */
     if (ret != 1) {
-        log_error(ffmpeg_log, "ffmpeg executable can not be started.");
+        log_error(ffmpeg_log, "ffmpeg executable can not be started. (ret:%d)", ret);
         return -1;
     }
     return 0;
+#else
+    static int test_stdin = -1;
+    static int test_stdout = -1;
+    static vice_pid_t test_pid = VICE_PID_INVALID;
+    int res = -1;
+    size_t n;
+    static char output[0x40];
+    static char command[0x40] = {
+        "ffmpeg 2>&1"   /* redirect stderr to stdout. this better works on the big 3 */
+    };
+    /* kill old process in case it is still running for whatever reason */
+    if (test_pid != VICE_PID_INVALID) {
+        kill_coproc(test_pid);
+        test_pid = VICE_PID_INVALID;
+    }
+    if (test_stdin != -1) {
+        close(test_stdin);
+        test_stdin = -1;
+    }
+    if (test_stdout != -1) {
+        close(test_stdout);
+        test_stdout = -1;
+    }
+    DBG(("test_ffmpeg_executable: '%s'", command));
+    /*log_printf("fork command:%s", command);*/
+    if (fork_coproc(&test_stdin, &test_stdout, command, &test_pid) < 0) {
+        log_error(ffmpeg_log, "Cannot fork ffmpeg process '%s'.", command);
+        goto testend;
+    }
+    /*log_printf("test_ffmpeg_executable pid:%d stdin:%d stdout:%d", test_pid, test_stdin, test_stdout);*/
+#ifdef WINDOWS_COMPILE
+    if (test_pid == VICE_PID_INVALID) {
+        log_error(ffmpeg_log, "Cannot fork ffmpeg process '%s' (pid == NULL).", command);
+#else
+    if (test_pid <= 0) {
+        log_error(ffmpeg_log, "Cannot fork ffmpeg process '%s' (pid <= 0).", command);
+#endif
+        goto testend;
+    }
+
+    /* FIXME: stdout is 0 on error ? */
+    if (test_stdout) {
+        memset(output, 0, 0x40);
+        n = read(test_stdout, output, 0x3f);
+        /*log_printf("test_ffmpeg_executable got: '%s'", output);*/
+        output[6] = 0;
+        if ((n >= 6) && !strcmp("ffmpeg", output)) {
+            res = 0;
+            /*log_printf("test_ffmpeg_executable tested ok");*/
+        }
+    }
+    if (res < 0) {
+        log_error(ffmpeg_log, "ffmpeg not found.\n");
+    }
+testend:
+    /* kill new process */
+    if (test_pid != VICE_PID_INVALID) {
+        kill_coproc(test_pid);
+        test_pid = VICE_PID_INVALID;
+    }
+    if (test_stdin != -1) {
+        close(test_stdin);
+        test_stdin = -1;
+    }
+    if (test_stdout != -1) {
+        close(test_stdout);
+        test_stdout = -1;
+    }
+    return res;
+#endif
 }
 
 static int start_ffmpeg_executable(void)
@@ -611,9 +649,6 @@ static int start_ffmpeg_executable(void)
     int audio_connected = 0;
     int video_connected = 0;
 
-#ifdef HAVE_FFMPEG
-    get_resource_values();
-#endif
     log_resource_values(__FUNCTION__);
 
     /* FPS of the input, including "half framerate" */
@@ -657,7 +692,7 @@ static int start_ffmpeg_executable(void)
 #endif
                 , fpsstring, fpsstring
                 , video_width, video_height
-                , SOCKETS_VIDEO_PORT
+                , current_video_port
         );
         strcat(command, tempcommand);
     }
@@ -679,7 +714,7 @@ static int start_ffmpeg_executable(void)
                     , audio_input_channels
                     , audio_input_sample_rate
                     , AUDIO_SKIP_SECONDS
-                    , SOCKETS_AUDIO_PORT
+                    , current_audio_port
             );
             strcat(command, tempcommand);
     }
@@ -736,7 +771,7 @@ static int start_ffmpeg_executable(void)
 
     if ((video_has_codec > 0) && (video_codec != AV_CODEC_ID_NONE)) {
         vice_network_socket_address_t *ad = NULL;
-        ad = vice_network_address_generate("127.0.0.1", SOCKETS_VIDEO_PORT);
+        ad = vice_network_address_generate("127.0.0.1", current_video_port);
         if (!ad) {
             log_error(ffmpeg_log, "Bad device name.\n");
             return -1;
@@ -772,7 +807,7 @@ static int start_ffmpeg_executable(void)
 
     if ((audio_has_codec > 0) && (audio_codec != AV_CODEC_ID_NONE)) {
         vice_network_socket_address_t *ad = NULL;
-        ad = vice_network_address_generate("127.0.0.1", SOCKETS_AUDIO_PORT);
+        ad = vice_network_address_generate("127.0.0.1", current_audio_port);
         if (!ad) {
             log_error(ffmpeg_log, "Bad device name.\n");
             return -1;
@@ -822,7 +857,7 @@ static int start_ffmpeg_executable(void)
         int audio_available = 0;
         int video_available = 0;
 
-        /*sleep(1);*/
+        /*archdep_sleep(1);*/
         if (ffmpeg_audio_socket != NULL) {
             audio_available = vice_network_select_poll_one(ffmpeg_audio_socket);
             DBG(("ffmpeg_audio_socket available: %d", audio_available));
@@ -908,6 +943,8 @@ static void close_stream(void)
         ffmpeg_pid = 0;
     }
 #endif
+
+    prepare_port_numbers();
 }
 
 /*****************************************************************************
@@ -1142,9 +1179,6 @@ static void ffmpegexedrv_init_video(screenshot_t *screenshot)
     video_width = screenshot->width & ~0xf;
     video_height = screenshot->height & ~0xf;
     /* frames per second */
-#ifdef HAVE_FFMPEG
-    get_resource_values();
-#endif
     log_resource_values(__FUNCTION__);
 
     DBG(("ffmpegexedrv_init_video w:%d h:%d (halve framerate:%d)",
@@ -1208,17 +1242,20 @@ static int ffmpegexedrv_save(screenshot_t *screenshot, const char *filename)
 
     if (test_ffmpeg_executable() < 0) {
         screenshot_stop_recording();
-        ui_error("ffmpeg executable could not be started.");
-        /* Do not return -1, since that would just pop up a second error message,
-           which will eventually appear behind the main window, and make the UI
-           seem to hang. We can do this, since there is no further error handling
-           depending on the return value. */
-        return 0;
+        archdep_sleep(1);
+        if (test_ffmpeg_executable() < 0) {
+            archdep_sleep(1);
+            if (test_ffmpeg_executable() < 0) {
+                ui_error("ffmpeg executable could not be started.");
+                /* Do not return -1, since that would just pop up a second error message,
+                which will eventually appear behind the main window, and make the UI
+                seem to hang. We can do this, since there is no further error handling
+                depending on the return value. */
+                return 0;
+            }
+        }
     }
 
-#ifdef HAVE_FFMPEG
-    get_resource_values();
-#endif
     log_resource_values(__FUNCTION__);
 
     DBG(("FFMPEGFormat:%s (format_index:%d)", ffmpegexe_format, format_index));
@@ -1281,9 +1318,6 @@ static int ffmpegexedrv_record(screenshot_t *screenshot)
     double audiotime = (double)audio_input_counter / (double)audio_input_sample_rate;
     DBGFRAMES(("ffmpegexedrv_record(framecount:%lu, audiocount:%lu frametime:%f, audiotime:%f)",
         framecounter, audio_input_counter, frametime, audiotime));
-#ifdef HAVE_FFMPEG
-    get_resource_values();
-#endif
     /* log_resource_values(__FUNCTION__); */
 
     framecounter++;
@@ -1337,7 +1371,7 @@ static int ffmpegexedrv_write(screenshot_t *screenshot)
 
 static gfxoutputdrv_t ffmpegexe_drv = {
     GFXOUTPUTDRV_TYPE_VIDEO,
-    "FFMPEGEXE",
+    "FFMPEG",
     "FFMPEG (Executable)",
     NULL,
     NULL, /* filled in get_formats_and_codecs */
@@ -1358,9 +1392,8 @@ static gfxoutputdrv_t ffmpegexe_drv = {
 /* gfxoutputdrv_t.shutdown */
 static void ffmpegexedrv_shutdown(void)
 {
-#ifndef HAVE_FFMPEG
     int i = 0;
-#endif
+
     DBG(("ffmpegexedrv_shutdown"));
 
     /* kill old process in case it is still running for whatever reason */
@@ -1369,7 +1402,6 @@ static void ffmpegexedrv_shutdown(void)
         ffmpeg_pid = 0;
     }
 
-#ifndef HAVE_FFMPEG
     if (ffmpegexe_drv.formatlist != NULL) {
 
         while (ffmpegexe_drv.formatlist[i].name != NULL) {
@@ -1392,7 +1424,6 @@ static void ffmpegexedrv_shutdown(void)
         lib_free(ffmpegexedrv_formatlist);
     }
 */
-#endif
 
     if (ffmpegexe_format) {
         lib_free(ffmpegexe_format);
@@ -1400,9 +1431,8 @@ static void ffmpegexedrv_shutdown(void)
     }
 }
 
-/* FIXME: when the regular FFMPEG driver was removed, this should interrogate
-          the ffmpeg binary and list all available formats and codecs */
-#ifndef HAVE_FFMPEG
+/* FIXME: This should interrogate the ffmpeg binary and list all available
+          formats and codecs */
 static void get_formats_and_codecs(void)
 {
     int i, j, ai = 0, vi = 0, f;
@@ -1450,7 +1480,6 @@ static void get_formats_and_codecs(void)
     ffmpegexedrv_formatlist[f].name = NULL;
     ffmpegexe_drv.formatlist = ffmpegexedrv_formatlist;
 }
-#endif
 
 /* public, init this output driver */
 void gfxoutput_init_ffmpegexe(int help)
@@ -1460,11 +1489,7 @@ void gfxoutput_init_ffmpegexe(int help)
         return;
     }
 
-#ifdef HAVE_FFMPEG
-    /* FIXME: as long as we coexist with the old FFMPEG driver, we reuse its formatlist */
-    ffmpegexe_drv.formatlist = ffmpegdrv_formatlist;
-#else
     get_formats_and_codecs();
-#endif
+
     gfxoutput_register(&ffmpegexe_drv);
 }

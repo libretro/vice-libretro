@@ -357,6 +357,18 @@ int drive_check_stardos(int drive_type)
     return 0;
 }
 
+int drive_check_dolphindos3(int drive_type)
+{
+    /* FIXME: is this correct? */
+    switch (drive_type) {
+    case DRIVE_TYPE_1540:
+    case DRIVE_TYPE_1541:
+    case DRIVE_TYPE_1541II:
+        return 1;
+    }
+    return 0;
+}
+
 
 /** \brief  Check if \a drive_type supports a real-time clock
  *
@@ -382,12 +394,9 @@ int drive_get_type_by_devnr(int devnr)
     int fsdevice;
     int drivetype;
 
-    if ((machine_class != VICE_MACHINE_CBM5x0) &&
-        (machine_class != VICE_MACHINE_CBM6x0) &&
-        (machine_class != VICE_MACHINE_PET) &&
-        /* FIXME: xvic has its own IEC code and doesn't use "IECDevice[8-11]" */
+    if (/* FIXME: xvic has its own IEC code and doesn't use "BusDevice[8-11]" */
         (machine_class != VICE_MACHINE_VIC20)) {
-        resources_get_int_sprintf("IECDevice%i", &iecdevice, devnr);
+        resources_get_int_sprintf("BusDevice%i", &iecdevice, devnr);
         resources_get_int_sprintf("FileSystemDevice%i", &fsdevice, devnr);
     }
     resources_get_int_sprintf("Drive%iType", &drivetype, devnr);

@@ -260,6 +260,9 @@ void ui_dispatch_events(void)
     int joynum;
 
     while (SDL_PollEvent(&e)) {
+        joystick_device_t *joydev = NULL;
+        joystick_button_t *button = NULL;
+
         switch (e.type) {
             case SDL_KEYDOWN:
                 ui_display_kbd_status(&e);
@@ -271,28 +274,21 @@ void ui_dispatch_events(void)
                 break;
 #ifdef HAVE_SDL_NUMJOYSTICKS
             case SDL_JOYAXISMOTION:
-                joynum = sdljoy_get_joynum_for_event((VICE_SDL_JoystickID)e.jaxis.which);
-                if (joynum != -1) {
+                if (sdljoy_get_joy_for_event((VICE_SDL_JoystickID)e.jaxis.which, &joydev, &joynum)) {
                     sdljoy_axis_event(joynum, e.jaxis.axis, e.jaxis.value);
                     joystick_set_axis_value(joynum, e.jaxis.axis, (uint8_t)((~e.jaxis.value + 32768) >> 8));
                 }
                 break;
-            case SDL_JOYBUTTONDOWN:
-                joynum = sdljoy_get_joynum_for_event((VICE_SDL_JoystickID)e.jaxis.which);
-                if (joynum != -1) {
-                    joy_button_event(joynum, e.jbutton.button, 1);
-                }
-                break;
+            case SDL_JOYBUTTONDOWN: /* fall through */
             case SDL_JOYBUTTONUP:
-                joynum = sdljoy_get_joynum_for_event((VICE_SDL_JoystickID)e.jaxis.which);
-                if (joynum != -1) {
-                    joy_button_event(joynum, e.jbutton.button, 0);
+                if (sdljoy_get_joy_for_event((VICE_SDL_JoystickID)e.jbutton.which, &joydev, &joynum)) {
+                    button = joydev->buttons[e.jbutton.button];
+                    joy_button_event(button, e.type == SDL_JOYBUTTONDOWN ? 1: 0);
                 }
                 break;
             case SDL_JOYHATMOTION:
-                joynum = sdljoy_get_joynum_for_event((VICE_SDL_JoystickID)e.jaxis.which);
-                if (joynum != -1) {
-                    joy_hat_event(joynum, e.jhat.hat, hat_map[e.jhat.value]);
+                if (sdljoy_get_joy_for_event((VICE_SDL_JoystickID)e.jaxis.which, &joydev, &joynum)) {
+                    joy_hat_event(joydev->hats[e.jhat.hat], hat_map[e.jhat.value]);
                 }
                 break;
 #endif
@@ -538,6 +534,7 @@ void ui_message(const char* format, ...)
 static int save_resources_on_exit;
 static int confirm_on_exit;
 static int start_minimized;
+static int start_maximized;
 
 static int set_ui_menukey(int val, void *param)
 {
@@ -574,11 +571,32 @@ static int set_native_monitor(int val, void *param)
  * \param[in]   val     0: start normal 1: start minimized
  * \param[in]   param   extra param (ignored)
  *
- * \return 0
+ * \return  0 on success, -1 if both minimized and maximized are requested
  */
 static int set_start_minimized(int val, void *param)
 {
+    if (val && start_maximized) {
+        log_error(LOG_DEFAULT, "cannot request both minimized and maximized window");
+        return -1;
+    }
     start_minimized = val ? 1 : 0;
+    return 0;
+}
+
+/** \brief  Set StartMaximized resource (bool)
+ *
+ * \param[in]   val     0: start normal 1: start maximized
+ * \param[in]   param   extra param (ignored)
+ *
+ * \return  0 on success, -1 if both minimized and maximized are requested
+ */
+static int set_start_maximized(int val, void *param)
+{
+    if (val && start_minimized) {
+        log_error(LOG_DEFAULT, "cannot request both minimized and maximized window");
+        return -1;
+    }
+    start_maximized = val ? 1 : 0;
     return 0;
 }
 
@@ -628,6 +646,8 @@ static resource_int_t resources_int[] = {
 #endif
     { "StartMinimized", 0, RES_EVENT_NO, NULL,
       &start_minimized, set_start_minimized, NULL },
+    { "StartMaximized", 0, RES_EVENT_NO, NULL,
+      &start_maximized, set_start_maximized, NULL },
     RESOURCE_INT_LIST_END
 };
 
@@ -736,6 +756,12 @@ static const cmdline_option_t cmdline_options[] =
     { "+minimized", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
         NULL, NULL, "StartMinimized", (void *)0,
         NULL, "Do not start VICE minimized" },
+    { "-maximized", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
+        NULL, NULL, "StartMaximized", (void *)1,
+        NULL, "Start VICE maximized" },
+    { "+maximized", SET_RESOURCE, CMDLINE_ATTRIB_NONE,
+        NULL, NULL, "StartMaximized", (void *)0,
+        NULL, "Do not start VICE maximized" },
     CMDLINE_LIST_END
 };
 

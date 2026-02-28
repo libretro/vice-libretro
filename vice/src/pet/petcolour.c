@@ -55,15 +55,15 @@
  */
 static void DRAW_rgbi(uint8_t *p, int xstart, int xend, int scr_rel, int ymod8)
 {
-    if (ymod8 < 8 && xstart < xend) {
+    if (xstart < xend) {
         uint8_t *colour_ptr = crtc.screen_base + COLOUR_MEMORY_START;
         int i;
 
 #if DEBUG_GFX
-        printf("DRAW_rgbi: xstart=%d, xend=%d, ymod8=%d, scr_rel=%04x\n", xstart, xend, ymod8, scr_rel);
+        printf("DRAW_rgbi: xstart=%d, xend=%d, ymod8=%d, scr_rel=%04x vaddr_mask_eff=%04x\n", xstart, xend, ymod8, scr_rel, crtc.vaddr_mask_eff);
 #endif
         for (i = xstart; i < xend; i++) {
-            uint8_t colour = colour_ptr[scr_rel & crtc.vaddr_mask];
+            uint8_t colour = colour_ptr[scr_rel & crtc.vaddr_mask_eff];
             uint8_t bg = (colour >> 4) & 0x0F;
             uint8_t fg =  colour       & 0x0F;
 
@@ -84,7 +84,7 @@ static void DRAW_rgbi(uint8_t *p, int xstart, int xend, int scr_rel, int ymod8)
 
 static void DRAW_analog(uint8_t *p, int xstart, int xend, int scr_rel, int ymod8)
 {
-    if (ymod8 < 8 && xstart < xend) {
+    if (xstart < xend) {
         uint8_t *colour_ptr = crtc.screen_base + COLOUR_MEMORY_START;
         int i;
 
@@ -92,7 +92,7 @@ static void DRAW_analog(uint8_t *p, int xstart, int xend, int scr_rel, int ymod8
         printf("DRAW_analog: xstart=%d, xend=%d, ymod8=%d, scr_rel=%04x\n", xstart, xend, ymod8, scr_rel);
 #endif
         for (i = xstart; i < xend; i++) {
-            uint8_t colour = colour_ptr[scr_rel & crtc.vaddr_mask];
+            uint8_t colour = colour_ptr[scr_rel & crtc.vaddr_mask_eff];
 
             int pixel;
             for (pixel = 0; pixel < 8; pixel++) {

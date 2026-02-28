@@ -44,6 +44,16 @@ AM_LDFLAGS = @VICE_LDFLAGS@
 
 noinst_LIBRARIES = libarchdep.a
 
+if MACOS_COMPILE
+# Build native wrapper executable used by macOS apps
+noinst_PROGRAMS = macOS-launcher
+macOS_launcher_SOURCES = macOS-launcher.c
+# Don't link this launcher app to the usual deps
+macOS-launcher$(EXEEXT): CPPFLAGS =
+macOS-launcher$(EXEEXT): CFLAGS =
+macOS-launcher$(EXEEXT): LDFLAGS =
+endif
+
 libarchdep_a_SOURCES = \
 	archdep_access.c \
 	archdep_boot_path.c \
@@ -87,6 +97,7 @@ libarchdep_a_SOURCES = \
 	archdep_get_vice_hotkeysdir.c \
 	archdep_get_vice_machinedir.c \
 	archdep_getcwd.c \
+	archdep_glob.c \
 	archdep_home_path.c \
 	archdep_icon_path.c \
 	archdep_is_haiku.c \
@@ -114,6 +125,7 @@ libarchdep_a_SOURCES = \
 	archdep_set_current_drive.c \
 	archdep_set_openmp_wait_policy.c \
 	archdep_signals.c \
+	archdep_sleep.c \
 	archdep_socketpeek.c \
 	archdep_sound.c \
 	archdep_spawn.c \
@@ -199,6 +211,7 @@ EXTRA_DIST = \
 	archdep_get_vice_hotkeysdir.h \
 	archdep_get_vice_machinedir.h \
 	archdep_getcwd.h \
+	archdep_glob.h \
 	archdep_home_path.h \
 	archdep_icon_path.h \
 	archdep_is_haiku.h \
@@ -227,6 +240,7 @@ EXTRA_DIST = \
 	archdep_set_current_drive.h \
 	archdep_set_openmp_wait_policy.h \
 	archdep_signals.h \
+	archdep_sleep.h \
 	archdep_socketpeek.h \
 	archdep_sound.h \
 	archdep_spawn.h \
@@ -249,7 +263,7 @@ EXTRA_DIST = \
 	dynlib-win32.c \
 	macOS-common-runtime.sh \
 	macOS-launcher.sh \
-	macOS-redirect-launcher.sh \
+	macOS-redirect-launcher.applescript \
 	macOS-util.h \
 	macOS-wrap-ar.sh \
 	macOS-wrap-ranlib.sh \
@@ -261,5 +275,10 @@ EXTRA_DIST = \
 	rs232-win32-dev.c \
 	uiactions.h \
 	README-bindist.txt
+
+if !MACOS_COMPILE
+# Distribute the native launcher source on non-macOS platforms
+EXTRA_DIST += macOS-launcher.c
+endif
 
 # FIXME: the Extra MacOS script stuff should live elsewhere

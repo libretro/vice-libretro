@@ -84,38 +84,38 @@ static GLuint create_shader_program(char *vertex_shader_filename, char *fragment
  * entire display area, and the last eight assign texture coordinates
  * to each corner.
  */
-static float vertexData[] = {
+static float vertexData[16 + 8] = {
         -1.0f, -1.0f, 0.0f, 1.0f,
          1.0f, -1.0f, 0.0f, 1.0f,
         -1.0f,  1.0f, 0.0f, 1.0f,
          1.0f,  1.0f, 0.0f, 1.0f,
-/* normal */
+        /* normal */
         0.0f,  1.0f,
         1.0f,  1.0f,
         0.0f,  0.0f,
         1.0f,  0.0f
-#if 0
-/* xflip */
-        1.0f,  1.0f,
-        0.0f,  1.0f,
-        1.0f,  0.0f,
-        0.0f,  0.0f,
-/* yflip */
-        0.0f,  0.0f,
-        1.0f,  0.0f,
-        0.0f,  1.0f,
-        1.0f,  1.0f,
-/* xyflip (180 degr rot) */
-        1.0f,  0.0f,
-        0.0f,  0.0f,
-        1.0f,  1.0f,
-        0.0f,  1.0f,
-/* 90 degr rot */
-        1.0f,  1.0f,
-        1.0f,  0.0f,
-        0.0f,  1.0f,
-        0.0f,  0.0f,
-#endif
+};
+
+static const float vertexDataPatches[4][8] = {
+    { 0.0f, 1.0f,  1.0f, 1.0f,  0.0f, 0.0f,  1.0f, 0.0f },  /* normal */
+    { 1.0f, 1.0f,  0.0f, 1.0f,  1.0f, 0.0f,  0.0f, 0.0f },  /* flip x */
+    { 0.0f, 0.0f,  1.0f, 0.0f,  0.0f, 1.0f,  1.0f, 1.0f,},  /* flip y */
+    { 1.0f, 0.0f,  0.0f, 0.0f,  1.0f, 1.0f,  0.0f, 1.0f },  /* flip x & y */
+};
+
+static const float model_matrix[2][16] = {
+    { /* ident, no rotation */
+      1.0f,   0.0f, 0.0f, 0.0f,
+      0.0f,   1.0f, 0.0f, 0.0f,
+      0.0f,   0.0f, 1.0f, 0.0f,
+      0.0f,   0.0f, 0.0f, 1.0f
+    }, {
+      /* rotated 90 degr clockwise */
+      0.0f,   1.0f, 0.0f, 0.0f,
+     -1.0f,   0.0f, 0.0f, 0.0f,
+      0.0f,   0.0f, 1.0f, 0.0f,
+      0.0f,   0.0f, 0.0f, 1.0f
+    }
 };
 
 /**/
@@ -197,7 +197,12 @@ static void on_widget_realized(GtkWidget *widget, gpointer data)
 
         glGenBuffers(1, &context->vbo);
         glBindBuffer(GL_ARRAY_BUFFER, context->vbo);
+#if 0
+        /* FIXME: we should really do flipx/flipy in the shader instead */
         glBufferData(GL_ARRAY_BUFFER, sizeof(vertexData), vertexData, GL_STATIC_DRAW);
+#else
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertexData), vertexData, GL_DYNAMIC_DRAW);
+#endif
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glGenVertexArrays(1, &context->vao);
     }
@@ -217,7 +222,6 @@ static void on_widget_realized(GtkWidget *widget, gpointer data)
     /* Due to the weird inverted native co-ordinates on macOS, we also need to layout when the window size changes */
     g_signal_connect_unlocked(gtk_widget_get_toplevel(canvas->event_box), "size-allocate", G_CALLBACK(on_top_level_widget_resized), canvas);
 #endif
-
     CANVAS_UNLOCK();
 }
 
@@ -529,16 +533,22 @@ static void legacy_render(video_canvas_t *canvas, float scale_x, float scale_y)
 
     int filter;
     GLuint gl_filter;
+    int flipidx;
 
-    float u1 = 0.0f;
-    float v1 = 0.0f;
-    float u2 = 1.0f;
-    float v2 = 1.0f;
+    float u1;
+    float v1;
+    float u2;
+    float v2;
 
     vice_opengl_renderer_context_t *context = (vice_opengl_renderer_context_t *)canvas->renderer_context;
     filter = canvas->videoconfig->glfilter;
 
-    /* FIXME: add support for flipx/flipy/rotate */
+    /* update texture coords according to flipx/flipy */
+    flipidx = canvas->videoconfig->flipx | (canvas->videoconfig->flipy << 1);
+    u1 = vertexDataPatches[flipidx][4];
+    v1 = vertexDataPatches[flipidx][5];
+    u2 = vertexDataPatches[flipidx][2];
+    v2 = vertexDataPatches[flipidx][3];
 
     /* We only support builtin linear and nearest on legacy OpenGL contexts */
     gl_filter = filter ? GL_LINEAR : GL_NEAREST;
@@ -547,6 +557,13 @@ static void legacy_render(video_canvas_t *canvas, float scale_x, float scale_y)
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_TEXTURE_2D);
     glActiveTexture(GL_TEXTURE0);
+
+    /* Save the current matrix. */
+    glPushMatrix();
+
+    if (canvas->videoconfig->rotate) {
+        glRotatef(270.0f, 0, 0, 1); /* rotate 90degr clockwise */
+    }
 
     if (context->interlaced) {
         glBindTexture(GL_TEXTURE_2D, context->previous_frame_texture);
@@ -587,6 +604,9 @@ static void legacy_render(video_canvas_t *canvas, float scale_x, float scale_y)
 
     glBindTexture(GL_TEXTURE_2D, 0);
     glDisable(GL_TEXTURE_2D);
+
+    /* Reset the current matrix to the one that was saved. */
+    glPopMatrix();
 }
 
 static void modern_render(video_canvas_t *canvas, float scale_x, float scale_y)
@@ -594,6 +614,8 @@ static void modern_render(video_canvas_t *canvas, float scale_x, float scale_y)
     /* Used when OpenGL 3.2+ is available */
 
     int filter;
+    int flipidx;
+    static int flipidxlast;
     GLint gl_filter;
 
     GLuint program;
@@ -603,12 +625,17 @@ static void modern_render(video_canvas_t *canvas, float scale_x, float scale_y)
     GLuint view_size_uniform;
     GLuint source_size_uniform;
     GLuint this_frame_uniform;
+    GLuint rotation_uniform;
     GLuint last_frame_uniform = 0;
 
     vice_opengl_renderer_context_t *context = (vice_opengl_renderer_context_t *)canvas->renderer_context;
     filter = canvas->videoconfig->glfilter;
 
-    /* FIXME: add support for flipx/flipy/rotate */
+    /* update texture coords according to flipx/flipy */
+    flipidx = canvas->videoconfig->flipx | (canvas->videoconfig->flipy << 1);
+    if (flipidxlast != flipidx) {
+        memcpy(&vertexData[16], &vertexDataPatches[flipidx], sizeof(float) * 8);
+    }
 
     /* For shader filters, we start with nearest neighbor. So only use linear if directly requested. */
     gl_filter = (filter == VIDEO_GLFILTER_BILINEAR) ?  GL_LINEAR : GL_NEAREST;
@@ -636,6 +663,7 @@ static void modern_render(video_canvas_t *canvas, float scale_x, float scale_y)
     view_size_uniform   = glGetUniformLocation(program, "view_size");
     source_size_uniform = glGetUniformLocation(program, "source_size");
     this_frame_uniform  = glGetUniformLocation(program, "this_frame");
+    rotation_uniform    = glGetUniformLocation(program, "rotation");
 
     if (context->interlaced) {
         last_frame_uniform  = glGetUniformLocation(program, "last_frame");
@@ -644,6 +672,13 @@ static void modern_render(video_canvas_t *canvas, float scale_x, float scale_y)
     glDisable(GL_BLEND);
     glBindVertexArray(context->vao);
     glBindBuffer(GL_ARRAY_BUFFER, context->vbo);
+
+    if (flipidxlast != flipidx) {
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertexData), vertexData);
+    }
+
+    flipidxlast = flipidx;
+
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(position_attribute,  4, GL_FLOAT, GL_FALSE, 0, 0);
@@ -652,6 +687,8 @@ static void modern_render(video_canvas_t *canvas, float scale_x, float scale_y)
     glUniform4f(scale_uniform, scale_x, scale_y, 1.0f, 1.0f);
     glUniform2f(view_size_uniform, context->native_view_width, context->native_view_height);
     glUniform2f(source_size_uniform, context->current_frame_width, context->current_frame_height);
+
+    glUniformMatrix4fv(rotation_uniform, 1, GL_FALSE, model_matrix[canvas->videoconfig->rotate]);
 
     if (context->interlaced) {
         glUniform1i(last_frame_uniform, 0);
@@ -709,13 +746,13 @@ static void render(void *job_data, void *pool_data)
         /* TODO: BSD thread prio stuff */
 #endif
 
-        log_message(opengl_log, "Render thread initialised");
+        log_verbose(opengl_log, "Render thread initialised");
         return;
     }
 
     if (job == render_thread_shutdown) {
         archdep_thread_shutdown();
-        log_message(opengl_log, "Render thread shutdown");
+        log_verbose(opengl_log, "Render thread shutdown");
         return;
     }
 
@@ -748,7 +785,12 @@ static void render(void *job_data, void *pool_data)
         float viewport_aspect;
         float emulated_aspect;
 
-        viewport_aspect = (float)context->native_view_width / (float)context->native_view_height;
+        if (canvas->videoconfig->rotate) {
+            /* rotate aspect 90 degr too */
+            viewport_aspect = (float)context->native_view_height / (float)context->native_view_width;
+        } else {
+            viewport_aspect = (float)context->native_view_width / (float)context->native_view_height;
+        }
         emulated_aspect = (float)context->current_frame_width / (float)context->current_frame_height;
 
         if (canvas->videoconfig->aspect_mode == VIDEO_ASPECT_MODE_TRUE) {

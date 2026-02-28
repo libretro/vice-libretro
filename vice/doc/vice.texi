@@ -403,7 +403,7 @@ The PET computers came with three major ROM revisions, so-called BASIC
 1, 2 and 4, all of which are provided.  The PET 2001 uses the version 1,
 the PET 3032 uses version 2, and the others use version 4.  The 2001 ROM
 is horribly broken with respect to IEEE488 (they shipped it before they
-tested it with the floppy drive, so only tape worked.  Therefore the
+tested it with the floppy drive, so only tape and printers worked.  Therefore the
 emulator patches the ROM to fix the IEEE488 routines.
 
 As well as other low-level fixes the 2001 patch obtains the load address
@@ -828,7 +828,8 @@ OpenCBM library. You can get it from @uref{https://spiro.trikaliotis.net/opencbm
 Make sure to pick the right library (32 or 64bit) for your system. 
 @itemize @bullet
 @item To use it in the emulators, go to the drive tab in the settings and choose
-either "Virtual Device" or "IEC Device" and "Real Drive (OpenCBM)".
+either "Virtual (traps)" or "Virtual (bus)" and in the dropdown labeled
+"Virtual backend", choose "Real Drive (OpenCBM)".
 Note that this will not work with all emulators right now. Also note that using
 the real drives like this provides only very limited compatibility in practise -
 it is recommended to transfer the disks to images and use the images with an
@@ -842,8 +843,8 @@ file as filename (eg /dev/cbm).
 @end itemize
 @end itemize
 
-When using disk images there are two available types of drive
-emulation.  One of them the @dfn{virtual drive} emulation.  It does
+When using disk images there are three available types of drive
+emulation.  One of them the @dfn{virtual (traps)} emulation.  It does
 @emph{not} really emulate the serial line, but patches the kernal ROM
 (with the so-called @dfn{kernal traps}) so that serial line operations
 can be emulated via C language routines.  This emulation is very fast,
@@ -853,11 +854,15 @@ this type of emulation.
 
 The IEEE488 drives (2031, 2040, 3040, 4040, 1001, 8050, 8250, and D9090/60)
 do not use kernal traps. Instead the IEEE488 interface lines are
-monitored and the data is passed to the drive emulation. To use them
-on the C64, you need to enable the IEEE488 interface emulation. Only
-if the IEEE488 emulation is enabled, those drives can be selected.
+monitored and the data is passed to the drive emulation.
+This is called @dfn{virtual (ieee- or iec-bus)} emulation.
+To use the IEEE488 disks on the C64, you need to enable the IEEE488 interface
+emulation. Only if the IEEE488 emulation is enabled, those drives can be
+selected.
 
-The other alternative is a @dfn{true drive} emulation.  The
+This option also exists for the serial IEC disks (except on the VIC-20).
+
+The third, most accurate, alternative is a @dfn{true drive} emulation.  The
 Commodore disk drives are provided with their own CPU (a 6502 as the
 VIC20 and the PETs) and their own RAM and ROM.  So, in order to more
 closely emulate its features, a complete emulation of this hardware
@@ -1271,6 +1276,11 @@ Enable/disable colorizing the log output.
 Enable verbose log output.
 (@code{LogLimit}).
 
+@findex -debug
+@item -debug
+Enable all log output.
+(@code{LogLimit}).
+
 @findex -silent
 @item -silent
 Disable all log output (except errors).
@@ -1442,7 +1452,8 @@ and after doing so revert all settings to what they were before autostarting.
 If you want to allow the started program to access the host file system, you will
 have to enable "virtual device traps". If you want the autostart logic to disable
 true drive emulation temporarily to speed up the autostart, then enable "handle
-TDE at autostart.
+TDE at autostart (this is required if true drive emulation would be enabled
+otherwise - as is the default).
 
 @xref{Disk and tape images}. for more information about images and
 autostart.
@@ -1519,8 +1530,8 @@ System files can still be installed in a different directory if you
 specify a complete path instead of just a file name.  For example, if
 you specify @file{./kernal} as the kernal image name, the kernal image
 will be loaded from the current directory.  This can be done by using
-command-line options or by modifying resource values (@pxref{Resource
-files}).
+command-line options or by modifying
+resource values (@pxref{Resource files}).
 
 @menu
 * ROM files::                   Files containing dumps of the original ROMs.
@@ -3149,7 +3160,7 @@ system/window manager. Mappings using @code{<Alt>} or
 @item @code{scpu-speed-switch-toggle}
 @tab Toggle SCPU Speed switch
 @item @code{screenshot-quicksave}
-@tab Quiksave screenshot
+@tab Quicksave screenshot
 @item @code{settings-default}
 @tab Restore default settings
 @item @code{settings-dialog}
@@ -3431,7 +3442,7 @@ use the ``Autostart'' button in the file selector window after selecting
 a proper disk or tape image file.
 
 If true drive emulation is turned on, and the @dfn{Handle TDE at Autostart}
-setting is enabled, true drive emulation will be turned off before running 
+setting is enabled, true drive emulation will be turned off before loading
 the program and then turned on again after it has been
 loaded.  This way, you get the maximum possible speed while loading the
 file, but you do not lose compatibility once the program itself is
@@ -3518,7 +3529,7 @@ the name) and then build a disk image using all four.
 Go to "Preferences -> Peripheral devices -> Printer", select the printer you want to use.
 Note that not all types of printers are available at all ports/device numbers.
 @item
-Enable either "Virtual Device" or "IEC Device" (There is no "True Printer Emulation")
+Enable either "Virtual (traps)" or "Virtual (bus)" (There is no "True Printer Emulation")
 @item
 Set "Emulation type" to "File system access" if you want to output to a file or pipe through a program.
 If you want to use a real printer via OpenCBM, select "Real device (OpenCBM)".
@@ -3603,12 +3614,12 @@ reset settings to default first.}
 @item
 To speed up loading .prg files, enable
 Options->Host->Autostart->Autostart PRG Settings->Autostart mode->Inject into RAM
-(@code{AutostartPrgMode} = 0)
+(@code{AutostartPrgMode} = 1)
 
 @item
 To speed up loading .d64 files,
-enable Options->Peripherial devices->Drive->Virtual device
-(@code{VirtualDevice8..11} = 1)
+enable Options->Peripherial devices->Drive->Virtual (traps)
+(@code{TrapDevice8..11} = 1)
 and enable Options->Host->Autostart->Handle True Drive Emulation on autostart
 (@code{AutostartHandleTrueDriveEmulation} = 1)
 
@@ -3660,6 +3671,16 @@ values, at any time.  This is achieved with the ``Save settings'' and
 ``Load settings'' right menu items.  A third menu item, ``Restore
 Default Settings'', can be used to reset all the values to the factory
 defaults.
+
+Note that, when saving the settings to a new file, using ``Save settings to...'',
+only the resources for the currently running emulator will be stored into this
+file, and the settings related to other emulators (which might exist in a previously
+loaded file) will not be copied to it.
+
+You can also store some extra settings, for example to configure a certain hardware
+setup, in an extra file, and load these using ``Load extra settings from...''. In
+this case the resources will not be reset to default first and only the resources
+present in that file will be changed/used.
 
 A special resource, @code{SaveResourcesOnExit}, if set to a non zero
 value, causes the emulator to save the current
@@ -3786,7 +3807,8 @@ Boolean, if true put a colon after the load command when autostarting
 @item AutostartHandleTrueDriveEmulation
 Boolean, if true handle (enable/disable) True Drive Emulation on autostart
 (all emulators except vsid). This is disabled by default to ensure maximum
-compatibility.
+compatibility. It @emph{must} be enabled, if true drive emulation is enabled, and
+@code{AutostartPrgMode} is 0.
 
 @vindex AutostartWarp
 @item AutostartWarp
@@ -3798,6 +3820,8 @@ Boolean, if true temporarily enable warp mode when autostarting
 Integer specifying the autostart mode for prg files
 (all emulators except vsid).
 (0: virtual filesystem, 1: inject to RAM, 2: copy to D64)
+Note that @code{AutostartHandleTrueDriveEmulation} must be enabled, if true drive
+emulation is enabled.
 
 @vindex AutostartDelayRandom
 @item AutostartDelayRandom
@@ -6237,15 +6261,7 @@ Implemented drivers are:
 
 @itemize @bullet
 @item
-@code{ahi}, for the Amiga/Morphos/Aros sound driver.
-@item
-@code{aix}, for the IBM AIX sound driver.
-@item
-@code{allegro}, for the DOS Allegro sound driver.
-@item
 @code{alsa}, for the linux ALSA sound driver.
-@item
-@code{arts}, for the *nix ARTS sound driver.
 @item
 @code{beos}, for the BeOS/Zeta/Haiku sound driver.
 @item
@@ -6254,35 +6270,25 @@ Implemented drivers are:
 @code{coreaudio}, for the Mac OS X sound driver (@code{SoundDeviceArg}
 specifies the audio device, default system output by default).
 @item
-@code{dart}, for the OS/2 sound driver.
-@item
 @code{dummy}, fully emulating the sound output chip(s), but not actually playing samples.
+@item
+@code{dump}, writing all the write accesses to the registers to a file
+(specified by @code{SoundDeviceArg}, default value is
+@code{vicesnd.sid});
 @item
 @code{dx}, for the Windows Direct-X sound driver.
 @item
-@code{hpux}, for the HP-UX audio device (unfinished;
+@code{netbsd}, for the NetBDS audio device (unfinished;
 @code{SoundDeviceArg} specifies the audio device, @file{/dev/audio} by
 default).
-@item
-@code{midas}, for the DOS Midas sound driver.
 @item
 @code{pulse}, for the Pulseaudio sound driver.
 @item
 @code{sdl}, for the Simple DirectMedia Layer audio driver.
 @item
-@code{sgi}, for the Silicon Graphics audio device (@code{SoundDeviceArg}
-specifies the audio device, @file{/dev/audio} by default);
-@item
-@code{speed}, like @code{dummy} but also calculating samples (mainly
-used to evaluate the speed of the sample generator);
-@item
-@code{sun}, for the Solaris and NetBDS audio device (unfinished;
+@code{sun}, for the Solaris audio device (unfinished;
 @code{SoundDeviceArg} specifies the audio device, @file{/dev/audio} by
 default).
-@item
-@code{uss}, for the Linux/FreeBSD Universal Sound System driver
-(@code{SoundDeviceArg} specifies the audio device, @file{/dev/dsp} by
-default);
 @item
 @code{wmm}, for the Windows Multimedia Waveout sound device.
 @end itemize
@@ -6305,12 +6311,9 @@ Implemented drivers are:
 @item
 @code{aiff}, for the Apple Interchange File Format 16bit sound recorder driver.
 @item
-@code{dump}, writing all the write accesses to the registers to a file
-(specified by @code{SoundDeviceArg}, default value is
-@code{vicesnd.sid});
-@item
 @code{fs}, writing samples to a file (specified by
 @code{SoundDeviceArg}; default is @file{vicesnd.raw});
+@item
 @code{iff}, for the Amiga Interchange File Format (8SVX) 8bit sound recorder driver.
 @item
 @code{mp3}, for the MP3 sound recorder driver.
@@ -6411,7 +6414,7 @@ Set sound fragment size
 @item -sounddev <Name>
 Specifies the name of the audio device
 (@code{SoundDeviceName}).
-(ahi, aix, allegro, alsa, arts, beos, bsp, coreaudio, dart, dummy, dx, hpux, midas, pulse, sdl, sgi, sun, uss, wmm)
+(alsa, beos, bsp, coreaudio, dummy, dump, dx, netbsd, pulse, sdl, sun, wmm)
 
 @findex -soundarg
 @item -soundarg <args>
@@ -6422,7 +6425,7 @@ Specifies an additional parameter for the audio device
 @item -soundrecdev <name>
 Specify recording sound driver
 (@code{SoundRecordDeviceName}).
-(aiff, dump, fs, iff, mp3, flac, ogg, speed, voc, wav)
+(aiff, fs, iff, mp3, flac, ogg, voc, wav)
 
 @findex -soundrecarg
 @item -soundrecarg <args>
@@ -6748,6 +6751,17 @@ integers controlling what type of parallel cable is emulated for drives 8 to 11
 (x64, x64sc, xscpu64, x128 and xplus4 only).
 x64, x64sc, xscpu64, x128: (0: None, 1: Standard, 2: Dolphin DOS 3, 3: Formel64)
 xplus4: (0: None, 1: Standard)
+
+@vindex Drive8DolphinDOS3
+@vindex Drive9DolphinDOS3
+@vindex Drive10DolphinDOS3
+@vindex Drive11DolphinDOS3
+@item Drive8DolphinDOS3
+@itemx Drive9DolphinDOS3
+@itemx Drive10DolphinDOS3
+@itemx Drive11DolphinDOS3
+Booleans controlling whether Dolphin DOS 3 is emulated or not for drives 8 to 11
+(x64, x64sc, xscpu64 and x128 only).
 
 @vindex Drive8ProfDOS
 @vindex Drive9ProfDOS
@@ -7083,7 +7097,7 @@ Set parallel cable type for drives 8-11 respectively
 (@code{Drive8ParallelCable}, @code{Drive9ParallelCable},
 @code{Drive10ParallelCable}, @code{Drive11ParallelCable})
 (x64, x64sc, xscpu64, x128 and xplus4 only).
-x64, x64sc, xscpu64, x128: (0: None, 1: Standard, 2: Professional DOS, 3: Formel64)
+x64, x64sc, xscpu64, x128: (0: None, 1: Standard, 2: Dolphin DOS 3, 3: Formel64)
 xplus4: (0: None, 1: Standard)
 
 @findex -drive8idle
@@ -7330,6 +7344,21 @@ Enable/disable 8KiB RAM expansion at $A000-$BFFF for drive 8 to 11
 @code{Drive10RAMA000=1}, @code{Drive10RAMA000=0},
 @code{Drive11RAMA000=1}, @code{Drive11RAMA000=0}).
 
+@findex -drive8dd3, +drive8dd3
+@findex -drive9dd3, +drive9dd3
+@findex -drive10dd3, +drive10dd3
+@findex -drive11dd3, +drive11dd3
+@item -drive8dd3, +drive8dd3
+@itemx -drive9dd3, +drive9dd3
+@itemx -drive10dd3, +drive10dd3
+@itemx -drive11dd3, +drive11dd3
+Enable/disable Professional DOS for drive 8 to 11
+(@code{Drive8DolphinDOS3=1}, @code{Drive8DolphinDOS3=0},
+@code{Drive9DolphinDOS3=1}, @code{Drive9DolphinDOS3=0},
+@code{Drive10DolphinDOS3=1}, @code{Drive10DolphinDOS3=0},
+@code{Drive11DolphinDOS3=1}, @code{Drive11DolphinDOS3=0})
+(x64, x64sc, xscpu64 and x128 only).
+
 @findex -drive8profdos, +drive8profdos
 @findex -drive9profdos, +drive9profdos
 @findex -drive10profdos, +drive10profdos
@@ -7478,15 +7507,16 @@ Note that, by default, all drives create P00 files on save.
 
 @table @code
 
-@vindex IECDevice8
-@vindex IECDevice9
-@vindex IECDevice10
-@vindex IECDevice11
-@item IECDevice8
-@itemx IECDevice9
-@itemx IECDevice10
-@itemx IECDevice11
-Booleans that specify whether IEC device emulation for device #8 to #11 is enabled.
+@vindex BusDevice8
+@vindex BusDevice9
+@vindex BusDevice10
+@vindex BusDevice11
+@item BusDevice8
+@itemx BusDevice9
+@itemx BusDevice10
+@itemx BusDevice11
+Booleans that specify whether IEC or IEEE-488 (bus) device emulation for
+virtual device #8 to #11 is enabled.
 
 @vindex FileSystemDevice8
 @vindex FileSystemDevice9
@@ -7563,39 +7593,39 @@ Disabled by default.
 
 @table @code
 
-@findex -iecdevice8, +iecdevice8
-@item -iecdevice8
-@itemx +iecdevice8
-Enable/disable IEC device emulation for device #8
-(@code{IECDevice8=1}, @code{IECDevice8=0}).
+@findex -busdevice8, +busdevice8
+@item -busdevice8
+@itemx +busdevice8
+Enable/disable IEC or IEEE-488 (bus) device emulation for device #8
+(@code{BusDevice8=1}, @code{BusDevice8=0}).
 
-@findex -iecdevice9, +iecdevice9
-@item -iecdevice9
-@itemx +iecdevice9
-Enable/disable IEC device emulation for device #9
-(@code{IECDevice9=1}, @code{IECDevice9=0}).
+@findex -busdevice9, +busdevice9
+@item -busdevice9
+@itemx +busdevice9
+Enable/disable IEC or IEEE-488 (bus) device emulation for device #9
+(@code{BusDevice9=1}, @code{BusDevice9=0}).
 
-@findex -iecdevice10, +iecdevice10
-@item -iecdevice10
-@itemx +iecdevice10
-Enable/disable IEC device emulation for device #10
-(@code{IECDevice10=1}, @code{IECDevice10=0}).
+@findex -busdevice10, +busdevice10
+@item -busdevice10
+@itemx +busdevice10
+Enable/disable IEC or IEEE-488 (bus) device emulation for device #10
+(@code{BusDevice10=1}, @code{BusDevice10=0}).
 
-@findex -iecdevice11, +iecdevice11
-@item -iecdevice11
-@itemx +iecdevice11
-Enable/disable IEC device emulation for device #11
-(@code{IECDevice11=1}, @code{IECDevice11=0}).
+@findex -busdevice11, +busdevice11
+@item -busdevice11
+@itemx +busdevice11
+Enable/disable IEC or IEEE-488 (bus) device emulation for device #11
+(@code{BusDevice11=1}, @code{BusDevice11=0}).
 
-@findex -device8
-@findex -device9
-@findex -device10
-@findex -device11
-@item -device8 <type>
-@itemx -device9 <type>
-@itemx -device10 <type>
-@itemx -device11 <type>
-Set device type for device 8-11 respectively
+@findex -devicebackend8
+@findex -devicebackend9
+@findex -devicebackend10
+@findex -devicebackend11
+@item -devicebackend8 <type>
+@itemx -devicebackend9 <type>
+@itemx -devicebackend10 <type>
+@itemx -devicebackend11 <type>
+Set backend device type for trap or bus device 8-11 respectively
 (@code{FileSystemDevice8}, @code{FileSystemDevice9}, @code{FileSystemDevice10}, @code{FileSystemDevice11})
 (all emulators except vsid).
 (0: None, 1: Filesystem, 2: OpenCBM (Real))
@@ -7761,15 +7791,15 @@ output from the Commodore printer code) and then to the printer via
 
 @table @code
 
-@vindex IECDevice4
-@vindex IECDevice5
-@vindex IECDevice6
-@vindex IECDevice7
-@item IECDevice4
-@itemx IECDevice5
-@itemx IECDevice6
-@itemx IECDevice7
-Booleans that specify whether IEC device emulation for device #4, #5, #6 and #7 is enabled.
+@vindex BusDevice4
+@vindex BusDevice5
+@vindex BusDevice6
+@vindex BusDevice7
+@item BusDevice4
+@itemx BusDevice5
+@itemx BusDevice6
+@itemx BusDevice7
+Booleans that specify whether IEC or IEEE-488 (bus) device emulation for device #4, #5, #6 and #7 is enabled.
 
 @vindex PrinterTextDevice1
 @vindex PrinterTextDevice2
@@ -7848,50 +7878,50 @@ String specifying the user-port printer output device.
 
 @table @code
 
-@findex -iecdevice4, +iecdevice4
-@item -iecdevice4
-@itemx +iecdevice4
-Enable/disable IEC device emulation for device #4
-(@code{IECDevice4=1}, @code{IECDevice4=0}).
+@findex -busdevice4, +busdevice4
+@item -busdevice4
+@itemx +busdevice4
+Enable/disable IEC or IEEE-488 (bus) device emulation for device #4
+(@code{BusDevice4=1}, @code{BusDevice4=0}).
 
-@findex -iecdevice5, +iecdevice5
-@item -iecdevice5
-@itemx +iecdevice5
-Enable/disable IEC device emulation for device #5
-(@code{IECDevice5=1}, @code{IECDevice5=0}).
+@findex -busdevice5, +busdevice5
+@item -busdevice5
+@itemx +busdevice5
+Enable/disable IEC or IEEE-488 (bus) device emulation for device #5
+(@code{BusDevice5=1}, @code{BusDevice5=0}).
 
-@findex -iecdevice6, +iecdevice6
-@item -iecdevice6
-@itemx +iecdevice6
-Enable/disable IEC device emulation for device #6
-(@code{IECDevice6=1}, @code{IECDevice6=0}).
+@findex -busdevice6, +busdevice6
+@item -busdevice6
+@itemx +busdevice6
+Enable/disable IEC or IEEE-488 (bus) device emulation for device #6
+(@code{BusDevice6=1}, @code{BusDevice6=0}).
 
-@findex -iecdevice7, +iecdevice7
-@item -iecdevice7
-@itemx +iecdevice7
-Enable/disable IEC device emulation for device #7
-(@code{IECDevice7=1}, @code{IECDevice7=0}).
+@findex -busdevice7, +busdevice7
+@item -busdevice7
+@itemx +busdevice7
+Enable/disable IEC or IEEE-488 (bus) device emulation for device #7
+(@code{BusDevice7=1}, @code{BusDevice7=0}).
 
-@findex -device4
-@item -device4 <type>
+@findex -devicebackend4
+@item -devicebackend4 <type>
 Set device type for device 4
 (@code{Printer4}).
 (0: None, 1: Filesystem, 2: Real)
 
-@findex -device5
-@item -device5 <type>
+@findex -devicebackend5
+@item -devicebackend5 <type>
 Set device type for device 5
 (@code{Printer5}).
 (0: None, 1: Filesystem, 2: Real)
 
-@findex -device6
-@item -device6 <type>
+@findex -devicebackend6
+@item -devicebackend6 <type>
 Set device type for device 6
 (@code{Printer6}).
 (0: None, 1: Filesystem, 2: Real)
 
-@findex -device7
-@item -device7 <type>
+@findex -devicebackend7
+@item -devicebackend7 <type>
 Set device type for device 7
 (@code{Printer7}).
 (0: None, 2: Real)
@@ -7991,31 +8021,28 @@ maximum compatibility.
 
 @table @code
 
-@vindex VirtualDevice1
-@vindex VirtualDevice2
-@vindex VirtualDevice4
-@vindex VirtualDevice5
-@vindex VirtualDevice6
-@vindex VirtualDevice7
-@vindex VirtualDevice8
-@vindex VirtualDevice9
-@vindex VirtualDevice10
-@vindex VirtualDevice11
-@item VirtualDevice1
-@itemx VirtualDevice2
-@itemx VirtualDevice4
-@itemx VirtualDevice5
-@itemx VirtualDevice6
-@itemx VirtualDevice7
-@itemx VirtualDevice8
-@itemx VirtualDevice9
-@itemx VirtualDevice10
-@itemx VirtualDevice11
-Boolean specifying whether all the mechanisms for virtual device
-emulation should be enabled. Serial IEC devices use kernal traps,
-parallel IEEE488 devices use an own IEEE488 engine. Both are switched
-on and off with this resource.
-
+@vindex TrapDevice1
+@vindex TrapDevice2
+@vindex TrapDevice4
+@vindex TrapDevice5
+@vindex TrapDevice6
+@vindex TrapDevice7
+@vindex TrapDevice8
+@vindex TrapDevice9
+@vindex TrapDevice10
+@vindex TrapDevice11
+@item TrapDevice1
+@itemx TrapDevice2
+@itemx TrapDevice4
+@itemx TrapDevice5
+@itemx TrapDevice6
+@itemx TrapDevice7
+@itemx TrapDevice8
+@itemx TrapDevice9
+@itemx TrapDevice10
+@itemx TrapDevice11
+Boolean specifying whether the kernal trap mechanism for virtual device
+emulation should be enabled. Serial IEC devices can use kernal traps.
 @end table
 
 
@@ -8024,37 +8051,37 @@ on and off with this resource.
 
 @table @code
 
-@findex -virtualdev1, +virtualdev1
-@findex -virtualdev2, +virtualdev2
-@findex -virtualdev4, +virtualdev4
-@findex -virtualdev5, +virtualdev5
-@findex -virtualdev6, +virtualdev6
-@findex -virtualdev7, +virtualdev7
-@findex -virtualdev8, +virtualdev8
-@findex -virtualdev9, +virtualdev9
-@findex -virtualdev10, +virtualdev10
-@findex -virtualdev11, +virtualdev11
-@item -virtualdev1, +virtualdev1
-@itemx -virtualdev2, +virtualdev2
-@itemx -virtualdev4, +virtualdev4
-@itemx -virtualdev5, +virtualdev5
-@itemx -virtualdev6, +virtualdev6
-@itemx -virtualdev7, +virtualdev7
-@itemx -virtualdev8, +virtualdev8
-@itemx -virtualdev9, +virtualdev9
-@itemx -virtualdev10, +virtualdev10
-@itemx -virtualdev11, +virtualdev11
-Enable/disable virtual devices
-(@code{VirtualDevice1=1}, @code{VirtualDevice1=0},
- @code{VirtualDevice2=1}, @code{VirtualDevice2=0},
- @code{VirtualDevice4=1}, @code{VirtualDevice4=0},
- @code{VirtualDevice5=1}, @code{VirtualDevice5=0},
- @code{VirtualDevice6=1}, @code{VirtualDevice6=0},
- @code{VirtualDevice7=1}, @code{VirtualDevice7=0},
- @code{VirtualDevice8=1}, @code{VirtualDevice8=0},
- @code{VirtualDevice9=1}, @code{VirtualDevice9=0},
- @code{VirtualDevice10=1}, @code{VirtualDevice10=0},
- @code{VirtualDevice11=1}, @code{VirtualDevice11=0}).
+@findex -trapdevice1, +trapdevice1
+@findex -trapdevice2, +trapdevice2
+@findex -trapdevice4, +trapdevice4
+@findex -trapdevice5, +trapdevice5
+@findex -trapdevice6, +trapdevice6
+@findex -trapdevice7, +trapdevice7
+@findex -trapdevice8, +trapdevice8
+@findex -trapdevice9, +trapdevice9
+@findex -trapdevice10, +trapdevice10
+@findex -trapdevice11, +trapdevice11
+@item -trapdevice1, +trapdevice1
+@itemx -trapdevice2, +trapdevice2
+@itemx -trapdevice4, +trapdevice4
+@itemx -trapdevice5, +trapdevice5
+@itemx -trapdevice6, +trapdevice6
+@itemx -trapdevice7, +trapdevice7
+@itemx -trapdevice8, +trapdevice8
+@itemx -trapdevice9, +trapdevice9
+@itemx -trapdevice10, +trapdevice10
+@itemx -trapdevice11, +trapdevice11
+Enable/disable kernal traps for virtual devices
+(@code{TrapDevice1=1}, @code{TrapDevice1=0},
+ @code{TrapDevice2=1}, @code{TrapDevice2=0},
+ @code{TrapDevice4=1}, @code{TrapDevice4=0},
+ @code{TrapDevice5=1}, @code{TrapDevice5=0},
+ @code{TrapDevice6=1}, @code{TrapDevice6=0},
+ @code{TrapDevice7=1}, @code{TrapDevice7=0},
+ @code{TrapDevice8=1}, @code{TrapDevice8=0},
+ @code{TrapDevice9=1}, @code{TrapDevice9=0},
+ @code{TrapDevice10=1}, @code{TrapDevice10=0},
+ @code{TrapDevice11=1}, @code{TrapDevice11=0}).
 
 @end table
 
@@ -8086,17 +8113,18 @@ connect through a network socket.
 
 It is possible to define up to four serial devices, and then decide
 which interface should be connected to which device.  This is done by
-so-called @dfn{rs232 device file names}; an rs232 device file name can
+so-called @dfn{RS232 device file names}; an RS232 device file name can
 be either a simple path, a network address, or a command name preceeded 
 by a pipe symbol @samp{|}.  
 If the path specifies a special device (e.g. @file{/dev/ttyS0} or @file{com1}) it
-is recognized by VICE and the emulator can set the baudrate.
+is recognized by VICE and the emulator can set the baudrate. (Note that in Windows
+you may have to use the full device path for higher COM ports, eg @file{\\.\com10})
 
-For example, rs232 device @samp{filename} will cause the output to be
+For example, RS232 device @samp{filename} will cause the output to be
 written (not appended) to the file @file{filename}, while printer device
 @samp{|lpr} will cause the @code{lpr} command to be executed and be fed
-the rs232 output.  The rs232 output will not be converted but saved as
-sent by the emulated machine.  The same holds true for the rs232 input.
+the RS232 output.  The RS232 output will not be converted but saved as
+sent by the emulated machine.  The same holds true for the RS232 input.
 If the command writes data to the standard output it will be caught by VICE
 and sent back to the emulator.  Also the data sent by the pseudo device will
 be sent back to VICE.
@@ -8587,6 +8615,9 @@ Set the device attached to the second tape port (xpet only, see table below):
 @item 6
 @tab tapecart
 @tab x64, x64sc, x128
+@item 7
+@tab WordCraft dongle
+@tab xpet
 @end multitable
 
 @table @code
@@ -8764,6 +8795,12 @@ Set the device attached to the userport (see table below):
 @item 26
 @tab PET Userport diagnostic pin
 @tab xpet
+@item 27
+@tab Userport PS/2 Mouse
+@tab x64dtv
+@item 27
+@tab Userport FunMP3
+@tab x64, x64sc, x128, xscpu64, xpet, xvic
 @end multitable
 
 @table @code
@@ -8802,7 +8839,12 @@ identifying the user at the WiC64 portal
 
 @vindex WIC64IPAddress
 @item WIC64IPAddress
-String specifying the IP address used by the wic64 emulation
+String specifying the IP address used by the wic64 emulation (if DHCP is disabled)
+(vic20, x64, x64sc, xscpu64 and x128 only).
+
+@vindex WIC64DHCP
+@item WIC64DHCP
+Boolean specifying whether the WiC64 local IP address should be choosen automatically
 (vic20, x64, x64sc, xscpu64 and x128 only).
 
 @vindex WIC64Logenabled
@@ -8832,6 +8874,11 @@ Integer, WiC64 trace level, 0: no trace, 1: standard, 2: verbose,
 3: debug
 (vic20, x64, x64sc, xscpu64 and x128 only).
 
+@vindex FunMP3Dir
+@item FunMP3Dir
+String specifying the path to the directory where mp3's are lookup up
+for playing
+(vic20, x64, x64sc, xscpu64, x128 and xpet only).
 @end table
 
 @c @node FIXME
@@ -8893,6 +8940,31 @@ Integer to specify number of lines to hexdump, 0: unlimited,
 Timeout to wait for URLs in seconds, 1 - 255
 (vic20, x64, x64sc, xscpu64 and x128 only).
 
+@findex -wic64ipaddress
+@item -wic64ipaddress <IP>
+Specify WiC64 IP (when DHCP is disabled)
+(vic20, x64, x64sc, xscpu64 and x128 only).
+
+@findex -wic64macaddress
+@item -wic64macaddress <MAC>
+Specify WiC64 MAC
+(vic20, x64, x64sc, xscpu64 and x128 only).
+
+@findex -wic64token
+@item -wic64token <token>
+Specify WiC64 security token
+(vic20, x64, x64sc, xscpu64 and x128 only).
+
+@findex -wic64dhcp, +wic64dhcp
+@item -wic64dhcp
+@itemx +wic64dhcp
+Enable/disable automatically setting the local IP address (default: enabled)
+(vic20, x64, x64sc, xscpu64 and x128 only).
+
+@findex -funmp3dir
+@item -funmp3dir <path>
+Specify path to search for mp3 files used by the FunMP3 module
+(vic20, x64, x64sc, xscpu64, x128, xpet only).
 @end table
 
 @c -----------------------------------------------------------------------------
@@ -9391,6 +9463,11 @@ Trace the drive 3 CPU / Do not trace the drive 3 CPU (@code{Drive3CPU_TRACE=1}, 
 @itemx +trace_iec
 Trace IEC bus activity / Do not trace IEC bus activity (@code{IEC_TRACE=1}, @code{IEC_TRACE=0})
 
+@findex -trace_ieee, +trace_ieee
+@item -trace_ieee
+@itemx +trace_ieee
+Trace IEEE bus activity / Do not trace IEEE bus activity (@code{IEEE_TRACE=1}, @code{IEEE_TRACE=0})
+
 @findex -trace_mode
 @item -trace_mode <value>
 Trace mode (0=normal 1=small 2=history)
@@ -9766,6 +9843,10 @@ Ocean
 Pagefox
 @item
 Prophet64
+@item
+Protovision "Megabyter"
+@item
+Profi-DOS
 @item
 REX 256KiB EPROM Cart
 @item
@@ -10185,12 +10266,23 @@ The following cartridge types are valid:
 @item
 82: Universal Cartridge 2
 @item
+83: BMP Data Turbo
+@item
+84: Profi-DOS
+@item
 85: Magic Desk 16
+@item
+86: Protovision "Megabyter"
 @end itemize
 
 @vindex CartridgeFile
 @item CartridgeFile
 String specifying the filename of the image for the cartridge emulated in the "main" slot.
+
+@vindex Comal80Revision
+@item Comal80Revision
+Integer specifying the Comal 80 hardware revision.
+(0: Grey, 1: Commodore/Black)
 
 @vindex DQBB
 @item DQBB
@@ -10436,6 +10528,15 @@ Boolean specifying whether the Magic Voice should be emulated or not.
 @vindex MagicVoiceImage
 @item MagicVoiceImage
 String specifying the filename of the Magic Voice ROM image.
+
+@vindex MegabyterWriteCRT
+@item MegabyterWriteCRT
+Boolean, if true write back the Megabyter image file automatically, incase the
+contents changed, when detaching or quitting the emulator.
+
+@vindex MegabyterOptimizeCRT
+@item MegabyterOptimizeCRT
+Boolean, if true omit empty (filled with $ff) banks from the .crt image when writing.
 
 @vindex MMC64
 @item MMC64
@@ -10708,6 +10809,12 @@ Attach raw 8KiB Capture cartridge image.
 @findex -cartcomal
 @item -cartcomal <name>
 Attach raw 64KiB Comal 80 cartridge image.
+
+@findex -comal80rev
+@item -comal80rev <Revision>
+Set the Comal 80 hardware revision
+(@code{Comal80Revision}).
+(0: Grey, 1: Commodore/Black)
 
 @findex -cartdep256
 @item -cartdep256 <name>
@@ -11142,6 +11249,10 @@ track 18, sector 18.
 @item -cartmach5 <name>
 Attach raw 8KiB MACH 5 cartridge image.
 
+@findex -cartmb
+@item -cartmb <name>
+Attach raw Megabyter cartridge image.
+
 @findex -cartmd
 @item -cartmd <name>
 Attach raw 32/64/128KiB Magic Desk cartridge image.
@@ -11165,6 +11276,18 @@ Attach raw MultiMAX cartridge image.
 @findex -cartmikro
 @item -cartmikro <name>
 Attach raw 8KiB Mikro Assembler cartridge image.
+
+@findex -megabytercrtwrite, +megabytercrtwrite
+@item -megabytercrtwrite
+@itemx +megabytercrtwrite
+Allow/Disallow writing to Megabyter .crt image
+(@code{MegabyterWriteCRT=1}, @code{MegabyterWriteCRT=0}).
+
+@findex -megabytercrtoptimize, +megabytercrtoptimize
+@item -megabytercrtoptimize
+@itemx +megabytercrtoptimize
+Allow/Disallow Megabyter .crt image optimizing (omitting of empty banks) on write
+(@code{MegabyterOptimizeCRT=1}, @code{MegabyterOptimizeCRT=0}).
 
 @findex -mmc64, +mmc64
 @item -mmc64
@@ -11303,6 +11426,10 @@ Attach raw Ocean cartridge image.
 @findex -cartp64
 @item -cartp64 <name>
 Attach raw 256KiB Prophet 64 cartridge image.
+
+@findex -cartpd
+@item -cartpd <name>
+Attach raw 16KiB Profi-DOS cartridge image
 
 @findex -cartpf
 @item -cartpf <name>
@@ -12252,7 +12379,7 @@ Integer specifying what model of the SID must be emulated.
 @vindex SidEngine
 @item SidEngine
 Integer specifying what SID engine will be used.
-(0: FastSID, 1: ReSID, 2: Catweasel MKIII, 3: HardSID, 4: ParSID Port 1, 5: ParSID Port 2, 6: ParSID Port 3)
+(0: FastSID, 1: ReSID, 2: Catweasel MKIII, 3: HardSID, 4: ParSID Port 1, 5: ParSID Port 2, 6: ParSID Port 3, 7: USBSID-Pico)
 
 @vindex SidResidSampling
 @item SidResidSampling
@@ -12292,6 +12419,37 @@ in millivolts. [0] (-5000..5000, 1000 equals 1mV)
 Boolean specifying whether raw debug output is enabled. When enabled, the raw -
  not downsampled - audio data is written to a file called resid.raw in the current
  working directory.
+
+@vindex SidUSBSIDReadMode
+@item SidUSBSIDReadMode
+Boolean specifying whether to enable USBSID-Pico read mode. When enabled, this
+mode allows for reading from SID registers that provides a means to configure an
+FPGASID that is seated on USBSID-Pico. This mode is not suited for regular audio
+use as it disables cycle exact writing & digiplay.
+Default is (@code{SidUSBSIDReadMode=0}) for off, (@code{SidUSBSIDReadMode=1}) for on.
+
+@vindex SidUSBSIDAudioMode
+@item SidUSBSIDAudioMode
+Boolean to enable USBSID-Pico PCB (v1.3) stereo audio mode. When enabled the audio of SID socket 1
+will be output over the left audio channel and the audio of SID socket 2 over the right channel
+of USBSID-Pico's audio out.
+Default is (@code{SidUSBSIDAudioMode=0}) for Mono, (@code{SidUSBSIDAudioMode=1}) for Stereo.
+
+@vindex SidUSBSIDDiffSize
+@item SidUSBSIDDiffSize
+Integer specifying the minimal difference (must be a number divisable by 8) in bytes to
+use between the head and tail of the drivers ringbuffer, this allows for some audio
+quality tuning on slower systems.
+In most cases the default value of 64 bytes (also the size of a USB packet) is the
+right setting for best audio quality. (@code{SidUSBSIDDiffSize=32-256}).
+
+@vindex SidUSBSIDBufferSize
+@item SidUSBSIDBufferSize
+Integer specifying the size in bytes to use as ringbuffer to store temporary data when sending
+SID writes to USBSID-Pico (must be a number divisable by 8), this allows for some audio quality
+tuning on slower systems.
+In most cases the default value of 8192 bytes is the right setting for best audio quality.
+(@code{SidUSBSIDBufferSize=512-16384}).
 
 @end table
 
@@ -12439,14 +12597,15 @@ DTVSID: 260/dtv/c64dtv/dtvsid,
 Catweasel MKIII: 512/catweaselmkiii/catweasel3/catweasel/cwmkiii/cw3/cw,
 HardSID: 768/hardsid/hard/hs,
 ParSID Port 1: 1024/parsid/parsid1/par1/lpt1,
-ParSID Port 2: 1280/parsid2/par2/lpt2
-ParSID Port 3: 1536/parsid3/par3/lpt3)
+ParSID Port 2: 1280/parsid2/par2/lpt2,
+ParSID Port 3: 1536/parsid3/par3/lpt3,
+USBSID-Pico: 1792/usbsid/usbs/us)
 
 @findex -sidengine
 @item -sidengine <engine>
 Specify engine for the emulated SID chip
 (@code{SidEngine}).
-(FastSID: 0, ReSID: 1, DTVSID: 2, HardSID: 3, ParSID Port 1: 4, ParSID Port 2: 5, ParSID Port 3: 6)
+(FastSID: 0, ReSID: 1, DTVSID: 2, HardSID: 3, ParSID Port 1: 4, ParSID Port 2: 5, ParSID Port 3: 6, USBSID-Pico: 7)
 
 @findex -sidmodel
 @item -sidmodel <model>
@@ -12498,6 +12657,35 @@ reSID filter bias setting for 8580, which can be used to adjust DAC bias in mill
 Boolean specifying whether raw debug output is enabled. When enabled, the raw -
  not downsampled - audio data is written to a file called resid.raw in the current
  working directory.
+
+@findex -usreadmode
+@item -usreadmode <0 or 1>
+Enable USBSID-Pico read mode. When enabled, this mode allows for reading from SID
+ registers that provides a means to configure an FPGASID that is seated on USBSID-Pico.
+ This mode is not suited for regular audio use as it disables cycle exact writing & digiplay.
+  Default is (@code{SidUSBSIDReadMode=0}) for off, (@code{SidUSBSIDReadMode=1}) for on.
+
+@findex -usaudiomode
+@item -usaudiomode <0 or 1>
+Set USBSID-Pico PCB (v1.3) audio mode to Stereo or Mono. When enabled the audio of SID socket 1
+ will be output over the left audio channel and the audio of SID socket 2 over the right channel
+ of USBSID-Pico's audio out.
+  Default is (@code{SidUSBSIDAudioMode=0}) for Mono, (@code{SidUSBSIDAudioMode=1}) for Stereo.
+
+@findex -usdiffsize
+@item -usdiffsize <number divisable by 8>
+Specifies the minimal difference in bytes to use between the head and tail of the
+ drivers ringbuffer, this allows for some audio quality tuning on slower systems.
+ In most cases the default value of 64 bytes (also the size of a USB packet) is the
+ right setting for best audio quality.
+  (@code{SidUSBSIDDiffSize=32-256}).
+
+@findex -usbuffsize
+@item -usbuffsize <number divisable by 8>
+Specifies the size in bytes to use as ringbuffer to store temporary data when sending
+ SID writes to USBSID-Pico, this allows for some audio quality tuning on slower systems.
+ In most cases the default value of 8192 bytes is the right setting for best audio quality.
+  (@code{SidUSBSIDBufferSize=512-16384}).
 
 @end table
 
@@ -13906,10 +14094,15 @@ Specify filename of the C64DTV NTSC v3 ROM image
 Specify filename of the C64DTV PAL v3 ROM image
 (@code{DTVPALV3FlashName}).
 
-@findex -hummerromimage
-@item -hummerromimage <name>
-Specify filename of the C64DTV Hummer ROM image
-(@code{DTVHummerFlashName}).
+@findex -hummerntscromimage
+@item -hummerntscromimage <name>
+Specify filename of the C64DTV NTSC Hummer ROM image
+(@code{DTVNTSCHummerFlashName}).
+
+@findex -hummerpalromimage
+@item -hummerpalromimage <name>
+Specify filename of the C64DTV PAL Hummer ROM image
+(@code{DTVPALHummerFlashName}).
 
 @findex -c64dtvromrw, +c64dtvromrw
 @item -c64dtvromrw
@@ -13976,14 +14169,13 @@ The default setting is "New Luminances".
 The C64DTV userport emulation currently supports three devices:
 Hummer ADC, userport joystick and PS/2 mouse.
 
-The joystick that controls either the Hummer ADC or userport joystick
-can be selected using the same parameter or menu option.
+The Hummer ADC will be always enabled when a "Hummer" model is selected.
 
 While using the Hummer ADC, joystick UP and DOWN are mapped to
 the Hummer buttons A and B respectively. LEFT and RIGHT set the ADCs
 output to 0 and 255. Centering the joystick results in the ADC value of 128.
 
-Currently the Hummer ADC and userport joystick are mutually exclusive.
+The Hummer ADC and userport joystick are mutually exclusive.
 This means that enabling one disables the other. PS/2 mouse emulation
 can be used simultaneously with either Hummer ADC or userport joystick.
 
@@ -13994,12 +14186,6 @@ can be used simultaneously with either Hummer ADC or userport joystick.
 @itemx +hummeradc
 Enable/Disable Hummer ADC
 (@code{HummerADC=1}, @code{HummerADC=0}).
-
-@findex -ps2mouse, +ps2mouse
-@item -ps2mouse
-@itemx +ps2mouse
-Enable/disable PS/2 mouse on userport
-(@code{ps2mouse=1}, @code{ps2mouse=0}).
 
 @end table
 
@@ -14081,9 +14267,13 @@ String specifying the filename of the DTV NTSC v3 Flash ROM image.
 @item DTVPALV3FlashName
 String specifying the filename of the DTV PAL v3 Flash ROM image.
 
-@vindex DTVHummerFlashName
-@item DTVHummerFlashName
-String specifying the filename of the DTV Hummer Flash ROM image.
+@vindex DTVNTSCHummerFlashName
+@item DTVNTSCHummerFlashName
+String specifying the filename of the DTV NTSC Hummer Flash ROM image.
+
+@vindex DTVPALHummerFlashName
+@item DTVPALHummerFlashName
+String specifying the filename of the DTV PAL Hummer Flash ROM image.
 
 @vindex DTVFlashRevision
 @item DTVFlashRevision
@@ -14104,10 +14294,6 @@ Boolean, enables true hardware flash file system.
 @vindex HummerADC
 @item HummerADC
 Boolean to enable/disable the Hummer ADC emulation.
-
-@vindex ps2mouse
-@item ps2mouse
-Boolean to enable/disable PS/2 Mouse emulation.
 
 @vindex DtvBlitterLog
 @item DtvBlitterLog
@@ -14372,10 +14558,221 @@ SYS32592
 @end itemize
 
 @node VIC20 cartridges, VIC20 memory expansions, VIC20-specific, VIC20-specific
-@subsection Using cartridge images
+
+@subsection Using cartridges
+
+Generally a cartridge can be enabled by attaching its respective cartridge
+image, or using the respective menu option for cartridges that do not
+require an image.
+
+@dfn{Cartridge images} are like disk images, but contain the contents of
+cartridge ROM and/or RAM images instead of disk images. Two kinds of cartridge
+images are supported:
+
+@itemize @bullet
+@item
+@file{.crt} images, as originally used by the CCS64 emulator by Per Håkan Sundell
+@item
+raw @file{.bin} images, without load address
+@item
+raw @file{.prg} images, with load address
+@end itemize
+
+Use cartconv to convert .bin or .prg images to .crt format.
+
+To attach cartridges, use the ``Attach a cartridge image'' submenu. When using
+@file{.crt} images, this will work for every cartridge which is supported. For
+raw @file{.bin} or @file{.prg} images you will have to select the correct type
+of cartridge first, or use command line options.
+
+When you have successfully attached a cartridge image,
+you should then reset the machine to make sure the cartridge initializes
+itself. (Or enable the "reset on cartridge change" option).
+
+Of course, it is also possible to detach a currently attached
+cartridge image (``Detach cartridge image'').
+
+The cartridge system is organized in "Slots" to allow more than one cartridge
+connected at a time, like it can be done using an expansion port expander on
+a real VIC20 (see below).
+
+The imaginary expansion port expander is organized in 4 slots, the
+cartridges are associated with them like this:
+
+@c @node FIXME
+@subsubsection Slot 0
+
+All carts that have a passthrough connector go here. Once a "Slot 0"
+cartridge is enabled all further cartridges are connected to its respective
+passthrough port.
+
+Only one cartridge of this type can be active at a time.
+
+"Slot 0" carts have individual "enable" switches, enabling means enabling permanently.
+
+The following cartridges are emulated in this slot:
+
+@itemize @bullet
+@item
+Minimon
+@end itemize
+
+
+@c @node FIXME
+@subsubsection Slot 1
+
+Mostly RAM based cartridges which for one reason or the other might make sense
+to be enabled together with one of the "Main Slot" cartridges go here.
+
+Only one cartridge of this type can be active at a time.
+
+"Slot 1" carts have individual "enable" switches, enabling means enabling permanently
+
+Currently no cartridges use this slot
+
+
+@c @node FIXME
+@subsubsection Main Slot
+
+All other cartridges which are not pure i/o extensions go here.
+
+Only one cartridge of this type can be active at a time.
+
+Cartridges in the "Main Slot" must be explicitly set as default to enable them permanently.
+
+The following cartridges are emulated in this slot:
+
+@itemize @bullet
+@item
+generic 4KiB, 8KiB and 16KiB cartridges located at $2000, $4000, $6000, $a000, $b000 (see below)
+@item
+Behrbonz
+@item
+Final Expansion
+@item
+Megacart
+@item
+Mikro Assembler
+@item
+Rabbit tape turbo
+@item
+Super Expander
+@item
+Ultimem
+@item
+VIC Flash Plugin
+@item
+Write Now
+@end itemize
+
+
+@c @node FIXME
+@subsubsection I/O Slot
+
+All carts that are pure I/O extensions go here.
+
+Any number of "I/O Slot" Carts may be active at a time.
+
+"I/O Slot" carts have individual "enable" switches, enabling means enabling permanently.
+
+The following cartridges are emulated in this slot:
+
+@itemize @bullet
+@item
+ACIA (Swiftlink, Turbo232)
+@item
+MIDI (Passport/Syntech, Datel/Siel/JMS/C-Lab, Maplin, Namesoft, Sequential)
+@item
+RAM Expansion Module (REU)
+@item
+SID Cartridge
+@item
+VIC1112 IEEE-488 Interface
+@end itemize
+
+On top of that, xvic emulates the "Masquerade" IO expander, which make it possible
+to use (some) C64 cartridges at the VIC20:
+
+@itemize @bullet
+@item
+ACIA (Swiftlink, Turbo232)
+@item
+DigiMAX
+@item
+DS12C887 RTC
+@item
+Ethernet (The Final Ethernet, RR-Net)
+@item
+GEO-RAM
+@item
+SFX Sound Expander
+@item
+SFX Sound Sampler
+@end itemize
+
+
+@c @node FIXME
+@subsubsection Expected behaviour
+
+When the emulator is run without arguments, all settings from the config file
+should be applied and arguments override settings from the config file.
+
+When saving the settings to the config file it is expected that on the next run
+of the emulator all settings will be in the same state as they were when saved.
+
+There is an exception to this rule: the cartridge in the "Main Slot" must be
+explicitly set as default before it gets saved to the config file.
+
+@code{+cart} should disable ALL cartridges, including eventually activated REU,
+Swiftlink and all similar expansionport devices.
+
+@code{-cartXYZ} options should generally attach AND activate a cart of type XYZ.
+As a consequence, attaching carts this way which are NOT in the "Main Slot" will
+also enable the cart permanently.
+
+@c @node FIXME
+@subsubsection Common problems
+
+If attaching a cartridge does not work as expected, this may be because of various
+reasons:
+
+@itemize @bullet
+
+@item Not seldomly VIC20 related files with @code{.crt} extension found "in the wild" are
+plain binaries, and not in actual @code{.crt} format - if in doubt use @code{cartconv}
+to verify and/or fix).
+
+@item You may have unintentionally enabled more than one cartridge at once, for
+example by saving the settings with GEORAM enabled, and then later attaching a game
+cartridge from the command-line. The cartridge system will allow certain combinations,
+but (as on the real thing) not all do (can) actually work. To make sure this is
+not the case, either detach all cartridges from the menus, or use @code{+cart}
+on the command-line.
+
+@item The cartridge image might be broken. Try one from a different source. If you
+are sure the dump is ok (for example because you dumped it yourself) then make sure
+it is in proper linear order (on some cartridges, for example "capture", address and/or
+data lines at the eprom are shuffled around so a dump made with an eprom burner can not
+be used as is).
+
+@item Last not least you might have encountered a bug in the emulation. If you
+suspect this is the case, and you can still reproduce the bug after checking the
+things above, please file a bug report including the following information:
+
+@itemize @bullet
+@item attach your vicerc and a reference to the cartridge binaries
+@item if you can, comment in the respective DEBUGXYZ macros prominently defined at the
+top of these files: src/vic20/cart/vic20cart.c src/vic20/cart/vic20cartmem.c src/vic20/vic20io.c
+src/vic20/vic20export.c and then recompile. this will add debug output that might make
+it much easier to locate certain problems.
+@end itemize
+
+@end itemize
+
+@subsubsection Using cartridge images
 
 As with the C64 (@pxref{C64 cartridges}), it is possible to attach
-several types of cartridge images:
+several types of generic cartridge images:
 
 @itemize @bullet
 @item
@@ -14458,6 +14855,10 @@ The following cartridge types are valid:
      7: Super Expander
 @item
      8: Mikro Assembler
+@item
+     9: Write Now
+@item
+    10: Minimon
 @item
   - 10: SID Cartridge
 @item
@@ -14645,10 +15046,26 @@ Boolean specifying whether the DS12C887 RTC data should be saved when changed or
 @item IEEE488
 Boolean specifying whether the IEEE488 interface should be emulated or not.
 
-@vindex MachineVideoStandard
-@item MachineVideoStandard
-Integer that specifies the video standard of the emulated machine
-(1: PAL, 2: NTSC).
+@vindex MinimonFilename
+@item MinimonFilename
+String specifying the filename of the Minimon ROM image.
+
+@vindex MinimonEnabled
+@item MinimonEnabled
+Boolean specifying whether Minimon emulation is enabled.
+
+@vindex MinimonPgmSwitch
+@item MinimonPgmSwitch
+Boolean specifying whether the Minimon ROM is writeable.
+
+@vindex MinimonIoSwitch
+@item MinimonIoSwitch
+Boolean specifying whether the Minimon ROM is active in IO2/3 (default: enabled)
+
+@vindex MinimonImageWrite
+@item MinimonImageWrite
+Boolean specifying whether changes to the Minimon ROM will be written back to the
+ROM image file.
 
 @end table
 
@@ -14741,9 +15158,17 @@ Specify Super Expander cartridge ROM name
 @item -cartma <name>
 Specify Mikro Assembler cartridge ROM name
 
+@findex -cartwn
+@item -cartwn <name>
+Specify Write Now cartridge ROM name
+
 @findex -ultimem
 @item -ultimem <name>
 Specify Ultimem extension ROM name
+
+@findex -cartmini
+@item -cartmini <name>
+Specify name of Minimon ROM image (@code{MinimonFilename}).
 
 @findex -umwriteback, +umwriteback
 @item -umwriteback
@@ -14926,21 +15351,33 @@ Size of the GEORAM expansion unit
 (@code{GEORAMsize}).
 (512, 1024, 2048, 4096)
 
-@findex -model
-@item -model <model>
-Specify the VIC20 model you want to emulate
-(@code{MachineVideoStandard}, @code{RamBlock0}, @code{RamBlock1}, @code{RamBlock2}, @code{RamBlock3} and @code{RamBlock5}).
-(vic20/vic20pal/vic20ntsc, vic21)
+@findex -minimon, +minimon
+@item -minimon
+@itemx +minimon
+Enable/Disable the Minimon expansion
+(@code{MinimonEnabled=1}, @code{MinimonEnabled=0}).
 
-@findex -pal
-@item -pal
-Use PAL sync factor
-(@code{MachineVideoStandard=1}).
+@findex -minimonrom
+@item -minimonrom <name>
+Specify name of Minimon ROM image (@code{MinimonFilename}).
 
-@findex -ntsc
-@item -ntsc
-Use NTSC sync factor
-(@code{MachineVideoStandard=2}).
+@findex -minimonrw, -minimonro
+@item -minimonrw
+@itemx -minimonro
+Save/Do not save the Minimon ROM when changed
+(@code{MinimonImageWrite=1}, @code{MinimonImageWrite=0}).
+
+@findex -minimonpgm, +minimonpgm
+@item -minimonpgm
+@itemx +minimonpgm
+Set/Remove the Minimon PGM switch
+(@code{MinimonPgmSwitch=1}, @code{MinimonPgmSwitch=0}).
+
+@findex -minimonio, +minimonio
+@item -minimonio
+@itemx +minimonio
+Set/Remove the Minimon IO switch
+(@code{MinimonIoSwitch=1}, @code{MinimonIoSwitch=0}).
 
 @end table
 
@@ -14951,6 +15388,11 @@ Use NTSC sync factor
 @subsubsection VIC resources
 
 @table @code
+
+@vindex MachineVideoStandard
+@item MachineVideoStandard
+Integer that specifies the video standard of the emulated machine
+(1: PAL, 2: NTSC).
 
 @vindex VICVideoCache
 @item VICVideoCache
@@ -15090,6 +15532,22 @@ Boolean to enable/disable OpenGL 90 degree clockwise rotation.
 @subsubsection VIC command-line options
 
 @table @code
+
+@findex -model
+@item -model <model>
+Specify the VIC20 model you want to emulate
+(@code{MachineVideoStandard}, @code{RamBlock0}, @code{RamBlock1}, @code{RamBlock2}, @code{RamBlock3} and @code{RamBlock5}).
+(vic20/vic20pal/vic20ntsc, vic21)
+
+@findex -pal
+@item -pal
+Use PAL sync factor
+(@code{MachineVideoStandard=1}).
+
+@findex -ntsc
+@item -ntsc
+Use NTSC sync factor
+(@code{MachineVideoStandard=2}).
 
 @findex -VICvcache, +VICvcache
 @item -VICvcache
@@ -15495,6 +15953,8 @@ The following cartridge types are valid:
      2: Plus4 multi cart
 @item
      3: 1MB Cartridge
+@item
+     4: "Speedy" freezer cartridge
 @end itemize
 
 @vindex CartridgeFile
@@ -15549,6 +16009,10 @@ Attach a 128kiB/256kiB/512kiB/1MiB/2MiB "c264 magic cart" image
 @item -cartmulti <name>
 Attach a 1MiB/2MiB "Plus4 multi cart" image. The binary should contain all c1lo
 banks first, then all c1hi banks.
+
+@findex -cartspeedy
+@item -cartspeedy <name>
+Attach a 8kiB "Speedy" image
 
 @end table
 
@@ -16908,7 +17372,7 @@ applied to the CB2 sound signal.
 @node Colour PET
 @subsection Colour PET
 The Colour PET is a simple extension by Steve Gray
-@uref{http://www.6502.org/users/sjgray/projects/colourpet/}. It exploits
+@uref{http://cbmsteve.ca/colourpet/index.html}. It exploits
 the similarities and differences between the 4032 and 8032 models, to
 use memory at $8800 as colour RAM.
 
@@ -16926,8 +17390,9 @@ character cell, the 8 colour bits are used as RRR GGG BB.
 @subsection Changing screen colors
 
 It is also possible to choose what color set is used for the emulation
-window.  This is done by specifying a palette file name (@pxref{Palette
-files}) in the @code{PaletteName} resource.  The menu provides the
+window.  This is done by specifying a palette file
+name (@pxref{Palette files}) in the @code{PaletteName}
+resource.  The menu provides the
 following values:
 
 @itemize @bullet
@@ -17373,8 +17838,9 @@ xcbm5x0: (510)
 @subsection Changing screen colors
 
 It is also possible to choose what color set is used for the emulation
-window.  This is done by specifying a palette file name (@pxref{Palette
-files}) in the @code{PaletteName} resource.  The menu provides the
+window.  This is done by specifying a palette file name
+(@pxref{Palette files}) in the @code{PaletteName}
+resource.  The menu provides the
 following values:
 
 @itemize @bullet
@@ -17635,6 +18101,12 @@ Enable/Disable keyboard-status bar (when status bar is enabled)
 Start/Do not start with minimized window
 (@code{StartMinimized=1}, @code{StartMinimized=0}).
 
+@findex -maximized, +maximized
+@item -maximized
+@itemx +maximized
+Start/Do not start with maximized window
+(@code{StartMaximized=1}, @code{StartMaximized=0}).
+
 @findex -jamaction
 @item -jamaction <Type>
 Specify the action to take when the CPU encounters a 'JAM' opcode
@@ -17645,6 +18117,12 @@ Specify the action to take when the CPU encounters a 'JAM' opcode
 @item -directory <Path>
 Specify the system file search path
 (@code{Directory}).
+
+@findex -quicksaveformat
+@item -quicksaveformat <Format>
+Specify the format of the quicksave screenshot
+(@code{QuicksaveScreenshotFormat})
+(png, gif ,bmp, iff, pcx, ppm, 4bt, artstudio, koala, minipaint).
 
 @end table
 
@@ -17718,6 +18196,10 @@ String specifying the filename of a screenshot file that will be written when th
 @item ExitScreenshotName1
 String specifying the filename of a screenshot file that will be written when the emulator exits. (x128)
 
+@vindex QuicksaveScreenshotFormat
+@item QuicksaveScreenshotFormat
+String specifying the format of the quicksave screenshot (png, gif ,bmp, iff, pcx, ppm, 4bt, artstudio, koala, minipaint)
+
 @vindex SaveResourcesOnExit
 @item SaveResourcesOnExit
 Boolean specifying whether the emulator should save changed settings
@@ -17735,6 +18217,10 @@ Boolean specifying whether the keyboard-status bar is enabled.
 @vindex StartMinimized
 @item StartMinimized
 Boolean specifying whether the emulator should start minimized
+
+@vindex StartMaximized
+@item StartMaximized
+Boolean specifying whether the emulator should start maximized
 
 @vindex JAMAction
 @item JAMAction
@@ -20564,7 +21050,10 @@ Note: No ROM images are included into the dump.
 
 @item goto <address>
 @itemx g <address>
-Change the PC to address and continue execution.
+Change the PC to address and continue execution. If no address is given, execution
+will continue from where it stopped. Also, if @code{KeepMonitorOpen} is 1, the monitor
+window will stay open in the background. This can be useful to watch eg trace points
+or log output in real time.
 
 @item io [<address>]
 Display i/o registers. Invoking without an address shows a dump of
@@ -20617,7 +21106,7 @@ Specify the type of CPU currently used (6502/z80).
 @itemx exp
 Print out list of attached expansion port devices.
 
-@item keybuf "<string>"
+@item keybuf <string>
 Put the specified string into the keyboard buffer. Note that you can specify
 specific keycodes by using C-style escaped hexcodes ("\x0a").
 
@@ -20745,6 +21234,20 @@ monitor breaks. If not specified, the monitor breaks on "exec".
 A conditional expression can also be specified for the breakpoint.
 For more information on conditions, see the CONDITION command.
 
+When a breakpoint hits, the following info will be printed: The first line shows
+the type of checkpoint, the address, current raster line and -cycle. The second
+line shows a dump and disassemble, followed by the CPU registers and flags. The
+number at the end of the line is the stopwatch cycle counter.
+@end table
+
+@example
+#1 (Stop on  exec ea31)   41/$029,  35/$23
+.C:ea31  20 EA FF    JSR $FFEA      - A:00 X:ED Y:0A SP:ed ..-..IZ.   27481706
+@end example
+
+
+@table @code
+
 @item enable <checknum>
 @item disable <checknum>
 Each checkpoint can be enabled or disabled.  This command allows
@@ -20864,8 +21367,14 @@ Create directory.
 @item rmdir <directory>
 Remove directory.
 
-@item attach <filename> <device>
+@item attach "<filename>" <device>
 Attach file to device. (device 32 = cart)
+
+@item autostart "<filename>" [file_index]
+Autostart a given disk/tape image or program.
+
+@item autoload "<filename>" [file_index]
+Autoload given disk/tape image or program.
 
 @item block_read <track> <sector> [<address>]
 @itemx br <track> <sector> [<address>]
@@ -20888,7 +21397,7 @@ can not be sent to the actual drive emulation and must be handled by the virtual
 drive implementation. As a consequence, all limitations of the virtual drives
 apply. Use the regular monitor commands to eg execute code in the drive.
 
-@item list [<directory>]
+@item list [<device>]
 List disk contents.
 
 @item load "<filename>" <device> [<address>]
@@ -21462,6 +21971,7 @@ mentioned above.
 * MON_CMD_REGISTERS_AVAILABLE::
 * MON_CMD_DISPLAY_GET::
 * MON_CMD_VICE_INFO::
+* MON_CMD_CPUHISTORY_GET::
 * MON_CMD_PALETTE_GET::
 * MON_CMD_JOYPORT_SET::
 * MON_CMD_USERPORT_SET::
@@ -21480,15 +21990,20 @@ Minimum VICE version: 3.5
 
 Command body:
 
+@example
+FX | SA SA | EA EA | MS | BI BI
+@end example
+@*
+
 @table @strong
-@item byte 0: side effects?
+@item FX: 1 byte: side effects?
 Should the read cause side effects?
 
-@item byte 1-2: start address
+@item SA: 2 bytes: start address
 
-@item byte 3-4: end address
+@item EA: 2 bytes: end address
 
-@item byte 5: memspace
+@item MS: 1 byte: memspace
 Describes which part of the computer you want to read:
 
 @itemize
@@ -21499,7 +22014,7 @@ Describes which part of the computer you want to read:
 @item 0x04: drive 11
 @end itemize
 
-@item byte 6-7: bank ID
+@item BI: 2 bytes: bank ID
 Describes which bank you want. This is dependent on your
 machine. @xref{MON_CMD_BANKS_AVAILABLE}.  If the memspace selected
 doesn't support banks, this value is ignored.
@@ -21512,10 +22027,16 @@ Response type:
 
 Response body:
 
-@table @strong
-@item byte 0-1: The length of the memory segment. Will be zero for start 0x0000, end 0xffff.
+@example
+ML ML | MM[0] MM[1] ... MM[ML-1]
+@end example
+@*
 
-@item byte 2+: The memory at the address.
+@table @strong
+@item ML: 2 bytes: Memory segment length. 
+  Will be zero for start 0x0000, end 0xffff.
+
+@item MM: ML bytes: The memory at the address.
 
 @end table
 
@@ -21528,15 +22049,20 @@ Minimum VICE version: 3.5
 
 Command body:
 
+@example
+FX | SA SA | EA EA | MS | BI BI | MM[0] MM[1] ... MM[EA-SA]
+@end example
+@*
+
 @table @strong
-@item byte 0: side effects?
+@item FX: 1 byte: side effects?
 Should the write cause side effects?
 
-@item byte 1-2: start address
+@item SA: 2 bytes: start address
 
-@item byte 3-4: end address
+@item EA: 2 bytes: end address
 
-@item byte 5: memspace
+@item MS: 1 byte: memspace
 Describes which part of the computer you want to write:
 
 @itemize
@@ -21547,12 +22073,12 @@ Describes which part of the computer you want to write:
 @item 0x04: drive 11
 @end itemize
 
-@item byte 6-7: bank ID
+@item BI: 2 bytes: bank ID
 Describes which bank you want. This is dependent on your machine. 
 @xref{MON_CMD_BANKS_AVAILABLE}.  
 If the memspace selected doesn't support banks, this byte is ignored.
 
-@item byte 8+: Memory contents to write
+@item MM: 1+EA-SA bytes: Memory contents to write
 
 @end table
 
@@ -21562,7 +22088,10 @@ Response type:
 
 Response body:
 
+@example
 Currently empty.
+@end example
+@*
 
 @node MON_CMD_CHECKPOINT_GET
 @subsection Checkpoint get (0x11)
@@ -21573,8 +22102,13 @@ Minimum VICE version: 3.5
 
 Command body:
 
+@example
+CN CN CN CN
+@end example
+@*
+
 @table @strong
-@item byte 0-3: checkpoint number
+@item CN: 4 bytes: checkpoint number
 
 @end table
 
@@ -21590,25 +22124,30 @@ executing this one.
 
 Command body:
 
+@example
+SA SA | EA EA | ST | EN | OP | TM | MS?
+@end example
+@*
+
 @table @strong
-@item byte 0-1: start address
+@item SA: 2 bytes: start address
 
-@item byte 2-3: end address
+@item EA: 2 bytes: end address
 
-@item byte 4: stop when hit
+@item ST: 1 byte: stop when hit
 >=0x01: true, 0x00: false
 
-@item byte 5: enabled
+@item EN: 1 byte: enabled
 >=0x01: true, 0x00: false
 
-@item byte 6: CPU operation
+@item OP: 1 byte: CPU operation
 >=0x01: load, 0x02: store, 0x04: exec
 
-@item byte 7: temporary
+@item TM: 1 byte: temporary
     Deletes the checkpoint after it has been hit once. This is similar to
     "until" command, but it will not resume the emulator.
 
-@item byte 8 (optional): memspace
+@item MS: 1 byte (optional): memspace
 Describes which part of the computer to checkpoint:
 
 @itemize
@@ -21632,8 +22171,13 @@ Minimum VICE version: 3.5
 
 Command body:
 
+@example
+CN CN CN CN
+@end example
+@*
+
 @table @strong
-@item byte 0-3: checkpoint number
+@item CN: 4 bytes: checkpoint number
 
 @end table
 
@@ -21643,7 +22187,10 @@ Response type:
 
 Response body:
 
+@example
 Currently empty.
+@end example
+@*
 
 @node MON_CMD_CHECKPOINT_LIST
 @subsection Checkpoint list (0x14)
@@ -21652,7 +22199,10 @@ Minimum VICE version: 3.5
 
 Command body:
 
+@example
 Currently empty.
+@end example
+@*
 
 Response type:
 
@@ -21663,8 +22213,13 @@ Emits a series of MON_RESPONSE_CHECKPOINT_INFO responses
 
 Response body:
 
+@example
+CC CC CC CC
+@end example
+@*
+
 @table @strong
-@item byte 0-3: The total number of checkpoints
+@item CC: 4 bytes: The total count of checkpoints
 
 @end table
 
@@ -21675,10 +22230,15 @@ Minimum VICE version: 3.5
 
 Command body:
 
-@table @strong
-@item byte 0-3: Checkpoint number
+@example
+CN CN CN CN | EN
+@end example
+@*
 
-@item byte 4: Enabled?
+@table @strong
+@item CN: 4 bytes: Checkpoint number
+
+@item EN: 1 byte: Enabled?
 0x00: disabled, 0x01: enabled
 
 @end table
@@ -21689,7 +22249,10 @@ Response type:
 
 Response body:
 
+@example
 Currently empty.
+@end example
+@*
 
 @node MON_CMD_CONDITION_SET
 @subsection Condition set (0x22)
@@ -21701,13 +22264,18 @@ Minimum VICE version: 3.5
 
 Command body:
 
+@example
+CN CN CN CN | EL | ES[0] ES[1] ... ES[EL-1]
+@end example
+@*
+
 @table @strong
-@item byte 0-3: checkpoint number
+@item CN: 4 bytes: checkpoint number
 
-@item byte 4: condition expression length
+@item EL: 1 byte: condition expression length
 
-@item byte 5+: condition expression string
-This is the same format used on the command line. Not null terminated.
+@item ES: EL bytes: condition expression string
+This is the same format used in the text monitor. Not null terminated.
 
 @end table
 
@@ -21717,7 +22285,10 @@ Response type:
 
 Response body:
 
+@example
 Currently empty.
+@end example
+@*
 
 @node MON_CMD_REGISTERS_GET
 @subsection Registers get (0x31)
@@ -21728,8 +22299,13 @@ Minimum VICE version: 3.5
 
 Command body:
 
+@example
+MS
+@end example
+@*
+
 @table @strong
-@item byte 0: memspace
+@item MS: 1 byte: memspace
 Describes which part of the computer you want to read:
 
 @itemize
@@ -21753,8 +22329,17 @@ Minimum VICE version: 3.5
 
 Command body:
 
+@example
+MS | RC RC [
+    IS[0] @{ RI[0] | RV[0] RV[0] @}
+    ...
+    IS[RC-1] @{ RI[RC-1] | RV[RC-1] RV[RC-1] @}
+]
+@end example
+@*
+
 @table @strong
-@item byte 0: memspace
+@item MS: 1 byte: memspace
 Describes which part of the computer you want to write:
 
 @itemize
@@ -21765,14 +22350,24 @@ Describes which part of the computer you want to write:
 @item 0x04: drive 11
 @end itemize
 
-@item byte 1-2: The count of the array items
+@item RC: 2 bytes: Register count
 
-@item byte 3+: An array with items of structure:
+@item Array: RC*(IS+1) bytes: An array with items of structure:
 
 @table @strong
-@item byte 0: Size of the item, excluding this byte
-@item byte 1: ID of the register
-@item byte 2-3: register value
+
+@item
+
+[
+
+@item IS: 1 byte: Item size, excluding this byte
+@item RI: 1 byte: Register ID
+@item RV: 2 bytes: Register value
+
+@item
+
+]
+
 @end table
 
 @end table
@@ -21788,16 +22383,21 @@ Minimum VICE version: 3.5
 
 Command body:
 
+@example
+SR | SD | FL | FN[0] FN[1] ... FN[FL-1]
+@end example
+@*
+
 @table @strong
-@item byte 0: Save ROMs to snapshot file?
+@item SR: 1 byte: Save ROMs to snapshot file?
 >=0x01: true, 0x00: false
 
-@item byte 1: Save disks to snapshot file?
+@item SD: 1 byte: Save disks to snapshot file?
 >=0x01: true, 0x00: false
 
-@item byte 2: Length of filename
+@item FL: 1 byte: Length of filename
 
-@item byte 3+: Filename
+@item FN: FL bytes: Filename
 The filename to save the snapshot to.
 
 @end table
@@ -21808,7 +22408,10 @@ Response type:
 
 Response body:
 
+@example
 Currently empty.
+@end example
+@*
 
 @node MON_CMD_UNDUMP
 @subsection Undump (0x42)
@@ -21819,10 +22422,15 @@ Minimum VICE version: 3.5
 
 Command body:
 
-@table @strong
-@item byte 0: Length of filename
+@example
+FL | FN[0] FN[1] ... FN[FL-1]
+@end example
+@*
 
-@item byte 1+: Filename
+@table @strong
+@item FL: 1 byte: Length of filename
+
+@item FN: FL bytes: Filename
 The filename to load the snapshot from.
 
 @end table
@@ -21833,8 +22441,13 @@ Response type:
 
 Response body:
 
+@example
+PC PC
+@end example
+@*
+
 @table @strong
-@item byte 0-1: The current program counter position
+@item PC: 2 bytes: The current program counter position
 
 @end table
 
@@ -21847,10 +22460,15 @@ Minimum VICE version: 3.5
 
 Command body:
 
-@table @strong
-@item byte 0: Length of resource name
+@example
+NL | RN[0] RN[1] ... RN[NL-1]
+@end example
+@*
 
-@item byte 1+: Resource name
+@table @strong
+@item NL: 1 byte: Resource name length
+
+@item RN: NL bytes: Resource name
 
 @end table
 
@@ -21860,13 +22478,18 @@ Response type:
 
 Response body:
 
+@example
+RT | VL | RV[0] RV[1] ... RV[VL-1]
+@end example
+@*
+
 @table @strong
-@item byte 0: Type of the resource
+@item RT: 1 byte: Resource type
 0x00: String, 0x01: Integer
 
-@item byte 1: Length of the value
+@item VL: 1 byte: Resource value length
 
-@item byte 2+: The value
+@item RV: VL bytes: The resource value
 
 @end table
 
@@ -21879,18 +22502,23 @@ Minimum VICE version: 3.5
 
 Command body:
 
+@example
+RT | NL | RN[0] RN[1] ... RN[NL-1] | VL | RV[0] RV[1] ... RV[VL-1]
+@end example
+@*
+
 @table @strong
-@item 1 byte: Type of the resource value
+@item RT: 1 byte: Type of the resource value
 0x00: String, 0x01: Integer@*
 Strings will be interpreted if the destination is an Integer.
 
-@item 1 byte: Resource name length = (&name)
+@item NL: 1 byte: Resource name length
 
-@item (*name) bytes: The resource name
+@item RN: NL bytes: The resource name
 
-@item 1 byte: Resource value length = (&value)
+@item VL: 1 byte: Resource value length
 
-@item (*value) bytes: The resource value
+@item RV: VL bytes: The resource value
 
 @end table
 
@@ -21900,7 +22528,10 @@ Response type:
 
 Response body:
 
+@example
 Currently empty.
+@end example
+@*
 
 @node MON_CMD_ADVANCE_INSTRUCTIONS
 @subsection Advance Instructions (0x71)
@@ -21911,11 +22542,16 @@ Minimum VICE version: 3.5
 
 Command body:
 
+@example
+SO | IC IC
+@end example
+@*
+
 @table @strong
-@item byte 0: Step over subroutines?
+@item SO: 1 byte: Step over subroutines?
 Should subroutines count as a single instruction?
 
-@item byte 1-2: How many instructions to step over.
+@item IC: 2 bytes: How many instructions to step over.
 
 @end table
 
@@ -21925,7 +22561,10 @@ Response type:
 
 Response body:
 
+@example
 Currently empty.
+@end example
+@*
 
 @node MON_CMD_KEYBOARD_FEED
 @subsection Keyboard feed (0x72)
@@ -21938,10 +22577,15 @@ Minimum API version: 2
 
 Command body:
 
-@table @strong
-@item byte 0: Length of text
+@example
+TL | TC[0] TC[1] ... TC[TL-1]
+@end example
+@*
 
-@item byte 1+: The text, in PETSCII
+@table @strong
+@item TL: 1 byte: Text Length
+
+@item TC: TL bytes: The text content, in PETSCII
 
 @end table
 
@@ -21951,7 +22595,10 @@ Response type:
 
 Response body:
 
+@example
 Currently empty.
+@end example
+@*
 
 @node MON_CMD_EXECUTE_UNTIL_RETURN
 @subsection Execute until return (0x73)
@@ -21964,7 +22611,10 @@ Minimum VICE version: 3.5
 
 Command body:
 
+@example
 Currently empty.
+@end example
+@*
 
 Response type:
 
@@ -21972,7 +22622,10 @@ Response type:
 
 Response body:
 
+@example
 Currently empty.
+@end example
+@*
 
 @node MON_CMD_PING
 @subsection Ping (0x81)
@@ -21983,7 +22636,10 @@ Minimum VICE version: 3.5
 
 Command body:
 
+@example
 Always empty
+@end example
+@*
 
 Response type:
 
@@ -21991,7 +22647,10 @@ Response type:
 
 Response body:
 
+@example
 Always empty
+@end example
+@*
 
 @node MON_CMD_BANKS_AVAILABLE
 @subsection Banks available (0x82)
@@ -22002,7 +22661,10 @@ Minimum VICE version: 3.5
 
 Command body:
 
+@example
 Currently empty.
+@end example
+@*
 
 Response type:
 
@@ -22010,18 +22672,36 @@ Response type:
 
 Response body:
 
-@table @strong
-@item byte 0-1: The count of the array items
-@item byte 2+: An array with items of structure:
+@example
+BC BC [ 
+    IS[0] @{ BI[0] BI[0] | NL[0] | BN[0][0] BN[0][1] ... BN[0][NL[0]-1] @}
+    ... 
+    IS[BC-1] @{ ... @}
+]
+@end example
+@*
 
 @table @strong
-@item byte 0: Size of the item, excluding this byte
+@item BC: 2 bytes: Bank item count
+@item Array 1+BC*IS bytes: An array with items of structure:
 
-@item byte 1-2: bank ID
+@table @strong
 
-@item byte 3: Name length
+@item
 
-@item byte 4+: Name
+[
+
+@item IS: 1 byte: Item size, excluding this byte
+
+@item BI: 2 bytes: Bank ID
+
+@item NL: 1 byte: Name Length
+
+@item BN: NL bytes: Name
+
+@item
+
+]
 
 @end table
 
@@ -22036,9 +22716,14 @@ Minimum VICE version: 3.5
 
 Command body:
 
+@example
+MS
+@end example
+@*
+
 @table @strong
 
-@item byte 0: memspace
+@item MS: 1 byte: memspace
 Describes which part of the computer you want to read:
 
 @itemize
@@ -22053,25 +22738,30 @@ Describes which part of the computer you want to read:
 
 Response type:
 
-0x82: MON_RESPONSE_REGISTERS_AVAILABLE
+0x83: MON_RESPONSE_REGISTERS_AVAILABLE
 
 Response body:
 
-@table @strong
-@item byte 0-1: The count of the array items
-@item byte 2+: An array with items of structure:
+@example
+RC RC [ IS[0] @{ RI[0] | RS[0] | NL[0] | RN[0][0] RN[0][1] ... RN[0][NL[0]-1] @} ... IS[RC-1] @{ ... @} ]
+@end example
+@*
 
 @table @strong
+@item RC: 2 bytes: Register item count
+@item Array: RC*(IS+1) bytes: An array with items of structure:
 
-@item byte 0: Size of the item, excluding this byte
+@table @strong
 
-@item byte 1: ID of the register
+@item IS: 1 byte: Item Size, excluding this byte
 
-@item byte 2: Size of the register in bits
+@item RI: 1 byte: Register ID
 
-@item byte 3: Length of name
+@item RS: 1 byte: Register Size in bits
 
-@item byte 4+: Name
+@item NL: 1 byte: Length of name
+
+@item RN: NL bytes : Register name
 
 @end table
 
@@ -22088,12 +22778,17 @@ Minimum API version: 2
 
 Command body:
 
+@example
+VC | FM
+@end example
+@*
+
 @table @strong
-@item byte 0: USE VIC-II? 
+@item VC: 1 byte: USE VIC-II? 
 Must be included, but ignored for all but the C128. If true, (>=0x01) the screen
 returned will be from the VIC-II. If false (0x00), it will be from the VDC.
 
-@item byte 1: Format
+@item FM: 1 byte: Format
 0x00: Indexed, 8 bit@*
 
 @end table
@@ -22104,31 +22799,36 @@ Response type:
 
 Response body:
 
-@table @strong
-@item 4 bytes: Length of the fields before the display buffer
+@example
+FL FL FL FL | DW DW | DH DH | XO XO | YO YO | IW IW | IH IH | BP | 
+    BL BL BL BL | BD[0] BD[1] ... BD[BL-1]
+@end example
+@*
 
-@item 2 bytes: Debug width of display buffer (uncropped)
+@table @strong
+@item FL: 4 bytes: Length of the fields before the display buffer
+
+@item DW: 2 bytes: Debug width of display buffer (uncropped)
 The largest width the screen gets.
 
-@item 2 bytes: Debug height of display buffer (uncropped)
+@item DH: 2 bytes: Debug height of display buffer (uncropped)
 The largest height the screen gets.
 
-@item 2 bytes: X offset
+@item XO: 2 bytes: X offset
 X offset to the inner part of the screen.
 
-@item 2 bytes: Y offset 
+@item YO: 2 bytes: Y offset 
 Y offset to the inner part of the screen.
 
-@item 2 bytes: Width of the inner part of the screen.
+@item IW: 2 bytes: Width of the inner part of the screen.
 
-@item 2 bytes: Height of the inner part of the screen.
+@item IH: 2 bytes: Height of the inner part of the screen.
 
-@item 1 byte: Bits per pixel of display buffer, 8
+@item BP: 1 byte: Bits per pixel of display buffer, 8
 
+@item BL: 4 bytes: Length of display buffer
 
-@item 4 bytes: Length of display buffer = (&buffer)
-
-@item (*buffer) bytes: Display buffer data
+@item BD: BL bytes: Display buffer data
 
 @end table
 
@@ -22141,7 +22841,10 @@ Minimum VICE version: 3.6
 
 Command body:
 
+@example
 Always empty
+@end example
+@*
 
 Response type:
 
@@ -22149,16 +22852,119 @@ Response type:
 
 Response body:
 
-@table @strong
-@item 1 byte: Length of main version = (&main)
+@example
+ML | MV[0] MV[1] ... MV[ML-1] | SL | SV[0] SV[1] ... SV[SL-1]
+@end example
+@*
 
-@item (*main) bytes: Main version
+@table @strong
+@item ML: 1 byte: Length of main version
+
+@item MV: ML bytes: Main version
 In linear format. For example 0x03, 0x05, 0x00, 0x00 for 3.5.0.0
 
-@item 1 byte: Length of SVN revision = (&rev)
+@item SL: 1 byte: Length of SVN revision
 
-@item (*rev) bytes: SVN revision
+@item SV: SL bytes: SVN revision
 In little endian format. Returns zero if it's not an SVN build.
+
+@end table
+
+@node MON_CMD_CPUHISTORY_GET
+@subsection CPU History (0x86)
+
+Gets records of every instruction executed by an emulated CPU.
+
+Minimum VICE version: 3.10
+
+Command body:
+
+@example
+MS | HC HC HC HC
+@end example
+@*
+
+@table @strong
+@item MS: 1 byte: memspace
+
+@itemize
+@item 0x00: main memory
+@item 0x01: drive 8
+@item 0x02: drive 9
+@item 0x03: drive 10
+@item 0x04: drive 11
+@end itemize
+
+@item HC: 4 bytes: count of items to retrieve
+
+@end table
+
+Response type:
+
+0x86: MON_RESPONSE_CPUHISTORY_GET
+
+Response body:
+
+@example
+HC HC HC HC [
+    IS[0] @{
+      RC[0] RC[0] [
+        RS[0][0] @{ ... @}
+        ...
+        RS[0][RC-1] @{ ... @}
+      ]
+      CL[0] CL[0] CL[0] CL[0] CL[0] CL[0] CL[0] CL[0] | IL[0] | IB[0][0] IB[0][1] ... IB[0][IL-1]
+    @}
+    ...
+    IS[HC-1] @{ ... @}
+]
+@end example
+@*
+
+@table @strong
+@item HC: 4 bytes: CPU history item count
+
+@item Array: HC*(IS+1) bytes:
+An array with items of structure:
+
+@table @strong
+@item
+
+[
+
+@item IS: 1 bytes: Item size, excluding this byte
+
+@item RC: 2 bytes: Register item count
+
+@item Array: RC*(RS+1) bytes: Array items of structure:
+
+@table @strong
+@item
+
+[
+
+@item RS: 1 byte: Item size, excluding this byte
+
+@item @{...@}: RS bytes: The array item body from @ref{MON_RESPONSE_REGISTER_INFO}
+
+@item
+
+]
+
+@end table
+
+@item CL: 8 bytes: The CPU clock
+
+@item IL: 1 bytes: instruction bytes length
+
+@item IB: IL bytes: Instruction byte string.
+This is a fixed length and must be interpreted by the client.
+
+@end table
+
+@item
+
+]
 
 @end table
 
@@ -22171,8 +22977,13 @@ Minimum VICE version: 3.6
 
 Command body:
 
+@example
+VC
+@end example
+@*
+
 @table @strong
-@item byte 0: USE VIC-II? 
+@item VC: 1 byte: USE VIC-II? 
 Must be included, but ignored for all but the C128. If true, (>=0x01) the screen
 returned will be from the VIC-II. If false (0x00), it will be from the VDC.
 
@@ -22184,19 +22995,36 @@ Response type:
 
 Response body:
 
+@example
+PC PC [
+  IS[0] { RR[0] | GG[0] | BB[0] }
+  ...
+  IS[PC-1] { RR[PC-1] | GG[PC-1] | BB[PC-1] }
+]
+@end example
+@*
+
 @table @strong
-@item byte 0-1: The number of palette items.
+@item PC: 2 bytes: The palette item count
 
-@item byte 2+: An array with items of structure:
+@item Array : PC*(IS+1): An array with items of structure:
 
 @table @strong
-@item byte 0: Size of the item, excluding this byte
+@item
 
-@item byte 1: Red
+[
 
-@item byte 2: Green
+@item IS: 1 byte: Item size, excluding this byte
 
-@item byte 3: Blue
+@item RR: 1 byte: Red
+
+@item GG: 1 byte: Green
+
+@item BB: 1 byte: Blue
+
+@item
+
+]
 
 @end table
 
@@ -22211,9 +23039,14 @@ Minimum VICE version: 3.6
 
 Command body:
 
+@example
+PN PN | PV PV
+@end example
+@*
+
 @table @strong
-@item byte 0-1: The port to set the value on
-@item byte 2-3: The value to set
+@item PN: 2 bytes: The port to set the value on
+@item PV: 2 bytes: The value to set
 
 @end table
 
@@ -22223,8 +23056,10 @@ Response type:
 
 Response body:
 
+@example
 Currently empty.
-
+@end example
+@*
 
 @node MON_CMD_USERPORT_SET
 @subsection Userport set (0xb2)
@@ -22235,8 +23070,13 @@ Minimum VICE version: 3.6
 
 Command body:
 
+@example
+UV UV
+@end example
+@*
+
 @table @strong
-@item byte 0-1: The value to set
+@item UV: 2 bytes: The value to set
 
 @end table
 
@@ -22246,7 +23086,10 @@ Response type:
 
 Response body:
 
+@example
 Currently empty.
+@end example
+@*
 
 @node MON_CMD_EXIT
 @subsection Exit (0xaa)
@@ -22257,7 +23100,10 @@ Minimum VICE version: 3.5
 
 Command body:
 
+@example
 Currently empty.
+@end example
+@*
 
 Response type:
 
@@ -22265,7 +23111,10 @@ Response type:
 
 Response body:
 
+@example
 Currently empty.
+@end example
+@*
 
 @node MON_CMD_QUIT
 @subsection Quit (0xbb)
@@ -22276,7 +23125,10 @@ Minimum VICE version: 3.5
 
 Command body:
 
+@example
 Currently empty.
+@end example
+@*
 
 Response type:
 
@@ -22284,7 +23136,10 @@ Response type:
 
 Response body:
 
+@example
 Currently empty.
+@end example
+@*
 
 @node MON_CMD_RESET
 @subsection Reset (0xcc)
@@ -22295,8 +23150,13 @@ Minimum VICE version: 3.5
 
 Command body:
 
+@example
+RS
+@end example
+@*
+
 @table @strong
-@item byte 0: What to reset
+@item RS: 1 byte: What to reset
 
 @itemize
 @item 0x00: Reset system
@@ -22312,7 +23172,10 @@ Response type:
 
 Response body:
 
+@example
 Currently empty.
+@end example
+@*
 
 @node MON_CMD_AUTOSTART
 @subsection Autostart / autoload (0xdd)
@@ -22323,16 +23186,21 @@ Minimum VICE version: 3.5
 
 Command body:
 
+@example
+RL | FI FI | FL | FN[0] FN[1] ... FN[FL-1]
+@end example
+@*
+
 @table @strong
-@item byte 0: Run after loading?
+@item RL: 1 byte: Run after loading?
 >=0x01: true, 0x00: false
 
-@item byte 1-2: File index
+@item FI: 2 bytes: File index
 The index of the file to execute, if a disk image. 0x00 is the default value.
 
-@item byte 3: Length of filename
+@item FL: byte 3: Length of filename
 
-@item byte 4+: Filename
+@item FN: FL bytes: Filename
 The filename to autoload.
 
 @end table
@@ -22343,7 +23211,10 @@ Response type:
 
 Response body:
 
+@example
 Currently empty.
+@end example
+@*
 
 @node Binary Responses
 @section Responses
@@ -22372,7 +23243,10 @@ Response type:
 
 Response body:
 
+@example
 Usually empty
+@end example
+@*
 
 @node MON_RESPONSE_CHECKPOINT_INFO
 @subsection Checkpoint Response (0x11)
@@ -22392,37 +23266,44 @@ Response type:
 
 Response body:
 
+@example
+CN CN CN CN | CH | SA SA | EA EA | ST | EN | OP | TM | 
+    HC HC HC HC | IC IC IC IC | CE | MS
+@end example
+@*
+
 @table @strong
-@item byte 0-3: Checkpoint number
+@item CN: 4 bytes: Checkpoint number
 
-@item byte 4: Currently hit?
+@item CH: 1 byte: Currently hit?
 >=0x01: true, 0x00: false
 
-@item byte 5-6: start address
+@item SA: 2 bytes: start address
 
-@item byte 7-8: end address
+@item EA: 2 bytes: end address
 
-@item byte 9: stop when hit
+@item ST: 1 byte: stop when hit
 >=0x01: true, 0x00: false
 
-@item byte 10: enabled
+@item EN: 1 byte: enabled
 >=0x01: true, 0x00: false
 
-@item byte 11: CPU operation
+@item OP: 1 byte: CPU operation
 0x01: load, 0x02: store, 0x04: exec
 
-@item byte 12: temporary
-Deletes the checkpoint after it has been hit once. This is similar to
-"until" command, but it will not resume the emulator.
+@item TM: 1 byte: temporary
+    Deletes the checkpoint after it has been hit once. This is similar to
+    "until" command, but it will not resume the emulator.
 
-@item byte 13-16: hit count
+@item HC: 4 bytes: hit count
 
-@item byte 17-20: ignore count
+@item IC: 4 bytes: ignore count
 
-@item byte 21: Has condition?
+@item CE: 1 byte: Has condition?
 >=0x01: true, 0x00: false
 
-@item byte 22: memspace
+@item MS: 1 byte: memspace
+Describes which part of the computer to checkpoint:
 
 @itemize
 @item 0x00: main memory
@@ -22443,17 +23324,34 @@ Response type:
 
 Response body:
 
+@example
+RC RC [ 
+    IS[0] @{ RI[0] | RV[0] RV[0] @}
+    ...
+    IS[RC-1] @{ RI[RC-1] | RV[RC-1] RV[RC-1] @}
+]
+@end example
+@*
+
 @table @strong
-@item byte 0-1: The count of the array items
+@item RC: 2 bytes: The count of the array items
 
-@item byte 2+: An array with items of structure:
+@item Array: RC*(IS+1): An array with items of structure:
 
 @table @strong
-@item byte 0: Size of the item, excluding this byte
+@item
 
-@item byte 1: ID of the register
+[
 
-@item byte 2-3: register value
+@item IS: 1 byte: Item size, excluding this byte
+
+@item RI: 1 byte: ID of the register
+
+@item RV: 2 bytes: register value
+
+@item
+
+]
 
 @end table
 
@@ -22471,8 +23369,13 @@ Response type:
 
 Response body:
 
+@example
+PC PC
+@end example
+@*
+
 @table @strong
-@item byte 0-1: The current program counter position
+@item PC: 2 bytes: The current program counter position
 
 @end table
 
@@ -22488,8 +23391,13 @@ Response type:
 
 Response body:
 
+@example
+PC PC
+@end example
+@*
+
 @table @strong
-@item byte 0-1: The current program counter position
+@item PC: 2 bytes: The current program counter position
 
 @end table
 
@@ -22504,8 +23412,13 @@ Response type:
 
 Response body:
 
+@example
+PC PC
+@end example
+@*
+
 @table @strong
-@item byte 0-1: The current program counter position
+@item PC: 2 bytes: The current program counter position
 
 @end table
 
@@ -22888,7 +23801,7 @@ check file: cartconv [-r] [-q|-v] -c "input name"
 -i <name>                   input filename
 -o <name>                   output filename
 -n <name>                   crt cart name
--l <addr>                   load address
+-l <addr>                   load address (decimal, use 0x-prefix for hexadecimal, e.g. 0xc000)
 -q                          quiet
 -v --verbose                verbose
 --types                     show the supported cart types
@@ -23082,6 +23995,8 @@ Magic Desk 16 .crt file
 Magic Formel .crt file
 @item max
 MAX Basic .crt file
+@item mb
+Megabyter .crt file
 @item mikro
 Mikro Assembler .crt file
 @item mmc64
@@ -23100,6 +24015,8 @@ Prophet64 .crt file
 Pagefox .crt file
 @item partner64
 Partner 64 .crt file
+@item pd
+Profi-DOS .crt file
 @item rep256
 REX 256KiB EPROM Cart .crt file, extra files can be inserted (1)(2)(3)
 @item rgcd
@@ -23186,6 +24103,8 @@ Behr Bonz
 Final Expansion
 @item mega
 Mega-Cart
+@item mini
+Minimon
 @item ma
 Mikro Assembler
 @item rabbit
@@ -23196,6 +24115,8 @@ Super Expander
 UltiMem
 @item vicfp
 Vic Flash Plugin
+@item wn
+Write Now
 @end table
 
 @b{PLUS4 cartridges:}
@@ -23217,6 +24138,8 @@ Generic 4KiB/8KiB/16KiB C2HI cartridge
 c264 magic cart
 @item multi
 Plus4 multi cart
+@item speedy
+"Speedy" freezer cart
 @end table
 
 @b{CBM2 cartridges:}
@@ -23302,6 +24225,9 @@ Skip <n> bytes in the beginning of input file. Ignored on P00.
 @findex -text
 @item -text
 Force text mode
+@findex -C<chksum>
+@item -C<chksum>
+add listing checksums of the specified type. (see below)
 @c @findex -<version> - this one breaks the index (?!)
 @item -<version>
 use keywords for <version> instead of the v7.0 ones
@@ -23316,7 +24242,7 @@ list all keywords for the specified Basic version
 list all Basic versions available.
 @findex -l
 @item -l
-Specify load address for program (in hex, no loading chars!).
+Specify load address for program (in hex, no leading chars!).
 @findex -o <name>
 @item -o <name>
 Specify the output file name
@@ -23411,6 +24337,18 @@ Basic v2.0 with Turtle Basic by Craig Bruce (VIC20)
 Basic v2.0 with Ultrabasic-64 (C64)
 @item xbasic
 Basic v2.0 with Xbasic (C64)
+@end table
+
+Checksummers:
+@table @code
+@item 64er-v1
+64'er Checksummer v1 + v2
+@item 64er-v3
+64'er Checksummer v3
+@item dossier
+Commodore Dossier Checksummer
+@item f64
+F64Summer
 @end table
 
 @c @node FIXME
@@ -29833,6 +30771,12 @@ $0010- xxxx - ROM data
 @tab Universal Cartridge 2
 @item 83
 @tab BMP Data Turbo 2000
+@item 84
+@tab Profi-DOS
+@item 85
+@tab Magic Desk 16
+@item 86
+@tab Protovision "Megabyter"
 @end multitable
 
 (*Note: Ocean type 1 includes Navy Seals, Robocop 2 & 3, Shadow of the Beast,
@@ -30665,10 +31609,9 @@ E0C0: 4D 46 37 8D 00 DF 60 8D 01 DF 60 8D 02 DF 60 8D  MF7...`...`...`.
 @end example
 
     ROM memory is organized in 8KiB ($2000) banks  located  at  $8000-$9FFF.
-    Bank switching is done by writing to address $DE00+X, where  X  is  the
+    Bank switching is done by accessing address $DE00+X, where  X  is  the
     bank number (STA $DE00,X). For instance, to read from bank  3,  address
-    $DE03 is written to. Reading from anywhere  in  the  I/O-1  range  will
-    disable the cart.
+    $DE03 is read from, or written to.
 
     The CRT file contains a string of CHIP blocks, each block with a  start
     address of $8000, length $2000 and the bank number in the  bank  field.
@@ -30960,18 +31903,52 @@ C080: 7B C8 7E C8 C3 C2 CD 38 30 43 4F 4D 41 4C 80 93  @{.~....80COMAL..
     banks of ROM memory and the cart has 1 (write-only) bank control register which
     is located at $DE00 and mirrored throughout the $DE00-$DEFF range.
 
+    Two variants of this Cartridge existed:
+
+    1. Grey Cartridge (Comal Users Group, USA)
+       Produced around 1984-1985, likely with UniComal Denmarks approval.
+       Approx. 2,000 units distributed (according to COMAL Today).
+
+@itemize @bullet
+@item 4 sockets populated with 16 KB EPROMs (27128)
+@item NO additional socket, but it was possible to piggyback a fifth EPROM via
+      minor hardware mod
+@end itemize
+
 @example
     bit  meaning
     ---  -------
-    7    exrom?
-    6    game?
-    5    unknown function (used by the software to disable the cartridge)
-    4    unused?
-    3    unused?
-    2    unknown function (used by the software however)
-    0-1  selects bank
+    7    -
+    6    GAME
+    5    EXROM
+    4    -
+    3    -
+    2    -
+    0-1  selects EPROM (16k bank)
 @end example
 
+    2. Black Cartridge (Official Commodore Release)
+       Used internationally and with a different hardware configuration.
+
+@itemize @bullet
+@item Two fixed 32 KB ROMs (Commodore) and one socket for a 32 KB (or with
+      hardware modification 64 KB ) EPROM
+@end itemize
+
+@example
+    bit  meaning
+    ---  -------
+    7    -
+    6    GAME + EXROM
+    5    -
+    4    -
+    3    -
+    2    switches to the optional third socket (additional 2x16k)
+    0-1  selects EPROM+bank (4x16k bank)
+@end example
+
+If the Cartridge Hardware Subtype/Revision (Offset 0x1A in the CRT Header) is 1,
+then VICE emulates the older "Grey" cartridge variant.
 
 @c @node FIXME
 @subsubsection 22 - Structured Basic
@@ -34144,6 +35121,74 @@ E0C0: 2C CA 91 AD 0A 03 AE 0B 03 8D B8 02 8E B9 02 A9  ,...............
     area (typically $DF00) and may be re-enabled by writing into  I/O-1 ($DE00).
 
 @c @node FIXME
+@subsubsection 84 - Profi-DOS
+
+@multitable @columnfractions .3 .7
+@item Size
+@tab 16KiB (2 banks of 8KiB)
+@item EXROM
+@tab inactive (hi) (1)
+@item GAME
+@tab active (lo) (0)
+@item Load address
+@tab $E000-$FFFF
+@end multitable
+
+@example
+      00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F       ASCII
+      -----------------------------------------------  ----------------
+0000: 43 36 34 20 43 41 52 54 52 49 44 47 45 20 20 20  C64 CARTRIDGE
+0010: 00 00 00 40 01 00 00 54 01 00 00 00 00 00 00 00  ...@...T........
+0020: 50 72 6f 66 69 2d 44 4f 53 00 00 00 00 00 00 00  Profi-DOS.......
+0030: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+0040: 43 48 49 50 00 00 20 10 00 00 00 00 e0 00 20 00  CHIP.. ....... .
+0050: 8d 9d 02 a9 eb 48 a9 8e 48 ad 9c 02 48 ad 9d 02  .....H..H...H...
+..
+2050: 43 48 49 50 00 00 20 10 00 00 00 01 e0 00 20 00  CHIP.. ....... .
+2060: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff  ................
+@end example
+
+    The ROM is connected like this:
+
+@example
+    Port    EPROM
+
+      D7 => D6
+      D6 => D4
+      D5 => D7
+      D4 => D5
+      D3 => D0
+      D2 => D3
+      D1 => D1
+      D0 => D2
+
+      A0 => A0
+      A1 => A1
+      A2 => A2
+      A3 => A3
+      A4 => A4
+      A5 => A5
+      A6 => A6
+      A7 => A7
+      A8 => A12
+      A9 => A10
+     A10 => A11
+     A11 => A9
+     A12 => A8
+     A13 => A13
+@end example
+
+    After reorganizing the ROM data as shown above, the first 8k bank of the ROM
+    contains the code. The second bank is used as a lookup table, and wired so
+    that when D0 becomes active (=0), then a counter is started which counts 4
+    cycles. If during those 4 cycles D1 becomes active (=0), then the EPROM is
+    enabled and the cartridge enables ultimax mode for ROMH. This way the cart
+    can patch the kernal, without having an explicit enable mechanism - which
+    makes it hard to dump (you'll have to know the addresses where this happens)
+
+    Any access (read or write) to IO2 ($dfxx) will disable the cartridge again.
+
+@c @node FIXME
 @subsubsection 85 - Magic Desk 16
 
 @multitable @columnfractions .3 .7
@@ -34152,7 +35197,7 @@ E0C0: 2C CA 91 AD 0A 03 AE 0B 03 8D B8 02 8E B9 02 A9  ,...............
 @item EXROM
 @tab active (lo) (0)
 @item GAME
-@tab active (hi) (0)
+@tab active (lo) (0)
 @item Startup mode
 @tab 16KiB Game
 @item Load address
@@ -34183,6 +35228,38 @@ Bit 7 is cleared for selecting one of the ROM banks. If bit
 RAM at $8000-B9FFF instead of ROM.
 
 used by "SNK vs CAPCOM - Stronger Edition"
+
+
+@c @node FIXME
+@subsubsection 86 - Protovision "Megabyter"
+
+@multitable @columnfractions .3 .7
+@item Size
+@tab 1024KiB (128 banks of 8KiB each)
+@item EXROM
+@tab active (lo) (0)
+@item GAME
+@tab inactive (hi) (1)
+@item Startup mode
+@tab 8KiB Game
+@item Load address
+@tab (banks 0-127) - $8000-9FFF
+@end multitable
+
+@example
+        00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F       ASCII
+        -----------------------------------------------  ----------------
+000000: 43 36 34 20 43 41 52 54 52 49 44 47 45 20 20 20  C64 CARTRIDGE
+000010: 00 00 00 40 01 00 00 56 00 01 00 00 00 00 00 00  ...@...V........
+000020: 50 54 56 20 4d 65 67 61 62 79 74 65 72 00 00 00  PTV Megabyter...
+000030: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+000040: 43 48 49 50 00 00 20 10 00 02 00 00 80 00 20 00  CHIP.. ....... .
+000050: 09 80 00 00 c3 c2 cd 38 30 78 20 d3 82 a9 00 8d  .......80x .....
+...
+100820: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff  ................
+100830: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff  ................
+@end example
+
 
 @c @node FIXME
 @subsection C128 Cartridge Specifics
@@ -34469,6 +35546,8 @@ is used for banking
 @tab Super Expander
 @item 8
 @tab Mikro Assembler
+@item 9
+@tab Write Now
 @end multitable
 
 @c @node FIXME
@@ -34781,6 +35860,81 @@ This cartridge maps 4KiB ROM into block3 and 5 ($6000-$6fff, $a000-$afff), and 3
 @c FIXME: cartridge details
 
 @c @node FIXME
+@subsubsection 9 - Write Now
+
+@multitable @columnfractions .3 .7
+@item Size
+@tab 8KiB (ROM)
+@end multitable
+
+@example
+       00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F       ASCII
+       -----------------------------------------------  ----------------
+ 0000: 56 49 43 32 30 20 43 41 52 54 52 49 44 47 45 20  VIC20 CARTRIDGE
+ 0010: 00 00 00 40 02 00 00 09 00 00 00 00 00 00 00 00  ...@............
+ 0020: 57 72 69 74 65 20 4e 6f 77 00 00 00 00 00 00 00  Write Now.......
+ 0030: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+ 0040: 43 48 49 50 00 00 20 10 00 00 00 00 a0 00 20 00  CHIP.. ....... .
+ 0050: 00 a5 2c c5 37 a5 2d e5 38 90 03 4c 22 a9 20 af  ..,.7.-.8..L". .
+ 0060: a3 a5 3b 85 26 a5 3c 85 27 a9 01 85 48 20 80 a4  ..;.&.<.'...H ..
+ 0070: c8 a9 20 91 26 4c 3b a4 20 20 a7 20 3f a0 a9 f2  .. .&L;.....?...
+ 0080: 85 52 a9 10 85 53 20 ac a0 20 63 a1 4c 2b a0 a9  .R...S .. c.L+..
+ 0090: 10 85 71 a5 2a 85 26 a5 2b 85 27 38 a5 2c e9 01  ..q.*.&.+.'8.,..
+
+@dots{}
+ 2030: bd ed bf a2 00 81 28 e6 28 d0 02 e6 29 60 a0 20  ......(.(...)`..
+ 2040: df 69 e9 5f 27 0b 43 48 45 4b 2e 49 54 82 43 4d  .i._'.CHEK.IT.CM
+@end example
+
+This cartridge maps 8KiB ROM into block5 ($a000-$afff), plus the last 2KiB of the ROM are mapped into IO ($9800-$9Bff)
+
+@c FIXME: cartridge details
+
+@c @node FIXME
+@subsubsection 10 - Minimon
+
+@multitable @columnfractions .3 .7
+@item Size
+@tab 2KiB (ROM)
+@end multitable
+
+@example
+       00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F       ASCII
+       -----------------------------------------------  ----------------
+ 0000: 56 49 43 32 30 20 43 41 52 54 52 49 44 47 45 20  VIC20 CARTRIDGE
+ 0010: 00 00 00 40 02 00 00 0a 00 00 00 00 00 00 00 00  ...@............
+ 0020: 4d 69 6e 69 6d 6f 6e 00 00 00 00 00 00 00 00 00  Minimon.........
+ 0030: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+ 0040: 43 48 49 50 00 00 08 10 00 00 00 00 98 00 08 00  CHIP............
+ 0050: 20 a2 9f a2 00 8e 12 01 20 e2 9f 0d 4d 4f 4e 49   ....... ...MONI
+ 0060: 54 4f 52 0d 00 90 14 d8 a2 05 68 9d 10 01 ca 10  TOR.......h.....
+ 0070: f9 20 e2 9f 0d 42 52 45 41 4b 00 a9 c0 85 9d ba  . ...BREAK......
+ 0080: 8e 16 01 a9 00 85 c1 85 c2 58 20 e2 9f 0d 20 20  .........X ...
+ 0090: 50 43 20 20 53 52 20 41 43 20 58 52 20 59 52 20  PC  SR AC XR YR
+
+@dots{}
+ 0830: ff ff 68 85 22 68 85 23 e6 22 d0 02 e6 23 a0 00  ..h."h.#."...#..
+ 0840: b1 22 f0 05 20 d2 ff 90 ef a5 23 48 a5 22 48 60  .".. .....#H."H`
+@end example
+
+This cartridge maps 2KiB ROM into the IO2 and IO3 area ($9800 - $9fff). It (the
+monitor) can be started by SYS38912.
+
+The cartridge has two switches:
+
+@itemize @bullet
+@item PGM: when enabled, the memory in the socket can be written to (when it is SRAM
+  or EEPROM)
+@item CART/MON: when in MON position, the ROM is mapped into IO. in CART position
+  the IO is mapped transparent to the pass through port.
+@end itemize
+
+"Freeze" (a long press on the reset button on the original cartridge) will
+trigger a reset, and inhibit reads to BLK5 for ~300ms, to prevent a CBMA0 cart
+from starting.
+
+
+@c @node FIXME
 @subsection PLUS4 Cartridge Specifics
 
 @multitable @columnfractions .1 .9
@@ -34794,6 +35948,8 @@ This cartridge maps 4KiB ROM into block3 and 5 ($6000-$6fff, $a000-$afff), and 3
 @tab Plus4 multi cart
 @item 3
 @tab 1MB Cartridge
+@item 4
+@tab "Speedy" freezer cartridge
 @end multitable
 
 For all Plus4 binary formats (non .crt) the convention is to store all banks of
@@ -34906,6 +36062,31 @@ This cartridge has one banking register at $fda0.
 @end example
 
 This cartridge has one banking register at $fe00.
+
+@c @node FIXME
+@subsubsection 4 - Speedy
+
+@multitable @columnfractions .3 .7
+@item Size
+@tab 8KiB
+@item Load address
+@tab $8000-$BFFF (mirrored twice) (C1LO)
+@end multitable
+
+@example
+        00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F       ASCII
+        -----------------------------------------------  ----------------
+  0000: 50 4c 55 53 34 20 43 41 52 54 52 49 44 47 45 20  PLUS4 CARTRIDGE
+  0010: 00 00 00 40 02 00 00 04 00 00 00 00 00 00 00 00  ...@............
+  0020: 53 70 65 65 64 79 00 00 00 00 00 00 00 00 00 00  Speedy..........
+  0030: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+  0040: 43 48 49 50 00 00 20 10 00 00 00 00 80 00 20 00  CHIP.. ....... .
+  0050: 4c 0a 80 42 4f 50 02 43 42 4d a2 00 bd 26 80 9d  L..BOP.CBM...&..
+@dots{}
+  2030: 20 20 20 20 20 20 20 20 00 84 00 a4 00 06 00 ef  ................
+  2040: 12 ff fd ff fd ff ff ff ff ff df ff ff ff ff ff  ................
+@end example
+
 
 @c @node FIXME
 @subsection CBM2 Cartridge Specifics
@@ -35588,6 +36769,7 @@ The VICE core team:
 @b{Pottendo}
 Fixed WiC64 support. Most of the former contributions (pre V3.x) have
 been taken over and/or replaced by other's contributions.
+Added FunMP3 userport cartdridge support.
 
 @item
 @b{Marco van den Heuvel}
@@ -35680,12 +36862,14 @@ outdated mess. And various fixes and improvements.
 @b{Olaf Seibert}
 Contributed some PET, including PET DWW hires, Xaw, lightpen,
 hardware scaling, and disk drive patches. Added proper SuperPET
-support, including 6809/6309 CPU emulation. Maintained the Xaw UI.
+support, including 6809/6309 CPU emulation and 6702 'dongle' chip.
+Maintained the Xaw UI.
 Added PET HRE (High Res Emulator) board emulation. Added the
 2-chip colour board for the Universal PET mainboard. Added
 support for 'printer/plotter' Commodore 1520. Overhauled internals
 of VIA and CIA code. Corrected pre-CRTC PET display timing.
 REL-file support for the filesystem device and c1541.
+Added WordCraft dongle.
 
 @item
 @b{Marcus Sutton}
@@ -36471,6 +37655,10 @@ Fixed some monitor issues.
 @item
 @b{Bjoern Odendahl}
 Created the new VICE logo and volunteered to create new icons.
+
+@item
+@b{LouD}
+Added USBSID-Pico hardware SID support.
 
 @end itemize
 

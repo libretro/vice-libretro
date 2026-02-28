@@ -1739,7 +1739,7 @@ int c64dtv_snapshot_write_to_stream(snapshot_stream_t *stream, int save_roms, in
         || c64dtv_snapshot_write_module(s, save_roms) < 0
         || c64dtvdma_snapshot_write_module(s) < 0
         || c64dtvblitter_snapshot_write_module(s) < 0
-        || c64dtvmisc_snapshot_write_module(s) < 0
+        || hummeradc_snapshot_write_module(s) < 0
         || ciacore_snapshot_write_module(machine_context.cia1, s) < 0
         || ciacore_snapshot_write_module(machine_context.cia2, s) < 0
         || sid_snapshot_write_module(s) < 0
@@ -1783,7 +1783,7 @@ int c64dtv_snapshot_read_from_stream(snapshot_stream_t *stream, int event_mode)
         || c64dtv_snapshot_read_module(s) < 0
         || c64dtvdma_snapshot_read_module(s) < 0
         || c64dtvblitter_snapshot_read_module(s) < 0
-        || c64dtvmisc_snapshot_read_module(s) < 0
+        || hummeradc_snapshot_read_module(s) < 0
         || ciacore_snapshot_read_module(machine_context.cia1, s) < 0
         || ciacore_snapshot_read_module(machine_context.cia2, s) < 0
         || sid_snapshot_read_module(s) < 0

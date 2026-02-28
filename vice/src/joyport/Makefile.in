@@ -114,7 +114,8 @@ libjoyport_a_AR = $(AR) $(ARFLAGS)
 libjoyport_a_LIBADD =
 am_libjoyport_a_OBJECTS = bbrtc.$(OBJEXT) cardkey.$(OBJEXT) \
 	coplin_keypad.$(OBJEXT) cx21.$(OBJEXT) cx85.$(OBJEXT) \
-	inception.$(OBJEXT) joyport.$(OBJEXT) joyport_io_sim.$(OBJEXT) \
+	inception.$(OBJEXT) joyport.$(OBJEXT) \
+	joyport_diag_586220_harness.$(OBJEXT) joyport_io_sim.$(OBJEXT) \
 	joystick.$(OBJEXT) lightpen.$(OBJEXT) mouse.$(OBJEXT) \
 	mouse_1351.$(OBJEXT) mouse_neos.$(OBJEXT) \
 	mouse_paddle.$(OBJEXT) mouse_quadrature.$(OBJEXT) \
@@ -145,18 +146,19 @@ am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/bbrtc.Po ./$(DEPDIR)/cardkey.Po \
 	./$(DEPDIR)/coplin_keypad.Po ./$(DEPDIR)/cx21.Po \
 	./$(DEPDIR)/cx85.Po ./$(DEPDIR)/inception.Po \
-	./$(DEPDIR)/joyport.Po ./$(DEPDIR)/joyport_io_sim.Po \
-	./$(DEPDIR)/joystick.Po ./$(DEPDIR)/lightpen.Po \
-	./$(DEPDIR)/mouse.Po ./$(DEPDIR)/mouse_1351.Po \
-	./$(DEPDIR)/mouse_neos.Po ./$(DEPDIR)/mouse_paddle.Po \
-	./$(DEPDIR)/mouse_quadrature.Po ./$(DEPDIR)/multijoy.Po \
-	./$(DEPDIR)/ninja_snespad.Po ./$(DEPDIR)/paperclip2.Po \
-	./$(DEPDIR)/paperclip64.Po ./$(DEPDIR)/paperclip64e.Po \
-	./$(DEPDIR)/paperclip64sc.Po ./$(DEPDIR)/powerpad.Po \
-	./$(DEPDIR)/protopad.Po ./$(DEPDIR)/rushware_keypad.Po \
-	./$(DEPDIR)/sampler2bit.Po ./$(DEPDIR)/sampler4bit.Po \
-	./$(DEPDIR)/script64_dongle.Po ./$(DEPDIR)/spaceballs.Po \
-	./$(DEPDIR)/trapthem_snespad.Po \
+	./$(DEPDIR)/joyport.Po \
+	./$(DEPDIR)/joyport_diag_586220_harness.Po \
+	./$(DEPDIR)/joyport_io_sim.Po ./$(DEPDIR)/joystick.Po \
+	./$(DEPDIR)/lightpen.Po ./$(DEPDIR)/mouse.Po \
+	./$(DEPDIR)/mouse_1351.Po ./$(DEPDIR)/mouse_neos.Po \
+	./$(DEPDIR)/mouse_paddle.Po ./$(DEPDIR)/mouse_quadrature.Po \
+	./$(DEPDIR)/multijoy.Po ./$(DEPDIR)/ninja_snespad.Po \
+	./$(DEPDIR)/paperclip2.Po ./$(DEPDIR)/paperclip64.Po \
+	./$(DEPDIR)/paperclip64e.Po ./$(DEPDIR)/paperclip64sc.Po \
+	./$(DEPDIR)/powerpad.Po ./$(DEPDIR)/protopad.Po \
+	./$(DEPDIR)/rushware_keypad.Po ./$(DEPDIR)/sampler2bit.Po \
+	./$(DEPDIR)/sampler4bit.Po ./$(DEPDIR)/script64_dongle.Po \
+	./$(DEPDIR)/spaceballs.Po ./$(DEPDIR)/trapthem_snespad.Po \
 	./$(DEPDIR)/vizawrite64_dongle.Po \
 	./$(DEPDIR)/waasoft_dongle.Po
 am__mv = mv -f
@@ -234,6 +236,7 @@ CYGPATH_W = @CYGPATH_W@
 DEBUGBUILD = @DEBUGBUILD@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
+DESKTOP_FILE_INSTALL = @DESKTOP_FILE_INSTALL@
 DOS2UNIX = @DOS2UNIX@
 DYNLIB_LIBS = @DYNLIB_LIBS@
 ECHO_C = @ECHO_C@
@@ -243,15 +246,6 @@ ENABLE_ARCH = @ENABLE_ARCH@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 FCCACHE = @FCCACHE@
-FFMPEG_AVRESAMPLE_CFLAGS = @FFMPEG_AVRESAMPLE_CFLAGS@
-FFMPEG_AVRESAMPLE_LIBS = @FFMPEG_AVRESAMPLE_LIBS@
-FFMPEG_AV_CFLAGS = @FFMPEG_AV_CFLAGS@
-FFMPEG_AV_LIBS = @FFMPEG_AV_LIBS@
-FFMPEG_INCLUDES = @FFMPEG_INCLUDES@
-FFMPEG_SWRESAMPLE_CFLAGS = @FFMPEG_SWRESAMPLE_CFLAGS@
-FFMPEG_SWRESAMPLE_LIBS = @FFMPEG_SWRESAMPLE_LIBS@
-FFMPEG_SWSCALE_CFLAGS = @FFMPEG_SWSCALE_CFLAGS@
-FFMPEG_SWSCALE_LIBS = @FFMPEG_SWSCALE_LIBS@
 FONTCONFIG_CFLAGS = @FONTCONFIG_CFLAGS@
 FONTCONFIG_LIBS = @FONTCONFIG_LIBS@
 FW_DIR = @FW_DIR@
@@ -282,6 +276,8 @@ LEXLIB = @LEXLIB@
 LEX_OUTPUT_ROOT = @LEX_OUTPUT_ROOT@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
+LIBUSB_CFLAGS = @LIBUSB_CFLAGS@
+LIBUSB_LIBS = @LIBUSB_LIBS@
 LINKCC = @LINKCC@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
@@ -345,6 +341,7 @@ TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
 UNZIPBIN = @UNZIPBIN@
+UPDATE_DESKTOP_DATABASE = @UPDATE_DESKTOP_DATABASE@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -364,7 +361,7 @@ VTE_CXXFLAGS = @VTE_CXXFLAGS@
 WINDRES = @WINDRES@
 WINDRES_LIB = @WINDRES_LIB@
 XA = @XA@
-XDG_DESKTOP_MENU = @XDG_DESKTOP_MENU@
+XDG_ICON_RESOURCE = @XDG_ICON_RESOURCE@
 YACC = @YACC@
 ZLIB_LIBS = @ZLIB_LIBS@
 abs_builddir = @abs_builddir@
@@ -443,7 +440,8 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/src/samplerdrv \
 	-I$(top_srcdir)/src/core/rtc \
-	-I$(top_srcdir)/src/userport
+	-I$(top_srcdir)/src/userport \
+	-I$(top_srcdir)/src/diag
 
 AM_CFLAGS = @VICE_CFLAGS@
 AM_CXXFLAGS = @VICE_CXXFLAGS@
@@ -466,6 +464,8 @@ libjoyport_a_SOURCES = \
 	inception.h \
 	joyport.c \
 	joyport.h \
+	joyport_diag_586220_harness.c \
+	joyport_diag_586220_harness.h \
 	joyport_io_sim.c \
 	joyport_io_sim.h \
 	joystick.c \
@@ -570,6 +570,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cx85.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/inception.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/joyport.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/joyport_diag_586220_harness.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/joyport_io_sim.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/joystick.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lightpen.Po@am__quote@ # am--include-marker
@@ -745,6 +746,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/cx85.Po
 	-rm -f ./$(DEPDIR)/inception.Po
 	-rm -f ./$(DEPDIR)/joyport.Po
+	-rm -f ./$(DEPDIR)/joyport_diag_586220_harness.Po
 	-rm -f ./$(DEPDIR)/joyport_io_sim.Po
 	-rm -f ./$(DEPDIR)/joystick.Po
 	-rm -f ./$(DEPDIR)/lightpen.Po
@@ -821,6 +823,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/cx85.Po
 	-rm -f ./$(DEPDIR)/inception.Po
 	-rm -f ./$(DEPDIR)/joyport.Po
+	-rm -f ./$(DEPDIR)/joyport_diag_586220_harness.Po
 	-rm -f ./$(DEPDIR)/joyport_io_sim.Po
 	-rm -f ./$(DEPDIR)/joystick.Po
 	-rm -f ./$(DEPDIR)/lightpen.Po

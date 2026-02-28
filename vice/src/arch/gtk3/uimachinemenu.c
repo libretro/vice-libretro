@@ -174,7 +174,7 @@ static const ui_menu_item_t datasette_1_control_submenu[] = {
         .type   = UI_MENU_TYPE_ITEM_ACTION,
         .action = ACTION_TAPE_STOP_1
     },
-    {   .label  = "Start",
+    {   .label  = "Play",
         .type   = UI_MENU_TYPE_ITEM_ACTION,
         .action = ACTION_TAPE_PLAY_1
     },
@@ -210,7 +210,7 @@ static const ui_menu_item_t datasette_2_control_submenu[] = {
         .type   = UI_MENU_TYPE_ITEM_ACTION,
         .action = ACTION_TAPE_STOP_1
     },
-    {   .label  = "Start",
+    {   .label  = "Play",
         .type   = UI_MENU_TYPE_ITEM_ACTION,
         .action = ACTION_TAPE_PLAY_1
     },
@@ -387,7 +387,7 @@ static const ui_menu_item_t file_menu_tape_xpet[] = {
 /* {{{ file_menu_cart_freeze */
 /** \brief  'File' menu - cartridge section for C64/C128
  *
- * C64, SCPU64 and C128, containing "Cartridge freeze".
+ * C64, SCPU64, C128, VIC20 and Plus4 containing "Cartridge freeze".
  */
 static const ui_menu_item_t file_menu_cart_freeze[] = {
     {   .label    = "Attach cartridge image...",
@@ -411,7 +411,7 @@ static const ui_menu_item_t file_menu_cart_freeze[] = {
 /* {{{ file_menu_cart_no_freeze */
 /** \brief  'File' menu - cartridge section for Plus/4, VIC-20 and CBM-II
  *
- * Plus/4, VIC-20, CBM-II, not containing "Cartridge freeze".
+ * CBM-II, not containing "Cartridge freeze".
  */
 static const ui_menu_item_t file_menu_cart_no_freeze[] = {
     {   .label    = "Attach cartridge image...",
@@ -1074,11 +1074,14 @@ GtkWidget *ui_machine_menu_bar_create(gint window_id)
             break;
 
         case VICE_MACHINE_C64DTV:
+            /* no cart section */
+            /* no tape section */
             file_menu_printer_section = file_menu_printer_no_userport;
             settings_menu_joy_section = settings_menu_joy_swap;
             break;
 
         case VICE_MACHINE_SCPU64:
+            /* no tape section */
             file_menu_cart_section    = file_menu_cart_freeze;
             file_menu_printer_section = file_menu_printer;
             settings_menu_joy_section = settings_menu_joy_swap;
@@ -1093,13 +1096,13 @@ GtkWidget *ui_machine_menu_bar_create(gint window_id)
 
         case VICE_MACHINE_VIC20:
             file_menu_tape_section    = file_menu_tape;
-            file_menu_cart_section    = file_menu_cart_no_freeze;
+            file_menu_cart_section    = file_menu_cart_freeze;
             file_menu_printer_section = file_menu_printer;
             break;
 
         case VICE_MACHINE_PLUS4:
             file_menu_tape_section    = file_menu_tape;
-            file_menu_cart_section    = file_menu_cart_no_freeze;
+            file_menu_cart_section    = file_menu_cart_freeze;
             file_menu_printer_section = file_menu_printer_no_userport;
             settings_menu_joy_section = settings_menu_joy_swap;
             break;
@@ -1119,6 +1122,7 @@ GtkWidget *ui_machine_menu_bar_create(gint window_id)
 
         case VICE_MACHINE_PET:
             file_menu_tape_section    = file_menu_tape_xpet;
+            /* no cart section */
             file_menu_printer_section = file_menu_printer;
             break;
 

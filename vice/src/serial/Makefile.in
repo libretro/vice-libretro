@@ -109,7 +109,8 @@ am__v_AR_ = $(am__v_AR_@AM_DEFAULT_V@)
 am__v_AR_0 = @echo "  AR      " $@;
 am__v_AR_1 = 
 libserial_a_AR = $(AR) $(ARFLAGS)
-am_libserial_a_OBJECTS = fsdrive.$(OBJEXT) serial-device.$(OBJEXT) \
+am_libserial_a_OBJECTS = fsdrive.$(OBJEXT) \
+	iec-ieee488-shared.$(OBJEXT) serial-device.$(OBJEXT) \
 	serial-iec-bus.$(OBJEXT) serial-iec-device.$(OBJEXT) \
 	serial-iec-lib.$(OBJEXT) serial-iec.$(OBJEXT) \
 	serial-realdevice.$(OBJEXT) serial-trap.$(OBJEXT) \
@@ -130,7 +131,8 @@ am__v_at_1 =
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/src
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/fsdrive.Po ./$(DEPDIR)/realdevice.Po \
+am__depfiles_remade = ./$(DEPDIR)/fsdrive.Po \
+	./$(DEPDIR)/iec-ieee488-shared.Po ./$(DEPDIR)/realdevice.Po \
 	./$(DEPDIR)/serial-device.Po ./$(DEPDIR)/serial-iec-bus.Po \
 	./$(DEPDIR)/serial-iec-device.Po ./$(DEPDIR)/serial-iec-lib.Po \
 	./$(DEPDIR)/serial-iec.Po ./$(DEPDIR)/serial-realdevice.Po \
@@ -210,6 +212,7 @@ CYGPATH_W = @CYGPATH_W@
 DEBUGBUILD = @DEBUGBUILD@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
+DESKTOP_FILE_INSTALL = @DESKTOP_FILE_INSTALL@
 DOS2UNIX = @DOS2UNIX@
 DYNLIB_LIBS = @DYNLIB_LIBS@
 ECHO_C = @ECHO_C@
@@ -219,15 +222,6 @@ ENABLE_ARCH = @ENABLE_ARCH@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 FCCACHE = @FCCACHE@
-FFMPEG_AVRESAMPLE_CFLAGS = @FFMPEG_AVRESAMPLE_CFLAGS@
-FFMPEG_AVRESAMPLE_LIBS = @FFMPEG_AVRESAMPLE_LIBS@
-FFMPEG_AV_CFLAGS = @FFMPEG_AV_CFLAGS@
-FFMPEG_AV_LIBS = @FFMPEG_AV_LIBS@
-FFMPEG_INCLUDES = @FFMPEG_INCLUDES@
-FFMPEG_SWRESAMPLE_CFLAGS = @FFMPEG_SWRESAMPLE_CFLAGS@
-FFMPEG_SWRESAMPLE_LIBS = @FFMPEG_SWRESAMPLE_LIBS@
-FFMPEG_SWSCALE_CFLAGS = @FFMPEG_SWSCALE_CFLAGS@
-FFMPEG_SWSCALE_LIBS = @FFMPEG_SWSCALE_LIBS@
 FONTCONFIG_CFLAGS = @FONTCONFIG_CFLAGS@
 FONTCONFIG_LIBS = @FONTCONFIG_LIBS@
 FW_DIR = @FW_DIR@
@@ -258,6 +252,8 @@ LEXLIB = @LEXLIB@
 LEX_OUTPUT_ROOT = @LEX_OUTPUT_ROOT@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
+LIBUSB_CFLAGS = @LIBUSB_CFLAGS@
+LIBUSB_LIBS = @LIBUSB_LIBS@
 LINKCC = @LINKCC@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
@@ -321,6 +317,7 @@ TEXI2DVI = @TEXI2DVI@
 TFE_LIBS = @TFE_LIBS@
 UI_LIBS = @UI_LIBS@
 UNZIPBIN = @UNZIPBIN@
+UPDATE_DESKTOP_DATABASE = @UPDATE_DESKTOP_DATABASE@
 VERSION = @VERSION@
 VERSION_COMBINED = @VERSION_COMBINED@
 VERSION_RC = @VERSION_RC@
@@ -340,7 +337,7 @@ VTE_CXXFLAGS = @VTE_CXXFLAGS@
 WINDRES = @WINDRES@
 WINDRES_LIB = @WINDRES_LIB@
 XA = @XA@
-XDG_DESKTOP_MENU = @XDG_DESKTOP_MENU@
+XDG_ICON_RESOURCE = @XDG_ICON_RESOURCE@
 YACC = @YACC@
 ZLIB_LIBS = @ZLIB_LIBS@
 abs_builddir = @abs_builddir@
@@ -432,6 +429,8 @@ EXTRA_libserial_a_SOURCES = \
 libserial_a_SOURCES = \
 	fsdrive.c \
 	fsdrive.h \
+	iec-ieee488-shared.c \
+	iec-ieee488-shared.h \
 	serial-device.c \
 	serial-iec-bus.c \
 	serial-iec-bus.h \
@@ -498,6 +497,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fsdrive.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/iec-ieee488-shared.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/realdevice.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/serial-device.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/serial-iec-bus.Po@am__quote@ # am--include-marker
@@ -652,6 +652,7 @@ clean-am: clean-generic clean-noinstLIBRARIES mostlyclean-am
 
 distclean: distclean-am
 		-rm -f ./$(DEPDIR)/fsdrive.Po
+	-rm -f ./$(DEPDIR)/iec-ieee488-shared.Po
 	-rm -f ./$(DEPDIR)/realdevice.Po
 	-rm -f ./$(DEPDIR)/serial-device.Po
 	-rm -f ./$(DEPDIR)/serial-iec-bus.Po
@@ -707,6 +708,7 @@ installcheck-am:
 
 maintainer-clean: maintainer-clean-am
 		-rm -f ./$(DEPDIR)/fsdrive.Po
+	-rm -f ./$(DEPDIR)/iec-ieee488-shared.Po
 	-rm -f ./$(DEPDIR)/realdevice.Po
 	-rm -f ./$(DEPDIR)/serial-device.Po
 	-rm -f ./$(DEPDIR)/serial-iec-bus.Po

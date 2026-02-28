@@ -45,10 +45,10 @@ void via2_store(uint16_t addr, uint8_t byte);
 uint8_t via2_read(uint16_t addr);
 uint8_t via2_peek(uint16_t addr);
 
-void via2_set_tape_sense(int v);
-void via2_set_tape_write_in(int v);
-void via2_set_tape_motor_in(int v);
-void via2_check_lightpen(void);
+void via1_set_tape_sense(int v);
+void via1_set_tape_write_in(int v);
+void via1_set_tape_motor_in(int v);
+void via1_check_lightpen(void);
 
 extern int vic20_vflihack_userport;
 

@@ -211,16 +211,16 @@ int e888_dump(void)
  * reads (my translation from German):
  * ------
  * The 8296 HIRES Graphics is an emulation of the 512*256 Commodore High Speed
- * Graphivs, which uses the built-in RAM and 6502 microprocessor.
+ * Graphics, which uses the built-in RAM and 6502 microprocessor.
  *
  * A hardware addition is plugged into the socket of the CRTC (UC9) and the
  * character ROM (UC5).
  *
- * The software for emulating the High Speed Graphivs is contained in a 4 KB
+ * The software for emulating the High Speed Graphics is contained in a 4 KB
  * EPROM ($9000, UE10), een BASIC-extension to use the graphics is in a
  * further 4K EPROM ($A000, UE9).
  *
- * The "hidden" RAM behind the EPROM in UE9 and the BASIC ROM is used As screen
+ * The "hidden" RAM behind the EPROM in UE9 and the BASIC ROM is used as screen
  * memory.
  *
  * On the extension board there is a 4-fold DIL switch (1 to 4), with which one
@@ -250,7 +250,7 @@ int e888_dump(void)
  * 3) high = Latch On
  * ------
  * (unfortunately the document doesn't say what "Latch On" does, but I guess
- * that if it is off, it has no effect and the /RAM* signals are default.)
+ * that if it is off, the /RAM* signals are set by the DIL switches.)
  *
  *  - JU1 : set /RAMSELA to GND (do not use JU1/JU3 together)
  *  - JU2 : set /RAMSEL9 to GND (do not use JU2/JU4 together)
@@ -332,9 +332,9 @@ static void pethre_DRAW(uint8_t *p, int xstart, int xend, int scr_rel, int ymod8
      * memory.
      */
     if (ymod8 < 8 && xstart < xend) {
-        int ma_hi = scr_rel & MA_HI;    /* MA<9...6> MA is already multi- */
-        int ma_lo = scr_rel & MA_LO;    /* MA<5...0> ...plied by two.     */
-        /* Form <MA 9-6><RA 2-0><MA 5-0> */
+        int ma_hi = scr_rel & MA_HI;    /* MA<11...6> MA is already multi- */
+        int ma_lo = scr_rel & MA_LO;    /* MA< 5...0> ...plied by two.     */
+        /* Form <MA 11-6><RA 2-0><MA 5-0> */
         uint8_t *screen_rel = mem_ram + 0x8000 +   /* == crtc.screen_base */
                            (ma_hi << 3) + (ymod8 << 6) + ma_lo;
         int width = xend - xstart;
@@ -357,7 +357,7 @@ static void pethre_DRAW(uint8_t *p, int xstart, int xend, int scr_rel, int ymod8
             int i;
 
 #if HRE_DEBUG_GFX
-            log_message(pethre_log, "pethre_DRAW: xstart=%d, xend=%d, ymod8=%d, scr_rel=%04x screen_rel=%04x", xstart, xend, ymod8, scr_rel, screen_rel - mem_ram);
+            log_message(pethre_log, "pethre_DRAW: xstart=%d, xend=%d, ymod8=%d, scr_rel=%04x screen_rel=%04x", xstart, xend, ymod8, (unsigned int)scr_rel, (unsigned int)(screen_rel - mem_ram));
 #endif
             for (i = xstart; i < xend; i++) {
                 int d = *screen_rel++;

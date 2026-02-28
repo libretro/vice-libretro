@@ -275,6 +275,11 @@ static const uint8_t burst_status_tab[] = {
 #define LOAD_ZERO(addr) \
     mem_read((uint16_t)((((uint16_t) dtv_registers[10]) << 8) + ((uint16_t)((addr) & 0xff))))
 
+#define LOAD_DUMMY(addr) ((dtv_registers[9] & 1) ? 0 : LOAD(addr))
+#define LOAD_ZERO_DUMMY(addr) ((dtv_registers[9] & 1) ? 0 : LOAD_ZERO(addr))
+#define STORE_DUMMY(addr, value) if (!(dtv_registers[9] & 1)) { STORE(addr, value); }
+#define STORE_ZERO_DUMMY(addr, value) if (!(dtv_registers[9] & 1)) { STORE_ZERO(addr, value); }
+
 /* Route stack operations through register 11 (stack mapper) */
 
 #define PUSH(val) (STORE((((uint16_t) dtv_registers[11]) << 8) + ((reg_sp--) & 0xff), val))

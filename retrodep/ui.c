@@ -469,9 +469,9 @@ int ui_init_finalize(void)
 
    /* Media */
    log_resources_set_int("AutostartWarp", vice_opt.AutostartWarp);
-   log_resources_set_int("VirtualDevice4", vice_opt.VirtualDevices);
-   log_resources_set_int("VirtualDevice8", !vice_opt.DriveTrueEmulation);
-   log_resources_set_int("VirtualDevice9", !vice_opt.DriveTrueEmulation);
+   log_resources_set_int("TrapDevice4", vice_opt.TrapDevices);
+   log_resources_set_int("TrapDevice8", !vice_opt.DriveTrueEmulation);
+   log_resources_set_int("TrapDevice9", !vice_opt.DriveTrueEmulation);
    log_resources_set_int("Drive8TrueEmulation", vice_opt.DriveTrueEmulation);
    log_resources_set_int("Drive9TrueEmulation", vice_opt.DriveTrueEmulation);
    log_resources_set_int("AttachDevice8d0Readonly", vice_opt.AttachDevice8Readonly);

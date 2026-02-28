@@ -180,7 +180,7 @@
 91 1 4 8        /*            [ -> [            */
 93 2 3 8        /*            ] -> ]            */
 13 2 4 8        /*       Return -> Return       */
-306 8 5 8       /*    Left Ctrl -> CTRL         */
+306 8 5 0x4008  /*    Left Ctrl -> CTRL         */
 97 9 3 8        /*            A -> A            */
 115 10 3 8      /*            S -> S            */
 100 11 3 8      /*            D -> D            */
@@ -203,9 +203,13 @@
 109 14 4 8      /*            M -> M            */
 44 15 4 8       /*            , -> ,            */
 46 15 5 8       /*            . -> .            */
-47 0 5 8        /*            / -> /            */
+
+47 0 5 0x28     /*            / -> /            */
+47 4 1 0x201    /*     ctrl   / -> /            */
+
 303 8 4 4       /*  Right Shift -> Shift        */
 32 14 5 8       /*        Space -> Space        */
+
 282 8 0 8       /*           F1 -> F1           */
 283 9 0 8       /*           F2 -> F2           */
 284 10 0 8      /*           F3 -> F3           */
@@ -216,20 +220,27 @@
 289 15 0 8      /*           F8 -> F8           */
 290 0 0 8       /*           F9 -> F9           */
 291 1 0 8       /*          F10 -> F10          */
-278 4 0 8       /*         Home -> CLR/HOME     */
+292 2 5 8       /*          F11 -> pi           */
+#293 1 0 8       /*          F12 -> run/stop     */
+
+
 273 3 0 8       /*           Up -> CRSR UP      */
 276 3 1 8       /*         Left -> CRSR LEFT    */
 275 3 2 8       /*        Right -> CRSR RIGHT   */
 274 2 0 8       /*         Down -> CRSR DOWN    */
-277 2 2 8       /*          Ins -> Pound        */
-127 4 1 8       /*          Del -> ?            */
+
+277 6 5 8       /*          Ins -> KP 00        */
+127 5 1 8       /*          Del -> KP CE        */
+278 4 0 8       /*         Home -> CLR/HOME     */
+279 5 0 8       /*          End -> Rev/Off      */
+280 7 0 8       /*         PgUp -> Run/Stop     */
 281 6 0 8       /*       PgDown -> Norm/Graph   */
-19 2 5 8        /*  Pause/Break -> Pi           */
-280 5 0 8       /*         PgUp -> Rev/Off      */
-279 5 1 8       /*          End -> CE           */
-305 3 4 8       /*   Right Ctrl -> C=           */
+
+305 3 4 0x2008  /*   Right Ctrl -> C=           */
+
 271 7 4 8       /* Numpad Enter -> Numpad Enter */
 267 7 1 8       /*     Numpad / -> Numpad /     */
+268 6 1 8       /*     Numpad * -> Numpad *     */
 263 4 2 8       /*     Numpad 7 -> Numpad 7     */
 264 5 2 8       /*     Numpad 8 -> Numpad 8     */
 265 6 2 8       /*     Numpad 9 -> Numpad 9     */

@@ -15,6 +15,7 @@
  * $VICERES WIC64Resetuser          x64 x64sc xscpu64 x128 xvic
  * $VICERES WIC64Timezone           x64 x64sc xscpu64 x128 xvic
  * $VICERES WIC64RemoteTimeout      x64 x64sc xscpu64 x128 xvic
+ * $VICERES FunMP3Dir               x64 x64sc xscpu64 x128 xvic xpet
  *
  * The following resources are not user-configurable, but set indirectly via
  * the WiC64 code, so we list them here for `gtk3-resources.py` to find:
@@ -97,6 +98,10 @@ static GtkWidget *wic64_tz_save = NULL;
 
 #endif
 
+#if defined(USE_MPG123) && defined(HAVE_GLOB_H)
+static GtkWidget *funmp3_save = NULL;
+#endif
+
 /** \brief  Create left-aligned label with Pango markup
  *
  * \param[in]   markup  text using Pango markup
@@ -162,6 +167,11 @@ static void set_widgets_sensitivity(int id)
 #ifdef HAVE_LIBCURL
     if (wic64_save != NULL) {
         gtk_widget_set_sensitive(wic64_save, id == USERPORT_DEVICE_WIC64);
+    }
+#endif
+#if defined(USE_MPG123) && defined(HAVE_GLOB_H)
+    if (funmp3_save != NULL) {
+        gtk_widget_set_sensitive(funmp3_save, id == USERPORT_DEVICE_FUNMP3);
     }
 #endif
 }
@@ -345,7 +355,6 @@ static GtkWidget *create_device_combobox(void)
     return combo;
 }
 
-
 #ifdef HAVE_LIBCURL
 
 /** \brief  Create widget for the "WIC64Logenabled" resource
@@ -358,7 +367,7 @@ static GtkWidget *create_wic64_logenabled_widget(void)
                                                "Enable WiC64 logging");
 }
 
-/** \brief  Create widget for the "WIC64Logenabled" resource
+/** \brief  Create widget for the "WIC64Resetuser" resource
  *
  * \return  GtkCheckButton
  */
@@ -398,7 +407,7 @@ static GtkWidget *create_wic64_timezone_combo(void)
     return combo;
 }
 
-#if 0 /* disabled, as security token editable actually makes no sense */
+#if 1 /* disabled, as security token editable actually makes no sense */
 /** \brief  Handler for the 'icon-press' event of the "Security token" entry
  *
  * Toggle visibility of the WIC64 security token when clicking the "eye" icon
@@ -430,6 +439,88 @@ static void on_sec_token_icon_press(GtkEntry             *self,
 }
 #endif
 
+#if defined(USE_MPG123) && defined (HAVE_GLOB_H)
+/* FunMP3 path selection widget */
+#include "mainlock.h"
+
+/** \brief  Callback for the directory-select dialog
+ *
+ * \param[in]   dialog      directory-select dialog
+ * \param[in]   filename    filename (NULL if canceled)
+ * \param[in]   entry       entry box for the filename
+ */
+static void funmp3dir_browse_callback(GtkDialog *dialog, gchar *filename, gpointer entry)
+{
+    if (filename != NULL) {
+        vice_gtk3_resource_entry_set(GTK_WIDGET(entry), filename);
+        g_free(filename);
+    }
+    gtk_widget_destroy(GTK_WIDGET(dialog));
+}
+
+/** \brief  Handler for the 'clicked' event of the FunMP3 directory browse button
+ *
+ * \param[in]   button  FunMP3 directory browse button (unused)
+ * \param[in]   entry   FunMP3 directory text entry
+ */
+static void on_funmp3dir_browse_clicked(GtkWidget *button, gpointer entry)
+{
+    GtkWidget *dialog;
+
+    mainlock_assert_is_not_vice_thread();
+
+    dialog = vice_gtk3_select_directory_dialog("Select FunMP3 directory",
+                                               NULL,
+                                               TRUE,
+                                               NULL,
+                                               funmp3dir_browse_callback,
+                                               entry);
+    gtk_widget_show_all(dialog);
+}
+
+/** \brief  Create FunMP3 path selection entry widget
+ *
+ */
+static GtkWidget *create_funmp3dir_entry_widget(void)
+{
+    GtkWidget *entry;
+    entry = vice_gtk3_resource_entry_new("FunMP3Dir");
+    gtk_widget_set_tooltip_text(entry,
+                                "Select the host directory for MP3 files");
+    gtk_widget_set_hexpand(entry, TRUE);
+    return entry;
+}
+
+/** \brief  Create FunMP3 path selection widget
+ *
+ */
+static GtkWidget *create_funmp3dir_widget(void)
+{
+    GtkWidget *grid;
+    GtkWidget *entry;
+    GtkWidget *label;
+    GtkWidget *browse;
+
+    grid = vice_gtk3_grid_new_spaced(8, 0);
+
+    label  = gtk_label_new("FunMP3 directory");
+    gtk_widget_set_halign(label, GTK_ALIGN_START);
+    entry  = create_funmp3dir_entry_widget();
+    browse = gtk_button_new_with_label("Browse ...");
+    g_signal_connect_unlocked(browse,
+                              "clicked",
+                              G_CALLBACK(on_funmp3dir_browse_clicked),
+                              (gpointer)entry);
+    gtk_grid_attach(GTK_GRID(grid), label,  0, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), entry,  1, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), browse, 2, 1, 1, 1);
+
+    gtk_widget_show_all(grid);
+    return grid;
+}
+
+#endif  /* MPG123 && HAVE_GLOB_H */
+
 /** \brief   Handler for the 'clicked' event of the 'reset' buttons
  *
  * \param[in]   widget      button triggering the event
@@ -441,6 +532,19 @@ static void on_wic64_reset_settings_clicked(GtkWidget *widget, gpointer p)
     vice_gtk3_resource_entry_factory(wic64_server_save);
     vice_gtk3_resource_spin_int_factory(wic64_remote_timeout_save);
     vice_gtk3_resource_combo_int_sync(wic64_tz_save);
+    /* FIXME: also update MAC, SecToken */
+}
+
+/** \brief   Handler for the 'clicked' event of the 'dhcp' checkbox
+ *
+ * \param[in]   widget      checkbox triggering the event
+ * \param[in]   user_data   the textfield to enable/disable accordingly
+ */
+static void on_wic64_dhcp_clicked(GtkWidget *dhcp, gpointer p)
+{
+    GtkWidget *ip_addr = p;
+    gboolean enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dhcp)) ^ 1;
+    gtk_widget_set_sensitive(ip_addr, enabled);
 }
 
 /** \brief  Append WIC64 widgets to the main grid
@@ -460,11 +564,11 @@ static int append_wic64_widgets(GtkWidget *parent_grid, int parent_row)
     GtkWidget *resetuser;
     GtkWidget *lines_widget;
     GtkWidget *trace_level;
-#if 0
     GtkWidget *mac_addr;
     GtkWidget *ip_addr;
     GtkWidget *sec_token;
-#endif
+    GtkWidget *dhcp;
+
     GtkWidget *reset;
     int        row = 0;
 
@@ -494,7 +598,6 @@ static int append_wic64_widgets(GtkWidget *parent_grid, int parent_row)
     gtk_grid_attach(GTK_GRID(grid), server, 1, row, 1, 1);
     row++;
 
-#if 0
     label    = label_helper("MAC address");
     mac_addr = vice_gtk3_resource_entry_new("WIC64MACAddress");
     gtk_widget_set_hexpand(mac_addr, TRUE);
@@ -504,11 +607,15 @@ static int append_wic64_widgets(GtkWidget *parent_grid, int parent_row)
 
     label   = label_helper("IP address");
     ip_addr = vice_gtk3_resource_entry_new("WIC64IPAddress");
+    dhcp = vice_gtk3_resource_check_button_new("WIC64DHCP", "DHCP");
     gtk_widget_set_hexpand(ip_addr, TRUE);
     gtk_grid_attach(GTK_GRID(grid), label,   0, row, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), ip_addr, 1, row, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), dhcp,    2, row, 1, 1);
     row++;
-#endif
+
+    g_signal_connect(dhcp, "clicked", G_CALLBACK(on_wic64_dhcp_clicked), ip_addr);
+    gtk_widget_set_sensitive(ip_addr, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dhcp)) ^ 1);
 
     label    = label_helper("Timezone");
     wic64_tz_save = tz_widget = create_wic64_timezone_combo();
@@ -517,7 +624,7 @@ static int append_wic64_widgets(GtkWidget *parent_grid, int parent_row)
     gtk_grid_attach(GTK_GRID(grid), tz_widget, 1, row, 1, 1);
     row++;
 
-#if 0 /* keep it for now, as it was @compyx's fun to hack it ;-) */
+#if 1 /* keep it for now, as it was @compyx's fun to hack it ;-) */
     label     = label_helper("Security token");
     sec_token = vice_gtk3_resource_entry_new("WIC64SecToken");
     gtk_widget_set_hexpand(sec_token, TRUE);
@@ -626,6 +733,24 @@ GtkWidget *settings_userport_widget_create(GtkWidget *parent)
         default:
             break;
     }
+
+#if defined(USE_MPG123) && defined (HAVE_GLOB_H)
+    /* FunMP3 widget for userport featured machine, except cbm */
+    switch (machine_class) {
+        case VICE_MACHINE_C64:      /* fall through */
+        case VICE_MACHINE_C64SC:    /* fall through */
+        case VICE_MACHINE_SCPU64:   /* fall through */
+        case VICE_MACHINE_C128:     /* fall through */
+        case VICE_MACHINE_VIC20:    /* fall through */
+        case VICE_MACHINE_PET:      /* fall through */
+            funmp3_save = create_funmp3dir_widget();
+            gtk_grid_attach(GTK_GRID(grid), funmp3_save, 0, row, 2, 1);
+            row++;
+            break;
+        default:
+            break;
+    }
+#endif
 
     /* PET userport diagnostic pin */
     if (machine_class == VICE_MACHINE_PET) {

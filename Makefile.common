@@ -44,6 +44,7 @@ SOURCES_C_COMMON := \
     $(EMU)/core/ciatimer.c \
     $(EMU)/core/cs8900.c \
     $(EMU)/core/flash040core.c \
+    $(EMU)/core/flash800core.c \
     $(EMU)/core/fmopl.c \
     $(EMU)/core/i8255a.c \
     $(EMU)/core/m93c86.c \
@@ -227,6 +228,41 @@ SOURCES_C_JOYPORT := \
     $(EMU)/joyport/vizawrite64_dongle.c \
     $(EMU)/joyport/waasoft_dongle.c
 
+SOURCES_C_PRINTERDRV := \
+    $(EMU)/printerdrv/driver-select.c \
+    $(EMU)/printerdrv/drv-ascii.c \
+    $(EMU)/printerdrv/drv-raw.c \
+    $(EMU)/printerdrv/interface-serial.c \
+    $(EMU)/printerdrv/interface-userport.c \
+    $(EMU)/printerdrv/output-graphics.c \
+    $(EMU)/printerdrv/output-select.c \
+    $(EMU)/printerdrv/output-text.c \
+    $(EMU)/printerdrv/printer-serial.c \
+    $(EMU)/printerdrv/printer-userport.c \
+    $(EMU)/printerdrv/printer.c
+
+SOURCES_C_SERIAL := \
+    $(EMU)/serial/fsdrive.c \
+    $(EMU)/serial/iec-ieee488-shared.c \
+    $(EMU)/serial/realdevice.c \
+    $(EMU)/serial/serial-device.c \
+    $(EMU)/serial/serial-iec-bus.c \
+    $(EMU)/serial/serial-iec-device.c \
+    $(EMU)/serial/serial-iec-lib.c \
+    $(EMU)/serial/serial-iec.c \
+    $(EMU)/serial/serial-realdevice.c \
+    $(EMU)/serial/serial-trap.c \
+    $(EMU)/serial/serial.c
+
+SOURCES_C_TAPEPORT := \
+    $(EMU)/tapeport/cp-clockf83.c \
+    $(EMU)/tapeport/dtl-basic-dongle.c \
+    $(EMU)/tapeport/sense-dongle.c \
+    $(EMU)/tapeport/tapecart.c \
+    $(EMU)/tapeport/tapeport.c \
+    $(EMU)/tapeport/tape_diag_586220_harness.c \
+    $(EMU)/tapeport/wordcraft-dongle.c
+
 SOURCES_C_USERPORT := \
     $(EMU)/userport/userport.c \
     $(EMU)/userport/userport_4bit_sampler.c \
@@ -240,6 +276,7 @@ SOURCES_C_USERPORT := \
     $(EMU)/userport/userport_io_sim.c \
     $(EMU)/userport/userport_joystick.c \
     $(EMU)/userport/userport_petscii_snespad.c \
+    $(EMU)/userport/userport_ps2mouse.c \
     $(EMU)/userport/userport_rtc_58321a.c \
     $(EMU)/userport/userport_rtc_ds1307.c \
     $(EMU)/userport/userport_spt_joystick.c \
@@ -316,6 +353,7 @@ SOURCES_C_C64_CART := \
 	$(EMU)/c64/cart/magicformel.c \
 	$(EMU)/c64/cart/magicvoice.c \
 	$(EMU)/c64/cart/maxbasic.c \
+	$(EMU)/c64/cart/megabyter.c \
 	$(EMU)/c64/cart/mikroass.c \
 	$(EMU)/c64/cart/multimax.c \
 	$(EMU)/c64/cart/mmc64.c \
@@ -323,6 +361,7 @@ SOURCES_C_C64_CART := \
 	$(EMU)/c64/cart/ocean.c \
 	$(EMU)/c64/cart/pagefox.c \
 	$(EMU)/c64/cart/partner64.c \
+	$(EMU)/c64/cart/profidos.c \
 	$(EMU)/c64/cart/prophet64.c \
 	$(EMU)/c64/cart/ramcart.c \
 	$(EMU)/c64/cart/ramlink.c \

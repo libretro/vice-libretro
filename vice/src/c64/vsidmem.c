@@ -53,6 +53,7 @@
 #include "monitor.h"
 #include "ram.h"
 #include "sid.h"
+#include "sid-resources.h"
 #include "tpi.h"
 #include "vicii-mem.h"
 #include "vicii-phi1.h"
@@ -439,10 +440,19 @@ void mem_read_tab_set(unsigned int base, unsigned int index, read_func_ptr_t rea
     mem_read_tab[base][index] = read_func;
 }
 
+
+/* set c64 base */
 void mem_read_base_set(unsigned int base, unsigned int index, uint8_t *mem_ptr)
 {
     mem_read_base_tab[base][index] = mem_ptr;
 }
+
+/* add actual pointer */
+void mem_read_addr_set(unsigned int base, unsigned int index, uintptr_t addr)
+{
+    mem_read_base_tab[base][index] += addr;
+}
+
 
 void mem_read_limit_set(unsigned int base, unsigned int index, uint32_t limit)
 {
@@ -501,6 +511,8 @@ void mem_initialize_memory(void)
 
     /* Setup character generator ROM at $D000-$DFFF (memory configs 1, 2, 3, 9, 10, 11, 25, 26, 27).  */
     for (i = 0xd0; i <= 0xdf; i++) {
+        uintptr_t addr = 0 - 0xd000;
+
         mem_read_tab[1][i] = chargen_read;
         mem_read_tab[2][i] = chargen_read;
         mem_read_tab[3][i] = chargen_read;
@@ -510,6 +522,7 @@ void mem_initialize_memory(void)
         mem_read_tab[25][i] = chargen_read;
         mem_read_tab[26][i] = chargen_read;
         mem_read_tab[27][i] = chargen_read;
+#if 0
         mem_read_base_tab[1][i] = (uint8_t *)(mem_chargen_rom - (uint8_t *)0xd000);
         mem_read_base_tab[2][i] = (uint8_t *)(mem_chargen_rom - (uint8_t *)0xd000);
         mem_read_base_tab[3][i] = (uint8_t *)(mem_chargen_rom - (uint8_t *)0xd000);
@@ -519,6 +532,25 @@ void mem_initialize_memory(void)
         mem_read_base_tab[25][i] = (uint8_t *)(mem_chargen_rom - (uint8_t *)0xd000);
         mem_read_base_tab[26][i] = (uint8_t *)(mem_chargen_rom - (uint8_t *)0xd000);
         mem_read_base_tab[27][i] = (uint8_t *)(mem_chargen_rom - (uint8_t *)0xd000);
+#else
+        mem_read_base_set(1, i, (uint8_t*)addr);
+        mem_read_base_set(2, i, (uint8_t*)addr);
+        mem_read_base_set(3, i, (uint8_t*)addr);
+        mem_read_base_set(9, i, (uint8_t*)addr);
+        mem_read_base_set(10, i, (uint8_t*)addr);
+        mem_read_base_set(11, i, (uint8_t*)addr);
+        mem_read_base_set(26, i, (uint8_t*)addr);
+        mem_read_base_set(27, i, (uint8_t*)addr);
+
+        mem_read_addr_set(1, i, (uintptr_t)mem_chargen_rom);
+        mem_read_addr_set(2, i, (uintptr_t)mem_chargen_rom);
+        mem_read_addr_set(3, i, (uintptr_t)mem_chargen_rom);
+        mem_read_addr_set(9, i, (uintptr_t)mem_chargen_rom);
+        mem_read_addr_set(10, i, (uintptr_t)mem_chargen_rom);
+        mem_read_addr_set(11, i, (uintptr_t)mem_chargen_rom);
+        mem_read_addr_set(26, i, (uintptr_t)mem_chargen_rom);
+        mem_read_addr_set(27, i, (uintptr_t)mem_chargen_rom);
+#endif
     }
 
     c64meminit(0);
@@ -761,6 +793,9 @@ static uint8_t peek_bank_io(uint16_t addr)
             return cia1_peek(addr);
         case 0xdd00:
             return cia2_peek(addr);
+        case 0xde00:
+        case 0xdf00:
+            return vsid_io_peek(addr);
     }
     return 0xff;
 }
@@ -959,6 +994,12 @@ mem_ioreg_list_t *mem_ioreg_list_get(void *context)
     mon_ioreg_add_list(&mem_ioreg_list, "CIA1", 0xdc00, 0xdc0f, mem_dump_io, NULL, IO_MIRROR_NONE);
     mon_ioreg_add_list(&mem_ioreg_list, "CIA2", 0xdd00, 0xdd0f, mem_dump_io, NULL, IO_MIRROR_NONE);
 
+    if (sid_stereo >= 1) {
+        mon_ioreg_add_list(&mem_ioreg_list, "SID2", sid2_address_start, sid2_address_start + 0x1f, sid2_dump, NULL, IO_MIRROR_NONE);
+    }
+    if (sid_stereo >= 2) {
+        mon_ioreg_add_list(&mem_ioreg_list, "SID3", sid3_address_start, sid3_address_start + 0x1f, sid3_dump, NULL, IO_MIRROR_NONE);
+    }
     return mem_ioreg_list;
 }
 

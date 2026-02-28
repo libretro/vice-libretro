@@ -211,6 +211,7 @@ int drive_init(void)
 
     }
 
+    /* NOTE: this will not actually load the images yet, only check of the ROMs exist */
     driverom_load_images();
     /* Do not error out if _SOME_ images are not found, ie. FD2K/4K, CMDHD */
 #if 0
@@ -223,8 +224,7 @@ int drive_init(void)
     }
 #endif
 
-    log_message(drive_log, "Finished loading ROM images.");
-    rom_loaded = 1;
+    rom_loaded = 1; /* mark drive ROMs being tested OK */
 
     for (unit = 0; unit < NUM_DISK_UNITS; unit++) {
         diskunit_context_t *diskunit = diskunit_context[unit];
@@ -236,8 +236,11 @@ int drive_init(void)
             resources_set_int_sprintf("Drive%uType", DRIVE_TYPE_NONE, unit + 8);
         }
 
+        /* This will trigger loading the ROM if needed */
         machine_drive_rom_setup_image(unit);
     }
+
+    log_verbose(drive_log, "Finished loading ROM images.");
 
     for (unit = 0; unit < NUM_DISK_UNITS; unit++) {
         diskunit_context_t *diskunit = diskunit_context[unit];
@@ -924,7 +927,13 @@ static void drive_led_update(diskunit_context_t *unit, drive_t *drive, int base)
            and the LED was on */
         led_pwm1 = 1000;
     } else {
-        led_pwm1 = (int)(drive->led_active_ticks / led_period * 1000);
+        led_pwm1 = (int)((drive->led_active_ticks * 1000) / led_period);
+        /* With the 1541's real LED, the human eye perceives brightness much earlier in the PWM
+        * duty cycle range; the blog post at
+        * https://blog.mbedded.ninja/programming/firmware/controlling-led-brightness-using-pwm/
+        * describes this. so adjust our output intensity level to compensate, using a square
+        * root power function to produce higher RGB outputs at lower PWM duty cycle levels. */
+        led_pwm1 = 1000 * sqrt((float) led_pwm1 / 1000.0);
     }
     assert(led_pwm1 <= MAX_PWM);
     if (led_pwm1 > MAX_PWM) {

@@ -144,9 +144,11 @@ libwidgets_a_SOURCES = \
 	settings_keyboard.c \
 	settings_ltkernal.c \
 	settings_magicvoice.c \
+	settings_megabyter.c \
 	settings_megacart.c \
 	settings_midi.c \
 	settings_misc.c \
+	settings_minimon.c \
 	settings_mixer.c \
 	settings_mmc64.c \
 	settings_mmcr.c \
@@ -315,9 +317,11 @@ EXTRA_DIST = \
 	settings_keyboard.h \
 	settings_ltkernal.h \
 	settings_magicvoice.h \
+	settings_megabyter.h \
 	settings_megacart.h \
 	settings_midi.h \
 	settings_misc.h \
+	settings_minimon.h \
 	settings_mixer.h \
 	settings_mmc64.h \
 	settings_mmcr.h \

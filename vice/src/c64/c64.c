@@ -144,6 +144,7 @@
 #include "userport_synergy_joystick.h"
 #include "userport_wic64.h"
 #include "userport_woj_joystick.h"
+#include "userport_funmp3.h"
 #include "vice-event.h"
 #include "vicii.h"
 #include "vicii-mem.h"
@@ -157,6 +158,16 @@
 #include "lightpen.h"
 #include "mouse.h"
 #endif
+
+
+/* #define DEBUG_C64 */
+
+#ifdef DEBUG_C64
+#define DBG(x) log_printf  x
+#else
+#define DBG(x)
+#endif
+
 
 /** \brief  Delay in seconds before pasting -keybuf argument into the buffer
  */
@@ -1018,6 +1029,8 @@ int machine_specific_init(void)
 {
     c64_log = log_open("C64");
 
+    DBG(("machine_specific_init"));
+
     if (mem_load() < 0) {
         return -1;
     }
@@ -1091,9 +1104,12 @@ int machine_specific_init(void)
     userport_dac_sound_chip_init();
     userport_digimax_sound_chip_init();
 
-    /* Initialize mp3@64 */
+    /* Initialize mp3@64, funmp3 */
 #ifdef USE_MPG123
     clockport_mp3at64_sound_chip_init();
+#endif
+#if defined(USE_MPG123) && defined (HAVE_GLOB_H)
+    userport_funmp3_sound_chip_init();
 #endif
 
     drive_sound_init();
@@ -1152,6 +1168,8 @@ int machine_specific_init(void)
     cartridge_init();
 
     machine_drive_stub();
+
+    DBG(("machine_specific_init (done)"));
 
     return 0;
 }
@@ -1471,8 +1489,10 @@ const char *machine_get_name(void)
 
 /* ------------------------------------------------------------------------- */
 
+/* called via userport.c:set_userport_flag->userport_props.set_flag(val); */
 static void c64_userport_set_flag(uint8_t b)
 {
+    DBG(("c64_userport_set_flag(%d)", b));
     if (b != 0) {
         ciacore_set_flag(machine_context.cia2);
     }

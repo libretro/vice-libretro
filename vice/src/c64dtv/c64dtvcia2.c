@@ -48,7 +48,7 @@
 #include "lib.h"
 #include "log.h"
 #include "maincpu.h"
-#include "ps2mouse.h"
+#include "userport_ps2mouse.h"
 #include "types.h"
 #include "userport.h"
 #include "vicii.h"
@@ -58,12 +58,8 @@ void cia2_store(uint16_t addr, uint8_t data)
     if ((addr & 0x1f) == 1) {
         store_userport_pbx(data, USERPORT_NO_PULSE);
 
-        /* The functions below will gradually be removed as the functionality is added to the new userport system. */
         if (c64dtv_hummer_adc_enabled) {
             hummeradc_store(data);
-        }
-        if (ps2mouse_enabled) {
-            ps2mouse_store(data);
         }
     }
 
@@ -77,10 +73,6 @@ uint8_t cia2_read(uint16_t addr)
     if ((addr & 0x1f) == 1) {
         retval = read_userport_pbx(retval);
 
-        /* The functions below will gradually be removed as the functionality is added to the new userport system. */
-        if (ps2mouse_enabled) {
-            retval &= (ps2mouse_read() | 0x3f);
-        }
         if (c64dtv_hummer_adc_enabled) {
             retval &= (hummeradc_read() | 0xf8);
         }

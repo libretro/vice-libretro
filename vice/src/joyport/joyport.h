@@ -85,6 +85,7 @@ enum {
     JOYPORT_ID_PAPERCLIP64SC,
     JOYPORT_ID_PAPERCLIP2,
     JOYPORT_ID_POWERPAD,
+    JOYPORT_ID_DIAG_586220_HARNESS,
 
     /* This item always needs to be at the end */
     JOYPORT_MAX_DEVICES
@@ -150,7 +151,8 @@ enum {
     JOYPORT_DEVICE_SAMPLER,
     JOYPORT_DEVICE_RTC,
     JOYPORT_DEVICE_C64_DONGLE,
-    JOYPORT_DEVICE_IO_SIMULATION
+    JOYPORT_DEVICE_IO_SIMULATION,
+    JOYPORT_DEVICE_DIAG_HARNESS,
 };
 
 /* joystick bits */
@@ -340,6 +342,11 @@ uint8_t read_joyport_potx(void);
 uint8_t read_joyport_poty(void);
 
 void set_joyport_pot_mask(int mask);
+CLOCK get_joyport_pot_mask_clk(void); /* get time since last port switch */
+
+#define JOYPORT_POT_TYPE_ANALOG     0   /* regular resistor */
+#define JOYPORT_POT_TYPE_DIGITAL    1   /* digital (1351 style) */
+int get_joyport_pot_type(void);
 
 void joyport_powerup(void);
 

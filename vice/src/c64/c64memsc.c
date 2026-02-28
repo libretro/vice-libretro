@@ -43,6 +43,7 @@
 #include "c64meminit.h"
 #include "c64memlimit.h"
 #include "c64memrom.h"
+#include "c64model.h"
 #include "c64pla.h"
 #include "c64ui.h"
 #include "c64cartmem.h"
@@ -50,6 +51,7 @@
 #include "cartridge.h"
 #include "cia.h"
 #include "cpmcart.h"
+#include "lib.h"
 #include "machine.h"
 #include "mainc64cpu.h"
 #include "maincpu.h"
@@ -69,6 +71,9 @@
 
 /* Machine class (moved from c64.c to distinguish between x64 and x64sc) */
 int machine_class = VICE_MACHINE_C64SC;
+
+/* import from c64-resources.c - don't use the resource for performance reasons */
+extern int board_type;
 
 /* C64 memory-related resources.  */
 
@@ -222,7 +227,12 @@ void mem_pla_config_changed(void)
 {
     mem_config = (((~pport.dir | pport.data) & 0x7) | (export.exrom << 3) | (export.game << 4));
 
-    c64pla_config_changed(tape_sense, tape_write_in, tape_motor_in, 1, 0x17);
+    /* NOTE: CPU port bits 3,4,5 are not connected on the SX64 board */
+    if (board_type == BOARD_SX64) {
+        c64pla_config_changed(1, 1, 1, 1, 0x07);
+    } else {
+        c64pla_config_changed(tape_sense, tape_write_in, tape_motor_in, 1, 0x17);
+    }
 
     mem_update_tab_ptrs(watchpoints_active);
 
@@ -264,6 +274,26 @@ uint8_t zero_read(uint16_t addr)
 
             /* discharge the "capacitor" */
 
+            /* FIXME: bits 3,4,5 are not connected on SX-64 boards - whether they
+                      show similar behaviour needs to be tested */
+            if (board_type == BOARD_SX64) {
+                /* set real value of read bit 3 */
+                if (pport.data_falloff_bit3 && (pport.data_set_clk_bit3 < maincpu_clk)) {
+                    pport.data_falloff_bit3 = 0;
+                    pport.data_set_bit3 = 0;
+                }
+                /* set real value of read bit 4 */
+                if (pport.data_falloff_bit4 && (pport.data_set_clk_bit4 < maincpu_clk)) {
+                    pport.data_falloff_bit4 = 0;
+                    pport.data_set_bit4 = 0;
+                }
+                /* set real value of read bit 5 */
+                if (pport.data_falloff_bit5 && (pport.data_set_clk_bit5 < maincpu_clk)) {
+                    pport.data_falloff_bit5 = 0;
+                    pport.data_set_bit5 = 0;
+                }
+            }
+
             /* set real value of read bit 6 */
             if (pport.data_falloff_bit6 && (pport.data_set_clk_bit6 < maincpu_clk)) {
                 pport.data_falloff_bit6 = 0;
@@ -277,6 +307,23 @@ uint8_t zero_read(uint16_t addr)
             }
 
             /* for unused bits in input mode, the value comes from the "capacitor" */
+            if (board_type == BOARD_SX64) {
+                /* set real value of bit 3 */
+                if (!(pport.dir_read & 0x08)) {
+                    retval &= ~0x08;
+                    retval |= pport.data_set_bit3;
+                }
+                /* set real value of bit 4 */
+                if (!(pport.dir_read & 0x10)) {
+                    retval &= ~0x10;
+                    retval |= pport.data_set_bit4;
+                }
+                /* set real value of bit 5 */
+                if (!(pport.dir_read & 0x20)) {
+                    retval &= ~0x20;
+                    retval |= pport.data_set_bit5;
+                }
+            }
 
             /* set real value of bit 6 */
             if (!(pport.dir_read & 0x40)) {
@@ -316,6 +363,9 @@ void zero_store_dma(uint16_t addr, uint8_t value)
     }
 }
 
+#define FALLOFF_RANDOM (C64_CPU6510_DATA_PORT_FALL_OFF_CYCLES / 5)
+#define FALLOFF_RANDOM_SX (SX64_CPU6510_DATA_PORT_FALL_OFF_CYCLES / 5)
+
 /* store zeropage, 0/1 goes to CPU port */
 void zero_store(uint16_t addr, uint8_t value)
 {
@@ -342,10 +392,34 @@ void zero_store(uint16_t addr, uint8_t value)
                stable value) to input mode (where the input is floating), some
                of the charge is transferred to the floating input */
 
+            if (board_type == BOARD_SX64) {
+                if ((pport.dir & 0x08)) {
+                    if ((pport.dir ^ value) & 0x08) {
+                        pport.data_set_clk_bit3 = maincpu_clk + SX64_CPU6510_DATA_PORT_FALL_OFF_CYCLES + lib_unsigned_rand(0, FALLOFF_RANDOM_SX);
+                        pport.data_set_bit3 = pport.data & 0x08;
+                        pport.data_falloff_bit3 = 1;
+                    }
+                }
+                if ((pport.dir & 0x10)) {
+                    if ((pport.dir ^ value) & 0x10) {
+                        pport.data_set_clk_bit4 = maincpu_clk + SX64_CPU6510_DATA_PORT_FALL_OFF_CYCLES + lib_unsigned_rand(0, FALLOFF_RANDOM_SX);
+                        pport.data_set_bit4 = pport.data & 0x10;
+                        pport.data_falloff_bit4 = 1;
+                    }
+                }
+                if ((pport.dir & 0x20)) {
+                    if ((pport.dir ^ value) & 0x20) {
+                        pport.data_set_clk_bit5 = maincpu_clk + SX64_CPU6510_DATA_PORT_FALL_OFF_CYCLES + lib_unsigned_rand(0, FALLOFF_RANDOM_SX);
+                        pport.data_set_bit5 = pport.data & 0x20;
+                        pport.data_falloff_bit5 = 1;
+                    }
+                }
+            }
+
             /* check if bit 6 has flipped */
             if ((pport.dir & 0x40)) {
                 if ((pport.dir ^ value) & 0x40) {
-                    pport.data_set_clk_bit6 = maincpu_clk + C64_CPU6510_DATA_PORT_FALL_OFF_CYCLES;
+                    pport.data_set_clk_bit6 = maincpu_clk + C64_CPU6510_DATA_PORT_FALL_OFF_CYCLES + lib_unsigned_rand(0, FALLOFF_RANDOM);
                     pport.data_set_bit6 = pport.data & 0x40;
                     pport.data_falloff_bit6 = 1;
                 }
@@ -354,7 +428,7 @@ void zero_store(uint16_t addr, uint8_t value)
             /* check if bit 7 has flipped */
             if ((pport.dir & 0x80)) {
                 if ((pport.dir ^ value) & 0x80) {
-                    pport.data_set_clk_bit7 = maincpu_clk + C64_CPU6510_DATA_PORT_FALL_OFF_CYCLES;
+                    pport.data_set_clk_bit7 = maincpu_clk + C64_CPU6510_DATA_PORT_FALL_OFF_CYCLES + lib_unsigned_rand(0, FALLOFF_RANDOM);
                     pport.data_set_bit7 = pport.data & 0x80;
                     pport.data_falloff_bit7 = 1;
                 }
@@ -386,14 +460,32 @@ void zero_store(uint16_t addr, uint8_t value)
                otherwise don't touch it */
             if (pport.dir & 0x80) {
                 pport.data_set_bit7 = value & 0x80;
-                pport.data_set_clk_bit7 = maincpu_clk + C64_CPU6510_DATA_PORT_FALL_OFF_CYCLES;
+                pport.data_set_clk_bit7 = maincpu_clk + C64_CPU6510_DATA_PORT_FALL_OFF_CYCLES + lib_unsigned_rand(0, FALLOFF_RANDOM);
                 pport.data_falloff_bit7 = 1;
             }
 
             if (pport.dir & 0x40) {
                 pport.data_set_bit6 = value & 0x40;
-                pport.data_set_clk_bit6 = maincpu_clk + C64_CPU6510_DATA_PORT_FALL_OFF_CYCLES;
+                pport.data_set_clk_bit6 = maincpu_clk + C64_CPU6510_DATA_PORT_FALL_OFF_CYCLES + lib_unsigned_rand(0, FALLOFF_RANDOM);
                 pport.data_falloff_bit6 = 1;
+            }
+
+            if (board_type == BOARD_SX64) {
+                if (pport.dir & 0x20) {
+                    pport.data_set_bit5 = value & 0x20;
+                    pport.data_set_clk_bit5 = maincpu_clk + SX64_CPU6510_DATA_PORT_FALL_OFF_CYCLES + lib_unsigned_rand(0, FALLOFF_RANDOM_SX);
+                    pport.data_falloff_bit5 = 1;
+                }
+                if (pport.dir & 0x10) {
+                    pport.data_set_bit4 = value & 0x10;
+                    pport.data_set_clk_bit4 = maincpu_clk + SX64_CPU6510_DATA_PORT_FALL_OFF_CYCLES + lib_unsigned_rand(0, FALLOFF_RANDOM_SX);
+                    pport.data_falloff_bit4 = 1;
+                }
+                if (pport.dir & 0x08) {
+                    pport.data_set_bit3 = value & 0x08;
+                    pport.data_set_clk_bit3 = maincpu_clk + SX64_CPU6510_DATA_PORT_FALL_OFF_CYCLES + lib_unsigned_rand(0, FALLOFF_RANDOM_SX);
+                    pport.data_falloff_bit3 = 1;
+                }
             }
 
             if (pport.data != value) {
@@ -661,10 +753,18 @@ void mem_read_tab_set(unsigned int base, unsigned int index, read_func_ptr_t rea
     mem_read_tab[base][index] = read_func;
 }
 
+/* set c64 base */
 void mem_read_base_set(unsigned int base, unsigned int index, uint8_t *mem_ptr)
 {
     mem_read_base_tab[base][index] = mem_ptr;
 }
+
+/* add actual pointer */
+void mem_read_addr_set(unsigned int base, unsigned int index, uintptr_t addr)
+{
+    mem_read_base_tab[base][index] += addr;
+}
+
 
 void mem_read_limit_set(unsigned int base, unsigned int index, uint32_t limit)
 {
@@ -707,7 +807,7 @@ void mem_initialize_memory(void)
         mem_read_tab[i][0] = zero_read;
         mem_read_base_tab[i][0] = mem_ram;
         for (j = 1; j <= 0xfe; j++) {
-            if (board == 1 && j >= 0x08) {
+            if (board == BOARD_MAX && j >= 0x08) {
                 /* mem_read_tab[i][j] = void_read;
                 mem_read_base_tab[i][j] = NULL;
                 mem_set_write_hook(0, j, void_store); */
@@ -717,7 +817,7 @@ void mem_initialize_memory(void)
             mem_read_base_tab[i][j] = mem_ram;
             mem_write_tab[i][j] = ram_store;
         }
-        if (board == 1) {
+        if (board == BOARD_MAX) {
             /* mem_read_tab[i][0xff] = void_read;
             mem_read_base_tab[i][0xff] = NULL;
             mem_set_write_hook(0, 0xff, void_store); */
@@ -730,8 +830,11 @@ void mem_initialize_memory(void)
         }
     }
 
+    uintptr_t addr = 0 - 0xd000;
+
     /* Setup character generator ROM at $D000-$DFFF (memory configs 1, 2, 3, 9, 10, 11, 26, 27).  */
     for (i = 0xd0; i <= 0xdf; i++) {
+#if 0
         mem_read_tab[1][i] = chargen_read;
         mem_read_tab[2][i] = chargen_read;
         mem_read_tab[3][i] = chargen_read;
@@ -748,6 +851,52 @@ void mem_initialize_memory(void)
         mem_read_base_tab[11][i] = (uint8_t *)(mem_chargen_rom - (uint8_t *)0xd000);
         mem_read_base_tab[26][i] = (uint8_t *)(mem_chargen_rom - (uint8_t *)0xd000);
         mem_read_base_tab[27][i] = (uint8_t *)(mem_chargen_rom - (uint8_t *)0xd000);
+#endif
+        mem_read_tab_set(1, i, chargen_read);
+        mem_read_tab_set(2, i, chargen_read);
+        mem_read_tab_set(3, i, chargen_read);
+        mem_read_tab_set(9, i, chargen_read);
+        mem_read_tab_set(10, i, chargen_read);
+        mem_read_tab_set(11, i, chargen_read);
+        mem_read_tab_set(26, i, chargen_read);
+        mem_read_tab_set(27, i, chargen_read);
+#if 0
+        mem_read_base_set(1, i, mem_chargen_rom);
+        mem_read_base_set(2, i, mem_chargen_rom);
+        mem_read_base_set(3, i, mem_chargen_rom);
+        mem_read_base_set(9, i, mem_chargen_rom);
+        mem_read_base_set(10, i, mem_chargen_rom);
+        mem_read_base_set(11, i, mem_chargen_rom);
+        mem_read_base_set(26, i, mem_chargen_rom);
+        mem_read_base_set(27, i, mem_chargen_rom);
+
+        mem_read_addr_set(1, i, addr);
+        mem_read_addr_set(2, i, addr);
+        mem_read_addr_set(3, i, addr);
+        mem_read_addr_set(9, i, addr);
+        mem_read_addr_set(10, i, addr);
+        mem_read_addr_set(11, i, addr);
+        mem_read_addr_set(26, i, addr);
+        mem_read_addr_set(27, i, addr);
+#else
+        mem_read_base_set(1, i, (uint8_t*)addr);
+        mem_read_base_set(2, i, (uint8_t*)addr);
+        mem_read_base_set(3, i, (uint8_t*)addr);
+        mem_read_base_set(9, i, (uint8_t*)addr);
+        mem_read_base_set(10, i, (uint8_t*)addr);
+        mem_read_base_set(11, i, (uint8_t*)addr);
+        mem_read_base_set(26, i, (uint8_t*)addr);
+        mem_read_base_set(27, i, (uint8_t*)addr);
+
+        mem_read_addr_set(1, i, (uintptr_t)mem_chargen_rom);
+        mem_read_addr_set(2, i, (uintptr_t)mem_chargen_rom);
+        mem_read_addr_set(3, i, (uintptr_t)mem_chargen_rom);
+        mem_read_addr_set(9, i, (uintptr_t)mem_chargen_rom);
+        mem_read_addr_set(10, i, (uintptr_t)mem_chargen_rom);
+        mem_read_addr_set(11, i, (uintptr_t)mem_chargen_rom);
+        mem_read_addr_set(26, i, (uintptr_t)mem_chargen_rom);
+        mem_read_addr_set(27, i, (uintptr_t)mem_chargen_rom);
+#endif
     }
 
     c64meminit(0);
@@ -774,7 +923,7 @@ void mem_initialize_memory(void)
     plus256k_init_config();
     c64_256k_init_config();
 
-    if (board == 1) {
+    if (board == BOARD_MAX) {
         mem_limit_max_init();
     }
 }
