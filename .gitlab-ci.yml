@@ -82,6 +82,10 @@ include:
   - project: 'libretro-infrastructure/ci-templates'
     file: '/linux-i686.yml'
 
+  # Linux 64-bit (ARM)
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/linux-aarch64.yml'
+
   # MacOS 64-bit
   - project: 'libretro-infrastructure/ci-templates'
     file: '/osx-x64.yml'
@@ -179,6 +183,12 @@ libretro-build-linux-x64:
 libretro-build-linux-i686:
   extends:
     - .libretro-linux-i686-make-default
+    - .core-defs
+
+# Linux 64-bit (ARM)
+libretro-build-linux-aarch64:
+  extends:
+    - .libretro-linux-aarch64-make-default
     - .core-defs
 
 # MacOS 64-bit
@@ -321,6 +331,12 @@ libretro-build-linux-i686-x64sc:
     - .libretro-linux-i686-make-default
     - .core-defs-x64sc
 
+# Linux 64-bit (ARM, x64sc)
+libretro-build-linux-aarch64-x64sc:
+  extends:
+    - .libretro-linux-aarch64-make-default
+    - .core-defs-x64sc
+
 # MacOS 64-bit
 libretro-build-osx-x64-x64sc:
   extends:
@@ -449,6 +465,12 @@ libretro-build-linux-i686-x128:
     - .libretro-linux-i686-make-default
     - .core-defs-x128
 
+# Linux 64-bit (ARM, x128)
+libretro-build-linux-aarch64-x128:
+  extends:
+    - .libretro-linux-aarch64-make-default
+    - .core-defs-x128
+
 # MacOS 64-bit
 libretro-build-osx-x64-x128:
   extends:
@@ -568,6 +590,12 @@ libretro-build-linux-i686-xcbm2:
     - .libretro-linux-i686-make-default
     - .core-defs-xcbm2
 
+# Linux 64-bit (ARM, xcbm2)
+libretro-build-linux-aarch64-xcbm2:
+  extends:
+    - .libretro-linux-aarch64-make-default
+    - .core-defs-xcbm2
+
 # MacOS 64-bit
 libretro-build-osx-x64-xcbm2:
   extends:
@@ -685,6 +713,12 @@ libretro-build-linux-x64-xcbm5x0:
 libretro-build-linux-i686-xcbm5x0:
   extends:
     - .libretro-linux-i686-make-default
+    - .core-defs-xcbm5x0
+
+# Linux 64-bit (ARM, xcbm5x0)
+libretro-build-linux-aarch64-xcbm5x0:
+  extends:
+    - .libretro-linux-aarch64-make-default
     - .core-defs-xcbm5x0
 
 # MacOS 64-bit
@@ -812,6 +846,12 @@ libretro-build-linux-i686-xpet:
     - .libretro-linux-i686-make-default
     - .core-defs-xpet
 
+# Linux 64-bit (ARM, xpet)
+libretro-build-linux-aarch64-xpet:
+  extends:
+    - .libretro-linux-aarch64-make-default
+    - .core-defs-xpet
+
 # MacOS 64-bit
 libretro-build-osx-x64-xpet:
   extends:
@@ -931,6 +971,12 @@ libretro-build-linux-i686-xplus4:
     - .libretro-linux-i686-make-default
     - .core-defs-xplus4
 
+# Linux 64-bit (ARM, xplus4)
+libretro-build-linux-aarch64-xplus4:
+  extends:
+    - .libretro-linux-aarch64-make-default
+    - .core-defs-xplus4
+
 # MacOS 64-bit
 libretro-build-osx-x64-xplus4:
   extends:
@@ -1048,6 +1094,12 @@ libretro-build-linux-x64-xscpu64:
 libretro-build-linux-i686-xscpu64:
   extends:
     - .libretro-linux-i686-make-default
+    - .core-defs-xscpu64
+
+# Linux 64-bit (ARM, xscpu64)
+libretro-build-linux-aarch64-xscpu64:
+  extends:
+    - .libretro-linux-aarch64-make-default
     - .core-defs-xscpu64
 
 # MacOS 64-bit
@@ -1173,6 +1225,12 @@ libretro-build-linux-x64-xvic:
 libretro-build-linux-i686-xvic:
   extends:
     - .libretro-linux-i686-make-default
+    - .core-defs-xvic
+
+# Linux 64-bit (ARM, xvic)
+libretro-build-linux-aarch64-xvic:
+  extends:
+    - .libretro-linux-aarch64-make-default
     - .core-defs-xvic
 
 # MacOS 64-bit
