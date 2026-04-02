@@ -145,6 +145,10 @@ include:
   - project: 'libretro-infrastructure/ci-templates'
     file: '/emscripten-static.yml'
 
+  # webOS 32-bit (LGTV)
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/webos-make.yml'
+
 # Stages for building
 stages:
   - build-prepare
@@ -302,6 +306,12 @@ libretro-build-emscripten:
     - .libretro-emscripten-static-retroarch-master
     - .core-defs
 
+# webOS 32-bit
+libretro-build-webos-armv7a:
+  extends:
+    - .libretro-webos-armv7a-make-default
+    - .core-defs
+
 ################
 ## vice_x64sc ##
 ################
@@ -436,6 +446,12 @@ libretro-build-emscripten-x64sc:
     - .libretro-emscripten-static-retroarch-master
     - .core-defs-x64sc
 
+# webOS 32-bit
+libretro-build-webos-armv7a-x64sc:
+  extends:
+    - .libretro-webos-armv7a-make-default
+    - .core-defs-x64sc
+
 ###############
 ## vice_x128 ##
 ###############
@@ -561,6 +577,12 @@ libretro-build-emscripten-x128:
     - .libretro-emscripten-static-retroarch-master
     - .core-defs-x128
 
+# webOS 32-bit
+libretro-build-webos-armv7a-x128:
+  extends:
+    - .libretro-webos-armv7a-make-default
+    - .core-defs-x128
+
 ################
 ## vice_xcbm2 ##
 ################
@@ -684,6 +706,12 @@ libretro-build-wiiu-xcbm2:
 libretro-build-emscripten-xcbm2:
   extends:
     - .libretro-emscripten-static-retroarch-master
+    - .core-defs-xcbm2
+
+# webOS 32-bit
+libretro-build-webos-armv7a-xcbm2:
+  extends:
+    - .libretro-webos-armv7a-make-default
     - .core-defs-xcbm2
 
 ##################
@@ -817,6 +845,12 @@ libretro-build-emscripten-xcbm5x0:
     - .libretro-emscripten-static-retroarch-master
     - .core-defs-xcbm5x0
 
+# webOS 32-bit
+libretro-build-webos-armv7a-xcbm5x0:
+  extends:
+    - .libretro-webos-armv7a-make-default
+    - .core-defs-xcbm5x0
+
 ###############
 ## vice_xpet ##
 ###############
@@ -942,6 +976,12 @@ libretro-build-emscripten-xpet:
     - .libretro-emscripten-static-retroarch-master
     - .core-defs-xpet
 
+# webOS 32-bit
+libretro-build-webos-armv7a-xpet:
+  extends:
+    - .libretro-webos-armv7a-make-default
+    - .core-defs-xpet
+
 #################
 ## vice_xplus4 ##
 #################
@@ -1065,6 +1105,12 @@ libretro-build-wiiu-xplus4:
 libretro-build-emscripten-xplus4:
   extends:
     - .libretro-emscripten-static-retroarch-master
+    - .core-defs-xplus4
+
+# webOS 32-bit
+libretro-build-webos-armv7a-xplus4:
+  extends:
+    - .libretro-webos-armv7a-make-default
     - .core-defs-xplus4
 
 ##################
@@ -1198,6 +1244,12 @@ libretro-build-emscripten-xscpu64:
     - .libretro-emscripten-static-retroarch-master
     - .core-defs-xscpu64
 
+# webOS 32-bit
+libretro-build-webos-armv7a-xscpu64:
+  extends:
+    - .libretro-webos-armv7a-make-default
+    - .core-defs-xscpu64
+
 ###############
 ## vice_xvic ##
 ###############
@@ -1321,4 +1373,10 @@ libretro-build-wiiu-xvic:
 libretro-build-emscripten-xvic:
   extends:
     - .libretro-emscripten-static-retroarch-master
+    - .core-defs-xvic
+
+# webOS 32-bit
+libretro-build-webos-armv7a-xvic:
+  extends:
+    - .libretro-webos-armv7a-make-default
     - .core-defs-xvic
