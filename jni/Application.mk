@@ -7,4 +7,4 @@ APP_ABI := all
 # This should be investigated more in the future.
 APP_CFLAGS += -Wno-error=format-security -Ofast
 APP_STL := c++_static
-APP_PLATFORM := android-16
+APP_PLATFORM := android-21

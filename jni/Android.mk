@@ -16,6 +16,7 @@ COREFLAGS := -DCORE_NAME=\"$(EMUTYPE)\" \
   $(INCFLAGS) $(COMMONFLAGS) \
   -DHAVE_INET_ATON \
   -DHAVE_7ZIP -D_7ZIP_ST \
+  -DHAVE_CXX11 \
   -D_INTTYPES_H
 
 GIT_VERSION := " $(shell git rev-parse --short HEAD || echo unknown)"
