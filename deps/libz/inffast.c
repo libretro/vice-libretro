@@ -4,7 +4,6 @@
  */
 
 #include <stdint.h>
-
 #include "zutil.h"
 #include "inftrees.h"
 #include "inflate.h"
