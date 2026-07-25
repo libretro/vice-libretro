@@ -307,6 +307,7 @@ else ifeq ($(platform), vita)
    AR = arm-vita-eabi-ar$(EXE_EXT)
    COMMONFLAGS += -U__INT32_TYPE__ -U __UINT32_TYPE__ -D__INT32_TYPE__=int
    COMMONFLAGS += -DHAVE_STRTOUL -DVITA -fcommon
+   COMMONFLAGS += -DNEED_STRCASESTR
    STATIC_LINKING = 1
 
 # Emscripten
