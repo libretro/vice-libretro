@@ -4,6 +4,7 @@ RETRODEP = $(CORE_DIR)/retrodep
 LIBRETRO_COMM_DIR := $(CORE_DIR)/libretro-common
 
 INCFLAGS += \
+	-I$(EMU) \
 	-I$(CORE_DIR) \
 	-I$(CORE_DIR)/libretro \
 	-I$(CORE_DIR)/include \
@@ -13,7 +14,7 @@ INCFLAGS += \
 	-I$(EMU)/printerdrv \
 	-I$(RETRODEP) \
 	-I$(LIBRETRO_COMM_DIR)/include \
-	-I$(LIBRETRO_COMM_DIR)/include/compat/zlib
+	-I$(DEPS_DIR)/libz
 
 CXXFLAGS += $(CPPFLAGS)
 

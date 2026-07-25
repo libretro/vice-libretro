@@ -146,6 +146,7 @@ else ifeq ($(platform), libnx)
    CXXFLAGS += $(CFLAGS)
    fpic = -fPIE
    STATIC_LINKING=1
+   COMMONFLAGS += -DNEED_STRCASESTR
 
 # OSX
 else ifeq ($(platform), osx)
@@ -315,6 +316,7 @@ else ifeq ($(platform), emscripten)
    SHARED := -shared -s TOTAL_MEMORY=67108864
    STATIC_LINKING = 1
    COMMONFLAGS += -DHAVE_TIME_T_IN_TIME_H
+   COMMONFLAGS += -DNEED_STRCASESTR
 
 # Wii
 else ifeq ($(platform), wii)
@@ -393,9 +395,15 @@ else ifeq ($(platform), wincross64)
 # Windows
 else
    CFLAGS += -D__WIN32__
+   COMMONFLAGS += -DNEED_STRCASESTR
    TARGET := $(TARGET_NAME)_libretro.dll
    LDFLAGS += --shared -static-libgcc -static-libstdc++ -Wl,--version-script=$(CORE_DIR)/libretro/link.T -Wl,--gc-sections -L/usr/x86_64-w64-mingw32/lib
    LDFLAGS += -lws2_32 -luser32 -lwinmm -ladvapi32 -lshlwapi -lwsock32 -lws2_32 -lpsapi -liphlpapi -lshell32 -luserenv -lmingw32 -shared -lgcc -lm -lmingw32
+endif
+
+# webOS
+ifneq (,$(or $(findstring webos,$(CROSS_COMPILE)),$(findstring starfish,$(CROSS_COMPILE))))
+   CFLAGS += -D_GNU_SOURCE
 endif
 
 # Common

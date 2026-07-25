@@ -421,4 +421,8 @@ struct vice_core_option_info
 
 #define DISK_IMAGE_TYPE_FS 0xFFFF
 
+#ifdef NEED_STRCASESTR
+#define strcasestr compat_strcasestr
+#endif
+
 #endif /* LIBRETRO_CORE_H */
