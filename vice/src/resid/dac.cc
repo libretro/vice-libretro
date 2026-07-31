@@ -40,6 +40,18 @@ static union MSVC_EVIL_FLOAT_HACK INFINITY_HACK = {{0x00, 0x00, 0x80, 0x7F}};
 namespace reSID
 {
 
+#ifdef __LIBRETRO__
+// Approximate infinite resistance with a very large finite value.
+// IEEE INFINITY must not be used here: fast-math builds
+// (-Ofast/-ffast-math imply -ffinite-math-only, used e.g. on Android)
+// fold the INFINITY comparisons away, the infinity leaks into the
+// arithmetic, vbit[] turns NaN and the whole 6581 DAC table collapses
+// to zero, muting the 6581 model entirely while the terminated 8580
+// is unaffected. residfp's Dac.cpp uses the same workaround.
+#undef INFINITY
+static const double INFINITY = 1e6;
+#endif
+
 // "Even in standard transistors a small amount of current leaks
 //  even when they are technically switched off."
 // https://en.wikipedia.org/wiki/Subthreshold_conduction
