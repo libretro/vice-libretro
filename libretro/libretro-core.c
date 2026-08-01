@@ -3420,6 +3420,7 @@ static void retro_set_core_options()
             { "ptoing", "Ptoing" },
             { "rgb", "RGB" },
             { "the64", "THE64" },
+            { "ultimate64", "Ultimate64" },
             { "vice", "VICE" },
             { NULL, NULL },
          },
