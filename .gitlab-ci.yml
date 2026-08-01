@@ -4,64 +4,28 @@
 ################################# BOILERPLATE ################################
 ##############################################################################
 
-# Core definitions
-.core-defs:
-  variables:
-    JNI_PATH: .
-    CORENAME: vice_x64
-    EMUTYPE: x64
-
-.core-defs-x64sc:
-  extends: .core-defs
-  variables:
-    CORENAME: vice_x64sc
-    EMUTYPE: x64sc
-
-.core-defs-x128:
-  extends: .core-defs
-  variables:
-    CORENAME: vice_x128
-    EMUTYPE: x128
-
-.core-defs-xcbm2:
-  extends: .core-defs
-  rules:
-    - when: never
-  variables:
-    CORENAME: vice_xcbm2
-    EMUTYPE: xcbm2
-
-.core-defs-xcbm5x0:
-  extends: .core-defs
-  rules:
-    - when: never
-  variables:
-    CORENAME: vice_xcbm5x0
-    EMUTYPE: xcbm5x0
-
-.core-defs-xpet:
-  extends: .core-defs
-  variables:
-    CORENAME: vice_xpet
-    EMUTYPE: xpet
-
-.core-defs-xplus4:
-  extends: .core-defs
-  variables:
-    CORENAME: vice_xplus4
-    EMUTYPE: xplus4
-
-.core-defs-xscpu64:
-  extends: .core-defs
-  variables:
-    CORENAME: vice_xscpu64
-    EMUTYPE: xscpu64
-
-.core-defs-xvic:
-  extends: .core-defs
-  variables:
-    CORENAME: vice_xvic
-    EMUTYPE: xvic
+# Matrix
+.build_matrix: &build_matrix
+  parallel:
+    matrix:
+      - CORENAME: vice_x64
+        EMUTYPE: x64
+      - CORENAME: vice_x64sc
+        EMUTYPE: x64sc
+      - CORENAME: vice_x128
+        EMUTYPE: x128
+      #- CORENAME: vice_xcbm2
+      #  EMUTYPE: xcbm2
+      #- CORENAME: vice_xcbm5x0
+      #  EMUTYPE: xcbm5x0
+      - CORENAME: vice_xpet
+        EMUTYPE: xpet
+      - CORENAME: vice_xplus4
+        EMUTYPE: xplus4
+      - CORENAME: vice_xscpu64
+        EMUTYPE: xscpu64
+      - CORENAME: vice_xvic
+        EMUTYPE: xvic
 
 # Inclusion templates, required for the build to work
 include:
@@ -69,11 +33,11 @@ include:
   # Windows 64-bit
   - project: 'libretro-infrastructure/ci-templates'
     file: '/windows-x64-mingw.yml'
-    
+
   # Windows 32-bit
   - project: 'libretro-infrastructure/ci-templates'
     file: '/windows-i686-mingw.yml'
-    
+
   # Linux 64-bit
   - project: 'libretro-infrastructure/ci-templates'
     file: '/linux-x64.yml'
@@ -110,15 +74,15 @@ include:
   # iOS (armv7)
   - project: 'libretro-infrastructure/ci-templates'
     file: '/ios9.yml'
-  
+
   ################################## CONSOLES ################################
   # Nintendo 3DS
   - project: 'libretro-infrastructure/ci-templates'
     file: '/ctr-static.yml'
-    
+
   # Nintendo Wii
-  - project: 'libretro-infrastructure/ci-templates'
-    file: '/wii-static.yml'
+  #- project: 'libretro-infrastructure/ci-templates'
+  #  file: '/wii-static.yml'
 
   # Nintendo WiiU
   - project: 'libretro-infrastructure/ci-templates'
@@ -149,1234 +113,183 @@ include:
   - project: 'libretro-infrastructure/ci-templates'
     file: '/webos-make.yml'
 
+
 # Stages for building
 stages:
   - build-prepare
   - build-shared
   - build-static
 
-##############################################################################
-#################################### STAGES ##################################
-##############################################################################
-#
-
-##############
-## vice_x64 ##
-##############
 
 ################################### DESKTOPS #################################
 # Windows 64-bit
 libretro-build-windows-x64:
   extends:
     - .libretro-windows-x64-mingw-make-default
-    - .core-defs
-    
+  resource_group: windows-x64-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
+
 # Windows 32-bit
 libretro-build-windows-i686:
   extends:
     - .libretro-windows-i686-mingw-make-default
-    - .core-defs
-    
+  resource_group: windows-i686-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
+
 # Linux 64-bit
 libretro-build-linux-x64:
   extends:
     - .libretro-linux-x64-make-default
-    - .core-defs
+  resource_group: linux-x64-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
 
 # Linux 32-bit
 libretro-build-linux-i686:
   extends:
     - .libretro-linux-i686-make-default
-    - .core-defs
+  resource_group: linux-i686-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
 
 # Linux 64-bit (ARM)
 libretro-build-linux-aarch64:
   extends:
     - .libretro-linux-aarch64-make-default
-    - .core-defs
+  resource_group: linux-aarch64-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
 
 # MacOS 64-bit
 libretro-build-osx-x64:
   extends:
     - .libretro-osx-x64-make-default
-    - .core-defs
+  resource_group: osx-x64-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
 
 # MacOS ARM 64-bit
 libretro-build-osx-arm64:
   extends:
     - .libretro-osx-arm64-make-default
-    - .core-defs
+  resource_group: osx-arm64-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
 
 # MacOS PPC
 libretro-build-osx-ppc:
   extends:
     - .libretro-osx-ppc-make-default
-    - .core-defs
+  resource_group: osx-ppc-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
 
 ################################### CELLULAR #################################
 # Android ARMv7a
 android-armeabi-v7a:
   extends:
     - .libretro-android-jni-armeabi-v7a
-    - .core-defs
+  resource_group: android-jni-armeabi-v7a-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
 
 # Android ARMv8a
 android-arm64-v8a:
   extends:
     - .libretro-android-jni-arm64-v8a
-    - .core-defs
+  resource_group: android-jni-arm64-v8a-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
 
 # Android 64-bit x86
 android-x86_64:
   extends:
     - .libretro-android-jni-x86_64
-    - .core-defs
+  resource_group: android-jni-x86_64-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
 
 # Android 32-bit x86
 android-x86:
   extends:
     - .libretro-android-jni-x86
-    - .core-defs
+  resource_group: android-jni-x86-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
 
 # iOS
 libretro-build-ios-arm64:
   extends:
     - .libretro-ios-arm64-make-default
-    - .core-defs
+  resource_group: ios-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
 
 # iOS (armv7) [iOS 9 and up]
 libretro-build-ios9:
   extends:
     - .libretro-ios9-make-default
-    - .core-defs
+  resource_group: ios9-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
 
 # tvOS
 libretro-build-tvos-arm64:
   extends:
     - .libretro-tvos-arm64-make-default
-    - .core-defs
-    
+  resource_group: tvos-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
+
 ################################### CONSOLES #################################
 # Nintendo 3DS
 libretro-build-ctr:
   extends:
     - .libretro-ctr-static-retroarch-master
-    - .core-defs
-    
+  resource_group: ctr-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
+
 # Nintendo Wii
-libretro-build-wii:
-  extends:
-    - .libretro-wii-static-retroarch-master
-    - .core-defs
+#libretro-build-wii:
+#  extends:
+#    - .libretro-wii-static-retroarch-master
+#  resource_group: wii-$CI_COMMIT_REF_SLUG
+#  <<: *build_matrix
 
 # Nintendo WiiU
 libretro-build-wiiu:
   extends:
     - .libretro-wiiu-static-retroarch-master
-    - .core-defs
+  resource_group: wiiu-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
 
 # Nintendo Switch
 libretro-build-libnx-aarch64:
   extends:
     - .libretro-libnx-static-retroarch-master
-    - .core-defs
-    
+  resource_group: libnx-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
+
 # OpenDingux
 libretro-build-dingux-mips32:
   extends:
     - .libretro-dingux-mips32-make-default
-    - .core-defs
+  resource_group: dingux-mips32-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
 
 # OpenDingux Beta
 libretro-build-dingux-odbeta-mips32:
   extends:
     - .libretro-dingux-odbeta-mips32-make-default
-    - .core-defs
+  resource_group: dingux-odbeta-mips32-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
 
 # PlayStation Vita
 libretro-build-vita:
   extends:
     - .libretro-vita-static-retroarch-master
-    - .core-defs
+  resource_group: vita-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
 
 ################################### MISC #####################################
 # Emscripten
 libretro-build-emscripten:
   extends:
     - .libretro-emscripten-static-retroarch-master
-    - .core-defs
+  resource_group: emscripten-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
 
 # webOS 32-bit
 libretro-build-webos-armv7a:
   extends:
     - .libretro-webos-armv7a-make-default
-    - .core-defs
+  resource_group: webos-$CI_COMMIT_REF_SLUG
+  <<: *build_matrix
 
-################
-## vice_x64sc ##
-################
-
-################################### DESKTOPS #################################
-# Windows 64-bit
-libretro-build-windows-x64-x64sc:
-  extends:
-    - .libretro-windows-x64-mingw-make-default
-    - .core-defs-x64sc
-    
-# Windows 32-bit
-libretro-build-windows-i686-x64sc:
-  extends:
-    - .libretro-windows-i686-mingw-make-default
-    - .core-defs-x64sc
-    
-# Linux 64-bit
-libretro-build-linux-x64-x64sc:
-  extends:
-    - .libretro-linux-x64-make-default
-    - .core-defs-x64sc
-
-# Linux 32-bit
-libretro-build-linux-i686-x64sc:
-  extends:
-    - .libretro-linux-i686-make-default
-    - .core-defs-x64sc
-
-# Linux 64-bit (ARM, x64sc)
-libretro-build-linux-aarch64-x64sc:
-  extends:
-    - .libretro-linux-aarch64-make-default
-    - .core-defs-x64sc
-
-# MacOS 64-bit
-libretro-build-osx-x64-x64sc:
-  extends:
-    - .libretro-osx-x64-make-default
-    - .core-defs-x64sc
-
-# MacOS ARM 64-bit
-libretro-build-osx-arm64-x64sc:
-  extends:
-    - .libretro-osx-arm64-make-default
-    - .core-defs-x64sc
-
-# MacOS PPC
-libretro-build-osx-ppc-x64sc:
-  extends:
-    - .libretro-osx-ppc-make-default
-    - .core-defs-x64sc
-
-################################### CELLULAR #################################
-# Android ARMv7a
-android-armeabi-v7a-x64sc:
-  extends:
-    - .libretro-android-jni-armeabi-v7a
-    - .core-defs-x64sc
-
-# Android ARMv8a
-android-arm64-v8a-x64sc:
-  extends:
-    - .libretro-android-jni-arm64-v8a
-    - .core-defs-x64sc
-
-# Android 64-bit x86
-android-x86_64-x64sc:
-  extends:
-    - .libretro-android-jni-x86_64
-    - .core-defs-x64sc
-
-# Android 32-bit x86
-android-x86-x64sc:
-  extends:
-    - .libretro-android-jni-x86
-    - .core-defs-x64sc
-
-# iOS
-libretro-build-ios-arm64-x64sc:
-  extends:
-    - .libretro-ios-arm64-make-default
-    - .core-defs-x64sc
-
-# iOS (armv7) [iOS 9 and up]
-libretro-build-ios9-x64sc:
-  extends:
-    - .libretro-ios9-make-default
-    - .core-defs-x64sc
-
-# tvOS
-libretro-build-tvos-arm64-x64sc:
-  extends:
-    - .libretro-tvos-arm64-make-default
-    - .core-defs-x64sc
-
-################################### CONSOLES #################################
-# Nintendo 3DS
-libretro-build-ctr-x64sc:
-  extends:
-    - .libretro-ctr-static-retroarch-master
-    - .core-defs-x64sc
-
-# Nintendo Wii
-libretro-build-wii-x64sc:
-  extends:
-    - .libretro-wii-static-retroarch-master
-    - .core-defs-x64sc
-
-# Nintendo WiiU
-libretro-build-wiiu-x64sc:
-  extends:
-    - .libretro-wiiu-static-retroarch-master
-    - .core-defs-x64sc
-
-# Nintendo Switch
-libretro-build-libnx-aarch64-x64sc:
-  extends:
-    - .libretro-libnx-static-retroarch-master
-    - .core-defs-x64sc
-
-# PlayStation Vita
-libretro-build-vita-x64sc:
-  extends:
-    - .libretro-vita-static-retroarch-master
-    - .core-defs-x64sc
-
-################################### MISC #####################################
-# Emscripten
-libretro-build-emscripten-x64sc:
-  extends:
-    - .libretro-emscripten-static-retroarch-master
-    - .core-defs-x64sc
-
-# webOS 32-bit
-libretro-build-webos-armv7a-x64sc:
-  extends:
-    - .libretro-webos-armv7a-make-default
-    - .core-defs-x64sc
-
-###############
-## vice_x128 ##
-###############
-
-# Desktop
-# Windows 64-bit
-libretro-build-windows-x64-x128:
-  extends:
-    - .libretro-windows-x64-mingw-make-default
-    - .core-defs-x128
-   
-# Windows 32-bit
-libretro-build-windows-i686-x128:
-  extends:
-    - .libretro-windows-i686-mingw-make-default
-    - .core-defs-x128
-    
-# Linux 64-bit
-libretro-build-linux-x64-x128:
-  extends:
-    - .libretro-linux-x64-make-default
-    - .core-defs-x128
-
-# Linux 32-bit
-libretro-build-linux-i686-x128:
-  extends:
-    - .libretro-linux-i686-make-default
-    - .core-defs-x128
-
-# Linux 64-bit (ARM, x128)
-libretro-build-linux-aarch64-x128:
-  extends:
-    - .libretro-linux-aarch64-make-default
-    - .core-defs-x128
-
-# MacOS 64-bit
-libretro-build-osx-x64-x128:
-  extends:
-    - .libretro-osx-x64-make-default
-    - .core-defs-x128
-
-# MacOS ARM 64-bit
-libretro-build-osx-arm64-x128:
-  extends:
-    - .libretro-osx-arm64-make-default
-    - .core-defs-x128
-
-# MacOS PPC
-libretro-build-osx-ppc-x128:
-  extends:
-    - .libretro-osx-ppc-make-default
-    - .core-defs-x128
-
-# Android
-android-armeabi-v7a-x128:
-  extends:
-    - .libretro-android-jni-armeabi-v7a
-    - .core-defs-x128
-
-android-arm64-v8a-x128:
-  extends:
-    - .libretro-android-jni-arm64-v8a
-    - .core-defs-x128
-
-android-x86_64-x128:
-  extends:
-    - .libretro-android-jni-x86_64
-    - .core-defs-x128
-
-android-x86-x128:
-  extends:
-    - .libretro-android-jni-x86
-    - .core-defs-x128
-
-# iOS
-libretro-build-ios-arm64-x128:
-  extends:
-    - .libretro-ios-arm64-make-default
-    - .core-defs-x128
-
-# iOS (armv7) [iOS 9 and up]
-libretro-build-ios9-x128:
-  extends:
-    - .libretro-ios9-make-default
-    - .core-defs-x128
-
-# tvOS
-libretro-build-tvos-arm64-x128:
-  extends:
-    - .libretro-tvos-arm64-make-default
-    - .core-defs-x128
-
-# Static
-libretro-build-libnx-aarch64-x128:
-  extends:
-    - .libretro-libnx-static-retroarch-master
-    - .core-defs-x128
-
-libretro-build-vita-x128:
-  extends:
-    - .libretro-vita-static-retroarch-master
-    - .core-defs-x128
-
-libretro-build-ctr-x128:
-  extends:
-    - .libretro-ctr-static-retroarch-master
-    - .core-defs-x128
-
-libretro-build-wii-x128:
-  extends:
-    - .libretro-wii-static-retroarch-master
-    - .core-defs-x128
-    
-libretro-build-wiiu-x128:
-  extends:
-    - .libretro-wiiu-static-retroarch-master
-    - .core-defs-x128
-
-################################### MISC #####################################
-# Emscripten
-libretro-build-emscripten-x128:
-  extends:
-    - .libretro-emscripten-static-retroarch-master
-    - .core-defs-x128
-
-# webOS 32-bit
-libretro-build-webos-armv7a-x128:
-  extends:
-    - .libretro-webos-armv7a-make-default
-    - .core-defs-x128
-
-################
-## vice_xcbm2 ##
-################
-
-# Desktop
-# Windows 64-bit
-libretro-build-windows-x64-xcbm2:
-  extends:
-    - .libretro-windows-x64-mingw-make-default
-    - .core-defs-xcbm2
-    
-# Windows 32-bit
-libretro-build-windows-i686-xcbm2:
-  extends:
-    - .libretro-windows-i686-mingw-make-default
-    - .core-defs-xcbm2
-
-# Linux 64-bit
-libretro-build-linux-x64-xcbm2:
-  extends:
-    - .libretro-linux-x64-make-default
-    - .core-defs-xcbm2
-
-# Linux 32-bit
-libretro-build-linux-i686-xcbm2:
-  extends:
-    - .libretro-linux-i686-make-default
-    - .core-defs-xcbm2
-
-# Linux 64-bit (ARM, xcbm2)
-libretro-build-linux-aarch64-xcbm2:
-  extends:
-    - .libretro-linux-aarch64-make-default
-    - .core-defs-xcbm2
-
-# MacOS 64-bit
-libretro-build-osx-x64-xcbm2:
-  extends:
-    - .libretro-osx-x64-make-default
-    - .core-defs-xcbm2
-
-# MacOS ARM 64-bit
-libretro-build-osx-arm64-xcbm2:
-  extends:
-    - .libretro-osx-arm64-make-default
-    - .core-defs-xcbm2
-
-# MacOS PPC
-libretro-build-osx-ppc-xcbm2:
-  extends:
-    - .libretro-osx-ppc-make-default
-    - .core-defs-xcbm2
-
-# Android
-android-armeabi-v7a-xcbm2:
-  extends:
-    - .libretro-android-jni-armeabi-v7a
-    - .core-defs-xcbm2
-
-android-arm64-v8a-xcbm2:
-  extends:
-    - .libretro-android-jni-arm64-v8a
-    - .core-defs-xcbm2
-
-android-x86_64-xcbm2:
-  extends:
-    - .libretro-android-jni-x86_64
-    - .core-defs-xcbm2
-
-android-x86-xcbm2:
-  extends:
-    - .libretro-android-jni-x86
-    - .core-defs-xcbm2
-
-# iOS
-libretro-build-ios-arm64-xcbm2:
-  extends:
-    - .libretro-ios-arm64-make-default
-    - .core-defs-xcbm2
-
-# iOS (armv7) [iOS 9 and up]
-libretro-build-ios9-xcbm2:
-  extends:
-    - .libretro-ios9-make-default
-    - .core-defs-xcbm2
-
-# tvOS
-libretro-build-tvos-arm64-xcbm2:
-  extends:
-    - .libretro-tvos-arm64-make-default
-    - .core-defs-xcbm2
-
-# Static
-libretro-build-libnx-aarch64-xcbm2:
-  extends:
-    - .libretro-libnx-static-retroarch-master
-    - .core-defs-xcbm2
-
-libretro-build-vita-xcbm2:
-  extends:
-    - .libretro-vita-static-retroarch-master
-    - .core-defs-xcbm2
-
-libretro-build-ctr-xcbm2:
-  extends:
-    - .libretro-ctr-static-retroarch-master
-    - .core-defs-xcbm2
-
-libretro-build-wii-xcbm2:
-  extends:
-    - .libretro-wii-static-retroarch-master
-    - .core-defs-xcbm2
-
-libretro-build-wiiu-xcbm2:
-  extends:
-    - .libretro-wiiu-static-retroarch-master
-    - .core-defs-xcbm2
-
-################################### MISC #####################################
-# Emscripten
-libretro-build-emscripten-xcbm2:
-  extends:
-    - .libretro-emscripten-static-retroarch-master
-    - .core-defs-xcbm2
-
-# webOS 32-bit
-libretro-build-webos-armv7a-xcbm2:
-  extends:
-    - .libretro-webos-armv7a-make-default
-    - .core-defs-xcbm2
-
-##################
-## vice_xcbm5x0 ##
-##################
-
-# Desktop
-# Windows 64-bit
-libretro-build-windows-x64-xcbm5x0:
-  extends:
-    - .libretro-windows-x64-mingw-make-default
-    - .core-defs-xcbm5x0
-    
-# Windows 32-bit
-libretro-build-windows-i686-xcbm5x0:
-  extends:
-    - .libretro-windows-i686-mingw-make-default
-    - .core-defs-xcbm5x0
-
-# Linux 64-bit
-libretro-build-linux-x64-xcbm5x0:
-  extends:
-    - .libretro-linux-x64-make-default
-    - .core-defs-xcbm5x0
-
-# Linux 32-bit
-libretro-build-linux-i686-xcbm5x0:
-  extends:
-    - .libretro-linux-i686-make-default
-    - .core-defs-xcbm5x0
-
-# Linux 64-bit (ARM, xcbm5x0)
-libretro-build-linux-aarch64-xcbm5x0:
-  extends:
-    - .libretro-linux-aarch64-make-default
-    - .core-defs-xcbm5x0
-
-# MacOS 64-bit
-libretro-build-osx-x64-xcbm5x0:
-  extends:
-    - .libretro-osx-x64-make-default
-    - .core-defs-xcbm5x0
-
-# MacOS ARM 64-bit
-libretro-build-osx-arm64-xcbm5x0:
-  extends:
-    - .libretro-osx-arm64-make-default
-    - .core-defs-xcbm5x0
-
-# MacOS PPC
-libretro-build-osx-ppc-xcbm5x0:
-  extends:
-    - .libretro-osx-ppc-make-default
-    - .core-defs-xcbm5x0
-
-# Android
-android-armeabi-v7a-xcbm5x0:
-  extends:
-    - .libretro-android-jni-armeabi-v7a
-    - .core-defs-xcbm5x0
-
-android-arm64-v8a-xcbm5x0:
-  extends:
-    - .libretro-android-jni-arm64-v8a
-    - .core-defs-xcbm5x0
-
-android-x86_64-xcbm5x0:
-  extends:
-    - .libretro-android-jni-x86_64
-    - .core-defs-xcbm5x0
-
-android-x86-xcbm5x0:
-  extends:
-    - .libretro-android-jni-x86
-    - .core-defs-xcbm5x0
-
-# iOS 9
-libretro-build-ios9-xcbm5x0:
-  extends:
-    - .libretro-ios9-make-default
-    - .core-defs-xcbm5x0
-
-# iOS
-libretro-build-ios-arm64-xcbm5x0:
-  extends:
-    - .libretro-ios-arm64-make-default
-    - .core-defs-xcbm5x0
-
-# iOS (armv7) [iOS 9 and up]
-libretro-build-ios9-xcbm5x0:
-  extends:
-    - .libretro-ios9-make-default
-    - .core-defs-xcbm5x0
-
-# tvOS
-libretro-build-tvos-arm64-xcbm5x0:
-  extends:
-    - .libretro-tvos-arm64-make-default
-    - .core-defs-xcbm5x0
-
-# Static
-libretro-build-libnx-aarch64-xcbm5x0:
-  extends:
-    - .libretro-libnx-static-retroarch-master
-    - .core-defs-xcbm5x0
-
-libretro-build-vita-xcbm5x0:
-  extends:
-    - .libretro-vita-static-retroarch-master
-    - .core-defs-xcbm5x0
-
-libretro-build-ctr-xcbm5x0:
-  extends:
-    - .libretro-ctr-static-retroarch-master
-    - .core-defs-xcbm5x0
-
-libretro-build-wii-xcbm5x0:
-  extends:
-    - .libretro-wii-static-retroarch-master
-    - .core-defs-xcbm5x0
-
-libretro-build-wiiu-xcbm5x0:
-  extends:
-    - .libretro-wiiu-static-retroarch-master
-    - .core-defs-xcbm5x0
-
-################################### MISC #####################################
-# Emscripten
-libretro-build-emscripten-xcbm5x0:
-  extends:
-    - .libretro-emscripten-static-retroarch-master
-    - .core-defs-xcbm5x0
-
-# webOS 32-bit
-libretro-build-webos-armv7a-xcbm5x0:
-  extends:
-    - .libretro-webos-armv7a-make-default
-    - .core-defs-xcbm5x0
-
-###############
-## vice_xpet ##
-###############
-
-# Desktop
-# Windows 64-bit
-libretro-build-windows-x64-xpet:
-  extends:
-    - .libretro-windows-x64-mingw-make-default
-    - .core-defs-xpet
-    
-# Windows 32-bit
-libretro-build-windows-i686-xpet:
-  extends:
-    - .libretro-windows-i686-mingw-make-default
-    - .core-defs-xpet
-
-# Linux 64-bit
-libretro-build-linux-x64-xpet:
-  extends:
-    - .libretro-linux-x64-make-default
-    - .core-defs-xpet
-
-# Linux 32-bit
-libretro-build-linux-i686-xpet:
-  extends:
-    - .libretro-linux-i686-make-default
-    - .core-defs-xpet
-
-# Linux 64-bit (ARM, xpet)
-libretro-build-linux-aarch64-xpet:
-  extends:
-    - .libretro-linux-aarch64-make-default
-    - .core-defs-xpet
-
-# MacOS 64-bit
-libretro-build-osx-x64-xpet:
-  extends:
-    - .libretro-osx-x64-make-default
-    - .core-defs-xpet
-
-# MacOS ARM 64-bit
-libretro-build-osx-arm64-xpet:
-  extends:
-    - .libretro-osx-arm64-make-default
-    - .core-defs-xpet
-
-# MacOS PPC
-libretro-build-osx-ppc-xpet:
-  extends:
-    - .libretro-osx-ppc-make-default
-    - .core-defs-xpet
-
-# Android
-android-armeabi-v7a-xpet:
-  extends:
-    - .libretro-android-jni-armeabi-v7a
-    - .core-defs-xpet
-
-android-arm64-v8a-xpet:
-  extends:
-    - .libretro-android-jni-arm64-v8a
-    - .core-defs-xpet
-
-android-x86_64-xpet:
-  extends:
-    - .libretro-android-jni-x86_64
-    - .core-defs-xpet
-
-android-x86-xpet:
-  extends:
-    - .libretro-android-jni-x86
-    - .core-defs-xpet
-
-# iOS
-libretro-build-ios-arm64-xpet:
-  extends:
-    - .libretro-ios-arm64-make-default
-    - .core-defs-xpet
-
-# iOS (armv7) [iOS 9 and up]
-libretro-build-ios9-xpet:
-  extends:
-    - .libretro-ios9-make-default
-    - .core-defs-xpet
-
-# tvOS
-libretro-build-tvos-arm64-xpet:
-  extends:
-    - .libretro-tvos-arm64-make-default
-    - .core-defs-xpet
-
-# Static
-libretro-build-libnx-aarch64-xpet:
-  extends:
-    - .libretro-libnx-static-retroarch-master
-    - .core-defs-xpet
-
-libretro-build-vita-xpet:
-  extends:
-    - .libretro-vita-static-retroarch-master
-    - .core-defs-xpet
-
-libretro-build-ctr-xpet:
-  extends:
-    - .libretro-ctr-static-retroarch-master
-    - .core-defs-xpet
-
-libretro-build-wii-xpet:
-  extends:
-    - .libretro-wii-static-retroarch-master
-    - .core-defs-xpet
-
-libretro-build-wiiu-xpet:
-  extends:
-    - .libretro-wiiu-static-retroarch-master
-    - .core-defs-xpet
-
-################################### MISC #####################################
-# Emscripten
-libretro-build-emscripten-xpet:
-  extends:
-    - .libretro-emscripten-static-retroarch-master
-    - .core-defs-xpet
-
-# webOS 32-bit
-libretro-build-webos-armv7a-xpet:
-  extends:
-    - .libretro-webos-armv7a-make-default
-    - .core-defs-xpet
-
-#################
-## vice_xplus4 ##
-#################
-
-# Desktop
-# Windows 64-bit
-libretro-build-windows-x64-xplus4:
-  extends:
-    - .libretro-windows-x64-mingw-make-default
-    - .core-defs-xplus4
-    
-# Windows 32-bit
-libretro-build-windows-i686-xplus4:
-  extends:
-    - .libretro-windows-i686-mingw-make-default
-    - .core-defs-xplus4
-
-# Linux 64-bit
-libretro-build-linux-x64-xplus4:
-  extends:
-    - .libretro-linux-x64-make-default
-    - .core-defs-xplus4
-
-# Linux 32-bit
-libretro-build-linux-i686-xplus4:
-  extends:
-    - .libretro-linux-i686-make-default
-    - .core-defs-xplus4
-
-# Linux 64-bit (ARM, xplus4)
-libretro-build-linux-aarch64-xplus4:
-  extends:
-    - .libretro-linux-aarch64-make-default
-    - .core-defs-xplus4
-
-# MacOS 64-bit
-libretro-build-osx-x64-xplus4:
-  extends:
-    - .libretro-osx-x64-make-default
-    - .core-defs-xplus4
-
-# MacOS ARM 64-bit
-libretro-build-osx-arm64-xplus4:
-  extends:
-    - .libretro-osx-arm64-make-default
-    - .core-defs-xplus4
-
-# MacOS PPC
-libretro-build-osx-ppc-xplus4:
-  extends:
-    - .libretro-osx-ppc-make-default
-    - .core-defs-xplus4
-
-# Android
-android-armeabi-v7a-xplus4:
-  extends:
-    - .libretro-android-jni-armeabi-v7a
-    - .core-defs-xplus4
-
-android-arm64-v8a-xplus4:
-  extends:
-    - .libretro-android-jni-arm64-v8a
-    - .core-defs-xplus4
-
-android-x86_64-xplus4:
-  extends:
-    - .libretro-android-jni-x86_64
-    - .core-defs-xplus4
-
-android-x86-xplus4:
-  extends:
-    - .libretro-android-jni-x86
-    - .core-defs-xplus4
-
-# iOS
-libretro-build-ios-arm64-xplus4:
-  extends:
-    - .libretro-ios-arm64-make-default
-    - .core-defs-xplus4
-
-# iOS (armv7) [iOS 9 and up]
-libretro-build-ios9-xplus4:
-  extends:
-    - .libretro-ios9-make-default
-    - .core-defs-xplus4
-
-# tvOS
-libretro-build-tvos-arm64-xplus4:
-  extends:
-    - .libretro-tvos-arm64-make-default
-    - .core-defs-xplus4
-
-# Static
-libretro-build-libnx-aarch64-xplus4:
-  extends:
-    - .libretro-libnx-static-retroarch-master
-    - .core-defs-xplus4
-
-libretro-build-vita-xplus4:
-  extends:
-    - .libretro-vita-static-retroarch-master
-    - .core-defs-xplus4
-
-libretro-build-ctr-xplus4:
-  extends:
-    - .libretro-ctr-static-retroarch-master
-    - .core-defs-xplus4
-
-libretro-build-wii-xplus4:
-  extends:
-    - .libretro-wii-static-retroarch-master
-    - .core-defs-xplus4
-
-libretro-build-wiiu-xplus4:
-  extends:
-    - .libretro-wiiu-static-retroarch-master
-    - .core-defs-xplus4
-
-################################### MISC #####################################
-# Emscripten
-libretro-build-emscripten-xplus4:
-  extends:
-    - .libretro-emscripten-static-retroarch-master
-    - .core-defs-xplus4
-
-# webOS 32-bit
-libretro-build-webos-armv7a-xplus4:
-  extends:
-    - .libretro-webos-armv7a-make-default
-    - .core-defs-xplus4
-
-##################
-## vice_xscpu64 ##
-##################
-
-# Desktop
-# Windows 64-bit
-libretro-build-windows-x64-xscpu64:
-  extends:
-    - .libretro-windows-x64-mingw-make-default
-    - .core-defs-xscpu64
-    
-# Windows 32-bit
-libretro-build-windows-i686-xscpu64:
-  extends:
-    - .libretro-windows-i686-mingw-make-default
-    - .core-defs-xscpu64
-
-# Linux 64-bit
-libretro-build-linux-x64-xscpu64:
-  extends:
-    - .libretro-linux-x64-make-default
-    - .core-defs-xscpu64
-
-# Linux 32-bit
-libretro-build-linux-i686-xscpu64:
-  extends:
-    - .libretro-linux-i686-make-default
-    - .core-defs-xscpu64
-
-# Linux 64-bit (ARM, xscpu64)
-libretro-build-linux-aarch64-xscpu64:
-  extends:
-    - .libretro-linux-aarch64-make-default
-    - .core-defs-xscpu64
-
-# MacOS 64-bit
-libretro-build-osx-x64-xscpu64:
-  extends:
-    - .libretro-osx-x64-make-default
-    - .core-defs-xscpu64
-
-# MacOS ARM 64-bit
-libretro-build-osx-arm64-xscpu64:
-  extends:
-    - .libretro-osx-arm64-make-default
-    - .core-defs-xscpu64
-
-# MacOS PPC
-libretro-build-osx-ppc-xscpu64:
-  extends:
-    - .libretro-osx-ppc-make-default
-    - .core-defs-xscpu64
-
-# Android
-android-armeabi-v7a-xscpu64:
-  extends:
-    - .libretro-android-jni-armeabi-v7a
-    - .core-defs-xscpu64
-
-android-arm64-v8a-xscpu64:
-  extends:
-    - .libretro-android-jni-arm64-v8a
-    - .core-defs-xscpu64
-
-android-x86_64-xscpu64:
-  extends:
-    - .libretro-android-jni-x86_64
-    - .core-defs-xscpu64
-
-android-x86-xscpu64:
-  extends:
-    - .libretro-android-jni-x86
-    - .core-defs-xscpu64
-
-# iOS 9
-libretro-build-ios9-xscpu64:
-  extends:
-    - .libretro-ios9-make-default
-    - .core-defs-xscpu64
-
-# iOS
-libretro-build-ios-arm64-xscpu64:
-  extends:
-    - .libretro-ios-arm64-make-default
-    - .core-defs-xscpu64
-
-# iOS (armv7) [iOS 9 and up]
-libretro-build-ios9-xscpu64:
-  extends:
-    - .libretro-ios9-make-default
-    - .core-defs-xscpu64
-
-# tvOS
-libretro-build-tvos-arm64-xscpu64:
-  extends:
-    - .libretro-tvos-arm64-make-default
-    - .core-defs-xscpu64
-
-# Static
-libretro-build-libnx-aarch64-xscpu64:
-  extends:
-    - .libretro-libnx-static-retroarch-master
-    - .core-defs-xscpu64
-
-libretro-build-vita-xscpu64:
-  extends:
-    - .libretro-vita-static-retroarch-master
-    - .core-defs-xscpu64
-
-libretro-build-ctr-xscpu64:
-  extends:
-    - .libretro-ctr-static-retroarch-master
-    - .core-defs-xscpu64
-
-libretro-build-wii-xscpu64:
-  extends:
-    - .libretro-wii-static-retroarch-master
-    - .core-defs-xscpu64
-
-libretro-build-wiiu-xscpu64:
-  extends:
-    - .libretro-wiiu-static-retroarch-master
-    - .core-defs-xscpu64
-
-################################### MISC #####################################
-# Emscripten
-libretro-build-emscripten-xscpu64:
-  extends:
-    - .libretro-emscripten-static-retroarch-master
-    - .core-defs-xscpu64
-
-# webOS 32-bit
-libretro-build-webos-armv7a-xscpu64:
-  extends:
-    - .libretro-webos-armv7a-make-default
-    - .core-defs-xscpu64
-
-###############
-## vice_xvic ##
-###############
-
-# Desktop
-# Windows 64-bit
-libretro-build-windows-x64-xvic:
-  extends:
-    - .libretro-windows-x64-mingw-make-default
-    - .core-defs-xvic
-    
-# Windows 32-bit
-libretro-build-windows-i686-xvic:
-  extends:
-    - .libretro-windows-i686-mingw-make-default
-    - .core-defs-xvic
-
-# Linux 64-bit
-libretro-build-linux-x64-xvic:
-  extends:
-    - .libretro-linux-x64-make-default
-    - .core-defs-xvic
-
-# Linux 32-bit
-libretro-build-linux-i686-xvic:
-  extends:
-    - .libretro-linux-i686-make-default
-    - .core-defs-xvic
-
-# Linux 64-bit (ARM, xvic)
-libretro-build-linux-aarch64-xvic:
-  extends:
-    - .libretro-linux-aarch64-make-default
-    - .core-defs-xvic
-
-# MacOS 64-bit
-libretro-build-osx-x64-xvic:
-  extends:
-    - .libretro-osx-x64-make-default
-    - .core-defs-xvic
-
-# MacOS ARM 64-bit
-libretro-build-osx-arm64-xvic:
-  extends:
-    - .libretro-osx-arm64-make-default
-    - .core-defs-xvic
-
-# MacOS PPC
-libretro-build-osx-ppc-xvic:
-  extends:
-    - .libretro-osx-ppc-make-default
-    - .core-defs-xvic
-
-# Android
-android-armeabi-v7a-xvic:
-  extends:
-    - .libretro-android-jni-armeabi-v7a
-    - .core-defs-xvic
-
-android-arm64-v8a-xvic:
-  extends:
-    - .libretro-android-jni-arm64-v8a
-    - .core-defs-xvic
-
-android-x86_64-xvic:
-  extends:
-    - .libretro-android-jni-x86_64
-    - .core-defs-xvic
-
-android-x86-xvic:
-  extends:
-    - .libretro-android-jni-x86
-    - .core-defs-xvic
-
-# iOS
-libretro-build-ios-arm64-xvic:
-  extends:
-    - .libretro-ios-arm64-make-default
-    - .core-defs-xvic
-
-# iOS (armv7) [iOS 9 and up]
-libretro-build-ios9-xvic:
-  extends:
-    - .libretro-ios9-make-default
-    - .core-defs-xvic
-
-# tvOS
-libretro-build-tvos-arm64-xvic:
-  extends:
-    - .libretro-tvos-arm64-make-default
-    - .core-defs-xvic
-
-# Static
-libretro-build-libnx-aarch64-xvic:
-  extends:
-    - .libretro-libnx-static-retroarch-master
-    - .core-defs-xvic
-
-libretro-build-vita-xvic:
-  extends:
-    - .libretro-vita-static-retroarch-master
-    - .core-defs-xvic
-
-libretro-build-ctr-xvic:
-  extends:
-    - .libretro-ctr-static-retroarch-master
-    - .core-defs-xvic
-
-libretro-build-wii-xvic:
-  extends:
-    - .libretro-wii-static-retroarch-master
-    - .core-defs-xvic
-
-libretro-build-wiiu-xvic:
-  extends:
-    - .libretro-wiiu-static-retroarch-master
-    - .core-defs-xvic
-
-################################### MISC #####################################
-# Emscripten
-libretro-build-emscripten-xvic:
-  extends:
-    - .libretro-emscripten-static-retroarch-master
-    - .core-defs-xvic
-
-# webOS 32-bit
-libretro-build-webos-armv7a-xvic:
-  extends:
-    - .libretro-webos-armv7a-make-default
-    - .core-defs-xvic
