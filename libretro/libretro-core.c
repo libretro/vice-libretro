@@ -8803,8 +8803,24 @@ size_t retro_serialize_size(void)
    return snapshot_size;
 }
 
+static bool retro_savestate_for_runahead(void)
+{
+   enum retro_savestate_context context = RETRO_SAVESTATE_CONTEXT_NORMAL;
+
+   if (!environ_cb(RETRO_ENVIRONMENT_GET_SAVESTATE_CONTEXT, &context))
+      return false;
+
+   return context == RETRO_SAVESTATE_CONTEXT_RUNAHEAD_SAME_INSTANCE
+       || context == RETRO_SAVESTATE_CONTEXT_RUNAHEAD_SAME_BINARY;
+}
+
 bool retro_serialize(void *data_, size_t size)
 {
+   /* Autostart and the keys it types aren't in the snapshot, so loading back
+    * a state from before they moved on would lose a typed LOAD or RUN */
+   if (retro_savestate_for_runahead() && (autostart_in_progress() || !kbdbuf_queue_is_empty()))
+      return false;
+
    if (retro_ui_finalized)
    {
       snapshot_stream = snapshot_memory_write_fopen(data_, size);
@@ -8831,9 +8847,12 @@ bool retro_unserialize(const void *data_, size_t size)
 {
    if (retro_ui_finalized)
    {
+      /* Run-ahead loads a state every frame, carrying on where it left off */
+      bool runahead = retro_savestate_for_runahead();
       /* Must stop autostart, or prg content will continue autostarting
        * after autosaved state is autoloaded on startup */
-      autostart_reset();
+      if (!runahead)
+         autostart_reset();
       /* Don't stop and start audio on every frame while rewinding */
       retro_sound_keep_alive = true;
       snapshot_stream = snapshot_memory_read_fopen(data_, size);
@@ -8849,7 +8868,8 @@ bool retro_unserialize(const void *data_, size_t size)
       }
       if (success)
       {
-         retro_unserialize_post();
+         if (!runahead)
+            retro_unserialize_post();
          return true;
       }
       log_cb(RETRO_LOG_ERROR, "Failed to unserialize snapshot.\n");
