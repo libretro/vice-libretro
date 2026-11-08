@@ -77,67 +77,75 @@ int retro_rmdir(const char *path)
 #endif
 }
 
-void remove_recurse(const char *path)
+int remove_recurse(const char *path)
 {
-   struct dirent *dirp;
    char filename[RETRO_PATH_MAX];
-   DIR *dir = opendir(path);
+   int ret   = 0;
+   RDIR *dir = retro_opendir(path);
    if (dir == NULL)
-      return;
+      return -1;
 
-   while ((dirp = readdir(dir)) != NULL)
+   while (retro_readdir(dir))
    {
-      if (dirp->d_name[0] == '.')
+      const char *name = retro_dirent_get_name(dir);
+
+      if (name[0] == '.')
          continue;
 
-      sprintf(filename, "%s%s%s", path, ARCHDEP_DIR_SEP_STR, dirp->d_name);
-      log_cb(RETRO_LOG_INFO, "Clean: %s\n", filename);
+      snprintf(filename, sizeof(filename), "%s%s%s", path, ARCHDEP_DIR_SEP_STR, name);
 
       if (path_is_directory(filename))
-         remove_recurse(filename);
+         ret = remove_recurse(filename);
       else
-         remove(filename);
+         ret = retro_remove(filename);
+
+      if (!ret)
+         log_cb(RETRO_LOG_INFO, "Clean: %s\n", filename);
+      else
+         log_cb(RETRO_LOG_INFO, "Clean fail: %s\n", filename);
    }
 
-   closedir(dir);
+   retro_closedir(dir);
 
    /* Leave the root directory for RAM disk usage */
    if (strcmp(retro_temp_directory, path))
-      archdep_rmdir(path);
+      retro_rmdir(path);
+
+   return ret;
 }
 
 void m3u_scan_recurse(const char *path, zip_m3u_t *list)
 {
-   DIR *zip_dir;
-   struct dirent *zip_dirp;
+   RDIR *zip_dir;
    char *zip_lastfile = {0};
 
-   zip_dir = opendir(path);
+   zip_dir = retro_opendir(path);
 
-   while ((zip_dirp = readdir(zip_dir)) != NULL)
+   while (retro_readdir(zip_dir))
    {
+      const char *name = retro_dirent_get_name(zip_dir);
       char zip_fullpath[RETRO_PATH_MAX] = {0};
 
-      if (zip_dirp->d_name[0] == '.' || strendswith(zip_dirp->d_name, ".m3u") || list->mode > 1)
+      if (name[0] == '.' || strendswith(name, ".m3u") || list->mode > 1)
          continue;
 
-      path_join(zip_fullpath, retro_temp_directory, zip_dirp->d_name);
+      path_join(zip_fullpath, retro_temp_directory, name);
       if (path_is_directory(zip_fullpath))
       {
          m3u_scan_recurse(zip_fullpath, list);
          continue;
       }
 
-      path_join(zip_fullpath, path, zip_dirp->d_name);
+      path_join(zip_fullpath, path, name);
       if (!strcmp(path, retro_temp_directory))
-         zip_lastfile = local_to_utf8_string_alloc(zip_dirp->d_name);
+         zip_lastfile = local_to_utf8_string_alloc(name);
       else
          zip_lastfile = local_to_utf8_string_alloc(zip_fullpath);
 
       /* Multi file mode, generate playlist */
-      if (dc_get_image_type(zip_dirp->d_name) == DC_IMAGE_TYPE_FLOPPY
-       || dc_get_image_type(zip_dirp->d_name) == DC_IMAGE_TYPE_TAPE
-       || dc_get_image_type(zip_dirp->d_name) == DC_IMAGE_TYPE_MEM
+      if (     dc_get_image_type(name) == DC_IMAGE_TYPE_FLOPPY
+            || dc_get_image_type(name) == DC_IMAGE_TYPE_TAPE
+            || dc_get_image_type(name) == DC_IMAGE_TYPE_MEM
       )
       {
          list->mode = 1;
@@ -145,7 +153,7 @@ void m3u_scan_recurse(const char *path, zip_m3u_t *list)
          snprintf(list->list[list->num-1], RETRO_PATH_MAX, "%s", zip_lastfile);
       }
    }
-   closedir(zip_dir);
+   retro_closedir(zip_dir);
 
    if (zip_lastfile)
       free(zip_lastfile);
@@ -233,19 +241,19 @@ char *path_remove_program(char *path)
 
 char *first_file_in_dir(char *path)
 {
-   DIR *path_dir;
-   struct dirent *path_dirp;
-
-   path_dir = opendir(path);
+   RDIR *path_dir;
+   path_dir = retro_opendir(path);
    char *path_lastfile = {0};
-   while ((path_dirp = readdir(path_dir)) != NULL && string_is_empty(path_lastfile))
+   while (retro_readdir(path_dir) && string_is_empty(path_lastfile))
    {
-      if (path_dirp->d_name[0] == '.')
+      const char *name = retro_dirent_get_name(path_dir);
+
+      if (name[0] == '.')
          continue;
 
-      path_lastfile = local_to_utf8_string_alloc(path_dirp->d_name);
+      path_lastfile = local_to_utf8_string_alloc(name);
    }
-   closedir(path_dir);
+   retro_closedir(path_dir);
 
    return path_lastfile;
 }

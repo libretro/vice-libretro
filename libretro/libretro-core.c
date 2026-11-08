@@ -809,21 +809,23 @@ static int process_cmdline(const char* argv)
          snprintf(zip_m3u_list.path, sizeof(zip_m3u_list.path), "%s%s%s.m3u",
                retro_temp_directory, ARCHDEP_DIR_SEP_STR, utf8_to_local_string_alloc(zip_basename));
 
-         DIR *zip_dir;
-         struct dirent *zip_dirp;
-
          /* Convert all NIBs to G64 */
-         zip_dir = opendir(retro_temp_directory);
-         while ((zip_dirp = readdir(zip_dir)) != NULL)
+         RDIR *zip_dir;
+         zip_dir = retro_opendir(retro_temp_directory);
+         while (retro_readdir(zip_dir))
          {
-            if (dc_get_image_type(zip_dirp->d_name) == DC_IMAGE_TYPE_NIBBLER)
+            const char *name = retro_dirent_get_name(zip_dir);
+
+            if (dc_get_image_type(name) == DC_IMAGE_TYPE_NIBBLER)
             {
-               snprintf(nib_input, sizeof(nib_input), "%s%s%s", retro_temp_directory, ARCHDEP_DIR_SEP_STR, zip_dirp->d_name);
-               snprintf(nib_output, sizeof(nib_output), "%s%s%s.g64", retro_temp_directory, ARCHDEP_DIR_SEP_STR, path_remove_extension(zip_dirp->d_name));
+               snprintf(nib_input, sizeof(nib_input), "%s%s%s", retro_temp_directory, ARCHDEP_DIR_SEP_STR, name);
+               snprintf(nib_output, sizeof(nib_output), "%s%s%s", retro_temp_directory, ARCHDEP_DIR_SEP_STR, name);
+               path_remove_extension(nib_output);
+               strlcat(nib_output, ".g64", sizeof(nib_output));
                nib_convert(nib_input, nib_output);
             }
          }
-         closedir(zip_dir);
+         retro_closedir(zip_dir);
 
          if (string_is_empty(browsed_file))
             m3u_scan_recurse(retro_temp_directory, &zip_m3u_list);
@@ -900,15 +902,16 @@ static int process_cmdline(const char* argv)
          /* Scan differently named REU in TEMP */
          if (!path_is_valid(reu_path) && strstartswith(argv, retro_temp_directory))
          {
-            DIR *reu_dir;
-            struct dirent *reu_dirp;
-            reu_dir = opendir(retro_temp_directory);
-            while ((reu_dirp = readdir(reu_dir)) != NULL)
+            RDIR *reu_dir;
+            reu_dir = retro_opendir(retro_temp_directory);
+            while (retro_readdir(reu_dir))
             {
-               if (strendswith(reu_dirp->d_name, ".reu"))
-                  snprintf(reu_path, sizeof(reu_path), "%s%s%s", retro_temp_directory, ARCHDEP_DIR_SEP_STR, reu_dirp->d_name);
+               const char *name = retro_dirent_get_name(reu_dir);
+
+               if (strendswith(name, ".reu"))
+                  snprintf(reu_path, sizeof(reu_path), "%s%s%s", retro_temp_directory, ARCHDEP_DIR_SEP_STR, name);
             }
-            closedir(reu_dir);
+            retro_closedir(reu_dir);
          }
 
          if (path_is_valid(reu_path))
@@ -4876,9 +4879,6 @@ static void retro_set_core_options()
          option_defs_us[i].values[j].label = "disabled";
          ++j;
 
-         DIR *cart_dir;
-         struct dirent *cart_dirp;
-
          char machine_directory[RETRO_PATH_MAX] = {0};
          snprintf(machine_directory, sizeof(machine_directory), "%s%s%s",
                retro_system_data_directory, ARCHDEP_DIR_SEP_STR, machine_name);
@@ -4886,20 +4886,24 @@ static void retro_set_core_options()
          /* Scan system/vice/machine directory for cartridges */
          if (path_is_directory(machine_directory))
          {
-            cart_dir = opendir(machine_directory);
-            while ((cart_dirp = readdir(cart_dir)) != NULL && j < RETRO_NUM_CORE_OPTION_VALUES_MAX - 1)
+            RDIR *cart_dir;
+            cart_dir = retro_opendir(machine_directory);
+            while (retro_readdir(cart_dir) && j < RETRO_NUM_CORE_OPTION_VALUES_MAX - 1)
             {
+               const char *name = retro_dirent_get_name(cart_dir);
+
                /* Blacklisted */
-               if (!strcmp(cart_dirp->d_name, "scpu-dos-1.4.bin") ||
-                   !strcmp(cart_dirp->d_name, "scpu-dos-2.04.bin"))
+               if (!strcmp(name, "scpu-dos-1.4.bin") ||
+                   !strcmp(name, "scpu-dos-2.04.bin"))
                   continue;
 
-               if (dc_get_image_type(cart_dirp->d_name) == DC_IMAGE_TYPE_MEM)
+               if (dc_get_image_type(name) == DC_IMAGE_TYPE_MEM)
                {
                   char cart_value[RETRO_PATH_MAX] = {0};
                   char cart_label[128] = {0};
-                  snprintf(cart_value, sizeof(cart_value), "%s", cart_dirp->d_name);
-                  snprintf(cart_label, sizeof(cart_label), "%s", path_remove_extension(cart_dirp->d_name));
+                  snprintf(cart_value, sizeof(cart_value), "%s", name);
+                  snprintf(cart_label, sizeof(cart_label), "%s", name);
+                  path_remove_extension(cart_label);
 
                   vice_carts[j].value = strdup(cart_value);
                   vice_carts[j].label = strdup(cart_label);
@@ -4912,7 +4916,7 @@ static void retro_set_core_options()
                vice_carts[j].value = NULL;
                vice_carts[j].label = NULL;
             }
-            closedir(cart_dir);
+            retro_closedir(cart_dir);
          }
 
          option_defs_us[i].values[j].value = NULL;

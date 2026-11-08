@@ -468,21 +468,23 @@ bool dc_replace_file(dc_storage* dc, int index, const char* filename)
          snprintf(zip_m3u_list.path, sizeof(zip_m3u_list.path), "%s%s%s.m3u",
                retro_temp_directory, ARCHDEP_DIR_SEP_STR, utf8_to_local_string_alloc(zip_basename));
 
-         DIR *zip_dir;
-         struct dirent *zip_dirp;
-
          /* Convert all NIBs to G64 */
-         zip_dir = opendir(retro_temp_directory);
-         while ((zip_dirp = readdir(zip_dir)) != NULL)
+         RDIR *zip_dir;
+         zip_dir = retro_opendir(retro_temp_directory);
+         while (retro_readdir(zip_dir))
          {
-            if (dc_get_image_type(zip_dirp->d_name) == DC_IMAGE_TYPE_NIBBLER)
+            const char *name = retro_dirent_get_name(zip_dir);
+
+            if (dc_get_image_type(name) == DC_IMAGE_TYPE_NIBBLER)
             {
-               snprintf(nib_input, sizeof(nib_input), "%s%s%s", retro_temp_directory, ARCHDEP_DIR_SEP_STR, zip_dirp->d_name);
-               snprintf(nib_output, sizeof(nib_output), "%s%s%s.g64", retro_temp_directory, ARCHDEP_DIR_SEP_STR, path_remove_extension(zip_dirp->d_name));
+               snprintf(nib_input, sizeof(nib_input), "%s%s%s", retro_temp_directory, ARCHDEP_DIR_SEP_STR, name);
+               snprintf(nib_output, sizeof(nib_output), "%s%s%s", retro_temp_directory, ARCHDEP_DIR_SEP_STR, name);
+               path_remove_extension(nib_output);
+               strlcat(nib_output, ".g64", sizeof(nib_output));
                nib_convert(nib_input, nib_output);
             }
          }
-         closedir(zip_dir);
+         retro_closedir(zip_dir);
 
          m3u_scan_recurse(retro_temp_directory, &zip_m3u_list);
 
@@ -1093,21 +1095,23 @@ static void dc_parse_list(dc_storage* dc, const char* list_file, bool is_vfl, co
             }
             else
             {
-               DIR *zip_dir = NULL;
-               struct dirent *zip_dirp;
-
-               zip_dir = opendir(retro_temp_directory);
-               while ((zip_dirp = readdir(zip_dir)) != NULL)
+               RDIR *zip_dir;
+               zip_dir = retro_opendir(retro_temp_directory);
+               while (retro_readdir(zip_dir))
                {
-                  if (dc_get_image_type(zip_dirp->d_name) == DC_IMAGE_TYPE_NIBBLER)
+                  const char *name = retro_dirent_get_name(zip_dir);
+
+                  if (dc_get_image_type(name) == DC_IMAGE_TYPE_NIBBLER)
                   {
-                     snprintf(nib_input, sizeof(nib_input), "%s%s%s", retro_temp_directory, ARCHDEP_DIR_SEP_STR, zip_dirp->d_name);
-                     snprintf(nib_output, sizeof(nib_output), "%s%s%s.g64", retro_temp_directory, ARCHDEP_DIR_SEP_STR, path_remove_extension(zip_dirp->d_name));
+                     snprintf(nib_input, sizeof(nib_input), "%s%s%s", retro_temp_directory, ARCHDEP_DIR_SEP_STR, name);
+                     snprintf(nib_output, sizeof(nib_output), "%s%s%s", retro_temp_directory, ARCHDEP_DIR_SEP_STR, name);
+                     path_remove_extension(nib_output);
+                     strlcat(nib_output, ".g64", sizeof(nib_output));
                      nib_convert(nib_input, nib_output);
                      snprintf(lastfile, sizeof(lastfile), "%s", path_basename(nib_output));
                   }
                }
-               closedir(zip_dir);
+               retro_closedir(zip_dir);
             }
 
             snprintf(file_path, RETRO_PATH_MAX, "%s%s%s", retro_temp_directory, ARCHDEP_DIR_SEP_STR, lastfile);

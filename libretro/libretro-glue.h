@@ -23,7 +23,7 @@ int nib_convert(char *in, char *out);
 /* Misc */
 int qstrcmp(const void *a, const void *b);
 int retro_remove(const char *path);
-void remove_recurse(const char *path);
+int remove_recurse(const char *path);
 void m3u_scan_recurse(const char *path, zip_m3u_t *list);
 
 /* String helpers functions */
