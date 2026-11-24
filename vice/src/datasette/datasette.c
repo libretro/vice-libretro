@@ -1449,6 +1449,19 @@ static int datasette_read_snapshot(int port, snapshot_t *s)
         alarm_unset(datasette_alarm[port]);
     }
 
+#ifdef __LIBRETRO__
+    /* reset buffer */
+    next_tap[port] = last_tap[port] = 0;
+
+    snapshot_module_close(m);
+
+    /* The tape module holds whether PLAY is pressed, so read it before
+       setting the sense line from it */
+    if (tape_snapshot_read_module(port, s) < 0) {
+        return -1;
+    }
+#endif
+
     ui_set_tape_status(port, current_image[port] ? 1 : 0);
     datasette_update_ui_counter(port);
     ui_display_tape_motor_status(port, datasette_motor[port]);
@@ -1466,6 +1479,9 @@ static int datasette_read_snapshot(int port, snapshot_t *s)
         }
     }
 
+#ifdef __LIBRETRO__
+    return 0;
+#endif
     /* reset buffer */
     next_tap[port] = last_tap[port] = 0;
 
