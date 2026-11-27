@@ -148,6 +148,20 @@ else ifeq ($(platform), libnx)
    STATIC_LINKING=1
    COMMONFLAGS += -DNEED_STRCASESTR
 
+# Nintendo Switch 2 (libounce)
+else ifeq ($(platform), libounce)
+   include $(DEVKITPRO)/libounce/switch2_rules
+   TARGET := $(TARGET_NAME)_libretro_$(platform).elf
+   TARGET_NRO := $(TARGET:.elf=.nro)
+   CFLAGS += -O3 -fomit-frame-pointer -ffast-math
+   CFLAGS += -D__SWITCH__ -DHAVE_LIBNX -DHAVE_GETPWUID=0 -DHAVE_GETCWD=1
+   CFLAGS += -Ifrontend/switch -ftree-vectorize
+   CXXFLAGS += $(CFLAGS)
+   fpic = -fPIC
+   COMMONFLAGS += -DNEED_STRCASESTR
+   LDFLAGS += -shared
+   LDFLAGS += -Wl,-soname,$(TARGET:.elf=.nro)
+
 # OSX
 else ifeq ($(platform), osx)
    TARGET := $(TARGET_NAME)_libretro.dylib
@@ -461,7 +475,7 @@ info:
 
 all: $(TARGET)
 
--include $(OBJECTS:.o=.d))
+-include $(OBJECTS:.o=.d)
 
 $(TARGET): $(OBJECTS)
 ifeq ($(STATIC_LINKING), 1)
@@ -471,6 +485,10 @@ else ifeq ($(platform), ps3)
 	$(AR) rcs $@ $(OBJECTS)
 else
 	$(CXX) -o $@ $(OBJECTS) $(LDFLAGS)
+endif
+
+ifeq ($(platform), libounce)
+all: $(TARGET_NRO)
 endif
 
 $(OBJDIR)/%.o: %.c
@@ -496,13 +514,13 @@ $(OBJDIR)/%.o: %.cc
 
 clean:
 	rm -rf $(OBJDIR)
-	rm -f $(TARGET)
+	rm -f $(TARGET) $(TARGET_NRO)
 
 objectclean:
 	rm -rf $(OBJDIR)
 
 targetclean:
-	rm -f $(TARGET)
+	rm -f $(TARGET) $(TARGET_NRO)
 
 .PHONY: all clean objectclean targetclean
 endif
